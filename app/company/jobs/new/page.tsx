@@ -102,27 +102,47 @@ export default function NewJobPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       
-      if (user) {
-        await supabase.from('jobs').insert({
-          company_id: user.id,
-          title: formData.title,
-          category: formData.category,
-          type: formData.type,
-          description: formData.description,
-          date: formData.type === 'shift' ? formData.date : null,
-          start_time: formData.startTime,
-          end_time: formData.endTime,
-          start_date: formData.type === 'contract' ? formData.startDate : null,
-          end_date: formData.type === 'contract' ? formData.endDate : null,
-          hours_per_week: formData.type === 'contract' ? parseInt(formData.hoursPerWeek) : null,
-          workers_needed: formData.workersNeeded,
-          hourly_rate: parseInt(formData.hourlyRate),
-          currency: 'XAF',
-          requirements: formData.requirements,
-          benefits: formData.benefits,
-          is_urgent: formData.urgent,
-          status: 'active',
-        })
+      if (!user) {
+        router.push('/login?redirect=/company/jobs/new')
+        return
+      }
+
+      // Get company profile
+      const { data: companyProfile } = await supabase
+        .from('company_profiles')
+        .select('id, city, address')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!companyProfile) {
+        router.push('/onboarding/company')
+        return
+      }
+
+      const { error } = await supabase.from('jobs').insert({
+        company_id: companyProfile.id,
+        title: formData.title,
+        category_id: null, // Will be set based on category selection
+        job_type: formData.type === 'shift' ? 'one_time' : 'temporary',
+        description: formData.description,
+        start_date: formData.type === 'shift' ? formData.date : formData.startDate,
+        end_date: formData.type === 'contract' ? formData.endDate : formData.date,
+        start_time: formData.startTime,
+        end_time: formData.endTime,
+        positions_available: formData.workersNeeded,
+        positions_filled: 0,
+        hourly_rate: parseInt(formData.hourlyRate),
+        currency: 'XAF',
+        city: companyProfile.city,
+        address: companyProfile.address || '',
+        required_skills: formData.requirements,
+        urgency: formData.urgent ? 'high' : 'normal',
+        status: 'pending_review', // Needs moderation before publishing
+      })
+
+      if (error) {
+        console.error('[v0] Job creation error:', error)
+        return
       }
       
       router.push('/company/jobs?created=true')
