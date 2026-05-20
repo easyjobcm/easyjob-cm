@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MessageCircle, X, Send, Bot, User, Minimize2, Maximize2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -101,11 +100,9 @@ export function Chatbot({ initialOpen = false }: ChatbotProps) {
             {messages.length === 0 ? (
               <div className="space-y-4">
                 <div className="flex items-start gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-violet-100 text-violet-600">
-                      <Bot className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                    <Bot className="h-4 w-4" />
+                  </div>
                   <div className="bg-muted rounded-lg p-3 max-w-[85%]">
                     <p className="text-sm">
                       Bonjour! Je suis EasyBot, votre assistant virtuel. 
@@ -141,21 +138,20 @@ export function Chatbot({ initialOpen = false }: ChatbotProps) {
                       message.role === "user" && "flex-row-reverse"
                     )}
                   >
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback 
-                        className={cn(
-                          message.role === "user" 
-                            ? "bg-violet-600 text-white"
-                            : "bg-violet-100 text-violet-600"
-                        )}
-                      >
-                        {message.role === "user" ? (
-                          <User className="h-4 w-4" />
-                        ) : (
-                          <Bot className="h-4 w-4" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div 
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full",
+                        message.role === "user" 
+                          ? "bg-violet-600 text-white"
+                          : "bg-violet-100 text-violet-600"
+                      )}
+                    >
+                      {message.role === "user" ? (
+                        <User className="h-4 w-4" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                    </div>
                     <div
                       className={cn(
                         "rounded-lg p-3 max-w-[85%]",
@@ -179,11 +175,9 @@ export function Chatbot({ initialOpen = false }: ChatbotProps) {
                 ))}
                 {isLoading && (
                   <div className="flex items-start gap-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-violet-100 text-violet-600">
-                        <Bot className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                      <Bot className="h-4 w-4" />
+                    </div>
                     <div className="bg-muted rounded-lg p-3">
                       <div className="flex gap-1">
                         <span className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" />
