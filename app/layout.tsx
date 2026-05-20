@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { I18nProvider } from "@/lib/i18n"
+import { Chatbot } from "@/components/chatbot/chatbot"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <I18nProvider>
           {children}
+          <Chatbot />
         </I18nProvider>
       </body>
     </html>
