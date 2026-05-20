@@ -80,3 +80,20 @@ export function useI18n() {
 export function useTranslations() {
   return useI18n().t
 }
+
+// Alias for useI18n - returns locale, setLocale, and t function
+export function useTranslation() {
+  const { locale, setLocale, t } = useI18n()
+  return {
+    locale,
+    setLocale,
+    t: (key: string) => {
+      const keys = key.split('.')
+      let value: any = t
+      for (const k of keys) {
+        value = value?.[k]
+      }
+      return value || key
+    },
+  }
+}
