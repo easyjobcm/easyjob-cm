@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { I18nProvider } from "@/lib/i18n"
 import { Chatbot } from "@/components/chatbot/chatbot"
+import { SplashScreen } from "@/components/ui/splash-screen"
 
 const inter = Inter({
   subsets: ["latin"],

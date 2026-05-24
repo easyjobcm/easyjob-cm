@@ -20,20 +20,20 @@ export function LogoSpinner({ size = "md", className, showText = false }: LogoSp
   const { container, text } = sizeMap[size]
 
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-3", className)}>
-      <div className={cn("perspective-1000", container)}>
-        <div className="relative w-full h-full animate-logo-spin transform-style-3d">
+    <div className={cn("flex flex-col items-center justify-center gap-4", className)}>
+      <div className={cn("perspective-800", container)}>
+        <div className="relative w-full h-full animate-logo-flip">
           <Image
             src="/images/easyjob-logo.png"
             alt="EasyJob CM"
             fill
-            className="object-contain drop-shadow-2xl"
+            className="object-contain"
             priority
           />
         </div>
       </div>
       {showText && (
-        <p className={cn("text-muted-foreground animate-pulse font-medium", text)}>
+        <p className={cn("text-muted-foreground font-medium", text)}>
           Chargement...
         </p>
       )}
@@ -41,11 +41,21 @@ export function LogoSpinner({ size = "md", className, showText = false }: LogoSp
   )
 }
 
-// Full page loader variant
+// Full page loader variant with gradient background
 export function PageLoader() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <LogoSpinner size="lg" showText />
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-background via-background to-secondary/30">
+      <div className="animate-pulse-glow">
+        <LogoSpinner size="xl" />
+      </div>
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          EasyJob CM
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          Chargement en cours...
+        </p>
+      </div>
     </div>
   )
 }
