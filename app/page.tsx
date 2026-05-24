@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
-import { Briefcase, Users, Shield, ChevronRight, Sparkles } from 'lucide-react'
+import { Briefcase, Users, Shield, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
 
 export default function WelcomePage() {
   const router = useRouter()
@@ -58,12 +59,15 @@ export default function WelcomePage() {
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-8">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="relative mb-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-primary shadow-glow">
-              <Sparkles className="h-10 w-10 text-white" />
-            </div>
-            <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-accent flex items-center justify-center">
-              <span className="text-xs font-bold text-accent-foreground">CM</span>
+          <div className="relative mb-4 animate-float">
+            <div className="relative w-28 h-28 animate-pulse-glow">
+              <Image
+                src="/images/easyjob-logo.png"
+                alt="EasyJob CM"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
