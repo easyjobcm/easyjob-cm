@@ -57,6 +57,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <I18nProvider>
+          <SplashScreen />
           {children}
           <Chatbot />
         </I18nProvider>
