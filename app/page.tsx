@@ -1,65 +1,161 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import * as React from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/i18n'
+import { Briefcase, Users, Shield, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
+
+export default function WelcomePage() {
+  const router = useRouter()
+  const { t, locale, setLocale } = useTranslation()
+
+  const features = [
+    {
+      icon: Briefcase,
+      title: locale === 'fr' ? 'Missions flexibles' : 'Flexible jobs',
+      description: locale === 'fr' 
+        ? 'Trouvez des missions adaptees a votre emploi du temps' 
+        : 'Find jobs that fit your schedule',
+    },
+    {
+      icon: Users,
+      title: locale === 'fr' ? 'Entreprises verifiees' : 'Verified companies',
+      description: locale === 'fr'
+        ? 'Travaillez avec des employeurs de confiance'
+        : 'Work with trusted employers',
+    },
+    {
+      icon: Shield,
+      title: locale === 'fr' ? 'Paiements securises' : 'Secure payments',
+      description: locale === 'fr'
+        ? 'Recevez vos paiements via Mobile Money'
+        : 'Get paid via Mobile Money',
+    },
+  ]
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file Josian.
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Decorative background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute top-1/3 -left-20 h-60 w-60 rounded-full bg-accent/30 blur-3xl" />
+        <div className="absolute bottom-20 right-10 h-40 w-40 rounded-full bg-primary/10 blur-2xl" />
+      </div>
+
+      {/* Language toggle */}
+      <div className="relative z-10 flex justify-end p-4">
+        <button
+          onClick={() => setLocale(locale === 'fr' ? 'en' : 'fr')}
+          className="flex items-center gap-2 rounded-full bg-card/50 px-3 py-1.5 text-sm font-medium backdrop-blur-sm border border-border/50 transition-all hover:bg-card"
+        >
+          {locale === 'fr' ? 'FR' : 'EN'}
+        </button>
+      </div>
+
+      {/* Hero section */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-8">
+        {/* Logo */}
+        <div className="mb-8 flex flex-col items-center">
+          <div className="relative mb-4 animate-float">
+            <div className="relative w-28 h-28 animate-pulse-glow">
+              <Image
+                src="/images/easyjob-logo.png"
+                alt="EasyJob CM"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            EasyJob
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://www.easyjobcm.com"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-muted-foreground text-sm">Cameroun</p>
+        </div>
+
+        {/* Tagline */}
+        <div className="mb-10 text-center">
+          <h2 className="mb-2 text-xl font-semibold text-foreground">
+            {locale === 'fr' 
+              ? 'Votre prochaine mission vous attend' 
+              : 'Your next job awaits'}
+          </h2>
+          <p className="text-muted-foreground max-w-xs">
+            {locale === 'fr'
+              ? 'Connectez-vous avec des entreprises locales et trouvez des opportunites flexibles'
+              : 'Connect with local businesses and find flexible opportunities'}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Features */}
+        <div className="mb-10 w-full max-w-sm space-y-3">
+          {features.map((feature, index) => (
+            <div
+              key={index}
+              className="glass-card flex items-start gap-3 rounded-2xl p-4 transition-all hover:scale-[1.02]"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <feature.icon className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-medium text-foreground">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            </div>
+          ))}
         </div>
-      </main>
+
+        {/* CTAs */}
+        <div className="w-full max-w-sm space-y-3">
+          <Button
+            onClick={() => router.push('/auth/signup')}
+            className="w-full"
+            size="lg"
+          >
+            {t('auth.getStarted')}
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+          
+          <Button
+            onClick={() => router.push('/auth/login')}
+            variant="outline"
+            className="w-full"
+            size="lg"
+          >
+            {t('auth.login')}
+          </Button>
+        </div>
+
+        {/* Terms */}
+        <p className="mt-6 text-center text-xs text-muted-foreground max-w-xs">
+          {locale === 'fr' ? (
+            <>
+              En continuant, vous acceptez nos{' '}
+              <Link href="/legal/terms" className="text-primary underline">
+                Conditions d&apos;utilisation
+              </Link>{' '}
+              et notre{' '}
+              <Link href="/legal/privacy" className="text-primary underline">
+                Politique de confidentialite
+              </Link>
+            </>
+          ) : (
+            <>
+              By continuing, you agree to our{' '}
+              <Link href="/legal/terms" className="text-primary underline">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/legal/privacy" className="text-primary underline">
+                Privacy Policy
+              </Link>
+            </>
+          )}
+        </p>
+      </div>
     </div>
-  );
+  )
 }
