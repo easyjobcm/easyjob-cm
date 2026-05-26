@@ -68,7 +68,7 @@ export function JobFilters({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             type="search"
-            placeholder={t.jobs?.searchPlaceholder || "Rechercher un job..."}
+            placeholder={t.jobs?.search || "Rechercher un job..."}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10 h-12 rounded-xl bg-card/50 backdrop-blur-sm border-border/50"
@@ -125,7 +125,7 @@ export function JobFilters({
             onClick={clearFilters}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            {t.common?.clearAll || "Tout effacer"}
+            {locale === 'fr' ? 'Tout effacer' : 'Clear all'}
           </button>
         </div>
       )}
@@ -140,7 +140,7 @@ export function JobFilters({
           {/* City filter */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              {t.jobs?.city || "Ville"}
+              {t.jobs?.location || 'Ville'}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {CAMEROON_CITIES.map((c) => (
@@ -163,7 +163,7 @@ export function JobFilters({
           {/* Category filter */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              {t.jobs?.category || "Categorie"}
+              {locale === 'fr' ? 'Categorie' : 'Category'}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => (
@@ -190,13 +190,13 @@ export function JobFilters({
               className="flex-1"
               onClick={clearFilters}
             >
-              {t.common?.reset || "Reinitialiser"}
+              {locale === 'fr' ? 'Reinitialiser' : 'Reset'}
             </Button>
             <Button
               className="flex-1"
               onClick={() => setShowFilters(false)}
             >
-              {t.common?.apply || "Appliquer"}
+              {locale === 'fr' ? 'Appliquer' : 'Apply'}
             </Button>
           </div>
         </div>

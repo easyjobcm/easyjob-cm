@@ -80,7 +80,7 @@ export default function MissionDetailPage() {
     getCurrentLocation()
   }, [missionId])
 
-  const loadMission = async () => {
+  async function loadMission() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -108,7 +108,7 @@ export default function MissionDetailPage() {
     setLoading(false)
   }
 
-  const getCurrentLocation = () => {
+  function getCurrentLocation() {
     if (!navigator.geolocation) {
       setLocationError("La geolocalisation n'est pas supportee")
       return

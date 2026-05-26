@@ -41,11 +41,7 @@ export default function MissionsListPage() {
   const [missions, setMissions] = useState<Mission[]>([])
   const [activeTab, setActiveTab] = useState("upcoming")
 
-  useEffect(() => {
-    loadMissions()
-  }, [])
-
-  const loadMissions = async () => {
+  async function loadMissions() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -87,6 +83,11 @@ export default function MissionsListPage() {
     
     setLoading(false)
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadMissions()
+  }, [])
 
   const formatDate = (date: string) => {
     const d = new Date(date)

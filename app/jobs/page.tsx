@@ -10,6 +10,38 @@ import { useI18n } from '@/lib/i18n'
 import { Search, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+type JobListItem = {
+  id: string
+  title: string
+  description: string
+  city: string
+  quartier?: string
+  start_date: string
+  start_time: string
+  end_time: string
+  hourly_rate: number
+  currency: string
+  urgency: 'normal' | 'urgent' | 'critical'
+  positions_available: number
+  positions_filled: number
+  is_sandbox?: boolean
+  company?: {
+    company_name: string
+    logo_url?: string
+  }
+  category?: {
+    name_fr: string
+    name_en: string
+    icon?: string
+  }
+}
+
+type CategoryListItem = {
+  id: string
+  name_fr?: string
+  name_en?: string
+}
+
 export default function JobsPage() {
   const { t, locale } = useI18n()
   const [search, setSearch] = React.useState('')
@@ -65,7 +97,7 @@ export default function JobsPage() {
           >
             {locale === 'fr' ? 'Tous' : 'All'}
           </button>
-          {categories.slice(0, 5).map((cat) => (
+          {(categories as CategoryListItem[]).slice(0, 5).map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategoryId(categoryId === cat.id ? '' : cat.id)}
@@ -136,7 +168,7 @@ export default function JobsPage() {
             <p className="text-sm text-muted-foreground mb-2">
               {pagination?.total || 0} {locale === 'fr' ? 'offres trouvees' : 'jobs found'}
             </p>
-            {jobs.map((job: any) => (
+            {jobs.map((job: JobListItem) => (
               <JobCard key={job.id} job={job} />
             ))}
           </>

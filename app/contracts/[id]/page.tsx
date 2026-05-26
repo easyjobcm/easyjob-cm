@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Checkbox } from "../../../components/ui/checkbox"
+import { Skeleton } from "../../../components/ui/skeleton"
 import { 
   ArrowLeft,
   FileText,
@@ -93,7 +93,7 @@ export default function ContractSignPage() {
     ctx.lineCap = 'round'
   }, [contract])
 
-  const loadContract = async () => {
+  async function loadContract() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -233,11 +233,11 @@ export default function ContractSignPage() {
     if (userRole === 'candidate') {
       updateData.candidate_signature_url = signatureDataUrl
       updateData.candidate_signed_at = new Date().toISOString()
-      updateData.status = contract.company_signed_at ? 'fully_signed' : 'signed_candidate'
+      updateData.status = contract.company_signed_at ? 'completed' : 'candidate_signed'
     } else if (userRole === 'company') {
       updateData.company_signature_url = signatureDataUrl
       updateData.company_signed_at = new Date().toISOString()
-      updateData.status = contract.candidate_signed_at ? 'fully_signed' : 'signed_company'
+      updateData.status = contract.candidate_signed_at ? 'completed' : 'company_signed'
     }
 
     const { error } = await supabase
@@ -298,7 +298,7 @@ export default function ContractSignPage() {
     )
   }
 
-  const isFullySigned = contract.status === 'fully_signed'
+  const isFullySigned = contract.status === 'completed' || contract.status === 'fully_signed'
   const canSign = userRole === 'candidate' 
     ? !contract.candidate_signed_at 
     : !contract.company_signed_at
@@ -498,7 +498,7 @@ export default function ContractSignPage() {
                 <Checkbox
                   id="terms"
                   checked={acceptedTerms}
-                  onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                  onCheckedChange={(checked: boolean | 'indeterminate') => setAcceptedTerms(checked === true)}
                 />
                 <label htmlFor="terms" className="text-sm text-muted-foreground">
                   J&apos;ai lu et j&apos;accepte les termes du contrat. Je comprends que cette 

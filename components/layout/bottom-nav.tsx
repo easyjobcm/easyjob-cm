@@ -7,7 +7,17 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/i18n'
 import { Home, ClipboardList, Briefcase, User, LayoutDashboard, Users, Plus, Settings } from 'lucide-react'
 
-type UserRole = 'candidate' | 'company' | 'admin'
+type UserRole =
+  | 'candidate'
+  | 'candidate_premium'
+  | 'company'
+  | 'company_premium'
+  | 'admin'
+  | 'admin_support'
+  | 'admin_ops'
+  | 'admin_founder'
+
+type NormalizedUserRole = 'candidate' | 'company' | 'admin'
 
 interface NavItem {
   href: string
@@ -45,8 +55,14 @@ export function BottomNav({ userRole = 'candidate' }: BottomNavProps) {
   const pathname = usePathname()
   const { locale } = useTranslation()
 
+  const normalizedRole: NormalizedUserRole = React.useMemo(() => {
+    if (userRole === 'company' || userRole === 'company_premium') return 'company'
+    if (userRole === 'admin_support' || userRole === 'admin_ops' || userRole === 'admin_founder' || userRole === 'admin') return 'admin'
+    return 'candidate'
+  }, [userRole])
+
   const navItems = React.useMemo(() => {
-    switch (userRole) {
+    switch (normalizedRole) {
       case 'company':
         return companyNavItems
       case 'admin':
@@ -54,7 +70,7 @@ export function BottomNav({ userRole = 'candidate' }: BottomNavProps) {
       default:
         return candidateNavItems
     }
-  }, [userRole])
+  }, [normalizedRole])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 bg-card/80 backdrop-blur-xl safe-area-bottom">

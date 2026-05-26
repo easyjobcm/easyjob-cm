@@ -126,16 +126,16 @@ export default function MyJobsPage() {
     { id: 'completed', label: 'Terminees', labelEn: 'Completed' },
   ]
 
-  const applications = data?.applications || []
-  const missions = data?.missions || []
+  const applications = (data?.applications || []) as unknown as Application[]
+  const missions = (data?.missions || []) as unknown as Mission[]
   
-  const pendingApplications = applications.filter((a: Application) => 
+  const pendingApplications = applications.filter((a) => 
     ['pending', 'shortlisted'].includes(a.status)
   )
-  const bookedMissions = missions.filter((m: Mission) => 
+  const bookedMissions = missions.filter((m) => 
     ['pending', 'confirmed', 'in_progress'].includes(m.status)
   )
-  const completedMissions = missions.filter((m: Mission) => 
+  const completedMissions = missions.filter((m) => 
     m.status === 'completed'
   )
 

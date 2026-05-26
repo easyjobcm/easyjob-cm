@@ -12,7 +12,7 @@ const fetcher = async (url: string) => {
 }
 
 // POST fetcher
-async function postFetcher(url: string, { arg }: { arg: any }) {
+async function postFetcher(url: string, { arg }: { arg: unknown }) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

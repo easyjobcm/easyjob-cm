@@ -24,7 +24,7 @@ export default async function ProfilePage() {
 
   // Get profile based on role
   let profile = null
-  let skills: any[] = []
+  let skills: Array<{ id: string; skill_name: string }> = []
 
   if (userData.role === 'candidate') {
     const { data: candidateProfile } = await supabase

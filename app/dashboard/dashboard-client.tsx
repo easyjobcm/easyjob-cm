@@ -24,9 +24,28 @@ import {
 } from 'lucide-react'
 
 interface DashboardClientProps {
-  user: any
-  profile: any
-  applications: any[]
+  user: {
+    phone?: string | null
+  }
+  profile: {
+    first_name?: string | null
+    is_sandbox?: boolean
+    sandbox_missions_completed?: number
+  }
+  applications: Array<{
+    id: string
+    status: string
+    job?: {
+      id?: string
+      title?: string
+      start_date?: string
+      start_time?: string
+      city?: string
+      company?: {
+        company_name?: string
+      }
+    }
+  }>
   stats: {
     totalApplications: number
     selectedCount: number
@@ -37,6 +56,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({ user, profile, applications, stats }: DashboardClientProps) {
   const { t, locale } = useI18n()
+  const sandboxMissionsCompleted = profile.sandbox_missions_completed ?? 0
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -93,8 +113,8 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     {locale === 'fr' 
-                      ? `Completez ${3 - profile.sandbox_missions_completed} missions sandbox pour acceder aux vraies offres.`
-                      : `Complete ${3 - profile.sandbox_missions_completed} sandbox missions to access real jobs.`}
+                      ? `Completez ${3 - sandboxMissionsCompleted} missions sandbox pour acceder aux vraies offres.`
+                      : `Complete ${3 - sandboxMissionsCompleted} sandbox missions to access real jobs.`}
                   </p>
                 </div>
               </div>
@@ -258,11 +278,11 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
-                          {formatDate(app.job?.start_date, locale)}
+                          {app.job?.start_date ? formatDate(app.job.start_date, locale) : '-'}
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          {formatTime(app.job?.start_time)}
+                          {app.job?.start_time ? formatTime(app.job.start_time) : '--:--'}
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5" />

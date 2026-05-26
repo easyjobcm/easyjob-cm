@@ -22,11 +22,12 @@ import {
   Smartphone,
   Globe,
   Users,
+  type LucideIcon,
 } from 'lucide-react'
 
 type Step = 'company' | 'documents' | 'momo' | 'location'
 
-const steps: { id: Step; icon: any; labelFr: string; labelEn: string }[] = [
+const steps: { id: Step; icon: LucideIcon; labelFr: string; labelEn: string }[] = [
   { id: 'company', icon: Building2, labelFr: 'Entreprise', labelEn: 'Company' },
   { id: 'documents', icon: FileText, labelFr: 'Documents', labelEn: 'Documents' },
   { id: 'momo', icon: Smartphone, labelFr: 'Paiement', labelEn: 'Payment' },

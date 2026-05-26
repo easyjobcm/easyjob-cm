@@ -136,8 +136,9 @@ export default function SignupPage() {
       if (data.user) {
         router.push('/onboarding')
       }
-    } catch (err: any) {
-      setError(err.message || (locale === 'fr' ? 'Erreur lors de l\'inscription' : 'Signup error'))
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ''
+      setError(message || (locale === 'fr' ? 'Erreur lors de l\'inscription' : 'Signup error'))
     } finally {
       setLoading(false)
     }

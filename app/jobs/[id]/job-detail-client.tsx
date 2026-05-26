@@ -26,8 +26,43 @@ import {
 } from 'lucide-react'
 
 interface JobDetailClientProps {
-  job: any
-  userApplication: any
+  job: {
+    id: string
+    title: string
+    address: string
+    quartier?: string | null
+    city: string
+    latitude?: number | null
+    longitude?: number | null
+    description: string
+    currency?: string
+    hourly_rate: number
+    start_date: string
+    end_date?: string | null
+    start_time: string
+    end_time: string
+    urgency?: string
+    positions_available: number
+    positions_filled: number
+    company?: {
+      company_name?: string
+      logo_url?: string | null
+      sector?: string
+      description?: string
+      [key: string]: string | null | undefined
+    }
+    category?: {
+      name_fr?: string
+      name_en?: string
+    }
+    required_skills?: string[]
+    min_experience_months?: number
+    dress_code?: string
+    special_instructions?: string
+  }
+  userApplication: {
+    id: string
+  } | null
   isFavorite: boolean
   isLoggedIn: boolean
 }

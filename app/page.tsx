@@ -70,10 +70,10 @@ export default function WelcomePage() {
               />
             </div>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-primary">
             EasyJob
           </h1>
-          <p className="text-muted-foreground text-sm">Cameroun</p>
+          <p className="text-muted-foreground text-sm">{locale === 'fr' ? 'Cameroun' : 'Cameroon'}  </p>
         </div>
 
         {/* Tagline */}

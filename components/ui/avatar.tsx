@@ -46,3 +46,28 @@ export function Avatar({ src, alt, fallback, size = 'md', className, ...props }:
     </div>
   )
 }
+
+interface AvatarImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+  src?: string | null
+}
+
+export function AvatarImage({ src, alt, className, ...props }: AvatarImageProps) {
+  if (!src) return null
+
+  return (
+    <img
+      src={src}
+      alt={alt || 'Avatar'}
+      className={cn('aspect-square h-full w-full object-cover', className)}
+      {...props}
+    />
+  )
+}
+
+export function AvatarFallback({ className, children, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span className={cn('inline-flex items-center justify-center', className)} {...props}>
+      {children}
+    </span>
+  )
+}

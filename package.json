@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "supabase:reset": "npx supabase db reset --local --yes --no-seed",
+    "seed": "npx tsx scripts/seed-test-data.ts",
+    "bootstrap:local": "npx tsx scripts/bootstrap-local.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.187",
@@ -34,8 +39,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "pwa-asset-generator": "^8.1.4",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.3",
     "typescript": "^5"
   }
 }

@@ -26,9 +26,27 @@ import {
 } from 'lucide-react'
 
 interface CompanyDashboardClientProps {
-  user: any
-  profile: any
-  jobs: any[]
+  user: {
+    id?: string
+  }
+  profile: {
+    logo_url?: string | null
+    company_name: string
+  }
+  jobs: Array<{
+    id: string
+    status: string
+    urgency?: string
+    title: string
+    start_date: string
+    city: string
+    start_time?: string | null
+    hourly_rate: number
+    currency?: string
+    applications?: Array<{
+      count?: number
+    }>
+  }>
   stats: {
     totalJobs: number
     activeJobs: number
@@ -37,7 +55,7 @@ interface CompanyDashboardClientProps {
   }
 }
 
-export function CompanyDashboardClient({ user, profile, jobs, stats }: CompanyDashboardClientProps) {
+export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: CompanyDashboardClientProps) {
   const { locale } = useI18n()
 
   const getGreeting = () => {

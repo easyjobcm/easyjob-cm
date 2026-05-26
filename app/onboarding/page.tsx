@@ -20,11 +20,12 @@ import {
   Upload,
   Camera,
   Smartphone,
+  type LucideIcon,
 } from 'lucide-react'
 
 type Step = 'identity' | 'momo' | 'location' | 'skills'
 
-const steps: { id: Step; icon: any; labelFr: string; labelEn: string }[] = [
+const steps: { id: Step; icon: LucideIcon; labelFr: string; labelEn: string }[] = [
   { id: 'identity', icon: CreditCard, labelFr: 'Identite', labelEn: 'Identity' },
   { id: 'momo', icon: Smartphone, labelFr: 'Mobile Money', labelEn: 'Mobile Money' },
   { id: 'location', icon: MapPin, labelFr: 'Localisation', labelEn: 'Location' },

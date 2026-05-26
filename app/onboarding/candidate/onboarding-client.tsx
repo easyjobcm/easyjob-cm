@@ -21,10 +21,33 @@ import {
   Upload
 } from 'lucide-react'
 
+const MAX_BIRTH_DATE = (() => {
+  const date = new Date()
+  date.setFullYear(date.getFullYear() - 18)
+  return date.toISOString().split('T')[0]
+})()
+
 interface OnboardingClientProps {
-  user: any
-  profile: any
-  categories: any[]
+  user: {
+    id: string
+  }
+  profile: {
+    id: string
+    onboarding_step?: number
+    first_name?: string
+    last_name?: string
+    gender?: string
+    date_of_birth?: string
+    city?: string
+    quartier?: string
+    momo_provider?: string
+    momo_number?: string
+  } | null
+  categories: Array<{
+    id: string
+    name_fr?: string
+    name_en?: string
+  }>
 }
 
 const STEPS = [
@@ -68,7 +91,7 @@ export function OnboardingClient({ user, profile, categories }: OnboardingClient
     momo_number: profile?.momo_number || '',
   })
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = <K extends keyof typeof formData>(field: K, value: (typeof formData)[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -99,6 +122,10 @@ export function OnboardingClient({ user, profile, categories }: OnboardingClient
 
       // Save skills separately
       if (currentStep === 3 && formData.skills.length > 0) {
+        if (!profile) {
+          throw new Error(locale === 'fr' ? 'Profil introuvable' : 'Profile not found')
+        }
+
         // Delete existing skills first
         await supabase
           .from('candidate_skills')
@@ -120,8 +147,9 @@ export function OnboardingClient({ user, profile, categories }: OnboardingClient
       } else {
         setCurrentStep(nextStep)
       }
-    } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ''
+      setError(message || 'Une erreur est survenue')
     } finally {
       setLoading(false)
     }
@@ -225,7 +253,7 @@ export function OnboardingClient({ user, profile, categories }: OnboardingClient
                 type="date"
                 value={formData.date_of_birth}
                 onChange={(e) => updateFormData('date_of_birth', e.target.value)}
-                max={new Date(Date.now() - 18 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                max={MAX_BIRTH_DATE}
               />
             </div>
           </div>

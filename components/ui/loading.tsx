@@ -49,3 +49,9 @@ export function LoadingDots() {
     </span>
   )
 }
+
+type LoadingSkeletonProps = React.HTMLAttributes<HTMLDivElement>
+
+export function LoadingSkeleton({ className, ...props }: LoadingSkeletonProps) {
+  return <div className={cn('animate-pulse rounded-2xl bg-muted', className)} {...props} />
+}

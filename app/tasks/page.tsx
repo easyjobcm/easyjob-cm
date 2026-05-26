@@ -81,8 +81,9 @@ const fetcher = async () => {
 export default function TasksPage() {
   const { locale } = useTranslation()
   const { data: missions, isLoading } = useSWR('/api/tasks', fetcher)
+  const missionList = (missions || []) as unknown as Mission[]
 
-  const hasTasks = missions && missions.length > 0
+  const hasTasks = missionList.length > 0
 
   const isToday = (dateStr: string) => {
     const today = new Date().toISOString().split('T')[0]
@@ -230,7 +231,7 @@ export default function TasksPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {missions.map(renderMissionCard)}
+            {missionList.map(renderMissionCard)}
           </div>
         )}
       </div>

@@ -3,49 +3,24 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
+import { Skeleton } from "../../components/ui/skeleton"
 import { 
   Wallet, 
   ArrowDownToLine, 
-  ArrowUpFromLine, 
   TrendingUp, 
   Clock,
-  CheckCircle,
-  XCircle,
-  ChevronRight,
-  Smartphone
+  CheckCircle
 } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { BottomNav } from "@/components/layout/bottom-nav"
 
-interface Wallet {
-  id: string
+interface EarningsSummary {
   available_balance: number
   pending_balance: number
   total_earned: number
   total_withdrawn: number
-  currency: string
 }
 
 interface Transaction {
@@ -78,20 +53,20 @@ interface Payment {
 export default function EarningsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [summary, setSummary] = useState<EarningsSummary>({
+    available_balance: 0,
+    pending_balance: 0,
+    total_earned: 0,
+    total_withdrawn: 0,
+  })
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [withdrawAmount, setWithdrawAmount] = useState("")
-  const [withdrawMethod, setWithdrawMethod] = useState("")
-  const [withdrawPhone, setWithdrawPhone] = useState("")
-  const [withdrawing, setWithdrawing] = useState(false)
-  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
 
-  const loadData = async () => {
+  async function loadData() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -112,28 +87,7 @@ export default function EarningsPage() {
       return
     }
 
-    // Get wallet
-    const { data: walletData } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('candidate_id', profile.id)
-      .single()
-
-    if (walletData) {
-      setWallet(walletData)
-
-      // Get transactions
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('wallet_id', walletData.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (txData) setTransactions(txData)
-    }
-
-    // Get payments
+    // MVP: earnings are driven by mission payments only (no wallets/withdrawals).
     const { data: paymentData } = await supabase
       .from('payments')
       .select(`
@@ -150,54 +104,35 @@ export default function EarningsPage() {
       .order('created_at', { ascending: false })
       .limit(20)
 
-    if (paymentData) setPayments(paymentData as Payment[])
-    
-    setLoading(false)
-  }
+    if (paymentData) {
+      const typedPayments = paymentData as Payment[]
+      setPayments(typedPayments)
 
-  const handleWithdraw = async () => {
-    if (!wallet || !withdrawAmount || !withdrawMethod || !withdrawPhone) return
-    
-    setWithdrawing(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) return
+      const totalEarned = typedPayments.reduce((sum, payment) => sum + (payment.net_amount || 0), 0)
+      const pendingBalance = typedPayments
+        .filter((payment) => payment.status === 'pending' || payment.status === 'processing')
+        .reduce((sum, payment) => sum + (payment.net_amount || 0), 0)
 
-    const { data: profile } = await supabase
-      .from('candidate_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (!profile) return
-
-    const amount = parseFloat(withdrawAmount)
-    const fee = amount * 0.02 // 2% fee
-    const netAmount = amount - fee
-
-    const { error } = await supabase
-      .from('withdrawal_requests')
-      .insert({
-        candidate_id: profile.id,
-        wallet_id: wallet.id,
-        amount,
-        fee,
-        net_amount: netAmount,
-        payment_method: withdrawMethod,
-        payment_details: { phone: withdrawPhone },
-        status: 'pending'
+      setSummary({
+        available_balance: totalEarned - pendingBalance,
+        pending_balance: pendingBalance,
+        total_earned: totalEarned,
+        total_withdrawn: 0,
       })
 
-    if (!error) {
-      setShowWithdrawDialog(false)
-      setWithdrawAmount("")
-      setWithdrawMethod("")
-      setWithdrawPhone("")
-      loadData()
+      const derivedTransactions: Transaction[] = typedPayments.map((payment) => ({
+        id: payment.id,
+        transaction_type: 'credit',
+        amount: payment.net_amount,
+        balance_after: 0,
+        description: `Paiement mission: ${payment.mission?.job?.title || 'Mission'}`,
+        created_at: payment.created_at,
+      }))
+
+      setTransactions(derivedTransactions)
     }
     
-    setWithdrawing(false)
+    setLoading(false)
   }
 
   const formatCurrency = (amount: number) => {
@@ -235,10 +170,6 @@ export default function EarningsPage() {
     switch (type) {
       case 'credit':
         return <ArrowDownToLine className="h-4 w-4 text-green-600" />
-      case 'withdrawal':
-        return <ArrowUpFromLine className="h-4 w-4 text-red-600" />
-      case 'fee':
-        return <XCircle className="h-4 w-4 text-gray-600" />
       default:
         return <CheckCircle className="h-4 w-4 text-blue-600" />
     }
@@ -261,7 +192,7 @@ export default function EarningsPage() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-violet-800 text-white p-6 rounded-b-3xl">
+      <div className="bg-linear-to-br from-violet-600 to-violet-800 text-white p-6 rounded-b-3xl">
         <h1 className="text-xl font-bold mb-4">Mes Gains</h1>
         
         {/* Wallet Card */}
@@ -275,106 +206,14 @@ export default function EarningsPage() {
               <TrendingUp className="h-5 w-5 opacity-80" />
             </div>
             <div className="text-3xl font-bold mb-4">
-              {formatCurrency(wallet?.available_balance || 0)}
+              {formatCurrency(summary.available_balance)}
             </div>
             <div className="flex items-center justify-between text-sm">
               <div>
                 <span className="opacity-70">En attente: </span>
-                <span>{formatCurrency(wallet?.pending_balance || 0)}</span>
+                <span>{formatCurrency(summary.pending_balance)}</span>
               </div>
-              <Dialog open={showWithdrawDialog} onOpenChange={setShowWithdrawDialog}>
-                <DialogTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="secondary"
-                    disabled={!wallet || wallet.available_balance < 1000}
-                  >
-                    Retirer
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Retirer des fonds</DialogTitle>
-                    <DialogDescription>
-                      Transferez vos gains vers votre compte Mobile Money
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Montant (XAF)</Label>
-                      <Input
-                        type="number"
-                        placeholder="5000"
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        min={1000}
-                        max={wallet?.available_balance || 0}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Min: 1,000 XAF | Max: {formatCurrency(wallet?.available_balance || 0)}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Methode de paiement</Label>
-                      <Select value={withdrawMethod} onValueChange={setWithdrawMethod}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selectionnez..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="mtn_momo">
-                            <div className="flex items-center gap-2">
-                              <Smartphone className="h-4 w-4" />
-                              MTN Mobile Money
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="orange_money">
-                            <div className="flex items-center gap-2">
-                              <Smartphone className="h-4 w-4" />
-                              Orange Money
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Numero de telephone</Label>
-                      <Input
-                        type="tel"
-                        placeholder="6XXXXXXXX"
-                        value={withdrawPhone}
-                        onChange={(e) => setWithdrawPhone(e.target.value)}
-                      />
-                    </div>
-                    {withdrawAmount && (
-                      <div className="bg-muted p-3 rounded-lg text-sm">
-                        <div className="flex justify-between mb-1">
-                          <span>Montant</span>
-                          <span>{formatCurrency(parseFloat(withdrawAmount) || 0)}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                          <span>Frais (2%)</span>
-                          <span>-{formatCurrency((parseFloat(withdrawAmount) || 0) * 0.02)}</span>
-                        </div>
-                        <div className="flex justify-between font-semibold pt-1 border-t">
-                          <span>Vous recevrez</span>
-                          <span>{formatCurrency((parseFloat(withdrawAmount) || 0) * 0.98)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowWithdrawDialog(false)}>
-                      Annuler
-                    </Button>
-                    <Button 
-                      onClick={handleWithdraw} 
-                      disabled={withdrawing || !withdrawAmount || !withdrawMethod || !withdrawPhone}
-                    >
-                      {withdrawing ? "Traitement..." : "Confirmer"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Badge className="bg-yellow-100 text-yellow-700">Retrait indisponible en MVP</Badge>
             </div>
           </CardContent>
         </Card>
@@ -383,11 +222,11 @@ export default function EarningsPage() {
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-white/10 rounded-xl p-3">
             <div className="text-sm opacity-70">Total gagne</div>
-            <div className="text-lg font-bold">{formatCurrency(wallet?.total_earned || 0)}</div>
+            <div className="text-lg font-bold">{formatCurrency(summary.total_earned)}</div>
           </div>
           <div className="bg-white/10 rounded-xl p-3">
             <div className="text-sm opacity-70">Total retire</div>
-            <div className="text-lg font-bold">{formatCurrency(wallet?.total_withdrawn || 0)}</div>
+            <div className="text-lg font-bold">{formatCurrency(summary.total_withdrawn)}</div>
           </div>
         </div>
       </div>

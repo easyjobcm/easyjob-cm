@@ -69,11 +69,19 @@ class MTNMoMoService {
       throw new Error('Failed to get MTN MoMo access token')
     }
 
-    const data = await response.json()
+    const data = (await response.json()) as {
+      access_token?: string
+      expires_in?: number
+    }
+
+    if (!data.access_token) {
+      throw new Error('MTN MoMo access token missing in response')
+    }
+
     this.accessToken = data.access_token
-    this.tokenExpiry = new Date(Date.now() + (data.expires_in * 1000))
-    
-    return this.accessToken
+    this.tokenExpiry = new Date(Date.now() + ((data.expires_in ?? 3600) * 1000))
+
+    return data.access_token
   }
 
   async initiatePayment(request: PaymentRequest): Promise<PaymentResponse> {

@@ -1,21 +1,81 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Use service role key to bypass RLS
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Load local env file when running as a standalone script (Node 22+).
+if (typeof process.loadEnvFile === 'function') {
+  process.loadEnvFile('.env.local')
+}
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+// Use service role key to bypass RLS for seed operations.
+const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  throw new Error(
+    'Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.',
+  )
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
+
+type SeedUser = {
+  phone: string
+  role: 'candidate' | 'company'
+  locale: 'fr' | 'en'
+}
+
+async function getOrCreateAuthUser(phone: string, role: SeedUser['role']) {
+  const { data: created, error: createError } = await supabase.auth.admin.createUser({
+    phone,
+    user_metadata: { seed: true },
+    app_metadata: { role },
+    phone_confirm: true,
+  })
+
+  if (!createError && created.user) {
+    return created.user.id
+  }
+
+  const { data: usersPage, error: listError } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  })
+
+  if (listError) {
+    throw listError
+  }
+
+  const existing = usersPage.users.find((u) => u.phone === phone)
+  if (!existing) {
+    throw createError ?? new Error(`Unable to create/find auth user for ${phone}`)
+  }
+
+  return existing.id
+}
 
 async function seedTestData() {
   console.log('Starting seed process...')
   
-  // Generate proper UUIDs
-  const candidateUserId1 = crypto.randomUUID()
-  const candidateUserId2 = crypto.randomUUID()
-  const candidateUserId3 = crypto.randomUUID()
-  const companyUserId1 = crypto.randomUUID()
-  const companyUserId2 = crypto.randomUUID()
-  const adminUserId = crypto.randomUUID()
+  // Create or reuse auth users first; public.users references auth.users.
+  const seedUsers: SeedUser[] = [
+    { phone: '+237690000001', role: 'candidate', locale: 'fr' },
+    { phone: '+237690000002', role: 'candidate', locale: 'fr' },
+    { phone: '+237690000003', role: 'candidate', locale: 'fr' },
+    { phone: '+237690000004', role: 'company', locale: 'fr' },
+    { phone: '+237690000005', role: 'company', locale: 'fr' },
+  ]
+
+  const authUserIds = await Promise.all(
+    seedUsers.map(async (u) => ({
+      ...u,
+      id: await getOrCreateAuthUser(u.phone, u.role),
+    })),
+  )
+
+  const candidateUserId1 = authUserIds[0].id
+  const candidateUserId2 = authUserIds[1].id
+  const candidateUserId3 = authUserIds[2].id
+  const companyUserId1 = authUserIds[3].id
+  const companyUserId2 = authUserIds[4].id
   
   const candidateProfileId1 = crypto.randomUUID()
   const candidateProfileId2 = crypto.randomUUID()
@@ -39,9 +99,6 @@ async function seedTestData() {
   const missionId2 = crypto.randomUUID()
   const missionId3 = crypto.randomUUID()
   
-  const walletId1 = crypto.randomUUID()
-  const walletId2 = crypto.randomUUID()
-  const walletId3 = crypto.randomUUID()
   
   // 1. Create job categories
   console.log('Creating job categories...')
@@ -80,19 +137,19 @@ async function seedTestData() {
 
   // 2. Create test users
   console.log('Creating test users...')
-  const testUsers = [
-    // Candidates
-    { id: candidateUserId1, phone: '+237690000001', role: 'candidate', is_verified: true, phone_verified: true, is_active: true, locale: 'fr' },
-    { id: candidateUserId2, phone: '+237690000002', role: 'candidate', is_verified: true, phone_verified: true, is_active: true, locale: 'fr' },
-    { id: candidateUserId3, phone: '+237690000003', role: 'candidate', is_verified: true, phone_verified: true, is_active: true, locale: 'fr' },
-    // Companies
-    { id: companyUserId1, phone: '+237690000004', role: 'company', is_verified: true, phone_verified: true, is_active: true, locale: 'fr' },
-    { id: companyUserId2, phone: '+237690000005', role: 'company', is_verified: true, phone_verified: true, is_active: true, locale: 'fr' },
-  ]
+  const testUsers = authUserIds.map((u) => ({
+    id: u.id,
+    phone: u.phone,
+    role: u.role,
+    is_verified: true,
+    phone_verified: true,
+    is_active: true,
+    locale: u.locale,
+  }))
 
   const { error: usersError } = await supabase
     .from('users')
-    .insert(testUsers)
+    .upsert(testUsers, { onConflict: 'id' })
   
   if (usersError) {
     console.error('Error creating users:', usersError)
@@ -179,7 +236,7 @@ async function seedTestData() {
 
   const { error: candError } = await supabase
     .from('candidate_profiles')
-    .insert(candidateProfiles)
+    .upsert(candidateProfiles, { onConflict: 'user_id' })
   
   if (candError) {
     console.error('Error creating candidate profiles:', candError)
@@ -230,7 +287,7 @@ async function seedTestData() {
       longitude: 11.5021,
       sector: 'Restauration',
       description: 'Restaurant traditionnel camerounais depuis 2015.',
-      company_size: '11_50',
+      company_size: 'pme',
       verification_status: 'verified',
       subscription_tier: 'premium',
       is_active: true,
@@ -254,7 +311,7 @@ async function seedTestData() {
       longitude: 9.7679,
       sector: 'Hôtellerie',
       description: 'Hôtel 4 étoiles au cœur de Douala.',
-      company_size: '51_200',
+      company_size: 'eti',
       verification_status: 'verified',
       subscription_tier: 'enterprise',
       is_active: true,
@@ -265,7 +322,7 @@ async function seedTestData() {
 
   const { error: compError } = await supabase
     .from('company_profiles')
-    .insert(companyProfiles)
+    .upsert(companyProfiles, { onConflict: 'user_id' })
 
   if (compError) {
     console.error('Error creating company profiles:', compError)
@@ -286,7 +343,7 @@ async function seedTestData() {
       category_id: categoryMap.get('Restauration'),
       title: 'Serveur/Serveuse pour soirée événementielle',
       description: 'Nous recherchons des serveurs expérimentés pour une grande soirée VIP. Tenue correcte exigée.',
-      job_type: 'one_time',
+      job_type: 'shift',
       start_date: tomorrow.toISOString().split('T')[0],
       end_date: tomorrow.toISOString().split('T')[0],
       start_time: '18:00',
@@ -302,8 +359,8 @@ async function seedTestData() {
       positions_filled: 2,
       required_skills: ['Service en salle', 'Communication'],
       dress_code: 'Chemise blanche et pantalon noir',
-      status: 'published',
-      urgency: 'high',
+      status: 'active',
+      urgency: 'urgent',
       published_at: now.toISOString(),
     },
     {
@@ -312,7 +369,7 @@ async function seedTestData() {
       category_id: categoryMap.get('Nettoyage'),
       title: 'Agent de nettoyage - Contrat hebdomadaire',
       description: 'Nettoyage du restaurant tous les matins avant l\'ouverture. Matériel fourni.',
-      job_type: 'recurring',
+      job_type: 'contract',
       start_date: tomorrow.toISOString().split('T')[0],
       end_date: nextWeek.toISOString().split('T')[0],
       start_time: '06:00',
@@ -329,7 +386,7 @@ async function seedTestData() {
       positions_available: 2,
       positions_filled: 0,
       required_skills: ['Nettoyage'],
-      status: 'published',
+      status: 'active',
       urgency: 'normal',
       published_at: now.toISOString(),
     },
@@ -339,7 +396,7 @@ async function seedTestData() {
       category_id: categoryMap.get('Hôtellerie'),
       title: 'Réceptionniste de nuit',
       description: 'Accueil des clients, gestion des réservations, service de conciergerie.',
-      job_type: 'one_time',
+      job_type: 'shift',
       start_date: tomorrow.toISOString().split('T')[0],
       end_date: tomorrow.toISOString().split('T')[0],
       start_time: '22:00',
@@ -355,8 +412,8 @@ async function seedTestData() {
       positions_filled: 0,
       required_skills: ['Service client', 'Communication'],
       dress_code: 'Tenue professionnelle fournie',
-      status: 'published',
-      urgency: 'high',
+      status: 'active',
+      urgency: 'urgent',
       published_at: now.toISOString(),
     },
     {
@@ -365,7 +422,7 @@ async function seedTestData() {
       category_id: categoryMap.get('Événementiel'),
       title: 'Staff pour conférence internationale',
       description: 'Accueil des participants, gestion des badges, orientation. Anglais et français requis.',
-      job_type: 'one_time',
+      job_type: 'shift',
       start_date: nextWeek.toISOString().split('T')[0],
       end_date: nextWeek.toISOString().split('T')[0],
       start_time: '07:00',
@@ -381,7 +438,7 @@ async function seedTestData() {
       positions_filled: 0,
       required_skills: ['Service client', 'Communication', 'Anglais'],
       dress_code: 'T-shirt événement fourni',
-      status: 'pending_moderation',
+      status: 'pending_review',
       urgency: 'normal',
     },
     {
@@ -390,7 +447,7 @@ async function seedTestData() {
       category_id: categoryMap.get('Manutention'),
       title: 'Manutentionnaire - Réception livraisons',
       description: 'Déchargement et rangement des livraisons. Port de charges lourdes.',
-      job_type: 'one_time',
+      job_type: 'shift',
       start_date: tomorrow.toISOString().split('T')[0],
       end_date: tomorrow.toISOString().split('T')[0],
       start_time: '08:00',
@@ -405,7 +462,7 @@ async function seedTestData() {
       positions_available: 3,
       positions_filled: 1,
       required_skills: ['Manutention'],
-      status: 'published',
+      status: 'active',
       urgency: 'normal',
       published_at: now.toISOString(),
     },
@@ -428,10 +485,9 @@ async function seedTestData() {
       id: applicationId1,
       job_id: jobId1,
       candidate_id: candidateProfileId1,
-      status: 'accepted',
+      status: 'selected',
       match_score: 92,
       distance_km: 2.5,
-      candidate_note: 'Je suis très motivé pour cette mission!',
       contract_signed: true,
     },
     {
@@ -441,7 +497,6 @@ async function seedTestData() {
       status: 'pending',
       match_score: 78,
       distance_km: 280,
-      candidate_note: 'Disponible et expérimentée en service.',
     },
     {
       id: applicationId3,
@@ -455,7 +510,7 @@ async function seedTestData() {
       id: applicationId4,
       job_id: jobId3,
       candidate_id: candidateProfileId2,
-      status: 'accepted',
+      status: 'selected',
       match_score: 88,
       distance_km: 1.2,
       contract_signed: true,
@@ -464,7 +519,7 @@ async function seedTestData() {
       id: applicationId5,
       job_id: jobId5,
       candidate_id: candidateProfileId3,
-      status: 'accepted',
+      status: 'selected',
       match_score: 75,
       distance_km: 3.0,
       contract_signed: true,
@@ -534,49 +589,7 @@ async function seedTestData() {
     console.log('Created missions')
   }
 
-  // 9. Create wallets
-  console.log('Creating wallets...')
-  const wallets = [
-    {
-      id: walletId1,
-      candidate_id: candidateProfileId1,
-      available_balance: 45000,
-      pending_balance: 20000,
-      total_earned: 125000,
-      total_withdrawn: 60000,
-      currency: 'XAF',
-    },
-    {
-      id: walletId2,
-      candidate_id: candidateProfileId2,
-      available_balance: 28000,
-      pending_balance: 16000,
-      total_earned: 72000,
-      total_withdrawn: 28000,
-      currency: 'XAF',
-    },
-    {
-      id: walletId3,
-      candidate_id: candidateProfileId3,
-      available_balance: 8000,
-      pending_balance: 8000,
-      total_earned: 48000,
-      total_withdrawn: 32000,
-      currency: 'XAF',
-    },
-  ]
-
-  const { error: walletsError } = await supabase
-    .from('wallets')
-    .insert(wallets)
-
-  if (walletsError) {
-    console.error('Error creating wallets:', walletsError)
-  } else {
-    console.log('Created wallets')
-  }
-
-  // 10. Create payments
+  // 9. Create payments
   console.log('Creating payments...')
   const paymentId = crypto.randomUUID()
   const payments = [
@@ -606,7 +619,7 @@ async function seedTestData() {
     console.log('Created payments')
   }
 
-  // 11. Create reviews
+  // 10. Create reviews
   console.log('Creating reviews...')
   const reviewId1 = crypto.randomUUID()
   const reviewId2 = crypto.randomUUID()
@@ -652,7 +665,7 @@ async function seedTestData() {
     console.log('Created reviews')
   }
 
-  // 12. Create notifications
+  // 11. Create notifications
   console.log('Creating notifications...')
   const notifications = [
     {

@@ -33,15 +33,6 @@ function getStoredLocale(): Locale | null {
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('fr')
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    // On mount, check stored locale or detect from browser
-    const stored = getStoredLocale()
-    const detected = stored || detectBrowserLocale()
-    setLocaleState(detected)
-    setMounted(true)
-  }, [])
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale)
@@ -50,10 +41,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (mounted) {
-      document.documentElement.lang = locale
+    const stored = getStoredLocale()
+    const nextLocale = stored || detectBrowserLocale()
+
+    if (nextLocale !== locale) {
+      setLocaleState(nextLocale)
     }
-  }, [locale, mounted])
+
+    document.documentElement.lang = nextLocale
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
 
   const value: I18nContextType = {
     locale,
@@ -89,11 +89,15 @@ export function useTranslation() {
     setLocale,
     t: (key: string) => {
       const keys = key.split('.')
-      let value: any = t
+      let value: unknown = t
       for (const k of keys) {
-        value = value?.[k]
+        if (value && typeof value === 'object' && k in value) {
+          value = (value as Record<string, unknown>)[k]
+          continue
+        }
+        return key
       }
-      return value || key
+      return typeof value === 'string' ? value : key
     },
   }
 }

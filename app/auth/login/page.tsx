@@ -75,13 +75,14 @@ export default function LoginPage() {
           router.push('/onboarding')
         }
       }
-    } catch (err: any) {
-      if (err.message?.includes('Invalid login')) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ''
+      if (message.includes('Invalid login')) {
         setError(locale === 'fr' 
           ? 'Numero ou mot de passe incorrect' 
           : 'Invalid phone number or password')
       } else {
-        setError(err.message || (locale === 'fr' ? 'Erreur de connexion' : 'Login error'))
+        setError(message || (locale === 'fr' ? 'Erreur de connexion' : 'Login error'))
       }
     } finally {
       setLoading(false)

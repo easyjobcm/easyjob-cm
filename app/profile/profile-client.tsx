@@ -33,9 +33,24 @@ import {
 } from 'lucide-react'
 
 interface ProfileClientProps {
-  user: any
-  profile: any
-  skills: any[]
+  user: {
+    role: string
+    phone?: string | null
+    email?: string | null
+  }
+  profile: {
+    first_name?: string
+    last_name?: string
+    company_name?: string
+    reliability_score?: number
+    completed_missions?: number
+    city?: string
+    quartier?: string
+  } | null
+  skills: Array<{
+    id: string
+    skill_name: string
+  }>
 }
 
 export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
@@ -44,6 +59,8 @@ export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
   const supabase = createClient()
   const [showLogoutModal, setShowLogoutModal] = React.useState(false)
   const [loggingOut, setLoggingOut] = React.useState(false)
+  const reliabilityScore = profile?.reliability_score ?? 0
+  const completedMissions = profile?.completed_missions ?? 0
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -76,12 +93,12 @@ export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
             <p className="text-sm text-muted-foreground">
               {user.phone || user.email}
             </p>
-            {isCandidate && profile?.reliability_score > 0 && (
+            {isCandidate && reliabilityScore > 0 && (
               <div className="flex items-center gap-1 mt-1">
                 <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-sm font-medium">{profile.reliability_score.toFixed(1)}</span>
+                <span className="text-sm font-medium">{reliabilityScore.toFixed(1)}</span>
                 <span className="text-xs text-muted-foreground">
-                  ({profile.completed_missions || 0} {locale === 'fr' ? 'missions' : 'missions'})
+                  ({completedMissions} {locale === 'fr' ? 'missions' : 'missions'})
                 </span>
               </div>
             )}

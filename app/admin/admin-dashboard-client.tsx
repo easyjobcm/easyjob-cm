@@ -28,8 +28,24 @@ import {
 } from 'lucide-react'
 
 interface AdminDashboardClientProps {
-  user: any
-  pendingJobs: any[]
+  user: {
+    id?: string
+  }
+  pendingJobs: Array<{
+    id: string
+    title: string
+    description: string
+    city: string
+    start_date: string
+    start_time: string
+    end_time: string
+    hourly_rate: number
+    currency?: string
+    urgency?: string
+    company?: {
+      company_name?: string
+    }
+  }>
   stats: {
     totalUsers: number
     totalCandidates: number
@@ -41,10 +57,10 @@ interface AdminDashboardClientProps {
   }
 }
 
-export function AdminDashboardClient({ user, pendingJobs, stats }: AdminDashboardClientProps) {
+export function AdminDashboardClient({ user: _user, pendingJobs, stats }: AdminDashboardClientProps) {
   const router = useRouter()
   const { locale } = useI18n()
-  const [selectedJob, setSelectedJob] = React.useState<any>(null)
+  const [selectedJob, setSelectedJob] = React.useState<AdminDashboardClientProps['pendingJobs'][number] | null>(null)
   const [moderating, setModerating] = React.useState(false)
 
   const handleModerate = async (jobId: string, action: 'approve' | 'reject') => {

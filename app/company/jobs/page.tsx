@@ -80,7 +80,7 @@ export default function CompanyJobsPage() {
     loadJobs()
   }, [searchParams])
 
-  const loadJobs = async () => {
+  async function loadJobs() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     

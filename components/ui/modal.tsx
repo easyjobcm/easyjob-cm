@@ -5,15 +5,19 @@ import { cn } from '@/lib/utils'
 import { X } from 'lucide-react'
 
 interface ModalProps {
-  open: boolean
+  open?: boolean
+  isOpen?: boolean
   onClose: () => void
   children: React.ReactNode
+  title?: string
   className?: string
 }
 
-export function Modal({ open, onClose, children, className }: ModalProps) {
+export function Modal({ open, isOpen, onClose, children, title, className }: ModalProps) {
+  const visible = open ?? isOpen ?? false
+
   React.useEffect(() => {
-    if (open) {
+    if (visible) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
@@ -21,9 +25,9 @@ export function Modal({ open, onClose, children, className }: ModalProps) {
     return () => {
       document.body.style.overflow = 'unset'
     }
-  }, [open])
+  }, [visible])
 
-  if (!open) return null
+  if (!visible) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -45,6 +49,7 @@ export function Modal({ open, onClose, children, className }: ModalProps) {
           <X className="h-5 w-5" />
           <span className="sr-only">Fermer</span>
         </button>
+        {title ? <ModalHeader>{title}</ModalHeader> : null}
         {children}
       </div>
     </div>
