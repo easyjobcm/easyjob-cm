@@ -1,45 +1,45 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { Search, SlidersHorizontal, X, MapPin } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Modal } from '@/components/ui/modal'
-import { useI18n } from '@/lib/i18n'
-import { cn } from '@/lib/utils'
+import * as React from "react";
+import { Search, SlidersHorizontal, X, MapPin } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
+import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 interface Category {
-  id: string
-  name_fr: string
-  name_en: string
-  icon?: string
+  id: string;
+  name_fr: string;
+  name_en: string;
+  icon?: string;
 }
 
 interface JobFiltersProps {
-  search: string
-  onSearchChange: (value: string) => void
-  city: string
-  onCityChange: (value: string) => void
-  categoryId: string
-  onCategoryChange: (value: string) => void
-  categories: Category[]
+  search: string;
+  onSearchChange: (value: string) => void;
+  city: string;
+  onCityChange: (value: string) => void;
+  categoryId: string;
+  onCategoryChange: (value: string) => void;
+  categories: Category[];
 }
 
 const CAMEROON_CITIES = [
-  'Douala',
-  'Yaounde',
-  'Bafoussam',
-  'Bamenda',
-  'Garoua',
-  'Maroua',
-  'Ngaoundere',
-  'Bertoua',
-  'Limbe',
-  'Kribi',
-  'Buea',
-  'Ebolowa',
-]
+  "Douala",
+  "Yaounde",
+  "Bafoussam",
+  "Bamenda",
+  "Garoua",
+  "Maroua",
+  "Ngaoundere",
+  "Bertoua",
+  "Limbe",
+  "Kribi",
+  "Buea",
+  "Ebolowa",
+];
 
 export function JobFilters({
   search,
@@ -50,15 +50,15 @@ export function JobFilters({
   onCategoryChange,
   categories,
 }: JobFiltersProps) {
-  const { t, locale } = useI18n()
-  const [showFilters, setShowFilters] = React.useState(false)
+  const { t, locale } = useI18n();
+  const [showFilters, setShowFilters] = React.useState(false);
 
-  const activeFiltersCount = [city, categoryId].filter(Boolean).length
+  const activeFiltersCount = [city, categoryId].filter(Boolean).length;
 
   const clearFilters = () => {
-    onCityChange('')
-    onCategoryChange('')
-  }
+    onCityChange("");
+    onCategoryChange("");
+  };
 
   return (
     <div className="space-y-3">
@@ -80,7 +80,7 @@ export function JobFilters({
           onClick={() => setShowFilters(true)}
           className={cn(
             "h-12 px-4 rounded-xl relative",
-            activeFiltersCount > 0 && "border-primary"
+            activeFiltersCount > 0 && "border-primary",
           )}
         >
           <SlidersHorizontal className="w-5 h-5" />
@@ -100,7 +100,7 @@ export function JobFilters({
               <MapPin className="w-3 h-3" />
               {city}
               <button
-                onClick={() => onCityChange('')}
+                onClick={() => onCityChange("")}
                 className="ml-1 p-0.5 hover:bg-foreground/10 rounded"
               >
                 <X className="w-3 h-3" />
@@ -109,12 +109,11 @@ export function JobFilters({
           )}
           {categoryId && (
             <Badge variant="secondary" className="gap-1 pr-1">
-              {locale === 'fr' 
-                ? categories.find(c => c.id === categoryId)?.name_fr
-                : categories.find(c => c.id === categoryId)?.name_en
-              }
+              {locale === "fr"
+                ? categories.find((c) => c.id === categoryId)?.name_fr
+                : categories.find((c) => c.id === categoryId)?.name_en}
               <button
-                onClick={() => onCategoryChange('')}
+                onClick={() => onCategoryChange("")}
                 className="ml-1 p-0.5 hover:bg-foreground/10 rounded"
               >
                 <X className="w-3 h-3" />
@@ -125,7 +124,7 @@ export function JobFilters({
             onClick={clearFilters}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            {locale === 'fr' ? 'Tout effacer' : 'Clear all'}
+            {locale === "fr" ? "Tout effacer" : "Clear all"}
           </button>
         </div>
       )}
@@ -140,18 +139,18 @@ export function JobFilters({
           {/* City filter */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              {t.jobs?.location || 'Ville'}
+              {t.jobs?.location || "Ville"}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {CAMEROON_CITIES.map((c) => (
                 <button
                   key={c}
-                  onClick={() => onCityChange(city === c ? '' : c)}
+                  onClick={() => onCityChange(city === c ? "" : c)}
                   className={cn(
                     "px-3 py-2 text-sm rounded-lg border transition-colors",
                     city === c
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card border-border hover:border-primary/50"
+                      : "bg-card border-border hover:border-primary/50",
                   )}
                 >
                   {c}
@@ -163,21 +162,23 @@ export function JobFilters({
           {/* Category filter */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">
-              {locale === 'fr' ? 'Categorie' : 'Category'}
+              {locale === "fr" ? "Categorie" : "Category"}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => onCategoryChange(categoryId === cat.id ? '' : cat.id)}
+                  onClick={() =>
+                    onCategoryChange(categoryId === cat.id ? "" : cat.id)
+                  }
                   className={cn(
                     "px-3 py-2 text-sm rounded-lg border transition-colors text-left",
                     categoryId === cat.id
                       ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card border-border hover:border-primary/50"
+                      : "bg-card border-border hover:border-primary/50",
                   )}
                 >
-                  {locale === 'fr' ? cat.name_fr : cat.name_en}
+                  {locale === "fr" ? cat.name_fr : cat.name_en}
                 </button>
               ))}
             </div>
@@ -185,22 +186,15 @@ export function JobFilters({
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={clearFilters}
-            >
-              {locale === 'fr' ? 'Reinitialiser' : 'Reset'}
+            <Button variant="outline" className="flex-1" onClick={clearFilters}>
+              {locale === "fr" ? "Reinitialiser" : "Reset"}
             </Button>
-            <Button
-              className="flex-1"
-              onClick={() => setShowFilters(false)}
-            >
-              {locale === 'fr' ? 'Appliquer' : 'Apply'}
+            <Button className="flex-1" onClick={() => setShowFilters(false)}>
+              {locale === "fr" ? "Appliquer" : "Apply"}
             </Button>
           </div>
         </div>
       </Modal>
     </div>
-  )
+  );
 }

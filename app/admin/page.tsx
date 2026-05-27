@@ -1,73 +1,78 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { AdminDashboardClient } from './admin-dashboard-client'
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { AdminDashboardClient } from "./admin-dashboard-client";
 
 export default async function AdminDashboardPage() {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
   if (authError || !user) {
-    redirect('/login?redirect=/admin')
+    redirect("/login?redirect=/admin");
   }
 
   // Get user data and verify admin role
   const { data: userData } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+    .from("users")
+    .select("*")
+    .eq("id", user.id)
+    .single();
 
-  if (!userData || userData.role !== 'admin') {
-    redirect('/')
+  if (!userData || userData.role !== "admin") {
+    redirect("/");
   }
 
   // Get pending jobs for moderation
   const { data: pendingJobs } = await supabase
-    .from('jobs')
-    .select(`
+    .from("jobs")
+    .select(
+      `
       *,
       company:company_profiles(id, company_name, logo_url)
-    `)
-    .eq('status', 'pending_review')
-    .order('created_at', { ascending: true })
-    .limit(20)
+    `,
+    )
+    .eq("status", "pending_review")
+    .order("created_at", { ascending: true })
+    .limit(20);
 
   // Get stats
   const { count: totalUsers } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true })
+    .from("users")
+    .select("*", { count: "exact", head: true });
 
   const { count: totalCandidates } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'candidate')
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "candidate");
 
   const { count: totalCompanies } = await supabase
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'company')
+    .from("users")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "company");
 
   const { count: totalJobs } = await supabase
-    .from('jobs')
-    .select('*', { count: 'exact', head: true })
+    .from("jobs")
+    .select("*", { count: "exact", head: true });
 
   const { count: pendingJobsCount } = await supabase
-    .from('jobs')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending_review')
+    .from("jobs")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending_review");
 
   const { count: activeJobs } = await supabase
-    .from('jobs')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'published')
+    .from("jobs")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "published");
 
   const { count: totalApplications } = await supabase
-    .from('job_applications')
-    .select('*', { count: 'exact', head: true })
+    .from("job_applications")
+    .select("*", { count: "exact", head: true });
 
   return (
-    <AdminDashboardClient 
+    <AdminDashboardClient
       user={userData}
       pendingJobs={pendingJobs || []}
       stats={{
@@ -80,5 +85,5 @@ export default async function AdminDashboardPage() {
         totalApplications: totalApplications || 0,
       }}
     />
-  )
+  );
 }

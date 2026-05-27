@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { AppShell } from '@/components/layout/app-shell'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useI18n } from '@/lib/i18n'
-import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
+import * as React from "react";
+import Link from "next/link";
+import { AppShell } from "@/components/layout/app-shell";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
+import { formatDate, formatTime } from "@/lib/utils";
 import {
   User,
   Briefcase,
@@ -20,65 +20,86 @@ import {
   Calendar,
   CheckCircle2,
   AlertCircle,
-  ArrowRight
-} from 'lucide-react'
+  ArrowRight,
+} from "lucide-react";
 
 interface DashboardClientProps {
   user: {
-    phone?: string | null
-  }
+    phone?: string | null;
+  };
   profile: {
-    first_name?: string | null
-    is_sandbox?: boolean
-    sandbox_missions_completed?: number
-  }
+    first_name?: string | null;
+    is_sandbox?: boolean;
+    sandbox_missions_completed?: number;
+  };
   applications: Array<{
-    id: string
-    status: string
+    id: string;
+    status: string;
     job?: {
-      id?: string
-      title?: string
-      start_date?: string
-      start_time?: string
-      city?: string
+      id?: string;
+      title?: string;
+      start_date?: string;
+      start_time?: string;
+      city?: string;
       company?: {
-        company_name?: string
-      }
-    }
-  }>
+        company_name?: string;
+      };
+    };
+  }>;
   stats: {
-    totalApplications: number
-    selectedCount: number
-    completedMissions: number
-    reliabilityScore: number
-  }
+    totalApplications: number;
+    selectedCount: number;
+    completedMissions: number;
+    reliabilityScore: number;
+  };
 }
 
-export function DashboardClient({ user, profile, applications, stats }: DashboardClientProps) {
-  const { t, locale } = useI18n()
-  const sandboxMissionsCompleted = profile.sandbox_missions_completed ?? 0
+export function DashboardClient({
+  user,
+  profile,
+  applications,
+  stats,
+}: DashboardClientProps) {
+  const { locale } = useI18n();
+  const sandboxMissionsCompleted = profile.sandbox_missions_completed ?? 0;
 
   const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return locale === 'fr' ? 'Bonjour' : 'Good morning'
-    if (hour < 18) return locale === 'fr' ? 'Bon apres-midi' : 'Good afternoon'
-    return locale === 'fr' ? 'Bonsoir' : 'Good evening'
-  }
+    const hour = new Date().getHours();
+    if (hour < 12) return locale === "fr" ? "Bonjour" : "Good morning";
+    if (hour < 18) return locale === "fr" ? "Bon apres-midi" : "Good afternoon";
+    return locale === "fr" ? "Bonsoir" : "Good evening";
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <Badge variant="secondary">{locale === 'fr' ? 'En attente' : 'Pending'}</Badge>
-      case 'shortlisted':
-        return <Badge variant="warning">{locale === 'fr' ? 'Preselectionne' : 'Shortlisted'}</Badge>
-      case 'selected':
-        return <Badge variant="success">{locale === 'fr' ? 'Selectionne' : 'Selected'}</Badge>
-      case 'rejected':
-        return <Badge variant="destructive">{locale === 'fr' ? 'Non retenu' : 'Not selected'}</Badge>
+      case "pending":
+        return (
+          <Badge variant="secondary">
+            {locale === "fr" ? "En attente" : "Pending"}
+          </Badge>
+        );
+      case "shortlisted":
+        return (
+          <Badge variant="warning">
+            {locale === "fr" ? "Preselectionne" : "Shortlisted"}
+          </Badge>
+        );
+      case "selected":
+        return (
+          <Badge variant="success">
+            {locale === "fr" ? "Selectionne" : "Selected"}
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive">
+            {locale === "fr" ? "Non retenu" : "Not selected"}
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{status}</Badge>;
     }
-  }
+  };
 
   return (
     <AppShell>
@@ -90,7 +111,9 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
               {getGreeting()}, {profile.first_name || user.phone}!
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {locale === 'fr' ? 'Voici votre tableau de bord' : 'Here is your dashboard'}
+              {locale === "fr"
+                ? "Voici votre tableau de bord"
+                : "Here is your dashboard"}
             </p>
           </div>
           <Link href="/notifications">
@@ -109,10 +132,12 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                 <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-medium text-foreground">
-                    {locale === 'fr' ? 'Mode Sandbox actif' : 'Sandbox mode active'}
+                    {locale === "fr"
+                      ? "Mode Sandbox actif"
+                      : "Sandbox mode active"}
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {locale === 'fr' 
+                    {locale === "fr"
                       ? `Completez ${3 - sandboxMissionsCompleted} missions sandbox pour acceder aux vraies offres.`
                       : `Complete ${3 - sandboxMissionsCompleted} sandbox missions to access real jobs.`}
                   </p>
@@ -131,9 +156,11 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   <Briefcase className="w-4 h-4 text-primary" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-foreground">{stats.completedMissions}</p>
+              <p className="text-2xl font-bold text-foreground">
+                {stats.completedMissions}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {locale === 'fr' ? 'Missions terminees' : 'Completed missions'}
+                {locale === "fr" ? "Missions terminees" : "Completed missions"}
               </p>
             </CardContent>
           </Card>
@@ -149,7 +176,7 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                 {stats.reliabilityScore.toFixed(1)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {locale === 'fr' ? 'Score fiabilite' : 'Reliability score'}
+                {locale === "fr" ? "Score fiabilite" : "Reliability score"}
               </p>
             </CardContent>
           </Card>
@@ -161,9 +188,11 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   <TrendingUp className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-foreground">{stats.totalApplications}</p>
+              <p className="text-2xl font-bold text-foreground">
+                {stats.totalApplications}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {locale === 'fr' ? 'Candidatures' : 'Applications'}
+                {locale === "fr" ? "Candidatures" : "Applications"}
               </p>
             </CardContent>
           </Card>
@@ -175,9 +204,11 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-foreground">{stats.selectedCount}</p>
+              <p className="text-2xl font-bold text-foreground">
+                {stats.selectedCount}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {locale === 'fr' ? 'Selections' : 'Selected'}
+                {locale === "fr" ? "Selections" : "Selected"}
               </p>
             </CardContent>
           </Card>
@@ -186,7 +217,7 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
         {/* Quick Actions */}
         <div>
           <h2 className="text-lg font-semibold text-foreground mb-3">
-            {locale === 'fr' ? 'Actions rapides' : 'Quick actions'}
+            {locale === "fr" ? "Actions rapides" : "Quick actions"}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <Link href="/jobs">
@@ -197,7 +228,7 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground text-sm">
-                      {locale === 'fr' ? 'Chercher un job' : 'Find a job'}
+                      {locale === "fr" ? "Chercher un job" : "Find a job"}
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -213,7 +244,7 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-foreground text-sm">
-                      {locale === 'fr' ? 'Mon profil' : 'My profile'}
+                      {locale === "fr" ? "Mon profil" : "My profile"}
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -227,13 +258,15 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-foreground">
-              {locale === 'fr' ? 'Candidatures recentes' : 'Recent applications'}
+              {locale === "fr"
+                ? "Candidatures recentes"
+                : "Recent applications"}
             </h2>
-            <Link 
+            <Link
               href="/dashboard/applications"
               className="text-sm text-primary font-medium flex items-center gap-1"
             >
-              {locale === 'fr' ? 'Tout voir' : 'See all'}
+              {locale === "fr" ? "Tout voir" : "See all"}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -243,13 +276,13 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
               <CardContent className="p-8 text-center">
                 <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">
-                  {locale === 'fr' 
-                    ? 'Aucune candidature pour le moment'
-                    : 'No applications yet'}
+                  {locale === "fr"
+                    ? "Aucune candidature pour le moment"
+                    : "No applications yet"}
                 </p>
                 <Link href="/jobs">
                   <Button className="mt-4">
-                    {locale === 'fr' ? 'Trouver un job' : 'Find a job'}
+                    {locale === "fr" ? "Trouver un job" : "Find a job"}
                   </Button>
                 </Link>
               </CardContent>
@@ -278,11 +311,15 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
-                          {app.job?.start_date ? formatDate(app.job.start_date, locale) : '-'}
+                          {app.job?.start_date
+                            ? formatDate(app.job.start_date, locale)
+                            : "-"}
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
-                          {app.job?.start_time ? formatTime(app.job.start_time) : '--:--'}
+                          {app.job?.start_time
+                            ? formatTime(app.job.start_time)
+                            : "--:--"}
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5" />
@@ -298,5 +335,5 @@ export function DashboardClient({ user, profile, applications, stats }: Dashboar
         </div>
       </div>
     </AppShell>
-  )
+  );
 }

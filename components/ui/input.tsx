@@ -1,18 +1,18 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface InputProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
-  error?: string
-  label?: string
-  hint?: string
+  error?: string;
+  label?: string;
+  hint?: string;
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, error, label, hint, id, ...props }, ref) => {
-    const generatedId = React.useId()
-    const inputId = id ?? generatedId
-    
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
+
     return (
       <div className="w-full space-y-2">
         {label && (
@@ -31,12 +31,15 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             "placeholder:text-muted-foreground",
             "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            error && "border-destructive focus:border-destructive focus:ring-destructive/20",
-            className
+            error &&
+              "border-destructive focus:border-destructive focus:ring-destructive/20",
+            className,
           )}
           ref={ref}
           aria-invalid={error ? "true" : "false"}
-          aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+          aria-describedby={
+            error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+          }
           {...props}
         />
         {hint && !error && (
@@ -45,14 +48,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
         {error && (
-          <p id={`${inputId}-error`} className="text-xs text-destructive" role="alert">
+          <p
+            id={`${inputId}-error`}
+            className="text-xs text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         )}
       </div>
-    )
-  }
-)
-Input.displayName = "Input"
+    );
+  },
+);
+Input.displayName = "Input";
 
-export { Input }
+export { Input };

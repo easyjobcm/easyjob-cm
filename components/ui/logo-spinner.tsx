@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import Image from "next/image"
-import { cn } from "@/lib/utils"
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface LogoSpinnerProps {
-  size?: "sm" | "md" | "lg" | "xl"
-  className?: string
-  showText?: boolean
+  size?: "sm" | "md" | "lg" | "xl";
+  className?: string;
+  showText?: boolean;
 }
 
 const sizeMap = {
@@ -14,13 +14,22 @@ const sizeMap = {
   md: { container: "w-20 h-20", text: "text-sm" },
   lg: { container: "w-32 h-32", text: "text-base" },
   xl: { container: "w-48 h-48", text: "text-lg" },
-}
+};
 
-export function LogoSpinner({ size = "md", className, showText = false }: LogoSpinnerProps) {
-  const { container, text } = sizeMap[size]
+export function LogoSpinner({
+  size = "md",
+  className,
+  showText = false,
+}: LogoSpinnerProps) {
+  const { container, text } = sizeMap[size];
 
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-4", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-4",
+        className,
+      )}
+    >
       <div className={cn("perspective-800", container)}>
         <div className="relative w-full h-full animate-logo-flip">
           <Image
@@ -38,7 +47,7 @@ export function LogoSpinner({ size = "md", className, showText = false }: LogoSp
         </p>
       )}
     </div>
-  )
+  );
 }
 
 // Full page loader variant with gradient background
@@ -52,15 +61,13 @@ export function PageLoader() {
         <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
           EasyJob CM
         </h1>
-        <p className="text-muted-foreground text-sm">
-          Chargement en cours...
-        </p>
+        <p className="text-muted-foreground text-sm">Chargement en cours...</p>
       </div>
     </div>
-  )
+  );
 }
 
 // Inline loader for buttons or small areas
 export function InlineLoader({ className }: { className?: string }) {
-  return <LogoSpinner size="sm" className={className} />
+  return <LogoSpinner size="sm" className={className} />;
 }

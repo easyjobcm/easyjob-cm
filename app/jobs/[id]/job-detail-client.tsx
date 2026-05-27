@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useRouter } from 'next/navigation'
-import { Header } from '@/components/layout/header'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { Modal } from '@/components/ui/modal'
-import { useI18n } from '@/lib/i18n'
-import { LoadingSpinner } from '@/components/ui/loading'
-import { formatCurrency, formatDate, formatTime } from '@/lib/utils'
-import { 
-  MapPin, 
-  Clock, 
-  Calendar, 
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Header } from "@/components/layout/header";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
+import { useI18n } from "@/lib/i18n";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import {
+  MapPin,
+  Clock,
+  Calendar,
   Briefcase,
   Heart,
   Info,
@@ -22,116 +22,117 @@ import {
   ExternalLink,
   ChevronRight,
   Share2,
-  Zap
-} from 'lucide-react'
+  Zap,
+} from "lucide-react";
 
 interface JobDetailClientProps {
   job: {
-    id: string
-    title: string
-    address: string
-    quartier?: string | null
-    city: string
-    latitude?: number | null
-    longitude?: number | null
-    description: string
-    currency?: string
-    hourly_rate: number
-    start_date: string
-    end_date?: string | null
-    start_time: string
-    end_time: string
-    urgency?: string
-    positions_available: number
-    positions_filled: number
+    id: string;
+    title: string;
+    address: string;
+    quartier?: string | null;
+    city: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    description: string;
+    currency?: string;
+    hourly_rate: number;
+    start_date: string;
+    end_date?: string | null;
+    start_time: string;
+    end_time: string;
+    urgency?: string;
+    positions_available: number;
+    positions_filled: number;
     company?: {
-      company_name?: string
-      logo_url?: string | null
-      sector?: string
-      description?: string
-      [key: string]: string | null | undefined
-    }
+      company_name?: string;
+      logo_url?: string | null;
+      sector?: string;
+      description?: string;
+      [key: string]: string | null | undefined;
+    };
     category?: {
-      name_fr?: string
-      name_en?: string
-    }
-    required_skills?: string[]
-    min_experience_months?: number
-    dress_code?: string
-    special_instructions?: string
-  }
+      name_fr?: string;
+      name_en?: string;
+    };
+    required_skills?: string[];
+    min_experience_months?: number;
+    dress_code?: string;
+    special_instructions?: string;
+  };
   userApplication: {
-    id: string
-  } | null
-  isFavorite: boolean
-  isLoggedIn: boolean
+    id: string;
+  } | null;
+  isFavorite: boolean;
+  isLoggedIn: boolean;
 }
 
-export function JobDetailClient({ 
-  job, 
-  userApplication, 
-  isFavorite: initialFavorite, 
-  isLoggedIn 
+export function JobDetailClient({
+  job,
+  userApplication,
+  isFavorite: initialFavorite,
+  isLoggedIn,
 }: JobDetailClientProps) {
-  const router = useRouter()
-  const { t, locale } = useI18n()
-  const [showConfirmModal, setShowConfirmModal] = React.useState(false)
-  const [applying, setApplying] = React.useState(false)
-  const [isFavorite, setIsFavorite] = React.useState(initialFavorite)
-  const [hasApplied, setHasApplied] = React.useState(!!userApplication)
+  const router = useRouter();
+  const { locale } = useI18n();
+  const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [applying, setApplying] = React.useState(false);
+  const [isFavorite, setIsFavorite] = React.useState(initialFavorite);
+  const [hasApplied, setHasApplied] = React.useState(!!userApplication);
 
-  const categoryName = locale === 'fr' ? job.category?.name_fr : job.category?.name_en
+  const categoryName =
+    locale === "fr" ? job.category?.name_fr : job.category?.name_en;
 
   // Calculate duration and total pay
   const calculateDuration = (start: string, end: string) => {
-    const [startH, startM] = start.split(':').map(Number)
-    const [endH, endM] = end.split(':').map(Number)
-    let hours = endH - startH + (endM - startM) / 60
-    if (hours < 0) hours += 24 // Handle overnight shifts
-    return hours
-  }
+    const [startH, startM] = start.split(":").map(Number);
+    const [endH, endM] = end.split(":").map(Number);
+    let hours = endH - startH + (endM - startM) / 60;
+    if (hours < 0) hours += 24; // Handle overnight shifts
+    return hours;
+  };
 
-  const duration = calculateDuration(job.start_time, job.end_time)
-  const totalPay = duration * job.hourly_rate
+  const duration = calculateDuration(job.start_time, job.end_time);
+  const totalPay = duration * job.hourly_rate;
 
   const handleApply = async () => {
     if (!isLoggedIn) {
-      router.push('/login?redirect=/jobs/' + job.id)
-      return
+      router.push("/login?redirect=/jobs/" + job.id);
+      return;
     }
 
-    setApplying(true)
+    setApplying(true);
     try {
       const res = await fetch(`/api/jobs/${job.id}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (res.ok) {
-        setHasApplied(true)
-        setShowConfirmModal(false)
+        setHasApplied(true);
+        setShowConfirmModal(false);
         // Show success state
       } else {
-        const error = await res.json()
-        alert(error.error || 'Une erreur est survenue')
+        const error = await res.json();
+        alert(error.error || "Une erreur est survenue");
       }
     } catch (error) {
-      console.error('Error applying:', error)
-      alert('Une erreur est survenue')
+      console.error("Error applying:", error);
+      alert("Une erreur est survenue");
     } finally {
-      setApplying(false)
+      setApplying(false);
     }
-  }
+  };
 
   const toggleFavorite = async () => {
     if (!isLoggedIn) {
-      router.push('/login?redirect=/jobs/' + job.id)
-      return
+      router.push("/login?redirect=/jobs/" + job.id);
+      return;
     }
     // Optimistic update
-    setIsFavorite(!isFavorite)
+    setIsFavorite(!isFavorite);
     // TODO: Implement API call
-  }
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -140,30 +141,32 @@ export function JobDetailClient({
           title: job.title,
           text: `${job.title} - ${job.company?.company_name}`,
           url: window.location.href,
-        })
-      } catch (err) {
+        });
+      } catch {
         // User cancelled or error
       }
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background pb-28">
       {/* Header with gradient */}
       <div className="bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
-        <Header 
+        <Header
           title=""
           showBack
           className="bg-transparent"
           rightAction={
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={toggleFavorite}
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
               >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current text-red-400' : ''}`} />
+                <Heart
+                  className={`w-5 h-5 ${isFavorite ? "fill-current text-red-400" : ""}`}
+                />
               </button>
-              <button 
+              <button
                 onClick={handleShare}
                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
               >
@@ -172,23 +175,23 @@ export function JobDetailClient({
             </div>
           }
         />
-        
+
         <div className="px-4 pb-6">
           {/* Urgency badge */}
-          {job.urgency !== 'normal' && (
+          {job.urgency !== "normal" && (
             <Badge className="mb-2 bg-white/20 text-white border-white/30">
               <Zap className="w-3 h-3 mr-1" />
-              {job.urgency === 'critical' ? 'Tres urgent' : 'Urgent'}
+              {job.urgency === "critical" ? "Tres urgent" : "Urgent"}
             </Badge>
           )}
-          
+
           <h1 className="text-2xl font-bold mb-2">{job.title}</h1>
-          
+
           <div className="flex items-center gap-2 text-white/80 mb-3">
             <Briefcase className="w-4 h-4" />
             <span>{job.company?.company_name}</span>
           </div>
-          
+
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold">
               {formatCurrency(job.hourly_rate, job.currency)}
@@ -211,12 +214,14 @@ export function JobDetailClient({
                 <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium text-foreground">
-                    {locale === 'fr' ? 'Candidature envoyee !' : 'Application sent!'}
+                    {locale === "fr"
+                      ? "Candidature envoyee !"
+                      : "Application sent!"}
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {locale === 'fr'
-                      ? 'Vous serez notifie si vous etes selectionne.'
-                      : 'You will be notified if selected.'}
+                    {locale === "fr"
+                      ? "Vous serez notifie si vous etes selectionne."
+                      : "You will be notified if selected."}
                   </p>
                 </div>
               </div>
@@ -229,10 +234,13 @@ export function JobDetailClient({
                 <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium text-foreground">
-                    {locale === 'fr' ? 'Postulez maintenant !' : 'Apply now!'}
+                    {locale === "fr" ? "Postulez maintenant !" : "Apply now!"}
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {job.positions_available - job.positions_filled} {locale === 'fr' ? 'place(s) disponible(s)' : 'position(s) available'}
+                    {job.positions_available - job.positions_filled}{" "}
+                    {locale === "fr"
+                      ? "place(s) disponible(s)"
+                      : "position(s) available"}
                   </p>
                 </div>
               </div>
@@ -243,7 +251,7 @@ export function JobDetailClient({
         {/* Location */}
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-            {locale === 'fr' ? 'Lieu' : 'Location'}
+            {locale === "fr" ? "Lieu" : "Location"}
           </h2>
           <Card>
             <CardContent className="p-4">
@@ -252,11 +260,12 @@ export function JobDetailClient({
                 <div className="flex-1">
                   <p className="font-medium text-foreground">{job.address}</p>
                   <p className="text-sm text-muted-foreground">
-                    {job.quartier && `${job.quartier}, `}{job.city}
+                    {job.quartier && `${job.quartier}, `}
+                    {job.city}
                   </p>
                 </div>
                 {job.latitude && job.longitude && (
-                  <a 
+                  <a
                     href={`https://www.google.com/maps?q=${job.latitude},${job.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -273,7 +282,7 @@ export function JobDetailClient({
         {/* Schedule */}
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-            {locale === 'fr' ? 'Details de la mission' : 'Job Details'}
+            {locale === "fr" ? "Details de la mission" : "Job Details"}
           </h2>
           <Card>
             <CardContent className="p-4 space-y-4">
@@ -286,13 +295,14 @@ export function JobDetailClient({
                     </p>
                     {job.end_date && job.end_date !== job.start_date && (
                       <p className="text-sm text-muted-foreground">
-                        {locale === 'fr' ? 'au' : 'to'} {formatDate(job.end_date, locale)}
+                        {locale === "fr" ? "au" : "to"}{" "}
+                        {formatDate(job.end_date, locale)}
                       </p>
                     )}
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-muted-foreground" />
@@ -300,9 +310,7 @@ export function JobDetailClient({
                     <p className="font-medium text-foreground">
                       {formatTime(job.start_time)} - {formatTime(job.end_time)}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {duration}h
-                    </p>
+                    <p className="text-sm text-muted-foreground">{duration}h</p>
                   </div>
                 </div>
               </div>
@@ -313,7 +321,7 @@ export function JobDetailClient({
         {/* Description */}
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-            {locale === 'fr' ? 'Description' : 'Description'}
+            {locale === "fr" ? "Description" : "Description"}
           </h2>
           <Card>
             <CardContent className="p-4">
@@ -328,7 +336,7 @@ export function JobDetailClient({
         {job.required_skills && job.required_skills.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-              {locale === 'fr' ? 'Competences requises' : 'Required Skills'}
+              {locale === "fr" ? "Competences requises" : "Required Skills"}
             </h2>
             <Card>
               <CardContent className="p-4">
@@ -348,24 +356,30 @@ export function JobDetailClient({
         {(job.dress_code || job.special_instructions) && (
           <section className="mb-6">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-              {locale === 'fr' ? 'Instructions' : 'Instructions'}
+              {locale === "fr" ? "Instructions" : "Instructions"}
             </h2>
             <Card>
               <CardContent className="p-4 space-y-3">
                 {job.dress_code && (
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {locale === 'fr' ? 'Tenue vestimentaire' : 'Dress code'}
+                      {locale === "fr" ? "Tenue vestimentaire" : "Dress code"}
                     </p>
-                    <p className="text-sm text-muted-foreground">{job.dress_code}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {job.dress_code}
+                    </p>
                   </div>
                 )}
                 {job.special_instructions && (
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {locale === 'fr' ? 'Instructions speciales' : 'Special instructions'}
+                      {locale === "fr"
+                        ? "Instructions speciales"
+                        : "Special instructions"}
                     </p>
-                    <p className="text-sm text-muted-foreground">{job.special_instructions}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {job.special_instructions}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -377,15 +391,17 @@ export function JobDetailClient({
         {job.company && (
           <section className="mb-6">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-              {locale === 'fr' ? 'A propos de l\'entreprise' : 'About the company'}
+              {locale === "fr"
+                ? "A propos de l'entreprise"
+                : "About the company"}
             </h2>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                     {job.company.logo_url ? (
-                      <img 
-                        src={job.company.logo_url} 
+                      <img
+                        src={job.company.logo_url}
                         alt={job.company.company_name}
                         className="w-full h-full object-cover rounded-xl"
                       />
@@ -394,9 +410,13 @@ export function JobDetailClient({
                     )}
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">{job.company.company_name}</p>
+                    <p className="font-medium text-foreground">
+                      {job.company.company_name}
+                    </p>
                     {job.company.sector && (
-                      <p className="text-sm text-muted-foreground">{job.company.sector}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {job.company.sector}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -416,7 +436,7 @@ export function JobDetailClient({
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm text-muted-foreground">
-              {locale === 'fr' ? 'Remuneration totale' : 'Total pay'}
+              {locale === "fr" ? "Remuneration totale" : "Total pay"}
             </p>
             <p className="text-xl font-bold text-foreground">
               {formatCurrency(totalPay, job.currency)}
@@ -426,41 +446,45 @@ export function JobDetailClient({
             {duration}h
           </Badge>
         </div>
-        
+
         {hasApplied ? (
-          <Button 
+          <Button
             variant="outline"
-            className="w-full" 
+            className="w-full"
             size="lg"
-            onClick={() => router.push('/dashboard/applications')}
+            onClick={() => router.push("/dashboard/applications")}
           >
-            {locale === 'fr' ? 'Voir mes candidatures' : 'View my applications'}
+            {locale === "fr" ? "Voir mes candidatures" : "View my applications"}
           </Button>
         ) : (
-          <Button 
+          <Button
             onClick={() => setShowConfirmModal(true)}
-            className="w-full" 
+            className="w-full"
             size="lg"
           >
-            {locale === 'fr' ? 'Postuler maintenant' : 'Apply now'}
+            {locale === "fr" ? "Postuler maintenant" : "Apply now"}
             <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         )}
       </div>
 
       {/* Confirmation Modal */}
-      <Modal 
-        isOpen={showConfirmModal} 
+      <Modal
+        isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        title={locale === 'fr' ? 'Confirmer votre candidature' : 'Confirm your application'}
+        title={
+          locale === "fr"
+            ? "Confirmer votre candidature"
+            : "Confirm your application"
+        }
       >
         <div className="space-y-4">
           <p className="text-muted-foreground">
-            {locale === 'fr'
-              ? 'Avant de postuler, assurez-vous de pouvoir vous presenter a cette mission.'
-              : 'Before applying, make sure you can attend this job.'}
+            {locale === "fr"
+              ? "Avant de postuler, assurez-vous de pouvoir vous presenter a cette mission."
+              : "Before applying, make sure you can attend this job."}
           </p>
-          
+
           <Card className="bg-muted/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -484,35 +508,37 @@ export function JobDetailClient({
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
               <p className="text-sm text-foreground">
-                {locale === 'fr'
-                  ? 'Une absence non justifiee peut affecter votre score de fiabilite.'
-                  : 'Unexcused absence may affect your reliability score.'}
+                {locale === "fr"
+                  ? "Une absence non justifiee peut affecter votre score de fiabilite."
+                  : "Unexcused absence may affect your reliability score."}
               </p>
             </div>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowConfirmModal(false)}
               className="flex-1"
             >
-              {locale === 'fr' ? 'Annuler' : 'Cancel'}
+              {locale === "fr" ? "Annuler" : "Cancel"}
             </Button>
-            <Button 
+            <Button
               onClick={handleApply}
               disabled={applying}
               className="flex-1"
             >
               {applying ? (
                 <LoadingSpinner size="sm" />
+              ) : locale === "fr" ? (
+                "Confirmer"
               ) : (
-                locale === 'fr' ? 'Confirmer' : 'Confirm'
+                "Confirm"
               )}
             </Button>
           </div>
         </div>
       </Modal>
     </div>
-  )
+  );
 }

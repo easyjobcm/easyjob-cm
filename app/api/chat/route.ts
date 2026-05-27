@@ -3,9 +3,9 @@ import {
   convertToModelMessages,
   streamText,
   UIMessage,
-} from 'ai'
+} from "ai";
 
-export const maxDuration = 30
+export const maxDuration = 30;
 
 const SYSTEM_PROMPT = `Tu es EasyBot, l'assistant virtuel d'EasyJob Cameroun. Tu aides les utilisateurs avec:
 
@@ -30,21 +30,21 @@ const SYSTEM_PROMPT = `Tu es EasyBot, l'assistant virtuel d'EasyJob Cameroun. Tu
 - Frais de retrait: 2%
 - Montant minimum de retrait: 1000 XAF
 
-Reponds toujours en francais, de maniere amicale et professionnelle. Si tu ne connais pas la reponse, suggere de contacter le support a support@easyjob.cm.`
+Reponds toujours en francais, de maniere amicale et professionnelle. Si tu ne connais pas la reponse, suggere de contacter le support a support@easyjob.cm.`;
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json()
+  const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: 'openai/gpt-5-mini',
+    model: "openai/gpt-5-mini",
     system: SYSTEM_PROMPT,
     messages: await convertToModelMessages(messages),
     abortSignal: req.signal,
     maxOutputTokens: 500,
-  })
+  });
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     consumeSseStream: consumeStream,
-  })
+  });
 }

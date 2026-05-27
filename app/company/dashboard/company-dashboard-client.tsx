@@ -1,13 +1,12 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import Link from 'next/link'
-import { Header } from '@/components/layout/header'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { useI18n } from '@/lib/i18n'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import * as React from "react";
+import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Briefcase,
   Users,
@@ -15,72 +14,94 @@ import {
   TrendingUp,
   Plus,
   ChevronRight,
-  Eye,
-  Edit2,
-  MoreVertical,
   Calendar,
   MapPin,
   Bell,
   Settings,
-  Building2
-} from 'lucide-react'
+  Building2,
+} from "lucide-react";
 
 interface CompanyDashboardClientProps {
   user: {
-    id?: string
-  }
+    id?: string;
+  };
   profile: {
-    logo_url?: string | null
-    company_name: string
-  }
+    logo_url?: string | null;
+    company_name: string;
+  };
   jobs: Array<{
-    id: string
-    status: string
-    urgency?: string
-    title: string
-    start_date: string
-    city: string
-    start_time?: string | null
-    hourly_rate: number
-    currency?: string
+    id: string;
+    status: string;
+    urgency?: string;
+    title: string;
+    start_date: string;
+    city: string;
+    start_time?: string | null;
+    hourly_rate: number;
+    currency?: string;
     applications?: Array<{
-      count?: number
-    }>
-  }>
+      count?: number;
+    }>;
+  }>;
   stats: {
-    totalJobs: number
-    activeJobs: number
-    totalApplications: number
-    pendingApplications: number
-  }
+    totalJobs: number;
+    activeJobs: number;
+    totalApplications: number;
+    pendingApplications: number;
+  };
 }
 
-export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: CompanyDashboardClientProps) {
-  const { locale } = useI18n()
+export function CompanyDashboardClient({
+  user: _user,
+  profile,
+  jobs,
+  stats,
+}: CompanyDashboardClientProps) {
+  const { locale } = useI18n();
 
   const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return locale === 'fr' ? 'Bonjour' : 'Good morning'
-    if (hour < 18) return locale === 'fr' ? 'Bon apres-midi' : 'Good afternoon'
-    return locale === 'fr' ? 'Bonsoir' : 'Good evening'
-  }
+    const hour = new Date().getHours();
+    if (hour < 12) return locale === "fr" ? "Bonjour" : "Good morning";
+    if (hour < 18) return locale === "fr" ? "Bon apres-midi" : "Good afternoon";
+    return locale === "fr" ? "Bonsoir" : "Good evening";
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'draft':
-        return <Badge variant="secondary">{locale === 'fr' ? 'Brouillon' : 'Draft'}</Badge>
-      case 'pending_review':
-        return <Badge variant="warning">{locale === 'fr' ? 'En attente' : 'Pending'}</Badge>
-      case 'published':
-        return <Badge variant="success">{locale === 'fr' ? 'Publie' : 'Published'}</Badge>
-      case 'filled':
-        return <Badge variant="outline">{locale === 'fr' ? 'Pourvu' : 'Filled'}</Badge>
-      case 'cancelled':
-        return <Badge variant="destructive">{locale === 'fr' ? 'Annule' : 'Cancelled'}</Badge>
+      case "draft":
+        return (
+          <Badge variant="secondary">
+            {locale === "fr" ? "Brouillon" : "Draft"}
+          </Badge>
+        );
+      case "pending_review":
+        return (
+          <Badge variant="warning">
+            {locale === "fr" ? "En attente" : "Pending"}
+          </Badge>
+        );
+      case "published":
+        return (
+          <Badge variant="success">
+            {locale === "fr" ? "Publie" : "Published"}
+          </Badge>
+        );
+      case "filled":
+        return (
+          <Badge variant="outline">
+            {locale === "fr" ? "Pourvu" : "Filled"}
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge variant="destructive">
+            {locale === "fr" ? "Annule" : "Cancelled"}
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{status}</Badge>;
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-6">
@@ -90,8 +111,8 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               {profile.logo_url ? (
-                <img 
-                  src={profile.logo_url} 
+                <img
+                  src={profile.logo_url}
                   alt={profile.company_name}
                   className="w-full h-full object-cover rounded-xl"
                 />
@@ -106,12 +127,20 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
           </div>
           <div className="flex gap-2">
             <Link href="/company/notifications">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10"
+              >
                 <Bell className="w-5 h-5" />
               </Button>
             </Link>
             <Link href="/company/settings">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10"
+              >
                 <Settings className="w-5 h-5" />
               </Button>
             </Link>
@@ -126,10 +155,12 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                 <div className="flex items-center gap-2 mb-1">
                   <Briefcase className="w-4 h-4 text-white/70" />
                   <span className="text-xs text-white/70">
-                    {locale === 'fr' ? 'Offres actives' : 'Active jobs'}
+                    {locale === "fr" ? "Offres actives" : "Active jobs"}
                   </span>
                 </div>
-                <p className="text-2xl font-bold text-white">{stats.activeJobs}</p>
+                <p className="text-2xl font-bold text-white">
+                  {stats.activeJobs}
+                </p>
               </CardContent>
             </Card>
 
@@ -138,12 +169,15 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                 <div className="flex items-center gap-2 mb-1">
                   <Users className="w-4 h-4 text-white/70" />
                   <span className="text-xs text-white/70">
-                    {locale === 'fr' ? 'Candidatures' : 'Applications'}
+                    {locale === "fr" ? "Candidatures" : "Applications"}
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-white">
                   {stats.pendingApplications}
-                  <span className="text-sm font-normal text-white/70"> / {stats.totalApplications}</span>
+                  <span className="text-sm font-normal text-white/70">
+                    {" "}
+                    / {stats.totalApplications}
+                  </span>
                 </p>
               </CardContent>
             </Card>
@@ -158,7 +192,7 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
             <Link href="/company/jobs/new">
               <Button className="w-full" size="lg">
                 <Plus className="w-5 h-5 mr-2" />
-                {locale === 'fr' ? 'Publier une offre' : 'Post a job'}
+                {locale === "fr" ? "Publier une offre" : "Post a job"}
               </Button>
             </Link>
           </CardContent>
@@ -168,13 +202,13 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-foreground">
-              {locale === 'fr' ? 'Mes offres' : 'My jobs'}
+              {locale === "fr" ? "Mes offres" : "My jobs"}
             </h2>
-            <Link 
+            <Link
               href="/company/jobs"
               className="text-sm text-primary font-medium flex items-center gap-1"
             >
-              {locale === 'fr' ? 'Tout voir' : 'See all'}
+              {locale === "fr" ? "Tout voir" : "See all"}
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -184,14 +218,14 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
               <CardContent className="p-8 text-center">
                 <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground mb-4">
-                  {locale === 'fr' 
-                    ? 'Vous n\'avez pas encore publie d\'offre'
-                    : 'You haven\'t posted any jobs yet'}
+                  {locale === "fr"
+                    ? "Vous n'avez pas encore publie d'offre"
+                    : "You haven't posted any jobs yet"}
                 </p>
                 <Link href="/company/jobs/new">
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    {locale === 'fr' ? 'Creer une offre' : 'Create a job'}
+                    {locale === "fr" ? "Creer une offre" : "Create a job"}
                   </Button>
                 </Link>
               </CardContent>
@@ -205,9 +239,12 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {getStatusBadge(job.status)}
-                          {job.urgency !== 'normal' && (
-                            <Badge variant="destructive" className="text-[10px]">
-                              {job.urgency === 'critical' ? 'URGENT' : 'ASAP'}
+                          {job.urgency !== "normal" && (
+                            <Badge
+                              variant="destructive"
+                              className="text-[10px]"
+                            >
+                              {job.urgency === "critical" ? "URGENT" : "ASAP"}
                             </Badge>
                           )}
                         </div>
@@ -216,7 +253,11 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                         </h3>
                       </div>
                       <Link href={`/company/jobs/${job.id}`}>
-                        <Button variant="ghost" size="icon" className="shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                        >
                           <ChevronRight className="w-5 h-5" />
                         </Button>
                       </Link>
@@ -245,7 +286,8 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                             {job.applications?.[0]?.count || 0}
                           </span>
                           <span className="text-muted-foreground">
-                            {' '}{locale === 'fr' ? 'candidat(s)' : 'applicant(s)'}
+                            {" "}
+                            {locale === "fr" ? "candidat(s)" : "applicant(s)"}
                           </span>
                         </span>
                       </div>
@@ -269,11 +311,12 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                   <Users className="w-6 h-6 text-primary" />
                 </div>
                 <p className="font-medium text-foreground text-sm">
-                  {locale === 'fr' ? 'Candidatures' : 'Applications'}
+                  {locale === "fr" ? "Candidatures" : "Applications"}
                 </p>
                 {stats.pendingApplications > 0 && (
                   <Badge variant="destructive" className="mt-1">
-                    {stats.pendingApplications} {locale === 'fr' ? 'en attente' : 'pending'}
+                    {stats.pendingApplications}{" "}
+                    {locale === "fr" ? "en attente" : "pending"}
                   </Badge>
                 )}
               </CardContent>
@@ -287,7 +330,7 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
                   <TrendingUp className="w-6 h-6 text-success" />
                 </div>
                 <p className="font-medium text-foreground text-sm">
-                  {locale === 'fr' ? 'Statistiques' : 'Analytics'}
+                  {locale === "fr" ? "Statistiques" : "Analytics"}
                 </p>
               </CardContent>
             </Card>
@@ -295,5 +338,5 @@ export function CompanyDashboardClient({ user: _user, profile, jobs, stats }: Co
         </div>
       </div>
     </div>
-  )
+  );
 }
