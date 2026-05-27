@@ -1,33 +1,32 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  Plus, 
-  Briefcase, 
-  Users, 
-  Clock, 
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Plus,
+  Briefcase,
+  Users,
+  Clock,
   MapPin,
   Calendar,
   MoreVertical,
   Eye,
   Edit,
   Trash2,
-  CheckCircle
-} from "lucide-react"
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,166 +36,177 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Job {
-  id: string
-  title: string
-  description: string
-  city: string
-  start_date: string
-  start_time: string
-  end_time: string
-  hourly_rate: number
-  positions_available: number
-  positions_filled: number
-  status: string
-  urgency: string
-  created_at: string
+  id: string;
+  title: string;
+  description: string;
+  city: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+  hourly_rate: number;
+  positions_available: number;
+  positions_filled: number;
+  status: string;
+  urgency: string;
+  created_at: string;
   _count?: {
-    applications: number
-  }
+    applications: number;
+  };
 }
 
 export default function CompanyJobsPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [activeTab, setActiveTab] = useState("active")
-  const [deleteJobId, setDeleteJobId] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [activeTab, setActiveTab] = useState("active");
+  const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     // Show success toast if job was just created
-    if (searchParams.get('created') === 'true') {
+    if (searchParams.get("created") === "true") {
       toast({
         title: "Offre creee",
         description: "Votre offre a ete soumise pour moderation.",
-      })
+      });
     }
-    loadJobs()
-  }, [searchParams])
+    loadJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function loadJobs() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
-      router.push('/login?redirect=/company/jobs')
-      return
+      router.push("/login?redirect=/company/jobs");
+      return;
     }
 
     // Get company profile
     const { data: company } = await supabase
-      .from('company_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
+      .from("company_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
 
     if (!company) {
-      router.push('/onboarding/company')
-      return
+      router.push("/onboarding/company");
+      return;
     }
 
     // Get jobs with application counts
     const { data: jobsData } = await supabase
-      .from('jobs')
-      .select(`
+      .from("jobs")
+      .select(
+        `
         *,
         job_applications(count)
-      `)
-      .eq('company_id', company.id)
-      .order('created_at', { ascending: false })
+      `,
+      )
+      .eq("company_id", company.id)
+      .order("created_at", { ascending: false });
 
     if (jobsData) {
       // Transform data to include application count
-      const transformedJobs = jobsData.map(job => ({
+      const transformedJobs = jobsData.map((job) => ({
         ...job,
         _count: {
-          applications: job.job_applications?.[0]?.count || 0
-        }
-      }))
-      setJobs(transformedJobs)
+          applications: job.job_applications?.[0]?.count || 0,
+        },
+      }));
+      setJobs(transformedJobs);
     }
-    
-    setLoading(false)
+
+    setLoading(false);
   }
 
   const handleDeleteJob = async () => {
-    if (!deleteJobId) return
-    
-    setDeleting(true)
-    const supabase = createClient()
-    
+    if (!deleteJobId) return;
+
+    setDeleting(true);
+    const supabase = createClient();
+
     const { error } = await supabase
-      .from('jobs')
+      .from("jobs")
       .delete()
-      .eq('id', deleteJobId)
+      .eq("id", deleteJobId);
 
     if (error) {
       toast({
         title: "Erreur",
         description: "Impossible de supprimer l'offre.",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     } else {
       toast({
         title: "Offre supprimee",
-        description: "L'offre a ete supprimee avec succes."
-      })
-      loadJobs()
+        description: "L'offre a ete supprimee avec succes.",
+      });
+      loadJobs();
     }
-    
-    setDeleteJobId(null)
-    setDeleting(false)
-  }
+
+    setDeleteJobId(null);
+    setDeleting(false);
+  };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    })
-  }
+    return new Date(date).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   const formatTime = (time: string) => {
-    return time?.slice(0, 5) || ''
-  }
+    return time?.slice(0, 5) || "";
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'published':
-        return <Badge className="bg-green-100 text-green-700">Publiee</Badge>
-      case 'pending_review':
-      case 'pending_moderation':
-        return <Badge className="bg-yellow-100 text-yellow-700">En moderation</Badge>
-      case 'draft':
-        return <Badge variant="secondary">Brouillon</Badge>
-      case 'filled':
-        return <Badge className="bg-blue-100 text-blue-700">Pourvue</Badge>
-      case 'expired':
-        return <Badge className="bg-gray-100 text-gray-700">Expiree</Badge>
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-700">Rejetee</Badge>
-      case 'cancelled':
-        return <Badge className="bg-red-100 text-red-700">Annulee</Badge>
+      case "published":
+        return <Badge className="bg-green-100 text-green-700">Publiee</Badge>;
+      case "pending_review":
+      case "pending_moderation":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700">En moderation</Badge>
+        );
+      case "draft":
+        return <Badge variant="secondary">Brouillon</Badge>;
+      case "filled":
+        return <Badge className="bg-blue-100 text-blue-700">Pourvue</Badge>;
+      case "expired":
+        return <Badge className="bg-gray-100 text-gray-700">Expiree</Badge>;
+      case "rejected":
+        return <Badge className="bg-red-100 text-red-700">Rejetee</Badge>;
+      case "cancelled":
+        return <Badge className="bg-red-100 text-red-700">Annulee</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary">{status}</Badge>;
     }
-  }
+  };
 
-  const filteredJobs = jobs.filter(job => {
-    if (activeTab === 'active') {
-      return ['published', 'pending_review', 'pending_moderation'].includes(job.status)
-    } else if (activeTab === 'draft') {
-      return job.status === 'draft'
+  const filteredJobs = jobs.filter((job) => {
+    if (activeTab === "active") {
+      return ["published", "pending_review", "pending_moderation"].includes(
+        job.status,
+      );
+    } else if (activeTab === "draft") {
+      return job.status === "draft";
     } else {
-      return ['filled', 'expired', 'cancelled', 'rejected'].includes(job.status)
+      return ["filled", "expired", "cancelled", "rejected"].includes(
+        job.status,
+      );
     }
-  })
+  });
 
   if (loading) {
     return (
@@ -210,7 +220,7 @@ export default function CompanyJobsPage() {
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
-    )
+    );
   }
 
   return (
@@ -220,7 +230,9 @@ export default function CompanyJobsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">Mes Offres</h1>
-            <p className="text-sm text-muted-foreground">{jobs.length} offre(s) au total</p>
+            <p className="text-sm text-muted-foreground">
+              {jobs.length} offre(s) au total
+            </p>
           </div>
           <Button asChild>
             <Link href="/company/jobs/new">
@@ -236,13 +248,31 @@ export default function CompanyJobsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="active">
-              Actives ({jobs.filter(j => ['published', 'pending_review', 'pending_moderation'].includes(j.status)).length})
+              Actives (
+              {
+                jobs.filter((j) =>
+                  [
+                    "published",
+                    "pending_review",
+                    "pending_moderation",
+                  ].includes(j.status),
+                ).length
+              }
+              )
             </TabsTrigger>
             <TabsTrigger value="draft">
-              Brouillons ({jobs.filter(j => j.status === 'draft').length})
+              Brouillons ({jobs.filter((j) => j.status === "draft").length})
             </TabsTrigger>
             <TabsTrigger value="closed">
-              Terminees ({jobs.filter(j => ['filled', 'expired', 'cancelled', 'rejected'].includes(j.status)).length})
+              Terminees (
+              {
+                jobs.filter((j) =>
+                  ["filled", "expired", "cancelled", "rejected"].includes(
+                    j.status,
+                  ),
+                ).length
+              }
+              )
             </TabsTrigger>
           </TabsList>
 
@@ -252,16 +282,19 @@ export default function CompanyJobsPage() {
                 <CardContent className="p-8 text-center">
                   <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="font-semibold mb-2">
-                    {activeTab === 'active' && "Aucune offre active"}
-                    {activeTab === 'draft' && "Aucun brouillon"}
-                    {activeTab === 'closed' && "Aucune offre terminee"}
+                    {activeTab === "active" && "Aucune offre active"}
+                    {activeTab === "draft" && "Aucun brouillon"}
+                    {activeTab === "closed" && "Aucune offre terminee"}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {activeTab === 'active' && "Publiez une nouvelle offre pour trouver des candidats"}
-                    {activeTab === 'draft' && "Vos brouillons d'offres apparaitront ici"}
-                    {activeTab === 'closed' && "Les offres terminees apparaitront ici"}
+                    {activeTab === "active" &&
+                      "Publiez une nouvelle offre pour trouver des candidats"}
+                    {activeTab === "draft" &&
+                      "Vos brouillons d'offres apparaitront ici"}
+                    {activeTab === "closed" &&
+                      "Les offres terminees apparaitront ici"}
                   </p>
-                  {activeTab === 'active' && (
+                  {activeTab === "active" && (
                     <Button asChild>
                       <Link href="/company/jobs/new">
                         <Plus className="h-4 w-4 mr-2" />
@@ -278,13 +311,19 @@ export default function CompanyJobsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold truncate">{job.title}</h3>
+                          <h3 className="font-semibold truncate">
+                            {job.title}
+                          </h3>
                           {getStatusBadge(job.status)}
-                          {job.urgency === 'high' || job.urgency === 'urgent' || job.urgency === 'critical' ? (
-                            <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                          {job.urgency === "high" ||
+                          job.urgency === "urgent" ||
+                          job.urgency === "critical" ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Urgent
+                            </Badge>
                           ) : null}
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3.5 w-3.5" />
@@ -296,19 +335,28 @@ export default function CompanyJobsPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {formatTime(job.start_time)} - {formatTime(job.end_time)}
+                            {formatTime(job.start_time)} -{" "}
+                            {formatTime(job.end_time)}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-4 mt-3">
                           <div className="flex items-center gap-1.5 text-sm">
                             <Users className="h-4 w-4 text-violet-600" />
-                            <span className="font-medium">{job._count?.applications || 0}</span>
-                            <span className="text-muted-foreground">candidature(s)</span>
+                            <span className="font-medium">
+                              {job._count?.applications || 0}
+                            </span>
+                            <span className="text-muted-foreground">
+                              candidature(s)
+                            </span>
                           </div>
                           <div className="text-sm">
-                            <span className="font-medium">{job.positions_filled}</span>
-                            <span className="text-muted-foreground">/{job.positions_available} poste(s)</span>
+                            <span className="font-medium">
+                              {job.positions_filled}
+                            </span>
+                            <span className="text-muted-foreground">
+                              /{job.positions_available} poste(s)
+                            </span>
                           </div>
                           <div className="text-sm font-medium text-violet-600">
                             {job.hourly_rate.toLocaleString()} XAF/h
@@ -318,7 +366,11 @@ export default function CompanyJobsPage() {
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                          >
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -335,7 +387,7 @@ export default function CompanyJobsPage() {
                               Modifier
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => setDeleteJobId(job.id)}
                           >
@@ -354,17 +406,21 @@ export default function CompanyJobsPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteJobId} onOpenChange={() => setDeleteJobId(null)}>
+      <AlertDialog
+        open={!!deleteJobId}
+        onOpenChange={() => setDeleteJobId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette offre ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. Toutes les candidatures associees seront egalement supprimees.
+              Cette action est irreversible. Toutes les candidatures associees
+              seront egalement supprimees.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeleteJob}
               className="bg-red-600 hover:bg-red-700"
               disabled={deleting}
@@ -375,5 +431,5 @@ export default function CompanyJobsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

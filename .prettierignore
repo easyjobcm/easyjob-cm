@@ -1,0 +1,23 @@
+# Builds
+.next/
+out/
+build/
+node_modules/
+
+# Lockfiles
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Generated
+next-env.d.ts
+lib/database.types.ts
+database.types.ts
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+
+# Misc
+public/
+*.md

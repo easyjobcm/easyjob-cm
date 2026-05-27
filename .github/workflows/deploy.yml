@@ -11,10 +11,17 @@ name: Deploy Production
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag à déployer (ex: v0.2.1) pour un rollback ciblé"
+        required: true
+        type: string
 
-# This workflow assumes branch protection enforces that main only receives PRs from main-dev.
+# Le déploiement production est piloté par les tags SemVer créés via release.yml.
+# Pour un rollback : lancer ce workflow manuellement avec le tag d'une version stable.
 
 env:
   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -26,6 +33,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -46,6 +55,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4

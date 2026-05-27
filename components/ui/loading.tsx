@@ -1,29 +1,33 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { cn } from '@/lib/utils'
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
-  size?: 'sm' | 'md' | 'lg'
+  size?: "sm" | "md" | "lg";
 }
 
-export function LoadingSpinner({ size = 'md', className, ...props }: LoadingSpinnerProps) {
+export function LoadingSpinner({
+  size = "md",
+  className,
+  ...props
+}: LoadingSpinnerProps) {
   const sizeClasses = {
-    sm: 'h-4 w-4 border-2',
-    md: 'h-8 w-8 border-3',
-    lg: 'h-12 w-12 border-4',
-  }
+    sm: "h-4 w-4 border-2",
+    md: "h-8 w-8 border-3",
+    lg: "h-12 w-12 border-4",
+  };
 
   return (
     <div
       className={cn(
-        'animate-spin rounded-full border-primary border-t-transparent',
+        "animate-spin rounded-full border-primary border-t-transparent",
         sizeClasses[size],
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 export function LoadingScreen({ message }: { message?: string }) {
@@ -37,7 +41,7 @@ export function LoadingScreen({ message }: { message?: string }) {
         <p className="text-sm text-muted-foreground animate-pulse">{message}</p>
       )}
     </div>
-  )
+  );
 }
 
 export function LoadingDots() {
@@ -47,11 +51,16 @@ export function LoadingDots() {
       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
     </span>
-  )
+  );
 }
 
-type LoadingSkeletonProps = React.HTMLAttributes<HTMLDivElement>
+type LoadingSkeletonProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function LoadingSkeleton({ className, ...props }: LoadingSkeletonProps) {
-  return <div className={cn('animate-pulse rounded-2xl bg-muted', className)} {...props} />
+  return (
+    <div
+      className={cn("animate-pulse rounded-2xl bg-muted", className)}
+      {...props}
+    />
+  );
 }

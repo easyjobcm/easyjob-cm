@@ -1,69 +1,69 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { AppShell } from '@/components/layout/app-shell'
-import { JobCard } from '@/components/jobs/job-card'
-import { JobFilters } from '@/components/jobs/job-filters'
-import { LoadingSpinner, LoadingSkeleton } from '@/components/ui/loading'
-import { useJobs, useCategories } from '@/lib/hooks/use-data'
-import { useI18n } from '@/lib/i18n'
-import { Search, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import * as React from "react";
+import { AppShell } from "@/components/layout/app-shell";
+import { JobCard } from "@/components/jobs/job-card";
+import { JobFilters } from "@/components/jobs/job-filters";
+import { LoadingSkeleton } from "@/components/ui/loading";
+import { useJobs, useCategories } from "@/lib/hooks/use-data";
+import { useI18n } from "@/lib/i18n";
+import { Search, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type JobListItem = {
-  id: string
-  title: string
-  description: string
-  city: string
-  quartier?: string
-  start_date: string
-  start_time: string
-  end_time: string
-  hourly_rate: number
-  currency: string
-  urgency: 'normal' | 'urgent' | 'critical'
-  positions_available: number
-  positions_filled: number
-  is_sandbox?: boolean
+  id: string;
+  title: string;
+  description: string;
+  city: string;
+  quartier?: string;
+  start_date: string;
+  start_time: string;
+  end_time: string;
+  hourly_rate: number;
+  currency: string;
+  urgency: "normal" | "urgent" | "critical";
+  positions_available: number;
+  positions_filled: number;
+  is_sandbox?: boolean;
   company?: {
-    company_name: string
-    logo_url?: string
-  }
+    company_name: string;
+    logo_url?: string;
+  };
   category?: {
-    name_fr: string
-    name_en: string
-    icon?: string
-  }
-}
+    name_fr: string;
+    name_en: string;
+    icon?: string;
+  };
+};
 
 type CategoryListItem = {
-  id: string
-  name_fr?: string
-  name_en?: string
-}
+  id: string;
+  name_fr?: string;
+  name_en?: string;
+};
 
 export default function JobsPage() {
-  const { t, locale } = useI18n()
-  const [search, setSearch] = React.useState('')
-  const [city, setCity] = React.useState('')
-  const [categoryId, setCategoryId] = React.useState('')
-  const [debouncedSearch, setDebouncedSearch] = React.useState('')
+  const { t, locale } = useI18n();
+  const [search, setSearch] = React.useState("");
+  const [city, setCity] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
 
   // Debounce search
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [search])
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const { categories, isLoading: categoriesLoading } = useCategories()
+  const { categories } = useCategories();
   const { jobs, pagination, isLoading, isError, mutate } = useJobs({
     search: debouncedSearch,
     city,
     category: categoryId,
     limit: 20,
-  })
+  });
 
   return (
     <AppShell>
@@ -73,7 +73,7 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold text-foreground mb-4">
             {t.jobs?.title || "Offres d'emploi"}
           </h1>
-          
+
           <JobFilters
             search={search}
             onSearchChange={setSearch}
@@ -88,26 +88,26 @@ export default function JobsPage() {
         {/* Quick category pills */}
         <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-hide">
           <button
-            onClick={() => setCategoryId('')}
+            onClick={() => setCategoryId("")}
             className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
               !categoryId
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
-            {locale === 'fr' ? 'Tous' : 'All'}
+            {locale === "fr" ? "Tous" : "All"}
           </button>
           {(categories as CategoryListItem[]).slice(0, 5).map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setCategoryId(categoryId === cat.id ? '' : cat.id)}
+              onClick={() => setCategoryId(categoryId === cat.id ? "" : cat.id)}
               className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                 categoryId === cat.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {locale === 'fr' ? cat.name_fr : cat.name_en}
+              {locale === "fr" ? cat.name_fr : cat.name_en}
             </button>
           ))}
         </div>
@@ -131,16 +131,16 @@ export default function JobsPage() {
               <RefreshCw className="h-8 w-8 text-destructive" />
             </div>
             <h3 className="font-semibold text-foreground mb-1">
-              {locale === 'fr' ? 'Erreur de chargement' : 'Loading error'}
+              {locale === "fr" ? "Erreur de chargement" : "Loading error"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs mb-4">
-              {locale === 'fr' 
-                ? 'Impossible de charger les offres'
-                : 'Unable to load job listings'}
+              {locale === "fr"
+                ? "Impossible de charger les offres"
+                : "Unable to load job listings"}
             </p>
             <Button onClick={() => mutate()} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
-              {locale === 'fr' ? 'Reessayer' : 'Retry'}
+              {locale === "fr" ? "Reessayer" : "Retry"}
             </Button>
           </div>
         )}
@@ -152,12 +152,12 @@ export default function JobsPage() {
               <Search className="h-8 w-8 text-muted-foreground" />
             </div>
             <h3 className="font-semibold text-foreground mb-1">
-              {locale === 'fr' ? 'Aucune offre trouvee' : 'No jobs found'}
+              {locale === "fr" ? "Aucune offre trouvee" : "No jobs found"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs">
-              {locale === 'fr' 
-                ? 'Essayez de modifier vos criteres de recherche'
-                : 'Try adjusting your search criteria'}
+              {locale === "fr"
+                ? "Essayez de modifier vos criteres de recherche"
+                : "Try adjusting your search criteria"}
             </p>
           </div>
         )}
@@ -166,7 +166,8 @@ export default function JobsPage() {
         {!isLoading && !isError && jobs.length > 0 && (
           <>
             <p className="text-sm text-muted-foreground mb-2">
-              {pagination?.total || 0} {locale === 'fr' ? 'offres trouvees' : 'jobs found'}
+              {pagination?.total || 0}{" "}
+              {locale === "fr" ? "offres trouvees" : "jobs found"}
             </p>
             {jobs.map((job: JobListItem) => (
               <JobCard key={job.id} job={job} />
@@ -175,5 +176,5 @@ export default function JobsPage() {
         )}
       </div>
     </AppShell>
-  )
+  );
 }

@@ -6,32 +6,32 @@
   /* Primary - Deep Violet */
   --primary: 262 83% 58%;
   --primary-foreground: 0 0% 100%;
-  
+
   /* Secondary - Soft Lavender */
   --secondary: 270 50% 95%;
   --secondary-foreground: 262 83% 30%;
-  
+
   /* Accent - Electric Violet */
   --accent: 270 95% 65%;
   --accent-foreground: 0 0% 100%;
-  
+
   /* Backgrounds */
   --background: 270 50% 99%;
   --foreground: 262 20% 15%;
-  
+
   /* Cards with glassmorphism */
   --card: 0 0% 100%;
   --card-foreground: 262 20% 15%;
-  
+
   /* Muted tones */
   --muted: 270 20% 95%;
   --muted-foreground: 262 15% 45%;
-  
+
   /* Borders */
   --border: 270 20% 90%;
   --input: 270 20% 92%;
   --ring: 262 83% 58%;
-  
+
   /* Semantic colors */
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
@@ -39,16 +39,22 @@
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
-  
+
   /* Radius */
   --radius: 0.75rem;
-  
+
   /* 3D Shadows */
   --shadow-color: 262 50% 50%;
   --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.05);
-  --shadow-md: 0 4px 6px -1px hsl(var(--shadow-color) / 0.1), 0 2px 4px -2px hsl(var(--shadow-color) / 0.1);
-  --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.1), 0 4px 6px -4px hsl(var(--shadow-color) / 0.1);
-  --shadow-xl: 0 20px 25px -5px hsl(var(--shadow-color) / 0.15), 0 8px 10px -6px hsl(var(--shadow-color) / 0.1);
+  --shadow-md:
+    0 4px 6px -1px hsl(var(--shadow-color) / 0.1),
+    0 2px 4px -2px hsl(var(--shadow-color) / 0.1);
+  --shadow-lg:
+    0 10px 15px -3px hsl(var(--shadow-color) / 0.1),
+    0 4px 6px -4px hsl(var(--shadow-color) / 0.1);
+  --shadow-xl:
+    0 20px 25px -5px hsl(var(--shadow-color) / 0.15),
+    0 8px 10px -6px hsl(var(--shadow-color) / 0.1);
   --shadow-3d: 0 25px 50px -12px hsl(var(--shadow-color) / 0.25);
 }
 
@@ -56,32 +62,32 @@
   /* Primary - Bright Violet */
   --primary: 262 83% 65%;
   --primary-foreground: 0 0% 100%;
-  
+
   /* Secondary */
   --secondary: 270 30% 20%;
   --secondary-foreground: 270 50% 90%;
-  
+
   /* Accent */
   --accent: 270 95% 70%;
   --accent-foreground: 262 20% 10%;
-  
+
   /* Backgrounds */
   --background: 262 30% 8%;
   --foreground: 270 20% 95%;
-  
+
   /* Cards */
   --card: 262 25% 12%;
   --card-foreground: 270 20% 95%;
-  
+
   /* Muted */
   --muted: 262 20% 18%;
   --muted-foreground: 270 15% 60%;
-  
+
   /* Borders */
   --border: 262 20% 22%;
   --input: 262 20% 20%;
   --ring: 262 83% 65%;
-  
+
   --destructive: 0 72% 55%;
   --success: 142 70% 45%;
   --warning: 38 90% 55%;
@@ -109,8 +115,8 @@
   --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 4px);
@@ -155,7 +161,9 @@ body {
 /* 3D Card effect */
 .card-3d {
   transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .card-3d:hover {
@@ -165,22 +173,32 @@ body {
 
 /* Gradient backgrounds */
 .gradient-primary {
-  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 100%
+  );
 }
 
 .gradient-soft {
-  background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--secondary)) 100%
+  );
 }
 
 /* Button 3D effect */
 .btn-3d {
   position: relative;
   transform: translateY(0);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .btn-3d::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -198,7 +216,9 @@ body {
 
 /* Input focus ring */
 .input-focus {
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .input-focus:focus {
@@ -279,7 +299,7 @@ body {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -347,7 +367,8 @@ body {
 
 /* Bounce scale animation */
 @keyframes bounce-scale {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
@@ -384,7 +405,8 @@ body {
 
 /* Floating animation for logo */
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -398,11 +420,14 @@ body {
 
 /* Pulse glow effect - enhanced */
 @keyframes pulse-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.4)) drop-shadow(0 0 20px hsl(var(--accent) / 0.2));
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.4))
+      drop-shadow(0 0 20px hsl(var(--accent) / 0.2));
   }
   50% {
-    filter: drop-shadow(0 0 20px hsl(var(--primary) / 0.6)) drop-shadow(0 0 40px hsl(var(--accent) / 0.4));
+    filter: drop-shadow(0 0 20px hsl(var(--primary) / 0.6))
+      drop-shadow(0 0 40px hsl(var(--accent) / 0.4));
   }
 }
 
@@ -434,4 +459,29 @@ body {
 .animate-splash-logo {
   animation: splash-logo 2.5s cubic-bezier(0.68, -0.15, 0.32, 1.15) infinite;
   transform-style: preserve-3d;
+}
+
+/* Glass card utility (used in landing page) */
+.glass-card {
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* Gradient primary background */
+.bg-gradient-primary {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 100%
+  );
+}
+
+/* Gradient primary text */
+.text-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
