@@ -435,3 +435,24 @@ body {
   animation: splash-logo 2.5s cubic-bezier(0.68, -0.15, 0.32, 1.15) infinite;
   transform-style: preserve-3d;
 }
+
+/* Glass card utility (used in landing page) */
+.glass-card {
+  background: hsl(var(--card) / 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* Gradient primary background */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+}
+
+/* Gradient primary text */
+.text-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -11,7 +11,10 @@
     "supabase:stop": "npx supabase stop",
     "supabase:reset": "npx supabase db reset --local --yes --no-seed",
     "seed": "npx tsx scripts/seed-test-data.ts",
-    "bootstrap:local": "npx tsx scripts/bootstrap-local.ts"
+    "bootstrap:local": "npx tsx scripts/bootstrap-local.ts",
+    "pwa:icons":  "pwa-asset-generator ./public/logo-source.png ./public/icons --opaque false --background transparent --icon-only --padding 0 --favicon",
+    "pwa:splash": "pwa-asset-generator ./public/logo-source.png ./public/icons --background #1A0A2E --theme-color #7C3AED --padding 20% --maskable --splash-only",
+    "pwa:all":    "pnpm pwa:icons && pnpm pwa:splash"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.187",
@@ -22,6 +25,7 @@
     "ai": "^6.0.185",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^11.0.0",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "next-intl": "^4.12.0",
