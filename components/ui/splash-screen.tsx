@@ -10,11 +10,20 @@ interface SplashScreenProps {
   minDuration?: number;
 }
 
-export function SplashScreen({ minDuration = 2600 }: SplashScreenProps) {
+export function SplashScreen({ minDuration = 2000 }: SplashScreenProps) {
   const { t } = useTranslation();
-  const [visible, setVisible] = useState(true);
+  // Caché par défaut → évite le double-loading (loading.tsx + splash) et
+  // l'hydration mismatch sur les traductions. Activé uniquement à la
+  // toute première visite de la session via sessionStorage.
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seen = sessionStorage.getItem("easyjob_splash_seen");
+    if (seen) return;
+    sessionStorage.setItem("easyjob_splash_seen", "1");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisible(true);
     const timer = setTimeout(() => setVisible(false), minDuration);
     return () => clearTimeout(timer);
   }, [minDuration]);

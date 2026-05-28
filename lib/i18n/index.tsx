@@ -38,10 +38,19 @@ function getStoredLocale(): Locale | null {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === "undefined") return "fr";
-    return getStoredLocale() || detectBrowserLocale();
-  });
+  // SSR + premier render client : toujours "fr" pour matcher <html lang="fr">.
+  // La locale réelle (storage / navigator) est appliquée après le mount.
+  const [locale, setLocaleState] = useState<Locale>("fr");
+
+  useEffect(() => {
+    const detected = getStoredLocale() || detectBrowserLocale();
+    if (detected !== locale) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocaleState(detected);
+    }
+    // On ne veut exécuter ceci qu'au mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);

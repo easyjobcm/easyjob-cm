@@ -699,7 +699,7 @@ export default function WelcomePage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.02 }}
-                onClick={() => router.push("/auth/signup?role=candidate")}
+                onClick={() => router.push("/auth/signup/candidate")}
                 className="h-14 px-7 rounded-full text-[15px] font-bold text-white flex items-center justify-center gap-2"
                 style={{
                   background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
@@ -715,7 +715,7 @@ export default function WelcomePage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 whileHover={{ scale: 1.02 }}
-                onClick={() => router.push("/auth/signup?role=company")}
+                onClick={() => router.push("/auth/signup/company")}
                 className="h-14 px-7 rounded-full text-[15px] font-bold text-white/80 flex items-center justify-center gap-2 border border-white/12"
                 style={{
                   backdropFilter: "blur(8px)",
