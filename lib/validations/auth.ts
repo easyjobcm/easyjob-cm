@@ -58,3 +58,16 @@ export const otpStepSchema = z.object({
   token: z.string().regex(/^\d{6}$/, "otpInvalid"),
 });
 export type OtpStepInput = z.infer<typeof otpStepSchema>;
+
+/** Vérification OTP email (post-signup). */
+export const emailOtpSchema = z.object({
+  email: emailSchema,
+  token: z.string().regex(/^\d{6}$/, "otpInvalid"),
+});
+export type EmailOtpInput = z.infer<typeof emailOtpSchema>;
+
+/** Renvoi du code OTP email. */
+export const resendEmailSchema = z.object({
+  email: emailSchema,
+});
+export type ResendEmailInput = z.infer<typeof resendEmailSchema>;

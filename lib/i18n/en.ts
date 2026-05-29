@@ -158,6 +158,8 @@ export const en: TranslationKeys = {
       companyNameTooLong: "Name too long.",
       termsRequired: "You must accept the terms.",
       smsProviderMissing: "SMS service not configured. Contact support.",
+      smsQuotaExceeded: "Too many attempts. Try again later.",
+      emailQuotaExceeded: "Too many attempts. Try again later.",
       generic: "An error occurred. Try again.",
     },
   },

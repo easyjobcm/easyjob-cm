@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       audit_logs: {
@@ -599,6 +624,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_send_log: {
+        Row: {
+          email: string
+          id: number
+          ip: string | null
+          sent_at: string
+          user_id: string | null
+        }
+        Insert: {
+          email: string
+          id?: number
+          ip?: string | null
+          sent_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          email?: string
+          id?: number
+          ip?: string | null
+          sent_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       job_applications: {
         Row: {
@@ -1397,6 +1446,30 @@ export type Database = {
           },
         ]
       }
+      sms_send_log: {
+        Row: {
+          id: number
+          ip: string | null
+          phone: string
+          sent_at: string
+          user_id: string | null
+        }
+        Insert: {
+          id?: number
+          ip?: string | null
+          phone: string
+          sent_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          id?: number
+          ip?: string | null
+          phone?: string
+          sent_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           auto_renew: boolean
@@ -1536,7 +1609,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_email_send_quota: {
+        Args: { p_email: string; p_ip: string }
+        Returns: boolean
+      }
+      check_sms_send_quota: {
+        Args: { p_ip: string; p_phone: string }
+        Returns: boolean
+      }
       cleanup_expired_otp: { Args: never; Returns: undefined }
+      cleanup_unconfirmed_signups: { Args: never; Returns: number }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
@@ -1746,6 +1828,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       application_status: [

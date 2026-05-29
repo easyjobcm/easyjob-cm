@@ -5,9 +5,12 @@ import {
   candidateAccountSchema,
   companyAccountSchema,
   companyInfoSchema,
+  emailOtpSchema,
   otpStepSchema,
   phoneStepSchema,
+  resendEmailSchema,
 } from "@/lib/validations/auth";
+import { getClientIp } from "@/lib/utils/request";
 import type { Database } from "@/lib/database.types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
@@ -215,16 +218,18 @@ export async function verifyEmailOtpAction(input: {
   email: string;
   token: string;
 }): Promise<ActionResult> {
-  if (!/^\d{6}$/.test(input.token)) {
-    return { ok: false, errorCode: "otpInvalid" };
+  const parsed = emailOtpSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      errorCode: parsed.error.issues[0]?.message ?? "otpInvalid",
+    };
   }
-  const email = input.email.trim().toLowerCase();
-  if (!email) return { ok: false, errorCode: "emailInvalid" };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({
-    email,
-    token: input.token,
+    email: parsed.data.email,
+    token: parsed.data.token,
     type: "signup",
   });
   if (error) {
@@ -241,18 +246,35 @@ export async function verifyEmailOtpAction(input: {
 export async function resendEmailOtpAction(input: {
   email: string;
 }): Promise<ActionResult> {
-  const email = input.email.trim().toLowerCase();
-  if (!email) return { ok: false, errorCode: "emailInvalid" };
+  const parsed = resendEmailSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      errorCode: parsed.error.issues[0]?.message ?? "emailInvalid",
+    };
+  }
+  const email = parsed.data.email;
+
+  // Anti-abus : quota par adresse (5/24h) et par IP (20/h).
+  const admin = createAdminClient();
+  const ip = await getClientIp();
+  const { data: allowed } = await admin.rpc("check_email_send_quota", {
+    p_email: email,
+    p_ip: ip,
+  });
+  if (allowed === false) {
+    console.warn("[signup] email quota exceeded", { email, ip });
+    return { ok: false, errorCode: "emailQuotaExceeded" };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email,
-  });
+  const { error } = await supabase.auth.resend({ type: "signup", email });
   if (error) {
     console.error("[signup] resendEmailOtp failed:", error);
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
+
+  await admin.from("email_send_log").insert({ email, ip });
   return { ok: true };
 }
 
@@ -299,6 +321,17 @@ export async function sendPhoneOtpAction(input: {
     .maybeSingle();
   if (dup) return { ok: false, errorCode: "phoneAlreadyUsed" };
 
+  // Anti-abus : quota par numéro (5/24h) et par IP (10/h).
+  const ip = await getClientIp();
+  const { data: allowed } = await admin.rpc("check_sms_send_quota", {
+    p_phone: e164,
+    p_ip: ip,
+  });
+  if (allowed === false) {
+    console.warn("[signup] SMS quota exceeded", { phone: e164, ip });
+    return { ok: false, errorCode: "smsQuotaExceeded" };
+  }
+
   // Dev bypass : pas d'appel Supabase, OTP fixe accepté à l'étape suivante.
   if (isDevTestPhone(e164)) {
     console.log("[signup] DEV bypass — sendPhoneOtp skipped for", e164);
@@ -310,6 +343,13 @@ export async function sendPhoneOtpAction(input: {
     console.error("[signup] sendPhoneOtp updateUser failed:", error);
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
+
+  // Log l'envoi pour les quotas suivants.
+  await admin.from("sms_send_log").insert({
+    phone: e164,
+    ip,
+    user_id: user.id,
+  });
 
   console.log("[signup] OTP sent (or test_otp matched) for", e164);
   return { ok: true };

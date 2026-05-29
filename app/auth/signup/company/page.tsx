@@ -8,7 +8,6 @@ import { Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { SignupShell } from "@/components/auth/signup-shell";
 import { SignupProgress } from "@/components/auth/signup-progress";
-import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { PhoneInput } from "@/components/auth/phone-input";
 import { OtpInput } from "@/components/auth/otp-input";
 import { WelcomeModal } from "@/components/auth/welcome-modal";
@@ -358,13 +357,6 @@ export default function CompanySignupPage() {
                     t.auth.signUp
                   )}
                 </motion.button>
-
-                <OAuthButtons
-                  role="company"
-                  googleLabel={t.signup.account.continueGoogle}
-                  dividerLabel={t.signup.account.orContinueWith}
-                  disabled={loading}
-                />
               </form>
             )}
 
@@ -548,7 +540,7 @@ function ResendOtp({
   resendLabel: string;
   resendInLabel: string;
 }) {
-  const [seconds, setSeconds] = React.useState(30);
+  const [seconds, setSeconds] = React.useState(60);
   React.useEffect(() => {
     if (seconds <= 0) return;
     const id = setTimeout(() => setSeconds((s) => s - 1), 1000);
@@ -558,7 +550,7 @@ function ResendOtp({
   const handle = async () => {
     if (seconds > 0) return;
     await onResend();
-    setSeconds(30);
+    setSeconds(60);
   };
 
   return (

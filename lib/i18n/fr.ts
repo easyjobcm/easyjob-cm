@@ -157,6 +157,8 @@ export const fr = {
       companyNameTooLong: "Nom trop long.",
       termsRequired: "Vous devez accepter les conditions.",
       smsProviderMissing: "Service SMS non configuré. Contactez le support.",
+      smsQuotaExceeded: "Trop de tentatives. Réessayez plus tard.",
+      emailQuotaExceeded: "Trop de tentatives. Réessayez plus tard.",
       generic: "Une erreur est survenue. Réessayez.",
     },
   },
