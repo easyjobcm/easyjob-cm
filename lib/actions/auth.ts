@@ -388,7 +388,10 @@ export async function verifyPhoneOtpAction(input: {
     return finalizeSignup(user, e164);
   }
 
-  console.log("[signup] verifyPhoneOtp attempt", { phone: e164, token: parsed.data.token });
+  console.log("[signup] verifyPhoneOtp attempt", {
+    phone: e164,
+    token: parsed.data.token,
+  });
   const { error } = await supabase.auth.verifyOtp({
     phone: e164,
     token: parsed.data.token,
@@ -408,7 +411,11 @@ export async function verifyPhoneOtpAction(input: {
  * pour éviter d'avoir des profils orphelins en cas d'abandon avant OTP.
  */
 async function finalizeSignup(
-  user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> },
+  user: {
+    id: string;
+    email?: string | null;
+    user_metadata?: Record<string, unknown>;
+  },
   e164: string,
 ): Promise<ActionResult<{ role: UserRole }>> {
   const admin = createAdminClient();
@@ -451,7 +458,8 @@ async function finalizeSignup(
       return { ok: false, errorCode: "generic" };
     }
   } else if (role === "company") {
-    const companyName = typeof meta.company_name === "string" ? meta.company_name : "";
+    const companyName =
+      typeof meta.company_name === "string" ? meta.company_name : "";
     const niu = typeof meta.niu === "string" ? meta.niu : "";
     if (!companyName || !niu) {
       console.error("[signup] company metadata missing", { companyName, niu });
