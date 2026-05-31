@@ -125,7 +125,9 @@ function RoleCard({
           <h2 className="mt-12 text-lg font-bold text-[#1A0A2E]">{title}</h2>
           <p className="mt-1 text-sm text-gray-600">{description}</p>
           <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#7C3AED] transition-transform group-hover:translate-x-1">
-            {variant === "candidate" ? t.signup.chooseRole.start : t.signup.chooseRole.recruit}
+            {variant === "candidate"
+              ? t.signup.chooseRole.start
+              : t.signup.chooseRole.recruit}
             <ArrowRight className="h-4 w-4" />
           </div>
         </div>
