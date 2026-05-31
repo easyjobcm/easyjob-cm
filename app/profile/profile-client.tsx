@@ -12,6 +12,8 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileCompletionWidget } from "@/components/profile/profile-completion-widget";
+import { type Criterion } from "@/lib/utils/profile-completion";
 import {
   MapPin,
   Star,
@@ -45,9 +47,19 @@ interface ProfileClientProps {
     id: string;
     skill_name: string;
   }>;
+  completionPct: number;
+  sandboxLevel: number;
+  criteria: Criterion[];
 }
 
-export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
+export function ProfileClient({
+  user,
+  profile,
+  skills,
+  completionPct,
+  sandboxLevel,
+  criteria,
+}: ProfileClientProps) {
   const router = useRouter();
   const { locale } = useI18n();
   const supabase = createClient();
@@ -59,7 +71,7 @@ export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
   const handleLogout = async () => {
     setLoggingOut(true);
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   const isCandidate = user.role === "candidate";
@@ -71,7 +83,7 @@ export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
       <div className="px-4 py-6 space-y-6">
         {/* Profile Header */}
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+          <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
             {profile?.first_name?.[0] ||
               profile?.company_name?.[0] ||
               user.phone?.[0] ||
@@ -106,6 +118,14 @@ export function ProfileClient({ user, profile, skills }: ProfileClientProps) {
             </Button>
           </Link>
         </div>
+
+        {/* Profile Completion Widget */}
+        <ProfileCompletionWidget
+          role={user.role}
+          completionPct={completionPct}
+          criteria={criteria}
+          sandboxLevel={sandboxLevel}
+        />
 
         {/* Quick Stats for Candidates */}
         {isCandidate && (

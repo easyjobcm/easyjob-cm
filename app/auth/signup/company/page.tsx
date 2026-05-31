@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { SignupShell } from "@/components/auth/signup-shell";
 import { SignupProgress } from "@/components/auth/signup-progress";
 import { PhoneInput } from "@/components/auth/phone-input";
+import { EmailOtpStep } from "@/components/auth/email-otp-step";
 import { OtpInput } from "@/components/auth/otp-input";
 import { WelcomeModal } from "@/components/auth/welcome-modal";
 import { DevPhoneHint } from "@/components/auth/dev-phone-hint";
@@ -40,7 +41,6 @@ export default function CompanySignupPage() {
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [acceptTerms, setAcceptTerms] = React.useState(false);
   const [phone, setPhone] = React.useState("");
-  const [emailToken, setEmailToken] = React.useState("");
   const [token, setToken] = React.useState("");
   const [error, setError] = React.useState<SignupError | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -106,19 +106,6 @@ export default function CompanySignupPage() {
       return;
     }
     setStep("verifyEmail");
-  };
-
-  const handleSubmitEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const res = await verifyEmailOtpAction({ email, token: emailToken });
-    setLoading(false);
-    if (!res.ok) {
-      setError(res.errorCode as SignupError);
-      return;
-    }
-    setStep("phone");
   };
 
   const handleSubmitPhone = async (e: React.FormEvent) => {
@@ -367,50 +354,26 @@ export default function CompanySignupPage() {
             )}
 
             {step === "verifyEmail" && (
-              <form onSubmit={handleSubmitEmailOtp} className="space-y-5">
-                <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
-                    {t.signup.emailOtp.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {t.signup.emailOtp.subtitle}{" "}
-                    <span className="font-semibold text-[#5B21B6]">
-                      {email}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t.signup.emailOtp.checkSpam}
-                  </p>
-                </header>
-
-                <OtpInput
-                  value={emailToken}
-                  onChange={setEmailToken}
-                  invalid={error === "otpWrong" || error === "otpInvalid"}
-                />
-
-                {error && <ErrorBanner code={error} />}
-
-                <motion.button
-                  type="submit"
-                  whileTap={{ scale: 0.98 }}
-                  disabled={loading || emailToken.length !== 6}
-                  className="flex h-14 w-full items-center justify-center rounded-full bg-[#5B21B6] text-base font-semibold text-white shadow-lg shadow-[#7C3AED]/30 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    t.signup.emailOtp.verify
-                  )}
-                </motion.button>
-
-                <ResendOtp
-                  onResend={() => resendEmailOtpAction({ email })}
-                  label={t.signup.emailOtp.didntReceive}
-                  resendLabel={t.signup.emailOtp.resend}
-                  resendInLabel={t.signup.emailOtp.resendIn}
-                />
-              </form>
+              <EmailOtpStep
+                email={email}
+                onSuccess={() => setStep("phone")}
+                onVerify={(otp) => verifyEmailOtpAction({ email, token: otp })}
+                onResend={() => resendEmailOtpAction({ email })}
+                getErrorMessage={(code) =>
+                  t.signup.errors[
+                    code as keyof typeof t.signup.errors
+                  ] ?? t.signup.errors.generic
+                }
+                labels={{
+                  title: t.signup.emailOtp.title,
+                  subtitle: t.signup.emailOtp.subtitle,
+                  checkSpam: t.signup.emailOtp.checkSpam,
+                  verify: t.signup.emailOtp.verify,
+                  didntReceive: t.signup.emailOtp.didntReceive,
+                  resend: t.signup.emailOtp.resend,
+                  resendIn: t.signup.emailOtp.resendIn,
+                }}
+              />
             )}
 
             {step === "phone" && (
