@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Briefcase, Building2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { HeroIllustration } from "@/components/auth/hero-illustration";
+import { LangSwitch } from "@/components/ui/lang-switch";
 
 export default function SignupChoosePage() {
   const { t } = useI18n();
@@ -22,12 +23,15 @@ export default function SignupChoosePage() {
       />
 
       <main className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col px-6 pt-10 pb-8">
-        <Link
-          href="/"
-          className="text-sm font-semibold text-[#7C3AED] transition-opacity hover:opacity-80"
-        >
-          ← EasyJob
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-sm font-semibold text-[#7C3AED] transition-opacity hover:opacity-80"
+          >
+            ← EasyJob
+          </Link>
+          <LangSwitch />
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -98,6 +102,7 @@ function RoleCard({
   variant,
   delay,
 }: RoleCardProps) {
+  const { t } = useI18n();
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -120,7 +125,7 @@ function RoleCard({
           <h2 className="mt-12 text-lg font-bold text-[#1A0A2E]">{title}</h2>
           <p className="mt-1 text-sm text-gray-600">{description}</p>
           <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#7C3AED] transition-transform group-hover:translate-x-1">
-            {variant === "candidate" ? "Commencer" : "Recruter"}
+            {variant === "candidate" ? t.signup.chooseRole.start : t.signup.chooseRole.recruit}
             <ArrowRight className="h-4 w-4" />
           </div>
         </div>

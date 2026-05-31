@@ -12,6 +12,7 @@ import { PhoneInput } from "@/components/auth/phone-input";
 import { OtpInput } from "@/components/auth/otp-input";
 import { WelcomeModal } from "@/components/auth/welcome-modal";
 import { DevPhoneHint } from "@/components/auth/dev-phone-hint";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import {
   resendEmailOtpAction,
   sendPhoneOtpAction,
@@ -44,6 +45,11 @@ export default function CompanySignupPage() {
   const [error, setError] = React.useState<SignupError | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [showWelcome, setShowWelcome] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!showWelcome) return;
+    void createBrowserSupabase().auth.signOut();
+  }, [showWelcome]);
 
   const steps = [
     t.signup.steps.company,
@@ -508,7 +514,7 @@ export default function CompanySignupPage() {
         title={t.signup.welcome.title}
         subtitle={t.signup.welcome.subtitleCompany}
         ctaLabel={t.signup.welcome.continue}
-        ctaHref="/onboarding/company"
+        ctaHref="/auth/login"
       />
     </>
   );

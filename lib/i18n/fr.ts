@@ -72,6 +72,8 @@ export const fr = {
       companyDesc:
         "Publiez vos offres et trouvez des candidats fiables en 24h.",
       alreadyAccount: "J'ai déjà un compte",
+      start: "Commencer",
+      recruit: "Recruter",
     },
     steps: {
       account: "Compte",
@@ -134,10 +136,10 @@ export const fr = {
     welcome: {
       title: "Bienvenue sur EasyJob !",
       subtitleCandidate:
-        "Votre compte est créé. Complétons votre profil pour postuler aux missions.",
+        "Votre compte est créé. Connectez-vous pour compléter votre profil et postuler aux missions.",
       subtitleCompany:
-        "Votre compte est créé. Complétons votre profil pour publier votre première offre.",
-      continue: "Continuer",
+        "Votre compte est créé. Connectez-vous pour compléter votre profil et publier votre première offre.",
+      continue: "Se connecter",
     },
     errors: {
       emailInvalid: "Adresse email invalide",
