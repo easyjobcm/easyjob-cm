@@ -73,6 +73,8 @@ export const en: TranslationKeys = {
       companyTitle: "I'm hiring",
       companyDesc: "Post jobs and find reliable candidates in 24h.",
       alreadyAccount: "I already have an account",
+      start: "Get started",
+      recruit: "Start recruiting",
     },
     steps: {
       account: "Account",
@@ -135,10 +137,10 @@ export const en: TranslationKeys = {
     welcome: {
       title: "Welcome to EasyJob!",
       subtitleCandidate:
-        "Your account is created. Let's complete your profile to apply to jobs.",
+        "Your account is created. Sign in to complete your profile and apply to jobs.",
       subtitleCompany:
-        "Your account is created. Let's complete your profile to post your first job.",
-      continue: "Continue",
+        "Your account is created. Sign in to complete your profile and post your first job.",
+      continue: "Sign in",
     },
     errors: {
       emailInvalid: "Invalid email address",

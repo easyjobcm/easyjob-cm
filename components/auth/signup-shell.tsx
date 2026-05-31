@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { HeroIllustration } from "./hero-illustration";
+import { LangSwitch } from "@/components/ui/lang-switch";
 
 interface SignupShellProps {
   variant: "candidate" | "company";
@@ -42,25 +43,28 @@ export function SignupShell({
       <div className="relative mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-2">
         {/* Colonne illustration */}
         <section className="relative flex flex-col justify-between overflow-visible px-6 pt-8 pb-4 lg:px-12 lg:py-16">
-          <Link
-            href={backHref}
-            className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[#5B21B6] transition-colors hover:text-[#7C3AED]"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
+          <div className="flex items-center justify-between">
+            <Link
+              href={backHref}
+              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[#5B21B6] transition-colors hover:text-[#7C3AED]"
             >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            {backLabel ?? "Retour"}
-          </Link>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              {backLabel ?? "Retour"}
+            </Link>
+            <LangSwitch />
+          </div>
 
           <div className="relative my-8 h-72 lg:my-0 lg:h-[400px]">
             <HeroIllustration variant={variant} className="h-full w-full" />

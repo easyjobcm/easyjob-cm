@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>EasyJob CM — Réinitialisation du mot de passe</title>
+    <title>EasyJob CM — Réinitialisation du mot de passe | Reset your password</title>
   </head>
   <body
     style="
@@ -86,7 +86,7 @@
                     letter-spacing: 1.2px;
                   "
                 >
-                  Sécurité du compte
+                  Sécurité · Security
                 </p>
               </td>
             </tr>
@@ -150,7 +150,7 @@
                       font-weight: 600;
                     "
                   >
-                    Code valable 1 heure
+                    Valable 1h · Valid for 1 hour
                   </p>
                 </div>
               </td>
@@ -166,7 +166,7 @@
                     line-height: 1.5;
                   "
                 >
-                  Ou clique directement sur ce lien :
+                  Ou clique directement sur ce lien · Or click this link:
                 </p>
                 <a
                   href="{{ .ConfirmationURL }}"
@@ -181,8 +181,42 @@
                     border-radius: 999px;
                   "
                 >
-                  Réinitialiser le mot de passe
+                  Réinitialiser · Reset password
                 </a>
+              </td>
+            </tr>
+
+            <!-- Body EN -->
+            <tr>
+              <td style="padding: 24px 28px 0">
+                <hr
+                  style="
+                    border: none;
+                    border-top: 1px solid #e5e7eb;
+                    margin: 0 0 16px;
+                  "
+                />
+                <h3
+                  style="
+                    margin: 0 0 8px;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #1a0a2e;
+                  "
+                >
+                  Reset your password
+                </h3>
+                <p
+                  style="
+                    margin: 0;
+                    color: #4b5563;
+                    font-size: 14px;
+                    line-height: 1.55;
+                  "
+                >
+                  Someone requested a password reset for this account. Enter
+                  the code above to continue.
+                </p>
               </td>
             </tr>
 
@@ -203,8 +237,10 @@
                     line-height: 1.55;
                   "
                 >
-                  Si tu n'es pas à l'origine de cette demande, ignore ce mail.
-                  Ton mot de passe restera inchangé.
+                  Tu n'es pas à l'origine de cette demande ? Ignore ce mail,
+                  ton mot de passe restera inchangé.<br />
+                  Didn't request this? Ignore this email, your password will
+                  stay unchanged.
                 </p>
                 <p
                   style="

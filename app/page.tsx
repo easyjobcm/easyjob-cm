@@ -19,7 +19,6 @@ import {
   CheckCircle,
   Banknote,
   FileText,
-  Globe,
   MapPin,
   ArrowRight,
   Download,
@@ -29,6 +28,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { LangSwitch } from "@/components/ui/lang-switch";
 import { CookieBanner } from "@/components/shared/cookie-banner";
 import { Chatbot } from "@/components/chatbot/chatbot";
 
@@ -277,7 +277,7 @@ function resetCookies() {
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { t, locale, setLocale } = useTranslation();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"candidate" | "company">(
     "candidate",
   );
@@ -375,7 +375,6 @@ export default function WelcomePage() {
     t("home.sandbox.l3Desc"),
   ];
 
-  const fr = locale === "fr";
   const navLinks = [
     { label: t("landing.nav.features"), href: "#features" },
     { label: t("landing.nav.howItWorks"), href: "#how" },
@@ -514,14 +513,9 @@ export default function WelcomePage() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setLocale(fr ? "en" : "fr")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[12px] font-semibold transition-colors ${scrolled && !isDark ? "border-[#E5E7EB] text-[#6B7280] hover:border-[#7C3AED] hover:text-[#7C3AED]" : "border-white/10 text-white/50 hover:border-[#7C3AED]/40 hover:text-white/80"}`}
-            >
-              <Globe className="w-3 h-3" />
-              {locale.toUpperCase()}
-            </motion.button>
+            <LangSwitch
+              variant={scrolled && !isDark ? "light" : "dark-translucent"}
+            />
 
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -1661,16 +1655,7 @@ export default function WelcomePage() {
               © {new Date().getFullYear()} EasyJob CM ·{" "}
               {t("landing.footer.madeFor")}
             </span>
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setLocale(fr ? "en" : "fr")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/7 text-white/28 hover:text-white/55 hover:border-white/12 transition-colors"
-            >
-              <Globe className="w-3 h-3" />
-              {fr
-                ? t("landing.language.french")
-                : t("landing.language.english")}
-            </motion.button>
+            <LangSwitch variant="dark-muted" labelMode="name" />
           </div>
         </div>
       </footer>
