@@ -41,9 +41,6 @@
       "purpose": "any"
     }
   ],
-  "categories": [
-    "business",
-    "productivity"
-  ],
+  "categories": ["business", "productivity"],
   "prefer_related_applications": false
 }

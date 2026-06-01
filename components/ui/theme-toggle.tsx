@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "@/lib/hooks/use-theme";
@@ -25,17 +26,21 @@ export function ThemeToggle({
   className = "",
   variant = "light",
 }: ThemeToggleProps) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, mounted } = useTheme();
   const { t } = useI18n();
-  const isDark = theme === "dark";
+  // isDark is false during SSR/first hydration (mounted=false from ThemeProvider).
+  // After mount it reflects the real stored theme.
+  const isDark = mounted && theme === "dark";
+
+  const label = isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode;
 
   return (
     <motion.button
       type="button"
       whileTap={{ scale: 0.95 }}
       onClick={toggleTheme}
-      aria-label={isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode}
-      title={isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode}
+      aria-label={label}
+      title={label}
       className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${variantClasses[variant]} ${className}`}
     >
       <AnimatePresence mode="wait" initial={false}>

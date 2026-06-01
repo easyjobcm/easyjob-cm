@@ -24,6 +24,9 @@ import {
   Download,
   Menu,
   X as XIcon,
+  Sprout,
+  Crown,
+  type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { useTheme } from "@/lib/hooks/use-theme";
@@ -128,11 +131,11 @@ function Orb({
 // ─── 3D animated sandbox sticker ─────────────────────────────────────────────
 
 function SandboxSticker({
-  icon,
+  icon: Icon,
   color,
   delay = 0,
 }: {
-  icon: string;
+  icon: LucideIcon;
   color: string;
   delay?: number;
 }) {
@@ -148,14 +151,14 @@ function SandboxSticker({
         style={{ background: color, opacity: 0.55 }}
       />
       <div
-        className="relative w-full h-full rounded-2xl flex items-center justify-center text-3xl"
+        className="relative w-full h-full rounded-2xl flex items-center justify-center"
         style={{
           background: `linear-gradient(145deg, ${color}35, ${color}12)`,
           border: `1.5px solid ${color}55`,
           boxShadow: `0 6px 28px ${color}35, inset 0 1px 0 rgba(255,255,255,0.18)`,
         }}
       >
-        {icon}
+        <Icon className="h-8 w-8" style={{ color }} />
       </div>
     </motion.div>
   );
@@ -238,10 +241,10 @@ function Section({
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const sandboxLevels = [
-  { color: "#9CA3AF", glow: "#9CA3AF", icon: "🌱" },
-  { color: "#3B82F6", glow: "#3B82F6", icon: "⭐" },
-  { color: "#7C3AED", glow: "#7C3AED", icon: "🔥" },
-  { color: "#D97706", glow: "#D97706", icon: "🏆" },
+  { color: "#6B7280", glow: "#6B7280", icon: Sprout },
+  { color: "#2563EB", glow: "#2563EB", icon: BadgeCheck },
+  { color: "#7C3AED", glow: "#7C3AED", icon: Shield },
+  { color: "#D97706", glow: "#D97706", icon: Crown },
 ];
 
 const featureConfig = [
@@ -291,8 +294,10 @@ export default function WelcomePage() {
       window.matchMedia("(display-mode: standalone)").matches,
   );
   const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const { theme, mounted } = useTheme();
+  // isDark is always false during SSR/hydration (mounted=false) to match server
+  // output. After the first client effect, mounted flips to true.
+  const isDark = mounted && theme === "dark";
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 20);
@@ -778,6 +783,7 @@ export default function WelcomePage() {
                             src="/icons/manifest-icon-192.maskable.png"
                             alt=""
                             fill
+                            sizes="24px"
                             className="object-contain"
                           />
                         </div>
@@ -1359,6 +1365,7 @@ export default function WelcomePage() {
                       src="/icons/manifest-icon-192.maskable.png"
                       alt=""
                       fill
+                      sizes="56px"
                       className="object-contain"
                     />
                   </div>
