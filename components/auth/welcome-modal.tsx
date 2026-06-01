@@ -37,7 +37,7 @@ export function WelcomeModal({
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 40, opacity: 0 }}
             transition={{ type: "spring", damping: 22, stiffness: 280 }}
-            className="w-full max-w-md rounded-t-[28px] bg-white p-8 text-center shadow-xl sm:rounded-4xl"
+            className="w-full max-w-md rounded-t-[28px] bg-white dark:bg-[#1A0F2E] p-8 text-center shadow-xl sm:rounded-4xl"
             style={{
               paddingBottom: "calc(2rem + env(safe-area-inset-bottom))",
             }}
@@ -61,11 +61,13 @@ export function WelcomeModal({
 
             <h2
               id="welcome-title"
-              className="text-2xl font-bold text-[#1A0A2E]"
+              className="text-2xl font-bold text-[#1A0A2E] dark:text-white"
             >
               {title}
             </h2>
-            <p className="mt-2 text-sm text-gray-600">{subtitle}</p>
+            <p className="mt-2 text-sm text-gray-600 dark:text-white/60">
+              {subtitle}
+            </p>
 
             <Link
               href={ctaHref}

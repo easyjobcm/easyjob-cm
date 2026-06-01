@@ -199,7 +199,7 @@ export default function MyJobsPage() {
   const renderEmptyState = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="relative mb-6">
-        <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center border-2 border-primary/20">
+        <div className="h-24 w-24 rounded-3xl bg-linear-to-br from-primary/10 to-accent/10 flex items-center justify-center border-2 border-primary/20">
           <Briefcase className="h-10 w-10 text-primary/60" />
           <Search className="h-6 w-6 text-primary absolute -bottom-1 -right-1 bg-card rounded-full p-1" />
         </div>

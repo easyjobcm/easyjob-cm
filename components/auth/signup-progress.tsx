@@ -17,7 +17,7 @@ export function SignupProgress({ steps, current }: SignupProgressProps) {
           return (
             <div
               key={i}
-              className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]"
+              className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#E5E7EB] dark:bg-white/10"
             >
               <motion.div
                 className="absolute inset-y-0 left-0 bg-linear-to-r from-[#7C3AED] to-[#A78BFA]"

@@ -17,10 +17,10 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get candidate profile
+    // Get candidate profile (include fields required for SRS validation)
     const { data: candidateProfile } = await supabase
       .from("candidate_profiles")
-      .select("id, onboarding_status")
+      .select("id, onboarding_status, profile_completion_pct, sandbox_level")
       .eq("user_id", user.id)
       .single();
 
@@ -38,10 +38,20 @@ export async function POST(
       );
     }
 
-    // Check if job exists and is published
+    // SRS §6.6 — complétude minimale 60%
+    if ((candidateProfile.profile_completion_pct ?? 0) < 60) {
+      return NextResponse.json(
+        { error: "Profile must be at least 60% complete to apply" },
+        { status: 400 },
+      );
+    }
+
+    // Check if job exists and is active (SRS ENUM: active, not published)
     const { data: job } = await supabase
       .from("jobs")
-      .select("id, status, positions_available, positions_filled")
+      .select(
+        "id, status, positions_available, positions_filled, sandbox_level_required",
+      )
       .eq("id", jobId)
       .single();
 
@@ -49,10 +59,20 @@ export async function POST(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (job.status !== "published") {
+    if (job.status !== "active") {
       return NextResponse.json(
         { error: "Job is not available" },
         { status: 400 },
+      );
+    }
+
+    // SRS §5.2 — vérification du niveau Sandbox requis
+    if (
+      (job.sandbox_level_required ?? 0) > (candidateProfile.sandbox_level ?? 0)
+    ) {
+      return NextResponse.json(
+        { error: "Your sandbox level is too low for this job" },
+        { status: 403 },
       );
     }
 

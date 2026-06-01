@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { SignupShell } from "@/components/auth/signup-shell";
 import { SignupProgress } from "@/components/auth/signup-progress";
 import { PhoneInput } from "@/components/auth/phone-input";
+import { EmailOtpStep } from "@/components/auth/email-otp-step";
 import { OtpInput } from "@/components/auth/otp-input";
 import { WelcomeModal } from "@/components/auth/welcome-modal";
 import { DevPhoneHint } from "@/components/auth/dev-phone-hint";
@@ -38,7 +39,6 @@ export default function CandidateSignupPage() {
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [acceptTerms, setAcceptTerms] = React.useState(false);
   const [phone, setPhone] = React.useState("");
-  const [emailToken, setEmailToken] = React.useState("");
   const [token, setToken] = React.useState("");
   const [error, setError] = React.useState<SignupError | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -84,19 +84,6 @@ export default function CandidateSignupPage() {
       return;
     }
     setStep("verifyEmail");
-  };
-
-  const handleSubmitEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const res = await verifyEmailOtpAction({ email, token: emailToken });
-    setLoading(false);
-    if (!res.ok) {
-      setError(res.errorCode as SignupError);
-      return;
-    }
-    setStep("phone");
   };
 
   const handleSubmitPhone = async (e: React.FormEvent) => {
@@ -148,7 +135,7 @@ export default function CandidateSignupPage() {
                     : "account",
               );
             }}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#5B21B6] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
           >
             ← {t.common.back}
           </button>
@@ -165,10 +152,10 @@ export default function CandidateSignupPage() {
             {step === "account" && (
               <form onSubmit={handleSubmitAccount} className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.account.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.account.subtitle}
                   </p>
                 </header>
@@ -176,7 +163,7 @@ export default function CandidateSignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="email"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.email}
                   </label>
@@ -188,14 +175,14 @@ export default function CandidateSignupPage() {
                     placeholder={t.signup.account.emailPlaceholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label
                     htmlFor="password"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.password}
                   </label>
@@ -207,9 +194,9 @@ export default function CandidateSignupPage() {
                     minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white/40">
                     {t.signup.account.passwordHint}
                   </p>
                 </div>
@@ -217,7 +204,7 @@ export default function CandidateSignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="confirmPassword"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.confirmPassword}
                   </label>
@@ -229,29 +216,29 @@ export default function CandidateSignupPage() {
                     minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 p-3">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
                     className="mt-0.5 h-5 w-5 accent-[#7C3AED]"
                   />
-                  <span className="text-xs leading-relaxed text-gray-700">
+                  <span className="text-xs leading-relaxed text-gray-700 dark:text-white/70">
                     {t.signup.account.terms}{" "}
                     <Link
                       href="/legal/terms"
-                      className="font-semibold text-[#5B21B6] hover:underline"
+                      className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.termsLink}
                     </Link>{" "}
                     {t.signup.account.and}{" "}
                     <Link
                       href="/legal/privacy"
-                      className="font-semibold text-[#5B21B6] hover:underline"
+                      className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.privacyLink}
                     </Link>
@@ -274,11 +261,11 @@ export default function CandidateSignupPage() {
                   )}
                 </motion.button>
 
-                <p className="pt-2 text-center text-sm text-gray-600">
+                <p className="pt-2 text-center text-sm text-gray-600 dark:text-white/60">
                   {t.signup.chooseRole.alreadyAccount}{" "}
                   <Link
                     href="/auth/login"
-                    className="font-semibold text-[#5B21B6] hover:underline"
+                    className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                   >
                     {t.auth.signIn}
                   </Link>
@@ -287,59 +274,34 @@ export default function CandidateSignupPage() {
             )}
 
             {step === "verifyEmail" && (
-              <form onSubmit={handleSubmitEmailOtp} className="space-y-5">
-                <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
-                    {t.signup.emailOtp.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {t.signup.emailOtp.subtitle}{" "}
-                    <span className="font-semibold text-[#5B21B6]">
-                      {email}
-                    </span>
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {t.signup.emailOtp.checkSpam}
-                  </p>
-                </header>
-
-                <OtpInput
-                  value={emailToken}
-                  onChange={setEmailToken}
-                  invalid={error === "otpWrong" || error === "otpInvalid"}
-                />
-
-                {error && <ErrorBanner code={error} />}
-
-                <motion.button
-                  type="submit"
-                  whileTap={{ scale: 0.98 }}
-                  disabled={loading || emailToken.length !== 6}
-                  className="flex h-14 w-full items-center justify-center rounded-full bg-[#5B21B6] text-base font-semibold text-white shadow-lg shadow-[#7C3AED]/30 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    t.signup.emailOtp.verify
-                  )}
-                </motion.button>
-
-                <ResendOtp
-                  onResend={() => resendEmailOtpAction({ email })}
-                  label={t.signup.emailOtp.didntReceive}
-                  resendLabel={t.signup.emailOtp.resend}
-                  resendInLabel={t.signup.emailOtp.resendIn}
-                />
-              </form>
+              <EmailOtpStep
+                email={email}
+                onSuccess={() => setStep("phone")}
+                onVerify={(otp) => verifyEmailOtpAction({ email, token: otp })}
+                onResend={() => resendEmailOtpAction({ email })}
+                getErrorMessage={(code) =>
+                  t.signup.errors[code as keyof typeof t.signup.errors] ??
+                  t.signup.errors.generic
+                }
+                labels={{
+                  title: t.signup.emailOtp.title,
+                  subtitle: t.signup.emailOtp.subtitle,
+                  checkSpam: t.signup.emailOtp.checkSpam,
+                  verify: t.signup.emailOtp.verify,
+                  didntReceive: t.signup.emailOtp.didntReceive,
+                  resend: t.signup.emailOtp.resend,
+                  resendIn: t.signup.emailOtp.resendIn,
+                }}
+              />
             )}
 
             {step === "phone" && (
               <form onSubmit={handleSubmitPhone} className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.phoneStep.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.phoneStep.subtitle}
                   </p>
                 </header>
@@ -347,7 +309,7 @@ export default function CandidateSignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="phone"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.auth.phone}
                   </label>
@@ -357,7 +319,7 @@ export default function CandidateSignupPage() {
                     autoFocus
                     invalid={error === "phoneInvalid"}
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white/40">
                     {t.signup.phoneStep.hint}
                   </p>
                 </div>
@@ -384,12 +346,12 @@ export default function CandidateSignupPage() {
             {step === "otp" && (
               <form onSubmit={handleSubmitOtp} className="space-y-5">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.otp.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.otp.subtitle}{" "}
-                    <span className="font-semibold text-[#5B21B6]">
+                    <span className="font-semibold text-[#5B21B6] dark:text-[#A78BFA]">
                       +237 {phone}
                     </span>
                   </p>
@@ -482,13 +444,13 @@ function ResendOtp({
   };
 
   return (
-    <p className="text-center text-sm text-gray-600">
+    <p className="text-center text-sm text-gray-600 dark:text-white/60">
       {label}{" "}
       <button
         type="button"
         onClick={handle}
         disabled={seconds > 0}
-        className="font-semibold text-[#5B21B6] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
+        className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
       >
         {seconds > 0
           ? resendInLabel.replace("{seconds}", String(seconds))

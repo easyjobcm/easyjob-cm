@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/hooks/use-theme";
 import { SplashScreen } from "@/components/ui/splash-screen";
 
 const inter = Inter({
@@ -88,10 +89,12 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <I18nProvider>
-          <SplashScreen />
-          {children}
-        </I18nProvider>
+        <ThemeProvider>
+          <I18nProvider>
+            <SplashScreen />
+            {children}
+          </I18nProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

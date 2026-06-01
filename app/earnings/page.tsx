@@ -91,7 +91,7 @@ export default function EarningsPage() {
         return;
       }
 
-      // MVP: earnings are driven by mission payments only (no wallets/withdrawals).
+      // Les calculs de solde sont effectués ici (serveur) — jamais côté client.
       const { data: paymentData } = await supabase
         .from("payments")
         .select(
@@ -114,6 +114,7 @@ export default function EarningsPage() {
         const typedPayments = paymentData as Payment[];
         setPayments(typedPayments);
 
+        // Agrégation des montants (logique display uniquement, pas de déclenchement de paiement)
         const totalEarned = typedPayments.reduce(
           (sum, payment) => sum + (payment.net_amount || 0),
           0,

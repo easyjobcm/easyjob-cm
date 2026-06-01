@@ -417,7 +417,7 @@ export default function MissionDetailPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 to-violet-800 text-white p-4 rounded-b-3xl">
+      <div className="bg-linear-to-br from-violet-600 to-violet-800 text-white p-4 rounded-b-3xl">
         <Button
           variant="ghost"
           size="sm"

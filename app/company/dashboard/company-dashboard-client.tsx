@@ -106,7 +106,7 @@ export function CompanyDashboardClient({
   return (
     <div className="min-h-screen bg-background pb-6">
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
+      <div className="bg-linear-to-br from-primary via-primary to-primary/80 text-primary-foreground">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">

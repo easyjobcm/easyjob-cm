@@ -72,7 +72,7 @@ export function DropdownMenuContent({
   return (
     <div
       className={cn(
-        "z-50 min-w-[12rem] rounded-xl border border-border bg-card p-1 shadow-lg",
+        "z-50 min-w-48 rounded-xl border border-border bg-card p-1 shadow-lg",
         className,
       )}
       {...props}

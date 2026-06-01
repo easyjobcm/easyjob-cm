@@ -7,12 +7,13 @@ import { ArrowRight, Briefcase, Building2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { HeroIllustration } from "@/components/auth/hero-illustration";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function SignupChoosePage() {
   const { t } = useI18n();
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA]">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA] dark:bg-[#0D0618]">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#7C3AED]/10 blur-3xl"
@@ -30,7 +31,10 @@ export default function SignupChoosePage() {
           >
             ← EasyJob
           </Link>
-          <LangSwitch />
+          <div className="flex items-center gap-2">
+            <LangSwitch />
+            <ThemeToggle />
+          </div>
         </div>
 
         <motion.div
@@ -39,10 +43,10 @@ export default function SignupChoosePage() {
           transition={{ duration: 0.5 }}
           className="mt-8 text-center"
         >
-          <h1 className="text-3xl font-bold text-[#1A0A2E] sm:text-4xl">
+          <h1 className="text-3xl font-bold text-[#1A0A2E] dark:text-white sm:text-4xl">
             {t.signup.chooseRole.title}
           </h1>
-          <p className="mt-3 text-base text-gray-600">
+          <p className="mt-3 text-base text-gray-600 dark:text-white/60">
             {t.signup.chooseRole.subtitle}
           </p>
         </motion.div>
@@ -70,12 +74,12 @@ export default function SignupChoosePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.5 }}
-          className="mt-auto pt-10 text-center text-sm text-gray-600"
+          className="mt-auto pt-10 text-center text-sm text-gray-600 dark:text-white/60"
         >
           {t.signup.chooseRole.alreadyAccount}{" "}
           <Link
             href="/auth/login"
-            className="font-semibold text-[#5B21B6] hover:underline"
+            className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
           >
             {t.auth.signIn}
           </Link>
@@ -111,7 +115,7 @@ function RoleCard({
     >
       <Link
         href={href}
-        className="group relative block overflow-hidden rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-[#7C3AED] hover:shadow-lg"
+        className="group relative block overflow-hidden rounded-3xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-[#1A0F2E] p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-[#7C3AED] hover:shadow-lg"
       >
         {/* Mini illustration qui dépasse en haut-droite */}
         <div className="pointer-events-none absolute -top-6 -right-6 h-32 w-32 opacity-90">
@@ -119,12 +123,16 @@ function RoleCard({
         </div>
 
         <div className="relative">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E8FF] text-[#5B21B6]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E8FF] dark:bg-[#7C3AED]/20 text-[#5B21B6] dark:text-[#A78BFA]">
             {icon}
           </div>
-          <h2 className="mt-12 text-lg font-bold text-[#1A0A2E]">{title}</h2>
-          <p className="mt-1 text-sm text-gray-600">{description}</p>
-          <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#7C3AED] transition-transform group-hover:translate-x-1">
+          <h2 className="mt-12 text-lg font-bold text-[#1A0A2E] dark:text-white">
+            {title}
+          </h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
+            {description}
+          </p>
+          <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#7C3AED] dark:text-[#A78BFA] transition-transform group-hover:translate-x-1">
             {variant === "candidate"
               ? t.signup.chooseRole.start
               : t.signup.chooseRole.recruit}

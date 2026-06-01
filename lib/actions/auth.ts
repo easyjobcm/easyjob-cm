@@ -278,6 +278,77 @@ export async function resendEmailOtpAction(input: {
   return { ok: true };
 }
 
+/* ─────────────────────── password reset OTP ─────────────────────── */
+
+/**
+ * Envoie un code OTP à 6 chiffres par email pour réinitialiser le mot de passe.
+ * shouldCreateUser: false → aucun compte créé si l'email est inconnu.
+ * Retourne toujours ok:true pour éviter l'énumération des emails.
+ */
+export async function sendPasswordResetOtpAction(input: {
+  email: string;
+}): Promise<ActionResult> {
+  const parsed = resendEmailSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, errorCode: "emailInvalid" };
+  }
+
+  const admin = createAdminClient();
+  const ip = await getClientIp();
+  const { data: allowed } = await admin.rpc("check_email_send_quota", {
+    p_email: parsed.data.email,
+    p_ip: ip,
+  });
+  if (allowed === false) {
+    console.warn("[forgot] email quota exceeded", { ip });
+    return { ok: true }; // Anti-énumération : ne pas révéler le quota
+  }
+
+  const supabase = await createClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    { redirectTo: `${appUrl}/auth/reset-password` },
+  );
+
+  // Anti-énumération : on retourne toujours ok:true
+  if (error) {
+    console.error("[forgot] sendPasswordResetOtp failed:", error);
+  } else {
+    await admin.from("email_send_log").insert({ email: parsed.data.email, ip });
+  }
+  return { ok: true };
+}
+
+/**
+ * Vérifie le code OTP à 6 chiffres pour réinitialiser le mot de passe.
+ * Établit une session active — l'utilisateur peut ensuite appeler updateUser.
+ */
+export async function verifyPasswordResetOtpAction(input: {
+  email: string;
+  token: string;
+}): Promise<ActionResult> {
+  const parsed = emailOtpSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      errorCode: parsed.error.issues[0]?.message ?? "otpInvalid",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email: parsed.data.email,
+    token: parsed.data.token,
+    type: "recovery",
+  });
+  if (error) {
+    console.error("[forgot] verifyPasswordResetOtp failed:", error);
+    return { ok: false, errorCode: mapAuthError(error.message) };
+  }
+  return { ok: true };
+}
+
 /* ─────────────────────────── phone OTP ─────────────────────────── */
 
 /**

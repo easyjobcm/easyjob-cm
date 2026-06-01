@@ -29,12 +29,15 @@ export async function POST(
       .eq("id", user.id)
       .single();
 
-    if (userData?.role !== "admin") {
+    if (
+      !userData?.role ||
+      !["admin_ops", "admin_founder"].includes(userData.role)
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Update job status
-    const newStatus = action === "approve" ? "published" : "rejected";
+    const newStatus = action === "approve" ? "active" : "rejected";
 
     const { error } = await supabase
       .from("jobs")

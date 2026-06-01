@@ -119,7 +119,7 @@ export default function JobsPage() {
         {isLoading && (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <LoadingSkeleton key={i} className="h-[180px] rounded-2xl" />
+              <LoadingSkeleton key={i} className="h-45 rounded-2xl" />
             ))}
           </div>
         )}

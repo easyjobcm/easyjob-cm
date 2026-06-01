@@ -118,7 +118,7 @@ export function AdminDashboardClient({
       <div className="px-4 py-6 space-y-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+          <Card className="bg-linear-to-br from-primary/10 to-primary/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-5 h-5 text-primary" />
@@ -140,7 +140,7 @@ export function AdminDashboardClient({
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success/10 to-success/5">
+          <Card className="bg-linear-to-br from-success/10 to-success/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Briefcase className="w-5 h-5 text-success" />
