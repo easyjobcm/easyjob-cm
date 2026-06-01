@@ -71,7 +71,7 @@ export function CompanyProfileClient({
   user,
   profile,
   completionPct,
-  _criteria,
+  criteria: _criteria,
   totalMissionsPosted,
 }: CompanyProfileClientProps) {
   const { t } = useI18n();

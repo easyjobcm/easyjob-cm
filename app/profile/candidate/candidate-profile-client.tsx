@@ -76,7 +76,7 @@ export function CandidateProfileClient({
   skills,
   completionPct,
   sandboxLevel,
-  _criteria,
+  criteria: _criteria,
   totalMissions,
 }: CandidateProfileClientProps) {
   const { t } = useI18n();
