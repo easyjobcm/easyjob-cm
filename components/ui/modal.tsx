@@ -44,7 +44,7 @@ export function Modal({
       />
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95",
+          "relative p-4 z-50 w-full max-w-lg bg-card rounded-t-3xl sm:rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95",
           className,
         )}
       >
