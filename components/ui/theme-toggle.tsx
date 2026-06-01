@@ -34,9 +34,7 @@ export function ThemeToggle({
       type="button"
       whileTap={{ scale: 0.95 }}
       onClick={toggleTheme}
-      aria-label={
-        isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode
-      }
+      aria-label={isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode}
       title={isDark ? t.landing.theme.lightMode : t.landing.theme.darkMode}
       className={`relative flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${variantClasses[variant]} ${className}`}
     >

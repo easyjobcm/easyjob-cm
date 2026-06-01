@@ -315,9 +315,7 @@ export async function sendPasswordResetOtpAction(input: {
   if (error) {
     console.error("[forgot] sendPasswordResetOtp failed:", error);
   } else {
-    await admin
-      .from("email_send_log")
-      .insert({ email: parsed.data.email, ip });
+    await admin.from("email_send_log").insert({ email: parsed.data.email, ip });
   }
   return { ok: true };
 }

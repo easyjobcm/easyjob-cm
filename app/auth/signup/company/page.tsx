@@ -360,9 +360,8 @@ export default function CompanySignupPage() {
                 onVerify={(otp) => verifyEmailOtpAction({ email, token: otp })}
                 onResend={() => resendEmailOtpAction({ email })}
                 getErrorMessage={(code) =>
-                  t.signup.errors[
-                    code as keyof typeof t.signup.errors
-                  ] ?? t.signup.errors.generic
+                  t.signup.errors[code as keyof typeof t.signup.errors] ??
+                  t.signup.errors.generic
                 }
                 labels={{
                   title: t.signup.emailOtp.title,

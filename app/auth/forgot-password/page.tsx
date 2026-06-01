@@ -97,7 +97,9 @@ export default function ForgotPasswordPage() {
                 <div className="w-16 h-16 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center mx-auto">
                   <Mail className="w-8 h-8 text-[#7C3AED]" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{fp.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {fp.title}
+                </h1>
                 <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed max-w-xs mx-auto">
                   {fp.subtitle}
                 </p>

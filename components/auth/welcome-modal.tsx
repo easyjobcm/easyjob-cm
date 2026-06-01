@@ -65,7 +65,9 @@ export function WelcomeModal({
             >
               {title}
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-white/60">{subtitle}</p>
+            <p className="mt-2 text-sm text-gray-600 dark:text-white/60">
+              {subtitle}
+            </p>
 
             <Link
               href={ctaHref}

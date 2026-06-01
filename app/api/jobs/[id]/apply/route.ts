@@ -49,7 +49,9 @@ export async function POST(
     // Check if job exists and is active (SRS ENUM: active, not published)
     const { data: job } = await supabase
       .from("jobs")
-      .select("id, status, positions_available, positions_filled, sandbox_level_required")
+      .select(
+        "id, status, positions_available, positions_filled, sandbox_level_required",
+      )
       .eq("id", jobId)
       .single();
 
@@ -66,8 +68,7 @@ export async function POST(
 
     // SRS §5.2 — vérification du niveau Sandbox requis
     if (
-      (job.sandbox_level_required ?? 0) >
-      (candidateProfile.sandbox_level ?? 0)
+      (job.sandbox_level_required ?? 0) > (candidateProfile.sandbox_level ?? 0)
     ) {
       return NextResponse.json(
         { error: "Your sandbox level is too low for this job" },

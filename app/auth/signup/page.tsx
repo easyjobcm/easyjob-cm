@@ -126,8 +126,12 @@ function RoleCard({
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3E8FF] dark:bg-[#7C3AED]/20 text-[#5B21B6] dark:text-[#A78BFA]">
             {icon}
           </div>
-          <h2 className="mt-12 text-lg font-bold text-[#1A0A2E] dark:text-white">{title}</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-white/60">{description}</p>
+          <h2 className="mt-12 text-lg font-bold text-[#1A0A2E] dark:text-white">
+            {title}
+          </h2>
+          <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
+            {description}
+          </p>
           <div className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#7C3AED] dark:text-[#A78BFA] transition-transform group-hover:translate-x-1">
             {variant === "candidate"
               ? t.signup.chooseRole.start

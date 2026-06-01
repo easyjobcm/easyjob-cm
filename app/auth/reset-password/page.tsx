@@ -199,7 +199,9 @@ export default function ResetPasswordPage() {
                 <div className="w-16 h-16 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center mx-auto">
                   <KeyRound className="w-8 h-8 text-[#7C3AED]" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{rp.title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {rp.title}
+                </h1>
                 <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed max-w-xs mx-auto">
                   {rp.subtitle}
                 </p>
@@ -233,7 +235,9 @@ export default function ResetPasswordPage() {
                         type="button"
                         onClick={() => setShowPassword((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70 transition"
-                        aria-label={showPassword ? rp.hidePassword : rp.showPassword}
+                        aria-label={
+                          showPassword ? rp.hidePassword : rp.showPassword
+                        }
                       >
                         {showPassword ? (
                           <EyeOff className="w-4 h-4" />
@@ -265,7 +269,9 @@ export default function ResetPasswordPage() {
                         type="button"
                         onClick={() => setShowConfirm((v) => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70 transition"
-                        aria-label={showConfirm ? rp.hidePassword : rp.showPassword}
+                        aria-label={
+                          showConfirm ? rp.hidePassword : rp.showPassword
+                        }
                       >
                         {showConfirm ? (
                           <EyeOff className="w-4 h-4" />

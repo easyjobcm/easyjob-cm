@@ -16,7 +16,11 @@ import { createClient } from "@/lib/supabase/client";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileCompletionWidget } from "@/components/profile/profile-completion-widget";
-import { SANDBOX_LEVELS, type Criterion, type SandboxLevelConfig } from "@/lib/utils/profile-completion";
+import {
+  SANDBOX_LEVELS,
+  type Criterion,
+  type SandboxLevelConfig,
+} from "@/lib/utils/profile-completion";
 import {
   MapPin,
   Star,
@@ -77,12 +81,17 @@ export function ProfileClient({
     router.push("/auth/login");
   };
 
-  const isCandidate = user.role === "candidate" || user.role === "candidate_premium";
+  const isCandidate =
+    user.role === "candidate" || user.role === "candidate_premium";
 
-  const currentLevelConfig: SandboxLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
+  const currentLevelConfig: SandboxLevelConfig =
+    SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
   const starsCount = Math.min(5, Math.round(reliabilityScore));
   const sandboxNames = t.profile.completion.sandbox;
-  const levelNameMap: Record<"level0" | "level1" | "level2" | "level3", string> = {
+  const levelNameMap: Record<
+    "level0" | "level1" | "level2" | "level3",
+    string
+  > = {
     level0: sandboxNames.level0,
     level1: sandboxNames.level1,
     level2: sandboxNames.level2,
@@ -92,7 +101,16 @@ export function ProfileClient({
 
   return (
     <AppShell hideNav>
-      <Header title={t.profile.myProfile} showBack rightAction={<div className="flex items-center gap-2"><LangSwitch variant="light" /><ThemeToggle variant="light" /></div>} />
+      <Header
+        title={t.profile.myProfile}
+        showBack
+        rightAction={
+          <div className="flex items-center gap-2">
+            <LangSwitch variant="light" />
+            <ThemeToggle variant="light" />
+          </div>
+        }
+      />
 
       <div className="px-4 py-6 space-y-6">
         {/* Profile Header */}
@@ -115,15 +133,24 @@ export function ProfileClient({
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.4, type: "spring", stiffness: 400, damping: 15 }}
+                transition={{
+                  delay: 0.4,
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 15,
+                }}
                 className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1"
                 style={{
                   background: `linear-gradient(135deg, ${currentLevelConfig.color}cc 0%, ${currentLevelConfig.color} 100%)`,
                   boxShadow: `0 6px 16px ${currentLevelConfig.color}55, 0 2px 6px ${currentLevelConfig.color}35, inset 0 1px 0 rgba(255,255,255,0.22)`,
                 }}
               >
-                <span className="text-[11px] leading-none">{currentLevelConfig.icon}</span>
-                <span className="text-[10px] font-bold tracking-wide text-white">{levelName}</span>
+                <span className="text-[11px] leading-none">
+                  {currentLevelConfig.icon}
+                </span>
+                <span className="text-[10px] font-bold tracking-wide text-white">
+                  {levelName}
+                </span>
               </motion.div>
             )}
           </div>
@@ -177,7 +204,10 @@ export function ProfileClient({
               )}
               {totalMissions > 0 && (
                 <span className="text-[11px] text-muted-foreground">
-                  · {totalMissions} {isCandidate ? t.profile.missionsCompleted : t.profile.missionsPosted}
+                  · {totalMissions}{" "}
+                  {isCandidate
+                    ? t.profile.missionsCompleted
+                    : t.profile.missionsPosted}
                 </span>
               )}
             </motion.div>
@@ -304,7 +334,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                      {t.profile.mobileMoney}
+                    {t.profile.mobileMoney}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -317,7 +347,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <Bell className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                      {t.profile.notifications}
+                    {t.profile.notifications}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -330,7 +360,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                      {t.profile.security}
+                    {t.profile.security}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -354,7 +384,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                      {t.profile.helpCenter}
+                    {t.profile.helpCenter}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -367,7 +397,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                      {t.profile.terms}
+                    {t.profile.terms}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -399,9 +429,7 @@ export function ProfileClient({
         title={t.profile.logoutTitle}
       >
         <div className="space-y-4">
-          <p className="text-muted-foreground">
-            {t.profile.logoutDesc}
-          </p>
+          <p className="text-muted-foreground">{t.profile.logoutDesc}</p>
           <div className="flex gap-3">
             <Button
               variant="outline"
