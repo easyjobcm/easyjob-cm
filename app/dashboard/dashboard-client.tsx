@@ -149,7 +149,7 @@ export function DashboardClient({
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+          <Card className="bg-linear-to-br from-primary/10 to-primary/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="p-2 rounded-lg bg-primary/20">
@@ -165,7 +165,7 @@ export function DashboardClient({
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success/10 to-success/5">
+          <Card className="bg-linear-to-br from-success/10 to-success/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <div className="p-2 rounded-lg bg-success/20">

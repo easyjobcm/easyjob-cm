@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Activer le mode sombre manuel (classe .dark sur <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* EasyJob CM - Modern Violet 3D Theme */
 
 :root {

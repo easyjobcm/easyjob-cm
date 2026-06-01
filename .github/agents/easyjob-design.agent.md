@@ -1,6 +1,6 @@
 ---
 name: Easyjob Design
-description: Agent design UI pour Easyjob CM. Utilise-le pour créer des composants visuels, animations 3D, stickers, transitions et éléments PWA.
+description: Agent design UI pour Easyjob CM. Utilise-le pour créer des composants visuels, animations 3D, rendu 3D cartoon, 3D stickers, transitions et éléments PWA.
 tools:
   - read
   - edit

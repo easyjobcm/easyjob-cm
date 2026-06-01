@@ -169,7 +169,7 @@ export function JobCard({
         </div>
 
         {/* Hover gradient effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
       </Card>
     </Link>
   );

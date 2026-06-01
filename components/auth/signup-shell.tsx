@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { HeroIllustration } from "./hero-illustration";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface SignupShellProps {
   variant: "candidate" | "company";
@@ -29,7 +30,7 @@ export function SignupShell({
   children,
 }: SignupShellProps) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA]">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA] dark:bg-[#0D0618]">
       {/* Blobs décoratifs en fond */}
       <div
         aria-hidden
@@ -46,7 +47,7 @@ export function SignupShell({
           <div className="flex items-center justify-between">
             <Link
               href={backHref}
-              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[#5B21B6] transition-colors hover:text-[#7C3AED]"
+              className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[#5B21B6] dark:text-[#A78BFA] transition-colors hover:text-[#7C3AED] dark:hover:text-[#C4B5FD]"
             >
               <svg
                 width="18"
@@ -63,10 +64,13 @@ export function SignupShell({
               </svg>
               {backLabel ?? "Retour"}
             </Link>
-            <LangSwitch />
+            <div className="flex items-center gap-2">
+              <LangSwitch />
+              <ThemeToggle />
+            </div>
           </div>
 
-          <div className="relative my-8 h-72 lg:my-0 lg:h-[400px]">
+          <div className="relative my-8 h-72 lg:my-0 lg:h-100">
             <HeroIllustration variant={variant} className="h-full w-full" />
           </div>
 
@@ -76,10 +80,10 @@ export function SignupShell({
             transition={{ delay: 0.2, duration: 0.5 }}
             className="max-w-md"
           >
-            <h1 className="text-2xl font-bold text-[#1A0A2E] lg:text-3xl">
+            <h1 className="text-2xl font-bold text-[#1A0A2E] dark:text-white lg:text-3xl">
               {heroTitle}
             </h1>
-            <p className="mt-2 text-sm text-gray-600 lg:text-base">
+            <p className="mt-2 text-sm text-gray-600 dark:text-white/60 lg:text-base">
               {heroSubtitle}
             </p>
           </motion.div>
@@ -91,7 +95,7 @@ export function SignupShell({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-md rounded-3xl border border-[#E5E7EB] bg-white p-6 shadow-sm lg:p-8"
+            className="w-full max-w-md rounded-3xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-[#1A0F2E] p-6 shadow-sm lg:p-8"
           >
             {children}
           </motion.div>

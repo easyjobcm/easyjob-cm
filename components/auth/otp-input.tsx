@@ -87,12 +87,12 @@ export function OtpInput({
           onKeyDown={(e) => handleKeyDown(e, i)}
           aria-invalid={invalid}
           className={
-            "h-14 w-12 rounded-xl border-2 bg-white text-center text-2xl font-bold transition-colors outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 disabled:opacity-60 " +
+            "h-14 w-12 rounded-xl border-2 bg-white dark:bg-white/5 text-center text-2xl font-bold text-gray-900 dark:text-white transition-colors outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 disabled:opacity-60 " +
             (invalid
               ? "border-red-400"
               : d
-                ? "border-[#7C3AED] bg-[#F3E8FF]"
-                : "border-[#E5E7EB]")
+                ? "border-[#7C3AED] bg-[#F3E8FF] dark:bg-[#7C3AED]/20"
+                : "border-[#E5E7EB] dark:border-white/10")
           }
         />
       ))}

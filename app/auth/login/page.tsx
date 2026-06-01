@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
 import {
   computeCandidateCriteria,
@@ -135,7 +136,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA]">
+    <div className="relative min-h-screen overflow-hidden bg-[#FAFAFA] dark:bg-[#0D0618]">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#7C3AED]/10 blur-3xl"
@@ -154,7 +155,10 @@ export default function LoginPage() {
           >
             ← EasyJob
           </Link>
-          <LangSwitch />
+          <div className="flex items-center gap-2">
+            <LangSwitch />
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Hero */}
@@ -168,10 +172,10 @@ export default function LoginPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#7C3AED] shadow-lg shadow-[#7C3AED]/30">
             <LogIn className="h-8 w-8 text-white" />
           </div>
-          <h1 className="mt-4 text-3xl font-bold text-[#1A0A2E]">
+          <h1 className="mt-4 text-3xl font-bold text-[#1A0A2E] dark:text-white">
             {t.auth.loginPage.title}
           </h1>
-          <p className="mt-2 text-base text-gray-500">
+          <p className="mt-2 text-base text-gray-500 dark:text-white/60">
             {t.auth.loginPage.subtitle}
           </p>
         </motion.div>
@@ -182,7 +186,7 @@ export default function LoginPage() {
           variants={STAGGER}
           initial="hidden"
           animate="show"
-          className="mt-8 rounded-[20px] border border-[#E5E7EB] bg-white p-6 shadow-sm"
+          className="mt-8 rounded-[20px] border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-[#1A0F2E] p-6 shadow-sm"
         >
           <form
             onSubmit={handleSubmit}
@@ -198,7 +202,7 @@ export default function LoginPage() {
             >
               <label
                 htmlFor="login-email"
-                className="mb-1.5 block text-sm font-medium text-gray-700"
+                className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-white/80"
               >
                 {t.auth.loginPage.email}
               </label>
@@ -209,7 +213,7 @@ export default function LoginPage() {
                 placeholder={t.auth.loginPage.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 px-4 text-sm text-gray-900 dark:text-white outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-white/30 focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                 required
               />
             </motion.div>
@@ -224,13 +228,13 @@ export default function LoginPage() {
               <div className="mb-1.5 flex items-center justify-between">
                 <label
                   htmlFor="login-password"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-gray-700 dark:text-white/80"
                 >
                   {t.auth.loginPage.password}
                 </label>
                 <Link
                   href="/auth/forgot-password"
-                  className="text-xs font-medium text-[#7C3AED] transition-opacity hover:opacity-70"
+                  className="text-xs font-medium text-[#7C3AED] dark:text-[#A78BFA] transition-opacity hover:opacity-70"
                 >
                   {t.auth.loginPage.forgot}
                 </Link>
@@ -243,14 +247,14 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-4 pr-12 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                  className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 px-4 pr-12 text-sm text-gray-900 dark:text-white outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-white/30 focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   required
                 />
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -267,7 +271,7 @@ export default function LoginPage() {
               <motion.p
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600"
+                className="rounded-xl border border-red-100 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300"
               >
                 {error}
               </motion.p>

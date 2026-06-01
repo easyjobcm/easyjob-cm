@@ -29,9 +29,6 @@ export function ProfileCompletionWidget({
 
   const isCandidate = role === "candidate" || role === "candidate_premium";
 
-  const currentLevel: SandboxLevelConfig =
-    SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
-
   const nextLevel: SandboxLevelConfig | undefined =
     SANDBOX_LEVELS[sandboxLevel + 1];
 

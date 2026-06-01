@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { AppShell } from "@/components/layout/app-shell";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,8 +13,10 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileCompletionWidget } from "@/components/profile/profile-completion-widget";
-import { type Criterion } from "@/lib/utils/profile-completion";
+import { SANDBOX_LEVELS, type Criterion, type SandboxLevelConfig } from "@/lib/utils/profile-completion";
 import {
   MapPin,
   Star,
@@ -38,11 +41,11 @@ interface ProfileClientProps {
     first_name?: string;
     last_name?: string;
     company_name?: string;
-    reliability_score?: number;
-    completed_missions?: number;
+    average_rating?: number;
     city?: string;
     quartier?: string;
   } | null;
+  totalMissions: number;
   skills: Array<{
     id: string;
     skill_name: string;
@@ -59,14 +62,14 @@ export function ProfileClient({
   completionPct,
   sandboxLevel,
   criteria,
+  totalMissions,
 }: ProfileClientProps) {
   const router = useRouter();
-  const { locale } = useI18n();
+  const { t } = useI18n();
   const supabase = createClient();
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [loggingOut, setLoggingOut] = React.useState(false);
-  const reliabilityScore = profile?.reliability_score ?? 0;
-  const completedMissions = profile?.completed_missions ?? 0;
+  const reliabilityScore = profile?.average_rating ?? 0;
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -74,20 +77,55 @@ export function ProfileClient({
     router.push("/auth/login");
   };
 
-  const isCandidate = user.role === "candidate";
+  const isCandidate = user.role === "candidate" || user.role === "candidate_premium";
+
+  const currentLevelConfig: SandboxLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
+  const starsCount = Math.min(5, Math.round(reliabilityScore));
+  const sandboxNames = t.profile.completion.sandbox;
+  const levelNameMap: Record<"level0" | "level1" | "level2" | "level3", string> = {
+    level0: sandboxNames.level0,
+    level1: sandboxNames.level1,
+    level2: sandboxNames.level2,
+    level3: sandboxNames.level3,
+  };
+  const levelName = levelNameMap[currentLevelConfig.nameKey];
 
   return (
     <AppShell hideNav>
-      <Header title={locale === "fr" ? "Mon Profil" : "My Profile"} showBack />
+      <Header title={t.profile.myProfile} showBack rightAction={<div className="flex items-center gap-2"><LangSwitch variant="light" /><ThemeToggle variant="light" /></div>} />
 
       <div className="px-4 py-6 space-y-6">
         {/* Profile Header */}
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-            {profile?.first_name?.[0] ||
-              profile?.company_name?.[0] ||
-              user.phone?.[0] ||
-              "U"}
+          <div className="relative">
+            <div
+              className="w-20 h-20 rounded-2xl bg-linear-to-br from-primary to-primary/60 flex items-center justify-center text-white text-2xl font-bold"
+              style={{
+                boxShadow: isCandidate
+                  ? `0 8px 24px ${currentLevelConfig.color}40, 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)`
+                  : "0 4px 16px rgba(0,0,0,0.12)",
+              }}
+            >
+              {profile?.first_name?.[0] ||
+                profile?.company_name?.[0] ||
+                user.phone?.[0] ||
+                "U"}
+            </div>
+            {isCandidate && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.4, type: "spring", stiffness: 400, damping: 15 }}
+                className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1"
+                style={{
+                  background: `linear-gradient(135deg, ${currentLevelConfig.color}cc 0%, ${currentLevelConfig.color} 100%)`,
+                  boxShadow: `0 6px 16px ${currentLevelConfig.color}55, 0 2px 6px ${currentLevelConfig.color}35, inset 0 1px 0 rgba(255,255,255,0.22)`,
+                }}
+              >
+                <span className="text-[11px] leading-none">{currentLevelConfig.icon}</span>
+                <span className="text-[10px] font-bold tracking-wide text-white">{levelName}</span>
+              </motion.div>
+            )}
           </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">
@@ -96,21 +134,56 @@ export function ProfileClient({
                   user.phone
                 : profile?.company_name || user.phone}
             </h1>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="mt-1 mb-0.5 flex items-center gap-1.5"
+            >
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const filled = i < starsCount;
+                  return (
+                    <motion.div
+                      key={i}
+                      className="inline-flex"
+                      initial={{ scale: 0, rotate: -20 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{
+                        delay: 0.35 + i * 0.09,
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 18,
+                      }}
+                    >
+                      <Star
+                        className="h-4 w-4"
+                        style={{
+                          color: filled ? "#EAB308" : "#D1D5DB",
+                          fill: filled ? "#EAB308" : "none",
+                          filter: filled
+                            ? "drop-shadow(0 1px 4px #EAB30875)"
+                            : "none",
+                        }}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </div>
+              {reliabilityScore > 0 && (
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {reliabilityScore.toFixed(1)}
+                </span>
+              )}
+              {totalMissions > 0 && (
+                <span className="text-[11px] text-muted-foreground">
+                  · {totalMissions} {isCandidate ? t.profile.missionsCompleted : t.profile.missionsPosted}
+                </span>
+              )}
+            </motion.div>
             <p className="text-sm text-muted-foreground">
               {user.phone || user.email}
             </p>
-            {isCandidate && reliabilityScore > 0 && (
-              <div className="flex items-center gap-1 mt-1">
-                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-sm font-medium">
-                  {reliabilityScore.toFixed(1)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  ({completedMissions}{" "}
-                  {locale === "fr" ? "missions" : "missions"})
-                </span>
-              </div>
-            )}
           </div>
           <Link href="/profile/edit">
             <Button variant="outline" size="icon">
@@ -133,20 +206,20 @@ export function ProfileClient({
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-bold text-primary">
-                  {profile?.completed_missions || 0}
+                  {totalMissions}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {locale === "fr" ? "Missions" : "Missions"}
+                  {t.profile.statMissions}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3 text-center">
                 <p className="text-2xl font-bold text-success">
-                  {profile?.reliability_score?.toFixed(1) || "0.0"}
+                  {profile?.average_rating?.toFixed(1) || "0.0"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {locale === "fr" ? "Score" : "Score"}
+                  {t.profile.statScore}
                 </p>
               </CardContent>
             </Card>
@@ -156,7 +229,7 @@ export function ProfileClient({
                   {skills.length}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {locale === "fr" ? "Competences" : "Skills"}
+                  {t.profile.statSkills}
                 </p>
               </CardContent>
             </Card>
@@ -168,7 +241,7 @@ export function ProfileClient({
           <Card>
             <CardContent className="p-4">
               <h3 className="font-medium text-foreground mb-3">
-                {locale === "fr" ? "Mes competences" : "My skills"}
+                {t.profile.mySkills}
               </h3>
               <div className="flex flex-wrap gap-2">
                 {skills.map((skill) => (
@@ -193,7 +266,7 @@ export function ProfileClient({
                     {profile.city}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {locale === "fr" ? "Localisation" : "Location"}
+                    {t.profile.locationLabel}
                   </p>
                 </div>
               </div>
@@ -204,7 +277,7 @@ export function ProfileClient({
         {/* Menu Items */}
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
-            {locale === "fr" ? "Parametres" : "Settings"}
+            {t.profile.settings}
           </h3>
 
           <Card>
@@ -217,7 +290,7 @@ export function ProfileClient({
                   <div className="flex items-center gap-3">
                     <Clock className="w-5 h-5 text-muted-foreground" />
                     <span className="font-medium text-foreground">
-                      {locale === "fr" ? "Disponibilites" : "Availability"}
+                      {t.profile.availability}
                     </span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -231,7 +304,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <CreditCard className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                    {locale === "fr" ? "Mobile Money" : "Mobile Money"}
+                      {t.profile.mobileMoney}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -244,7 +317,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <Bell className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                    {locale === "fr" ? "Notifications" : "Notifications"}
+                      {t.profile.notifications}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -257,7 +330,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <Shield className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                    {locale === "fr" ? "Securite" : "Security"}
+                      {t.profile.security}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -269,7 +342,7 @@ export function ProfileClient({
         {/* Support */}
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-1">
-            {locale === "fr" ? "Support" : "Support"}
+            {t.profile.support}
           </h3>
 
           <Card>
@@ -281,7 +354,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                    {locale === "fr" ? "Centre d'aide" : "Help Center"}
+                      {t.profile.helpCenter}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -294,9 +367,7 @@ export function ProfileClient({
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-muted-foreground" />
                   <span className="font-medium text-foreground">
-                    {locale === "fr"
-                      ? "Conditions d'utilisation"
-                      : "Terms of Service"}
+                      {t.profile.terms}
                   </span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -312,7 +383,7 @@ export function ProfileClient({
           onClick={() => setShowLogoutModal(true)}
         >
           <LogOut className="w-4 h-4 mr-2" />
-          {locale === "fr" ? "Se deconnecter" : "Log out"}
+          {t.profile.logout}
         </Button>
 
         {/* Version */}
@@ -325,13 +396,11 @@ export function ProfileClient({
       <Modal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
-        title={locale === "fr" ? "Se deconnecter ?" : "Log out?"}
+        title={t.profile.logoutTitle}
       >
         <div className="space-y-4">
           <p className="text-muted-foreground">
-            {locale === "fr"
-              ? "Etes-vous sur de vouloir vous deconnecter ?"
-              : "Are you sure you want to log out?"}
+            {t.profile.logoutDesc}
           </p>
           <div className="flex gap-3">
             <Button
@@ -339,7 +408,7 @@ export function ProfileClient({
               className="flex-1"
               onClick={() => setShowLogoutModal(false)}
             >
-              {locale === "fr" ? "Annuler" : "Cancel"}
+              {t.profile.cancel}
             </Button>
             <Button
               variant="destructive"
@@ -347,13 +416,7 @@ export function ProfileClient({
               onClick={handleLogout}
               disabled={loggingOut}
             >
-              {loggingOut ? (
-                <LoadingSpinner size="sm" />
-              ) : locale === "fr" ? (
-                "Se deconnecter"
-              ) : (
-                "Log out"
-              )}
+              {loggingOut ? <LoadingSpinner size="sm" /> : t.profile.logout}
             </Button>
           </div>
         </div>

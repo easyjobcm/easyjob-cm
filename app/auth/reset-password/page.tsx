@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { KeyRound, Eye, EyeOff, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
 
 const STAGGER = {
@@ -83,14 +84,14 @@ export default function ResetPasswordPage() {
   // Loading skeleton while checking session
   if (!sessionChecked) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618] flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-[#7C3AED] border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4 overflow-hidden">
+    <div className="relative min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618] flex flex-col items-center justify-center px-4 overflow-hidden">
       {/* Decorative blobs */}
       <div
         aria-hidden
@@ -110,7 +111,10 @@ export default function ResetPasswordPage() {
           <ArrowLeft className="w-4 h-4" />
           <span>{rp.backToLogin}</span>
         </Link>
-        <LangSwitch variant="light" />
+        <div className="flex items-center gap-2">
+          <LangSwitch variant="light" />
+          <ThemeToggle variant="light" />
+        </div>
       </div>
 
       <div className="w-full max-w-md z-10 mt-16">
@@ -122,15 +126,15 @@ export default function ResetPasswordPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}
-              className="bg-white border border-[#E5E7EB] rounded-[20px] p-8 text-center"
+              className="bg-white dark:bg-[#1A0F2E] border border-[#E5E7EB] dark:border-white/10 rounded-[20px] p-8 text-center"
             >
               <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
                 <KeyRound className="w-7 h-7 text-red-500" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 {rp.sessionExpiredTitle}
               </h2>
-              <p className="text-sm text-gray-500 leading-relaxed mb-6">
+              <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed mb-6">
                 {rp.errors.sessionExpired}
               </p>
               <motion.div whileTap={{ scale: 0.98 }}>
@@ -151,7 +155,7 @@ export default function ResetPasswordPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="bg-white border border-[#E5E7EB] rounded-[20px] p-8 text-center"
+              className="bg-white dark:bg-[#1A0F2E] border border-[#E5E7EB] dark:border-white/10 rounded-[20px] p-8 text-center"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -161,10 +165,10 @@ export default function ResetPasswordPage() {
               >
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </motion.div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 {rp.successTitle}
               </h2>
-              <p className="text-sm text-gray-500 leading-relaxed mb-6">
+              <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed mb-6">
                 {rp.successMessage}
               </p>
               <motion.div whileTap={{ scale: 0.98 }}>
@@ -195,8 +199,8 @@ export default function ResetPasswordPage() {
                 <div className="w-16 h-16 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center mx-auto">
                   <KeyRound className="w-8 h-8 text-[#7C3AED]" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">{rp.title}</h1>
-                <p className="text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{rp.title}</h1>
+                <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed max-w-xs mx-auto">
                   {rp.subtitle}
                 </p>
               </motion.div>
@@ -205,7 +209,7 @@ export default function ResetPasswordPage() {
               <motion.div
                 variants={STAGGER}
                 custom={1}
-                className="bg-white border border-[#E5E7EB] rounded-[20px] p-6"
+                className="bg-white dark:bg-[#1A0F2E] border border-[#E5E7EB] dark:border-white/10 rounded-[20px] p-6"
               >
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                   {/* New password */}
@@ -223,12 +227,12 @@ export default function ResetPasswordPage() {
                           setError("");
                         }}
                         placeholder={rp.passwordPlaceholder}
-                        className="w-full h-12 pl-4 pr-12 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
+                        className="w-full h-12 pl-4 pr-12 rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70 transition"
                         aria-label={showPassword ? rp.hidePassword : rp.showPassword}
                       >
                         {showPassword ? (
@@ -255,12 +259,12 @@ export default function ResetPasswordPage() {
                           setError("");
                         }}
                         placeholder={rp.confirmPlaceholder}
-                        className="w-full h-12 pl-4 pr-12 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
+                        className="w-full h-12 pl-4 pr-12 rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirm((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70 transition"
                         aria-label={showConfirm ? rp.hidePassword : rp.showPassword}
                       >
                         {showConfirm ? (

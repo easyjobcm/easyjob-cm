@@ -53,12 +53,12 @@ export function LogoSpinner({
 // Full page loader variant with gradient background
 export function PageLoader() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-background via-background to-secondary/30">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-linear-to-b from-background via-background to-secondary/30">
       <div className="animate-pulse-glow">
         <LogoSpinner size="xl" />
       </div>
       <div className="mt-6 flex flex-col items-center gap-2">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <h1 className="text-2xl font-bold bg-linear-to-r from-primary to-accent bg-clip-text text-transparent">
           EasyJob CM
         </h1>
         <p className="text-muted-foreground text-sm">Chargement en cours...</p>

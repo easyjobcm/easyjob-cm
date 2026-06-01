@@ -29,7 +29,7 @@ export function PhoneInput({
 
   return (
     <div className="flex gap-2">
-      <div className="flex h-12 shrink-0 items-center justify-center rounded-xl bg-[#F3E8FF] px-4 text-sm font-semibold text-[#5B21B6]">
+      <div className="flex h-12 shrink-0 items-center justify-center rounded-xl bg-[#F3E8FF] dark:bg-[#7C3AED]/20 px-4 text-sm font-semibold text-[#5B21B6] dark:text-[#A78BFA]">
         +237
       </div>
       <input
@@ -46,8 +46,8 @@ export function PhoneInput({
         disabled={disabled}
         aria-invalid={invalid}
         className={
-          "h-12 flex-1 rounded-xl border bg-white px-4 text-base font-medium tracking-wide outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 disabled:bg-gray-50 " +
-          (invalid ? "border-red-400" : "border-[#E5E7EB]")
+          "h-12 flex-1 rounded-xl border bg-white dark:bg-white/5 px-4 text-base font-medium tracking-wide text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20 disabled:bg-gray-50 dark:disabled:bg-white/[0.02] " +
+          (invalid ? "border-red-400" : "border-[#E5E7EB] dark:border-white/10")
         }
       />
     </div>

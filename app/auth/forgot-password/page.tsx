@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { EmailOtpStep } from "@/components/auth/email-otp-step";
 import {
   sendPasswordResetOtpAction,
@@ -48,7 +49,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4 overflow-hidden">
+    <div className="relative min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618] flex flex-col items-center justify-center px-4 overflow-hidden">
       {/* Decorative blobs */}
       <div
         aria-hidden
@@ -71,7 +72,10 @@ export default function ForgotPasswordPage() {
           <ArrowLeft className="w-4 h-4" />
           <span>{step === "otp" ? t.common.back : fp.backToLogin}</span>
         </button>
-        <LangSwitch variant="light" />
+        <div className="flex items-center gap-2">
+          <LangSwitch variant="light" />
+          <ThemeToggle variant="light" />
+        </div>
       </div>
 
       <div className="w-full max-w-md z-10 mt-16">
@@ -93,8 +97,8 @@ export default function ForgotPasswordPage() {
                 <div className="w-16 h-16 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center mx-auto">
                   <Mail className="w-8 h-8 text-[#7C3AED]" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">{fp.title}</h1>
-                <p className="text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{fp.title}</h1>
+                <p className="text-sm text-gray-500 dark:text-white/60 leading-relaxed max-w-xs mx-auto">
                   {fp.subtitle}
                 </p>
               </motion.div>
@@ -102,7 +106,7 @@ export default function ForgotPasswordPage() {
               <motion.div
                 variants={STAGGER}
                 custom={1}
-                className="bg-white border border-[#E5E7EB] rounded-[20px] p-6"
+                className="bg-white dark:bg-[#1A0F2E] border border-[#E5E7EB] dark:border-white/10 rounded-[20px] p-6"
               >
                 <form
                   onSubmit={handleSubmitEmail}
@@ -123,7 +127,7 @@ export default function ForgotPasswordPage() {
                         setError("");
                       }}
                       placeholder={fp.emailPlaceholder}
-                      className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
+                      className="w-full h-12 px-4 rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/40 focus:border-[#7C3AED] transition"
                     />
                   </div>
 
@@ -159,7 +163,7 @@ export default function ForgotPasswordPage() {
               >
                 <Link
                   href="/auth/login"
-                  className="font-semibold text-[#5B21B6] hover:underline"
+                  className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                 >
                   {fp.backToLogin}
                 </Link>
@@ -175,7 +179,7 @@ export default function ForgotPasswordPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="bg-white border border-[#E5E7EB] rounded-[20px] p-6"
+              className="bg-white dark:bg-[#1A0F2E] border border-[#E5E7EB] dark:border-white/10 rounded-[20px] p-6"
             >
               <EmailOtpStep
                 email={email}

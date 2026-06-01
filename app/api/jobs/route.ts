@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       `,
         { count: "exact" },
       )
-      .eq("status", "published")
+      .eq("status", "active")
       .gte("start_date", new Date().toISOString().split("T")[0])
       .order("urgency", { ascending: false })
       .order("published_at", { ascending: false });

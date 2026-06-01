@@ -350,7 +350,7 @@ export default function NewJobPage() {
                     ? "Decrivez les missions, le contexte..."
                     : "Describe the tasks, context..."
                 }
-                className="mt-1.5 w-full min-h-[120px] rounded-xl border border-input bg-background px-4 py-3 text-foreground resize-none"
+                className="mt-1.5 w-full min-h-30 rounded-xl border border-input bg-background px-4 py-3 text-foreground resize-none"
               />
             </div>
           </div>

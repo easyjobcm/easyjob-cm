@@ -37,6 +37,7 @@ export default async function ProfilePage() {
   let completionPct = 0;
   let sandboxLevel = 0;
   let criteria: Criterion[] = [];
+  let totalMissions = 0;
 
   if (userData.role === "candidate" || userData.role === "candidate_premium") {
     const { data: candidateProfile } = await supabase
@@ -65,6 +66,7 @@ export default async function ProfilePage() {
       } else {
         completionPct = computeCompletion(criteria);
       }
+      totalMissions = candidateProfile.total_missions ?? 0;
     }
   } else if (
     userData.role === "company" ||
@@ -81,6 +83,7 @@ export default async function ProfilePage() {
     if (companyProfile) {
       criteria = computeCompanyCriteria(companyProfile);
       completionPct = computeCompletion(criteria);
+      totalMissions = companyProfile.total_missions_posted ?? 0;
     }
   }
 
@@ -92,6 +95,7 @@ export default async function ProfilePage() {
       completionPct={completionPct}
       sandboxLevel={sandboxLevel}
       criteria={criteria}
+      totalMissions={totalMissions}
     />
   );
 }

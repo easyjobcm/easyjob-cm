@@ -161,7 +161,7 @@ export default function CompanySignupPage() {
                         : "company",
               );
             }}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#5B21B6] hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
           >
             ← {t.common.back}
           </button>
@@ -178,10 +178,10 @@ export default function CompanySignupPage() {
             {step === "company" && (
               <form onSubmit={handleSubmitCompany} className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.steps.company}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.company.heroSubtitle}
                   </p>
                 </header>
@@ -189,7 +189,7 @@ export default function CompanySignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="companyName"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.company.companyName}
                   </label>
@@ -201,14 +201,14 @@ export default function CompanySignupPage() {
                     placeholder={t.signup.company.companyNamePlaceholder}
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label
                     htmlFor="niu"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.company.niu}
                   </label>
@@ -220,9 +220,9 @@ export default function CompanySignupPage() {
                     placeholder={t.signup.company.niuPlaceholder}
                     value={niu}
                     onChange={(e) => setNiu(e.target.value.toUpperCase())}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base font-mono tracking-wider uppercase outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 font-mono tracking-wider uppercase outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white/40">
                     {t.signup.company.niuHelp}
                   </p>
                 </div>
@@ -242,10 +242,10 @@ export default function CompanySignupPage() {
             {step === "account" && (
               <form onSubmit={handleSubmitAccount} className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.account.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.account.subtitle}
                   </p>
                 </header>
@@ -253,7 +253,7 @@ export default function CompanySignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="email"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.email}
                   </label>
@@ -265,14 +265,14 @@ export default function CompanySignupPage() {
                     placeholder={t.signup.account.emailPlaceholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label
                     htmlFor="password"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.password}
                   </label>
@@ -284,9 +284,9 @@ export default function CompanySignupPage() {
                     minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white/40">
                     {t.signup.account.passwordHint}
                   </p>
                 </div>
@@ -294,7 +294,7 @@ export default function CompanySignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="confirmPassword"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.signup.account.confirmPassword}
                   </label>
@@ -306,29 +306,29 @@ export default function CompanySignupPage() {
                     minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white px-4 text-base outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
+                    className="h-12 w-full rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 px-4 text-base text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-[#7C3AED]/20"
                   />
                 </div>
 
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-3">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E5E7EB] dark:border-white/10 bg-[#FAFAFA] dark:bg-white/5 p-3">
                   <input
                     type="checkbox"
                     checked={acceptTerms}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
                     className="mt-0.5 h-5 w-5 accent-[#7C3AED]"
                   />
-                  <span className="text-xs leading-relaxed text-gray-700">
+                  <span className="text-xs leading-relaxed text-gray-700 dark:text-white/70">
                     {t.signup.account.terms}{" "}
                     <Link
                       href="/legal/terms"
-                      className="font-semibold text-[#5B21B6] hover:underline"
+                      className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.termsLink}
                     </Link>{" "}
                     {t.signup.account.and}{" "}
                     <Link
                       href="/legal/privacy"
-                      className="font-semibold text-[#5B21B6] hover:underline"
+                      className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.privacyLink}
                     </Link>
@@ -379,10 +379,10 @@ export default function CompanySignupPage() {
             {step === "phone" && (
               <form onSubmit={handleSubmitPhone} className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.phoneStep.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.phoneStep.subtitle}
                   </p>
                 </header>
@@ -390,7 +390,7 @@ export default function CompanySignupPage() {
                 <div className="space-y-1">
                   <label
                     htmlFor="phone"
-                    className="text-sm font-medium text-[#1A0A2E]"
+                    className="text-sm font-medium text-[#1A0A2E] dark:text-white/80"
                   >
                     {t.auth.phone}
                   </label>
@@ -400,7 +400,7 @@ export default function CompanySignupPage() {
                     autoFocus
                     invalid={error === "phoneInvalid"}
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-white/40">
                     {t.signup.phoneStep.hint}
                   </p>
                 </div>
@@ -427,12 +427,12 @@ export default function CompanySignupPage() {
             {step === "otp" && (
               <form onSubmit={handleSubmitOtp} className="space-y-5">
                 <header>
-                  <h2 className="text-xl font-bold text-[#1A0A2E]">
+                  <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">
                     {t.signup.otp.title}
                   </h2>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
                     {t.signup.otp.subtitle}{" "}
-                    <span className="font-semibold text-[#5B21B6]">
+                    <span className="font-semibold text-[#5B21B6] dark:text-[#A78BFA]">
                       +237 {phone}
                     </span>
                   </p>
@@ -523,13 +523,13 @@ function ResendOtp({
   };
 
   return (
-    <p className="text-center text-sm text-gray-600">
+    <p className="text-center text-sm text-gray-600 dark:text-white/60">
       {label}{" "}
       <button
         type="button"
         onClick={handle}
         disabled={seconds > 0}
-        className="font-semibold text-[#5B21B6] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
+        className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
       >
         {seconds > 0
           ? resendInLabel.replace("{seconds}", String(seconds))

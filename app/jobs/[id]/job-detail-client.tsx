@@ -151,7 +151,7 @@ export function JobDetailClient({
   return (
     <div className="flex min-h-screen flex-col bg-background pb-28">
       {/* Header with gradient */}
-      <div className="bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground">
+      <div className="bg-linear-to-br from-primary via-primary to-primary/80 text-primary-foreground">
         <Header
           title=""
           showBack

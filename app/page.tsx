@@ -24,11 +24,11 @@ import {
   Download,
   Menu,
   X as XIcon,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { useTheme } from "@/lib/hooks/use-theme";
 import { LangSwitch } from "@/components/ui/lang-switch";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { CookieBanner } from "@/components/shared/cookie-banner";
 import { Chatbot } from "@/components/chatbot/chatbot";
 
@@ -291,7 +291,8 @@ export default function WelcomePage() {
       window.matchMedia("(display-mode: standalone)").matches,
   );
   const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 20);
@@ -517,22 +518,9 @@ export default function WelcomePage() {
               variant={scrolled && !isDark ? "light" : "dark-translucent"}
             />
 
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsDark(!isDark)}
-              className={`flex items-center justify-center w-9 h-9 rounded-full border transition-colors ${scrolled && !isDark ? "border-[#E5E7EB] text-[#6B7280] hover:border-[#7C3AED] hover:text-[#7C3AED]" : "border-white/10 text-white/60 hover:border-white/30 hover:text-white"}`}
-              title={
-                isDark
-                  ? t("landing.theme.lightMode")
-                  : t("landing.theme.darkMode")
-              }
-            >
-              {isDark ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </motion.button>
+            <ThemeToggle
+              variant={scrolled && !isDark ? "light" : "dark-translucent"}
+            />
 
             <motion.button
               whileTap={{ scale: 0.97 }}

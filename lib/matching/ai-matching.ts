@@ -9,10 +9,12 @@ interface MatchResult {
   score: number;
   breakdown: {
     skills: number;
-    location: number;
+    sandbox: number;
+    rating: number;
+    completion: number;
     availability: number;
-    experience: number;
-    reliability: number;
+    location: number;
+    premium: number;
   };
   reasons: string[];
 }
@@ -67,10 +69,12 @@ export async function calculateMatchScore(
       score: 0,
       breakdown: {
         skills: 0,
-        location: 0,
+        sandbox: 0,
+        rating: 0,
+        completion: 0,
         availability: 0,
-        experience: 0,
-        reliability: 0,
+        location: 0,
+        premium: 0,
       },
       reasons: ["Candidat ou offre non trouve"],
     };
@@ -78,10 +82,12 @@ export async function calculateMatchScore(
 
   const breakdown = {
     skills: 0,
-    location: 0,
+    sandbox: 0,
+    rating: 0,
+    completion: 0,
     availability: 0,
-    experience: 0,
-    reliability: 0,
+    location: 0,
+    premium: 0,
   };
   const reasons: string[] = [];
 
@@ -109,7 +115,7 @@ export async function calculateMatchScore(
     breakdown.skills = 70; // Default if no skills required
   }
 
-  // 2. Location Match (25% weight)
+  // 6. Location proximity (10% — SRS §6.5)
   if (
     candidate.latitude &&
     candidate.longitude &&
@@ -142,7 +148,13 @@ export async function calculateMatchScore(
     breakdown.location = 30;
   }
 
-  // 3. Availability Match (20% weight)
+  // 7. Premium status (5% — SRS §6.5)
+  const isPremium =
+    candidate.premium_until && new Date(candidate.premium_until) > new Date();
+  breakdown.premium = isPremium ? 100 : 0;
+  if (isPremium) reasons.push("Candidat premium");
+
+  // 5. Availability Match (10% — SRS §6.5)
   if (
     job.start_date &&
     candidate.availability &&
@@ -176,46 +188,49 @@ export async function calculateMatchScore(
     breakdown.availability = 50; // Default
   }
 
-  // 4. Experience Match (15% weight)
-  if (candidate.completed_missions > 0) {
-    if (candidate.completed_missions >= 20) {
-      breakdown.experience = 100;
-      reasons.push("Candidat tres experimente");
-    } else if (candidate.completed_missions >= 10) {
-      breakdown.experience = 80;
-      reasons.push("Candidat experimente");
-    } else if (candidate.completed_missions >= 5) {
-      breakdown.experience = 60;
-    } else {
-      breakdown.experience = 40;
-    }
+  // 2. Sandbox level (20% — SRS §6.5)
+  const candidateLevel: number = candidate.sandbox_level ?? 0;
+  const requiredLevel: number = job.sandbox_level_required ?? 0;
+  if (candidateLevel >= requiredLevel) {
+    breakdown.sandbox = Math.min(100, 50 + candidateLevel * 12);
+    if (candidateLevel >= 3) reasons.push("Candidat Expert (niveau 3)");
+    else if (candidateLevel >= 2) reasons.push("Candidat Fiable (niveau 2)");
+    else if (candidateLevel >= 1) reasons.push("Candidat Confirmé (niveau 1)");
   } else {
-    breakdown.experience = 30; // New candidate
-    if (candidate.is_sandbox) {
-      reasons.push("Nouveau candidat (mode sandbox)");
-    }
+    breakdown.sandbox = 0;
   }
 
-  // 5. Reliability Score (10% weight)
-  if (candidate.reliability_score) {
-    breakdown.reliability = candidate.reliability_score * 100;
-
-    if (candidate.reliability_score >= 0.9) {
-      reasons.push("Excellent score de fiabilite");
-    } else if (candidate.reliability_score >= 0.7) {
-      reasons.push("Bon score de fiabilite");
-    }
+  // 3. Average rating (15% — SRS §6.5)
+  const avgRating: number = candidate.average_rating ?? 0;
+  if (avgRating >= 4.5) {
+    breakdown.rating = 100;
+    reasons.push("Note excellente (≥4.5★)");
+  } else if (avgRating >= 4) {
+    breakdown.rating = 80;
+    reasons.push("Bonne note (≥4★)");
+  } else if (avgRating >= 3.5) {
+    breakdown.rating = 60;
+  } else if (avgRating > 0) {
+    breakdown.rating = 40;
   } else {
-    breakdown.reliability = 50; // Default for new candidates
+    breakdown.rating = 50; // nouveau candidat sans note
   }
 
-  // Calculate weighted total score
+  // 4. Profile completion (10% — SRS §6.5)
+  const completion: number = candidate.profile_completion_pct ?? 0;
+  breakdown.completion = completion;
+  if (completion >= 90) reasons.push("Profil très complet");
+  else if (completion >= 60) reasons.push("Profil complet");
+
+  // Score pondéré selon SRS §6.5 : 30/20/15/10/10/10/5
   const score = Math.round(
     breakdown.skills * 0.3 +
-      breakdown.location * 0.25 +
-      breakdown.availability * 0.2 +
-      breakdown.experience * 0.15 +
-      breakdown.reliability * 0.1,
+      breakdown.sandbox * 0.2 +
+      breakdown.rating * 0.15 +
+      breakdown.completion * 0.1 +
+      breakdown.availability * 0.1 +
+      breakdown.location * 0.1 +
+      breakdown.premium * 0.05,
   );
 
   return {
@@ -241,11 +256,13 @@ export async function findMatchingCandidates(
 
   if (!job) return [];
 
-  // Get candidates in the same city or nearby
+  // Get candidates: completed onboarding, level suffisant pour cette offre
+  const sandboxRequired: number = job.sandbox_level_required ?? 0;
   const { data: candidates } = await supabase
     .from("candidate_profiles")
-    .select("id, city")
+    .select("id, city, sandbox_level")
     .eq("onboarding_status", "completed")
+    .gte("sandbox_level", sandboxRequired)
     .limit(100);
 
   if (!candidates || candidates.length === 0) return [];
@@ -272,35 +289,28 @@ export async function findMatchingCandidates(
     .slice(0, limit);
 }
 
-// Update candidate's reliability score after mission
+// Recalcule average_rating après chaque mission validée
+// (appelé depuis la route de validation de mission)
 export async function updateReliabilityScore(
   candidateId: string,
 ): Promise<void> {
   const supabase = await createClient();
 
-  // Get candidate's mission history
-  const { data: candidate } = await supabase
-    .from("candidate_profiles")
-    .select("total_missions, completed_missions, no_show_count")
-    .eq("id", candidateId)
-    .single();
+  // Récupère toutes les évaluations du candidat
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("reviewed_id", candidateId)
+    .eq("reviewer_type", "company");
 
-  if (!candidate) return;
+  if (!reviews || reviews.length === 0) return;
 
-  // Calculate new reliability score
-  let reliabilityScore = 0.5; // Default for new candidates
+  const avg =
+    reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
+    reviews.length;
 
-  if (candidate.total_missions > 0) {
-    const completionRate =
-      candidate.completed_missions / candidate.total_missions;
-    const noShowPenalty = (candidate.no_show_count || 0) * 0.1;
-
-    reliabilityScore = Math.max(0, Math.min(1, completionRate - noShowPenalty));
-  }
-
-  // Update candidate profile
   await supabase
     .from("candidate_profiles")
-    .update({ reliability_score: reliabilityScore })
+    .update({ average_rating: Math.round(avg * 10) / 10 })
     .eq("id", candidateId);
 }

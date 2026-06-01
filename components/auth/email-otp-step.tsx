@@ -75,13 +75,13 @@ export function EmailOtpStep({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <header>
-        <h2 className="text-xl font-bold text-[#1A0A2E]">{labels.title}</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className="text-xl font-bold text-[#1A0A2E] dark:text-white">{labels.title}</h2>
+        <p className="mt-1 text-sm text-gray-600 dark:text-white/60">
           {labels.subtitle}{" "}
-          <span className="font-semibold text-[#5B21B6]">{email}</span>
+          <span className="font-semibold text-[#5B21B6] dark:text-[#A78BFA]">{email}</span>
         </p>
         {labels.checkSpam && (
-          <p className="mt-1 text-xs text-gray-500">{labels.checkSpam}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-white/40">{labels.checkSpam}</p>
         )}
       </header>
 
@@ -103,7 +103,7 @@ export function EmailOtpStep({
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="rounded-xl bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300"
             role="alert"
           >
             {error}
@@ -124,13 +124,13 @@ export function EmailOtpStep({
         )}
       </motion.button>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-gray-600 dark:text-white/60">
         {labels.didntReceive}{" "}
         <button
           type="button"
           onClick={handleResend}
           disabled={seconds > 0}
-          className="font-semibold text-[#5B21B6] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
+          className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
         >
           {seconds > 0
             ? labels.resendIn.replace("{seconds}", String(seconds))

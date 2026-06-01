@@ -236,7 +236,7 @@ export default function TasksPage() {
         ) : !hasTasks ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="relative mb-6">
-              <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+              <div className="h-24 w-24 rounded-3xl bg-linear-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                 <ClipboardList className="h-12 w-12 text-primary" />
               </div>
               <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-xl bg-card border-2 border-background flex items-center justify-center">

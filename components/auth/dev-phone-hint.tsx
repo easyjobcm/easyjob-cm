@@ -17,7 +17,7 @@ export function DevPhoneHint() {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
+      className="flex gap-2 rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200"
     >
       <Info className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="space-y-1">
