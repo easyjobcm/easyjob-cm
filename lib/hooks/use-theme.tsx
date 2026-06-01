@@ -32,13 +32,14 @@ function readInitialTheme(): Theme {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("light");
+  // Lazy initializer: reads localStorage / system preference once on mount.
+  // readInitialTheme() already guards typeof window === "undefined" for SSR.
+  const [theme, setThemeState] = React.useState<Theme>(readInitialTheme);
 
+  // Sync the DOM whenever the theme value changes (external system update).
   React.useEffect(() => {
-    const initial = readInitialTheme();
-    setThemeState(initial);
-    applyTheme(initial);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   const setTheme = React.useCallback((next: Theme) => {
     setThemeState(next);
