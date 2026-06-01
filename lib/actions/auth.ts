@@ -28,9 +28,18 @@ function mapAuthError(message: string | undefined): string {
     return "emailAlreadyUsed";
   if (m.includes("invalid email")) return "emailInvalid";
   if (m.includes("password")) return "passwordTooShort";
-  if (m.includes("sms") && (m.includes("provider") || m.includes("disabled")))
+  // Erreurs de configuration SMS/phone provider — à distinguer des erreurs de format.
+  if (
+    (m.includes("sms") || m.includes("phone")) &&
+    (m.includes("provider") ||
+      m.includes("disabled") ||
+      m.includes("not enabled") ||
+      m.includes("not configured") ||
+      m.includes("not set up"))
+  )
     return "smsProviderMissing";
-  if (m.includes("phone")) return "phoneInvalid";
+  // Erreur de format du numéro de téléphone (rejet par Supabase/GoTrue).
+  if (m.includes("phone") || m.includes("mobile")) return "phoneInvalid";
   if (m.includes("otp") || m.includes("token")) return "otpWrong";
   return "generic";
 }
@@ -411,7 +420,12 @@ export async function sendPhoneOtpAction(input: {
 
   const { error } = await supabase.auth.updateUser({ phone: e164 });
   if (error) {
-    console.error("[signup] sendPhoneOtp updateUser failed:", error);
+    console.error("[signup] sendPhoneOtp updateUser failed:", {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      e164,
+    });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 

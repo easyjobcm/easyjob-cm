@@ -1,7 +1,13 @@
 import { z } from "zod";
 
-/** Téléphone camerounais : 9 chiffres commençant par 6 (sans le +237). */
-export const phoneSchema = z.string().regex(/^6\d{8}$/, "phoneInvalid");
+/**
+ * Téléphone camerounais : 9 chiffres commençant par 6 (sans le +237).
+ * Les espaces sont supprimés avant validation (ex : "612 345 678" → "612345678").
+ */
+export const phoneSchema = z.preprocess(
+  (val) => (typeof val === "string" ? val.replace(/\s/g, "").trim() : val),
+  z.string().regex(/^6\d{8}$/, "phoneInvalid"),
+);
 
 /** NIU camerounais : 14 caractères alphanumériques (norme DGI). */
 export const niuSchema = z
