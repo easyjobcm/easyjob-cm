@@ -43,7 +43,8 @@ export function Dialog({
   );
 }
 
-interface DialogTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface DialogTriggerProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   children: React.ReactNode;
 }

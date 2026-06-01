@@ -19,7 +19,8 @@ export function DropdownMenu({ children }: { children: React.ReactNode }) {
   );
 }
 
-interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface DropdownMenuTriggerProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   children: React.ReactNode;
 }
@@ -55,7 +56,8 @@ export function DropdownMenuTrigger({
   );
 }
 
-interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface DropdownMenuContentProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   align?: "start" | "center" | "end";
 }
 
@@ -78,7 +80,8 @@ export function DropdownMenuContent({
   );
 }
 
-interface DropdownMenuItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface DropdownMenuItemProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
   children?: React.ReactNode;
 }

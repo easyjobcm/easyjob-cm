@@ -59,10 +59,8 @@ export function Avatar({
   );
 }
 
-interface AvatarImageProps extends Omit<
-  React.ImgHTMLAttributes<HTMLImageElement>,
-  "src"
-> {
+interface AvatarImageProps
+  extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
   src?: string | null;
 }
 

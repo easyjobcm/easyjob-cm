@@ -90,7 +90,8 @@ export function SelectContent({
   );
 }
 
-interface SelectItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface SelectItemProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   value: string;
 }
 
