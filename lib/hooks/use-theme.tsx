@@ -6,6 +6,7 @@ type Theme = "light" | "dark";
 
 interface ThemeContextValue {
   theme: Theme;
+  mounted: boolean;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
 }
@@ -36,9 +37,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // readInitialTheme() already guards typeof window === "undefined" for SSR.
   const [theme, setThemeState] = React.useState<Theme>(readInitialTheme);
 
+  // `mounted` stays false during SSR and the first hydration render (matching
+  // server output). It flips to true after the first client-side effect, so
+  // theme-dependent UI only renders the real value after hydration.
+  const [mounted, setMounted] = React.useState(false);
+
   // Sync the DOM whenever the theme value changes (external system update).
   React.useEffect(() => {
     applyTheme(theme);
+    // Mark as mounted after the first DOM sync — safe to call setState here
+    // because we are already inside an effect (no cascading render from SSR).
+    if (!mounted) setMounted(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
   const setTheme = React.useCallback((next: Theme) => {
@@ -56,8 +66,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme, setTheme]);
 
   const value = React.useMemo(
-    () => ({ theme, toggleTheme, setTheme }),
-    [theme, toggleTheme, setTheme],
+    () => ({ theme, mounted, toggleTheme, setTheme }),
+    [theme, mounted, toggleTheme, setTheme],
   );
 
   return (

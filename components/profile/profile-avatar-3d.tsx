@@ -8,10 +8,11 @@ import {
   useSpring,
   animate,
 } from "framer-motion";
+import { type LucideIcon } from "lucide-react";
 
 interface ProfileAvatar3DProps {
   initial: string;
-  sandboxBadge?: { icon: string; label: string; color: string } | null;
+  sandboxBadge?: { icon: LucideIcon; label: string; color: string } | null;
   size?: number;
 }
 
@@ -140,7 +141,10 @@ export function ProfileAvatar3D({
             boxShadow: `0 6px 16px ${color}55, inset 0 1px 0 rgba(255,255,255,0.22)`,
           }}
         >
-          <span className="text-[11px] leading-none">{sandboxBadge.icon}</span>
+          {(() => {
+            const Icon = sandboxBadge.icon;
+            return <Icon className="h-3.5 w-3.5 text-white" />;
+          })()}
           <span className="text-[10px] font-bold tracking-wide text-white">
             {sandboxBadge.label}
           </span>

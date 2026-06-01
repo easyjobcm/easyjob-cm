@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "EasyJob CM - Trouvez des missions flexibles",
   description:
     "La plateforme de mise en relation entre travailleurs flexibles et entreprises au Cameroun. Trouvez des missions adaptees a votre emploi du temps.",
-  manifest: "/manifest.json",
+  // manifest is auto-linked by Next.js from app/manifest.ts → /manifest.webmanifest
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

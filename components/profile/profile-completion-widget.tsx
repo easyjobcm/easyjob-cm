@@ -223,7 +223,10 @@ export function ProfileCompletionWidget({
                       opacity: !isActive && !isPast && !isNext ? 0.5 : 1,
                     }}
                   >
-                    <span className="text-2xl leading-none">{lvl.icon}</span>
+                    <lvl.icon
+                      className="h-6 w-6"
+                      style={{ color: isActive ? lvl.color : "#9CA3AF" }}
+                    />
                     <span
                       className="text-[11px] font-semibold"
                       style={{ color: isActive ? lvl.color : "#6B7280" }}
@@ -291,8 +294,19 @@ export function ProfileCompletionWidget({
                       </li>
                     )}
                   </ul>
-                  <p className="mt-2 text-xs font-medium text-gray-500">
-                    {SANDBOX_LEVELS[expandedLevel]?.icon}{" "}
+                  <p className="mt-2 flex items-center gap-1 text-xs font-medium text-gray-500">
+                    {SANDBOX_LEVELS[expandedLevel] &&
+                      (() => {
+                        const Icon = SANDBOX_LEVELS[expandedLevel].icon;
+                        return (
+                          <Icon
+                            className="h-3.5 w-3.5"
+                            style={{
+                              color: SANDBOX_LEVELS[expandedLevel].color,
+                            }}
+                          />
+                        );
+                      })()}
                     {getMissionsLabel(expandedLevel)}
                   </p>
                 </div>

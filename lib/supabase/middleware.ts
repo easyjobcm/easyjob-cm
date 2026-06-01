@@ -67,8 +67,7 @@ export async function updateSession(request: NextRequest) {
     const isAdmin = adminRoles.includes(userRole ?? "");
 
     if (!isAdmin) {
-      let phoneVerified: boolean =
-        user.app_metadata?.phone_verified === true;
+      let phoneVerified: boolean = user.app_metadata?.phone_verified === true;
 
       if (!phoneVerified) {
         // Fallback : vérifier en DB (accounts sans app_metadata mis à jour)
@@ -96,4 +95,3 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   return supabaseResponse;
 }
-
