@@ -527,6 +527,16 @@ async function finalizeSignup(
     return { ok: false, errorCode: "generic" };
   }
 
+  // Stocker phone_verified + role dans app_metadata pour que le middleware
+  // puisse le lire depuis le JWT sans requête DB supplémentaire.
+  const { error: metaErr } = await admin.auth.admin.updateUserById(user.id, {
+    app_metadata: { phone_verified: true, role: metaRole },
+  });
+  if (metaErr) {
+    // Non-fatal : le fallback DB du middleware prend le relais.
+    console.error("[signup] app_metadata update failed:", metaErr);
+  }
+
   const { data: row } = await admin
     .from("users")
     .select("role, email")

@@ -62,7 +62,7 @@ export default function LoginPage() {
 
       const { data: userData } = await supabase
         .from("users")
-        .select("role")
+        .select("role, phone_verified")
         .eq("id", data.user.id)
         .single();
 
@@ -74,6 +74,12 @@ export default function LoginPage() {
         role === "admin_founder"
       ) {
         router.push("/admin");
+        return;
+      }
+
+      // Bloquer l'accès si le téléphone n'est pas encore vérifié
+      if (!userData?.phone_verified) {
+        router.push("/auth/verify-phone");
         return;
       }
 
