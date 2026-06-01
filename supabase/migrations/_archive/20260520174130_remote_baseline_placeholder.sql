@@ -1,0 +1,3 @@
+-- Placeholder migration
+-- Version already applied on remote before this repository tracked migrations.
+-- Intentionally left empty to align local migration history with remote.
