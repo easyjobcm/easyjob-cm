@@ -2,6 +2,9 @@
   "name": "easyjob-cm",
   "version": "0.1.4",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
