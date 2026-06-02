@@ -5,12 +5,9 @@ name: Release
 #                           →  deploy.yml se déclenche sur le tag
 #                           →  supabase db push  PUIS  vercel deploy
 #
-# Type de bump SemVer déterminé par les labels de la PR :
-#   bump:major  →  vX+1.0.0
-#   bump:minor  →  vX.Y+1.0
-#   (aucun label) →  vX.Y.Z+1  (patch, défaut)
-#
-# Peut aussi être déclenché manuellement depuis l'onglet Actions (branche main).
+# Type de bump SemVer déterminé :
+#   - sur push direct  →  patch (défaut)
+#   - workflow_dispatch →  choisir patch / minor / major
 
 on:
   push:
@@ -34,11 +31,22 @@ on:
         default: false
         type: boolean
 
-# Nécessite un secret GH_PAT (Personal Access Token) avec les scopes :
-#   contents:write  — pour pousser le commit de version et le tag
-#   workflows:write — pour que le tag puisse déclencher deploy.yml
-# Créer sur github.com → Settings → Developer settings → Personal access tokens → Fine-grained
+# Sérialise les releases : impossible que deux push rapides créent deux releases
+# avec un conflit sur la version (npm version échouerait au 2ème).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+# Nécessite un secret GH_PAT (Personal Access Token classique) avec les scopes :
+#   repo      — pour pousser le commit de version et le tag
+#   workflow  — pour que le tag puisse déclencher deploy.yml
+# Créer sur github.com → Settings → Developer settings → Personal access tokens (classic)
 # Puis ajouter en secret repo sous le nom GH_PAT.
+
+# Le PAT fournit les permissions nécessaires pour push/tag/release.
+# Le GITHUB_TOKEN n'est pas utilisé.
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -46,6 +54,7 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Évite la boucle infinie : le bot pousse "chore(release):" sur main,
     # ce qui déclencherait à nouveau ce workflow sans cette garde.
     if: |
