@@ -20,7 +20,8 @@ on:
         required: true
         type: string
 
-# Le déploiement production est piloté par les tags SemVer créés via release.yml.
+# Ce workflow est déclenché par release.yml qui crée automatiquement un tag
+# SemVer à chaque merge de main-dev → main. Chaîne : merge PR → tag → deploy.
 # Pour un rollback : lancer ce workflow manuellement avec le tag d'une version stable.
 
 env:

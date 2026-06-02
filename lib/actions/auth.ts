@@ -485,7 +485,9 @@ export async function verifyPhoneOtpAction(input: {
   if (error) {
     // Production fallback: Supabase SSR can fail to write the refreshed session
     const admin = createAdminClient();
-    const { data: { user: freshUser } } = await admin.auth.admin.getUserById(user.id);
+    const {
+      data: { user: freshUser },
+    } = await admin.auth.admin.getUserById(user.id);
     if (freshUser?.phone === e164) {
       console.log(
         "[signup] verifyPhoneOtp: phone confirmed server-side despite SDK error — proceeding",
