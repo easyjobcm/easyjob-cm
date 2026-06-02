@@ -13,8 +13,7 @@ name: Release
 # Peut aussi être déclenché manuellement depuis l'onglet Actions (branche main).
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
       - master
@@ -44,13 +43,13 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Déclenché automatiquement : uniquement sur merge de main-dev → main
-    # Déclenché manuellement  : uniquement depuis la branche main
+    # Évite la boucle infinie : le bot pousse "chore(release):" sur main,
+    # ce qui déclencherait à nouveau ce workflow sans cette garde.
     if: |
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.merged == true &&
-       github.event.pull_request.head.ref == 'main-dev')
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'push' &&
+       github.actor != 'github-actions[bot]' &&
+       !startsWith(github.event.head_commit.message, 'chore(release):'))
 
     steps:
       - name: Checkout main
@@ -83,16 +82,9 @@ jobs:
             echo "bump=${{ inputs.bump }}" >> $GITHUB_OUTPUT
             echo "prerelease=${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
           else
-            # Détecte le bump depuis les labels de la PR
-            LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
-            if echo "$LABELS" | grep -q '"bump:major"'; then
-              BUMP="major"
-            elif echo "$LABELS" | grep -q '"bump:minor"'; then
-              BUMP="minor"
-            else
-              BUMP="patch"
-            fi
-            echo "bump=${BUMP}" >> $GITHUB_OUTPUT
+            # Push direct sur main : patch par défaut.
+            # Pour minor/major, utiliser le workflow_dispatch manuel.
+            echo "bump=patch" >> $GITHUB_OUTPUT
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
