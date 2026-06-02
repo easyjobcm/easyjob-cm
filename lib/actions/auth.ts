@@ -483,6 +483,16 @@ export async function verifyPhoneOtpAction(input: {
     type: "phone_change",
   });
   if (error) {
+    // Production fallback: Supabase SSR can fail to write the refreshed session
+    const admin = createAdminClient();
+    const { data: { user: freshUser } } = await admin.auth.admin.getUserById(user.id);
+    if (freshUser?.phone === e164) {
+      console.log(
+        "[signup] verifyPhoneOtp: phone confirmed server-side despite SDK error — proceeding",
+        { phone: e164, sdkError: error.message },
+      );
+      return finalizeSignup(user, e164);
+    }
     console.error("[signup] verifyPhoneOtp failed:", error);
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
