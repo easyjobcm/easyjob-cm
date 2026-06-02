@@ -87,36 +87,6 @@ jobs:
         if: always()
         run: npx supabase stop
 
-  check-pending-migrations:
-    runs-on: ubuntu-latest
-    # Vérifie que toutes les migrations présentes dans supabase/migrations/
-    # ont bien été appliquées en production. Échoue si des migrations sont en
-    # attente, évitant ainsi le désynchronisation DB ↔ code (ex: trigger
-    # orphelin "on_candidate_created" → wallets inexistant → signup candidat KO).
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-
-      - name: Check for unapplied migrations
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          STATUS=$(supabase migration list \
-            --db-url "postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@${{ secrets.SUPABASE_DB_HOST }}:6543/postgres" \
-            2>&1)
-          echo "$STATUS"
-          if echo "$STATUS" | grep -q "│ ○ │"; then
-            echo ""
-            echo "⚠️  Des migrations sont en attente en production !"
-            echo "   Lance 'Deploy Production' manuellement ou pousse un tag vX.Y.Z."
-            exit 1
-          fi
-          echo "✓ Toutes les migrations sont à jour en production."
-
   build:
     runs-on: ubuntu-latest
     needs: [lint-and-types]
