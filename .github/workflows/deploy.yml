@@ -24,13 +24,27 @@ on:
 # SemVer à chaque merge de main-dev → main. Chaîne : merge PR → tag → deploy.
 # Pour un rollback : lancer ce workflow manuellement avec le tag d'une version stable.
 
+# Sérialise les déploiements production : impossible de pousser 2 tags en parallèle
+# et de créer une race condition entre migrations et build Vercel.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+# Principe du moindre privilège : le workflow lit le code, c'est tout.
+# Les credentials externes (Supabase, Vercel) viennent des secrets.
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  # Piné pour reproductibilité — à mettre à jour explicitement quand nécessaire.
+  VERCEL_CLI_VERSION: "39.3.0"
 
 jobs:
   deploy-database:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -50,7 +64,9 @@ jobs:
 
   deploy-vercel:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: deploy-database
+    # VERCEL_TOKEN dans env : la CLI Vercel le lit automatiquement, plus besoin de --token.
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -62,33 +78,35 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Install Vercel CLI
-        run: npm install --global vercel
+        run: npm install --global vercel@${{ env.VERCEL_CLI_VERSION }}
 
       - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production
 
       - name: Build Vercel artifact
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod
 
       - name: Deploy to Vercel production
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod
 
   notify:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     needs: [deploy-database, deploy-vercel]
     if: always()
 

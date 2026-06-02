@@ -8,12 +8,24 @@ on:
       - develop
   pull_request:
 
+# Annule les runs précédents sur la même branche/PR (le dernier commit est seul source de vérité).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Principe du moindre privilège : la CI ne fait que lire et publier des checks.
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   enforce-main-pr-source:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
 
     steps:
@@ -26,6 +38,7 @@ jobs:
 
   lint-and-types:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -43,7 +56,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: TypeScript check
         run: pnpm exec tsc --noEmit
@@ -52,10 +65,11 @@ jobs:
         run: pnpm exec eslint . --max-warnings=0
 
       - name: Format check
-        run: pnpm dlx prettier@3.6.2 --check .
+        run: pnpm exec prettier --check .
 
   test-migrations:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -73,7 +87,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -97,6 +111,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint-and-types]
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
@@ -122,7 +137,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build
         run: pnpm build
