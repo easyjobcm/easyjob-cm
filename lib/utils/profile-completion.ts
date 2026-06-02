@@ -1,3 +1,11 @@
+import {
+  type LucideIcon,
+  Sprout,
+  BadgeCheck,
+  Shield,
+  Crown,
+} from "lucide-react";
+
 export interface CandidateProfileForCompletion {
   first_name?: string | null;
   last_name?: string | null;
@@ -137,7 +145,8 @@ export function computeCompletion(criteria: Criterion[]): number {
 
 export interface SandboxLevelConfig {
   level: number;
-  icon: string;
+  icon: LucideIcon;
+  gradient: string;
   color: string;
   bgColor: string;
   nameKey: "level0" | "level1" | "level2" | "level3";
@@ -151,31 +160,35 @@ export interface SandboxLevelConfig {
 export const SANDBOX_LEVELS: SandboxLevelConfig[] = [
   {
     level: 0,
-    icon: "🌱",
-    color: "#9CA3AF",
-    bgColor: "#F3F4F6",
+    icon: Sprout,
+    gradient: "from-gray-100 to-gray-200",
+    color: "#6B7280",
+    bgColor: "#F9FAFB",
     nameKey: "level0",
     requirementKey: "req_registered",
   },
   {
     level: 1,
-    icon: "⭐",
-    color: "#3B82F6",
+    icon: BadgeCheck,
+    gradient: "from-blue-50 to-blue-100",
+    color: "#2563EB",
     bgColor: "#EFF6FF",
     nameKey: "level1",
     requirementKey: "req_m1_r35",
   },
   {
     level: 2,
-    icon: "🔥",
+    icon: Shield,
+    gradient: "from-violet-50 to-violet-100",
     color: "#7C3AED",
-    bgColor: "#F3E8FF",
+    bgColor: "#F5F3FF",
     nameKey: "level2",
     requirementKey: "req_m3_r4_p80",
   },
   {
     level: 3,
-    icon: "🏆",
+    icon: Crown,
+    gradient: "from-amber-50 to-amber-100",
     color: "#D97706",
     bgColor: "#FFFBEB",
     nameKey: "level3",

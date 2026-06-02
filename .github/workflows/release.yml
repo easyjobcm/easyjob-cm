@@ -1,10 +1,23 @@
 name: Release
 
-# Crée un tag SemVer et une GitHub Release.
-# Le push du tag déclenche ensuite deploy.yml vers la production.
-# Lance ce workflow manuellement depuis l'onglet Actions sur la branche main.
+# Chaîne de déploiement complète :
+#   merge main-dev → main  →  release.yml crée tag + GitHub Release
+#                           →  deploy.yml se déclenche sur le tag
+#                           →  supabase db push  PUIS  vercel deploy
+#
+# Type de bump SemVer déterminé par les labels de la PR :
+#   bump:major  →  vX+1.0.0
+#   bump:minor  →  vX.Y+1.0
+#   (aucun label) →  vX.Y.Z+1  (patch, défaut)
+#
+# Peut aussi être déclenché manuellement depuis l'onglet Actions (branche main).
 
 on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       bump:
@@ -22,20 +35,30 @@ on:
         default: false
         type: boolean
 
-permissions:
-  contents: write
+# Nécessite un secret GH_PAT (Personal Access Token) avec les scopes :
+#   contents:write  — pour pousser le commit de version et le tag
+#   workflows:write — pour que le tag puisse déclencher deploy.yml
+# Créer sur github.com → Settings → Developer settings → Personal access tokens → Fine-grained
+# Puis ajouter en secret repo sous le nom GH_PAT.
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    # Déclenché automatiquement : uniquement sur merge de main-dev → main
+    # Déclenché manuellement  : uniquement depuis la branche main
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'main-dev')
 
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -53,28 +76,47 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump version
-        id: bump
+      - name: Determine bump type
+        id: bump_type
         run: |
-          NEW_VERSION=$(npm version ${{ inputs.bump }} --no-git-tag-version)
-          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
-          echo "tag=${NEW_VERSION}" >> $GITHUB_OUTPUT
-          # Met aussi à jour pnpm-lock.yaml si la version y figure
-          pnpm install --lockfile-only
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "bump=${{ inputs.bump }}" >> $GITHUB_OUTPUT
+            echo "prerelease=${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
+          else
+            # Détecte le bump depuis les labels de la PR
+            LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+            if echo "$LABELS" | grep -q '"bump:major"'; then
+              BUMP="major"
+            elif echo "$LABELS" | grep -q '"bump:minor"'; then
+              BUMP="minor"
+            else
+              BUMP="patch"
+            fi
+            echo "bump=${BUMP}" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Commit and tag
+      - name: Bump version in package.json
+        id: version
+        run: |
+          NEW_VERSION=$(npm version ${{ steps.bump_type.outputs.bump }} --no-git-tag-version)
+          pnpm install --lockfile-only
+          echo "tag=${NEW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Commit, tag and push
         run: |
           git add package.json pnpm-lock.yaml
-          git commit -m "chore(release): ${{ steps.bump.outputs.tag }}"
-          git tag -a "${{ steps.bump.outputs.tag }}" -m "Release ${{ steps.bump.outputs.tag }}"
+          git commit -m "chore(release): ${{ steps.version.outputs.tag }}"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
           git push origin main
-          git push origin "${{ steps.bump.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.bump.outputs.tag }}
-          name: ${{ steps.bump.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
-          prerelease: ${{ inputs.prerelease }}
+          prerelease: ${{ steps.bump_type.outputs.prerelease }}
           target_commitish: main
+          token: ${{ secrets.GH_PAT }}

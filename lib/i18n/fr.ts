@@ -164,7 +164,8 @@ export const fr = {
       email: "Adresse email",
       emailPlaceholder: "vous@email.com",
       password: "Mot de passe",
-      passwordHint: "Au moins 8 caractères, lettres et chiffres.",
+      passwordHint:
+        "Au moins 8 caractères avec des lettres minuscules, des lettres majuscules, des chiffres et des symboles (!@#$%^&*).",
       confirmPassword: "Confirmez le mot de passe",
       orContinueWith: "Ou continuer avec",
       continueGoogle: "Continuer avec Google",
@@ -345,6 +346,7 @@ export const fr = {
     statSkills: "Compétences",
     mySkills: "Mes compétences",
     locationLabel: "Localisation",
+    sectorLabel: "Secteur d'activité",
     mobileMoney: "Mobile Money",
     security: "Sécurité",
     helpCenter: "Centre d'aide",

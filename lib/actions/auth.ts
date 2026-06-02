@@ -28,9 +28,18 @@ function mapAuthError(message: string | undefined): string {
     return "emailAlreadyUsed";
   if (m.includes("invalid email")) return "emailInvalid";
   if (m.includes("password")) return "passwordTooShort";
-  if (m.includes("sms") && (m.includes("provider") || m.includes("disabled")))
+  // Erreurs de configuration SMS/phone provider — à distinguer des erreurs de format.
+  if (
+    (m.includes("sms") || m.includes("phone")) &&
+    (m.includes("provider") ||
+      m.includes("disabled") ||
+      m.includes("not enabled") ||
+      m.includes("not configured") ||
+      m.includes("not set up"))
+  )
     return "smsProviderMissing";
-  if (m.includes("phone")) return "phoneInvalid";
+  // Erreur de format du numéro de téléphone (rejet par Supabase/GoTrue).
+  if (m.includes("phone") || m.includes("mobile")) return "phoneInvalid";
   if (m.includes("otp") || m.includes("token")) return "otpWrong";
   return "generic";
 }
@@ -411,7 +420,12 @@ export async function sendPhoneOtpAction(input: {
 
   const { error } = await supabase.auth.updateUser({ phone: e164 });
   if (error) {
-    console.error("[signup] sendPhoneOtp updateUser failed:", error);
+    console.error("[signup] sendPhoneOtp updateUser failed:", {
+      message: error.message,
+      code: error.code,
+      status: error.status,
+      e164,
+    });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 
@@ -469,6 +483,18 @@ export async function verifyPhoneOtpAction(input: {
     type: "phone_change",
   });
   if (error) {
+    // Production fallback: Supabase SSR can fail to write the refreshed session
+    const admin = createAdminClient();
+    const {
+      data: { user: freshUser },
+    } = await admin.auth.admin.getUserById(user.id);
+    if (freshUser?.phone === e164) {
+      console.log(
+        "[signup] verifyPhoneOtp: phone confirmed server-side despite SDK error — proceeding",
+        { phone: e164, sdkError: error.message },
+      );
+      return finalizeSignup(user, e164);
+    }
     console.error("[signup] verifyPhoneOtp failed:", error);
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
@@ -511,6 +537,16 @@ async function finalizeSignup(
   if (userErr) {
     console.error("[signup] users upsert failed:", userErr);
     return { ok: false, errorCode: "generic" };
+  }
+
+  // Stocker phone_verified + role dans app_metadata pour que le middleware
+  // puisse le lire depuis le JWT sans requête DB supplémentaire.
+  const { error: metaErr } = await admin.auth.admin.updateUserById(user.id, {
+    app_metadata: { phone_verified: true, role: metaRole },
+  });
+  if (metaErr) {
+    // Non-fatal : le fallback DB du middleware prend le relais.
+    console.error("[signup] app_metadata update failed:", metaErr);
   }
 
   const { data: row } = await admin

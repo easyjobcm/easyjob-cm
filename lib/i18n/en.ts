@@ -164,7 +164,8 @@ export const en: TranslationKeys = {
       email: "Email address",
       emailPlaceholder: "you@email.com",
       password: "Password",
-      passwordHint: "At least 8 characters with letters and digits.",
+      passwordHint:
+        "At least 8 characters with lowercase, uppercase letters, digits and symbols (!@#$%^&*).",
       confirmPassword: "Confirm password",
       orContinueWith: "Or continue with",
       continueGoogle: "Continue with Google",
@@ -345,6 +346,7 @@ export const en: TranslationKeys = {
     statSkills: "Skills",
     mySkills: "My skills",
     locationLabel: "Location",
+    sectorLabel: "Sector of activity",
     mobileMoney: "Mobile Money",
     security: "Security",
     helpCenter: "Help Center",
