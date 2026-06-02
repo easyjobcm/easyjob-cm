@@ -38,8 +38,8 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  # Piné pour reproductibilité — à mettre à jour explicitement quand nécessaire.
-  VERCEL_CLI_VERSION: "39.3.0"
+  # Mis à jour pour la compatibilité Next.js 16 + Turbopack.
+  VERCEL_CLI_VERSION: "latest"
 
 jobs:
   deploy-database:
