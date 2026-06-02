@@ -3,9 +3,6 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>
-      EasyJob CM — Réinitialise ton mot de passe | Reset your password
-    </title>
   </head>
   <body
     style="
@@ -38,14 +35,13 @@
             cellspacing="0"
             style="
               max-width: 480px;
-              background: #ffffff;
+              background: #fff;
               border-radius: 20px;
               overflow: hidden;
               border: 1px solid #e5e7eb;
               box-shadow: 0 4px 24px rgba(124, 58, 237, 0.08);
             "
           >
-            <!-- Header violet -->
             <tr>
               <td
                 style="
@@ -75,7 +71,6 @@
                     color: #fff;
                     font-size: 22px;
                     font-weight: 700;
-                    letter-spacing: -0.3px;
                   "
                 >
                   EasyJob CM
@@ -93,10 +88,8 @@
                 </p>
               </td>
             </tr>
-
-            <!-- Body FR -->
             <tr>
-              <td style="padding: 32px 28px 8px">
+              <td style="padding: 32px 28px 16px">
                 <h2
                   style="
                     margin: 0 0 8px;
@@ -105,7 +98,7 @@
                     color: #1a0a2e;
                   "
                 >
-                  Réinitialisation du mot de passe 🔑
+                  Authentification à deux facteurs désactivée ⚠️
                 </h2>
                 <p
                   style="
@@ -115,57 +108,14 @@
                     line-height: 1.55;
                   "
                 >
-                  Tu as demandé à réinitialiser le mot de passe de ton compte
-                  <strong>EasyJob CM</strong>.<br /><br />
-                  Saisis ce code dans l'application pour choisir un nouveau mot
-                  de passe :
+                  Une méthode d'authentification à deux facteurs (MFA) a été
+                  retirée de ton compte <strong>EasyJob CM</strong>. Ton compte
+                  est désormais moins protégé.
                 </p>
               </td>
             </tr>
-
-            <!-- OTP -->
             <tr>
-              <td style="padding: 16px 28px 0">
-                <div
-                  style="
-                    background: #f5f3ff;
-                    border: 1px dashed #c4b5fd;
-                    border-radius: 16px;
-                    padding: 24px 16px;
-                    text-align: center;
-                  "
-                >
-                  <div
-                    style="
-                      font-size: 32px;
-                      font-weight: 800;
-                      letter-spacing: 12px;
-                      color: #5b21b6;
-                      font-family:
-                        &quot;SF Mono&quot;, Menlo, Consolas, monospace;
-                    "
-                  >
-                    {{ .Token }}
-                  </div>
-                  <p
-                    style="
-                      margin: 12px 0 0;
-                      font-size: 12px;
-                      color: #7c3aed;
-                      text-transform: uppercase;
-                      letter-spacing: 1px;
-                      font-weight: 600;
-                    "
-                  >
-                    Valable 1h · Valid for 1 hour
-                  </p>
-                </div>
-              </td>
-            </tr>
-
-            <!-- Alerte sécurité -->
-            <tr>
-              <td style="padding: 16px 28px 0">
+              <td style="padding: 0 28px 16px">
                 <div
                   style="
                     background: #fef3c7;
@@ -184,19 +134,16 @@
                   >
                     ⚠️
                     <strong
-                      >Tu n'as pas demandé cette réinitialisation ?</strong
-                    >
-                    Ignore cet email. Ton mot de passe actuel reste inchangé.<br />
-                    Didn't request this? Ignore this email. Your current
-                    password remains unchanged.
+                      >Ce n'est pas toi ? Contacte immédiatement notre support.
+                      Nous te recommandons de réactiver le MFA.</strong
+                    ><br />Not you? Contact our support immediately. We
+                    recommend re-enabling MFA.
                   </p>
                 </div>
               </td>
             </tr>
-
-            <!-- Body EN -->
             <tr>
-              <td style="padding: 24px 28px 0">
+              <td style="padding: 0 28px 16px">
                 <hr
                   style="
                     border: none;
@@ -212,7 +159,7 @@
                     color: #1a0a2e;
                   "
                 >
-                  Password reset 🔑
+                  MFA method removed ⚠️
                 </h3>
                 <p
                   style="
@@ -222,21 +169,19 @@
                     line-height: 1.55;
                   "
                 >
-                  You requested a password reset for your
-                  <strong>EasyJob CM</strong> account.<br /><br />
-                  Enter this code in the app to set a new password.
+                  A two-factor authentication (MFA) method has been removed from
+                  your <strong>EasyJob CM</strong> account. Your account is now
+                  less protected.
                 </p>
               </td>
             </tr>
-
-            <!-- Footer -->
             <tr>
-              <td style="padding: 24px 28px 28px">
+              <td style="padding: 0 28px 28px">
                 <hr
                   style="
                     border: none;
                     border-top: 1px solid #e5e7eb;
-                    margin: 16px 0;
+                    margin: 0 0 16px;
                   "
                 />
                 <p
@@ -247,8 +192,9 @@
                     line-height: 1.55;
                   "
                 >
-                  Ce code est à usage unique et expirera dans 1 heure.<br />
-                  This code is single-use and will expire in 1 hour.
+                  Si tu n'es pas à l'origine de cette action, contacte notre
+                  support : support@easyjobcm.com<br />If you didn't initiate
+                  this action, contact our support: support@easyjobcm.com
                 </p>
                 <p
                   style="

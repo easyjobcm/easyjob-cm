@@ -3,9 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>
-      EasyJob CM — Réinitialise ton mot de passe | Reset your password
-    </title>
+    <title>EasyJob CM — Ton code de connexion | Your sign-in code</title>
   </head>
   <body
     style="
@@ -105,7 +103,7 @@
                     color: #1a0a2e;
                   "
                 >
-                  Réinitialisation du mot de passe 🔑
+                  Ton code de connexion 🔐
                 </h2>
                 <p
                   style="
@@ -115,10 +113,8 @@
                     line-height: 1.55;
                   "
                 >
-                  Tu as demandé à réinitialiser le mot de passe de ton compte
-                  <strong>EasyJob CM</strong>.<br /><br />
-                  Saisis ce code dans l'application pour choisir un nouveau mot
-                  de passe :
+                  Utilise ce code pour te connecter à
+                  <strong>EasyJob CM</strong> :
                 </p>
               </td>
             </tr>
@@ -163,34 +159,32 @@
               </td>
             </tr>
 
-            <!-- Alerte sécurité -->
+            <!-- Ou lien magic -->
             <tr>
-              <td style="padding: 16px 28px 0">
-                <div
+              <td style="padding: 20px 28px 0; text-align: center">
+                <p style="margin: 0 0 12px; font-size: 13px; color: #6b7280">
+                  Ou clique directement sur ce lien · Or click this link
+                  directly :
+                </p>
+                <a
+                  href="{{ .ConfirmationURL }}"
                   style="
-                    background: #fef3c7;
-                    border: 1px solid #fde68a;
-                    border-radius: 12px;
-                    padding: 14px 16px;
+                    display: inline-block;
+                    background: linear-gradient(
+                      135deg,
+                      #7c3aed 0%,
+                      #5b21b6 100%
+                    );
+                    color: #ffffff;
+                    text-decoration: none;
+                    font-size: 15px;
+                    font-weight: 700;
+                    padding: 14px 36px;
+                    border-radius: 9999px;
                   "
                 >
-                  <p
-                    style="
-                      margin: 0;
-                      font-size: 13px;
-                      color: #92400e;
-                      line-height: 1.55;
-                    "
-                  >
-                    ⚠️
-                    <strong
-                      >Tu n'as pas demandé cette réinitialisation ?</strong
-                    >
-                    Ignore cet email. Ton mot de passe actuel reste inchangé.<br />
-                    Didn't request this? Ignore this email. Your current
-                    password remains unchanged.
-                  </p>
-                </div>
+                  Se connecter · Sign in
+                </a>
               </td>
             </tr>
 
@@ -212,7 +206,7 @@
                     color: #1a0a2e;
                   "
                 >
-                  Password reset 🔑
+                  Your sign-in code 🔐
                 </h3>
                 <p
                   style="
@@ -222,9 +216,8 @@
                     line-height: 1.55;
                   "
                 >
-                  You requested a password reset for your
-                  <strong>EasyJob CM</strong> account.<br /><br />
-                  Enter this code in the app to set a new password.
+                  Use the code above or click the button to sign in to
+                  <strong>EasyJob CM</strong>.
                 </p>
               </td>
             </tr>
@@ -247,8 +240,10 @@
                     line-height: 1.55;
                   "
                 >
-                  Ce code est à usage unique et expirera dans 1 heure.<br />
-                  This code is single-use and will expire in 1 hour.
+                  Tu n'as pas demandé ce code ? Quelqu'un a peut-être saisi ton
+                  adresse par erreur. Ignore cet email.<br />
+                  Didn't request this? Someone may have entered your email by
+                  mistake. You can safely ignore it.
                 </p>
                 <p
                   style="
