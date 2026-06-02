@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+const ModerateSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+});
 
 export async function POST(
   request: NextRequest,
@@ -7,11 +12,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { action } = await request.json();
 
-    if (!["approve", "reject"].includes(action)) {
+    const parsed = ModerateSchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
+    const { action } = parsed.data;
 
     const supabase = await createClient();
 

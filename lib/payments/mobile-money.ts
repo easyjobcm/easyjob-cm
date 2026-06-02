@@ -1,3 +1,4 @@
+// SERVER ONLY — ne jamais importer depuis un composant 'use client'.
 // Mobile Money Payment Service for Cameroon
 // Supports MTN MoMo and Orange Money
 

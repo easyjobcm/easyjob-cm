@@ -1,5 +1,32 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+
+const JobCreateSchema = z.object({
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  address: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  start_date: z.string().min(1),
+  start_time: z.string().min(1),
+  end_time: z.string().min(1),
+  hourly_rate: z.number().positive(),
+  category_id: z.string().uuid().optional(),
+  job_type: z.string().optional().default("shift"),
+  quartier: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  end_date: z.string().optional(),
+  is_recurring: z.boolean().optional().default(false),
+  recurring_days: z.unknown().optional(),
+  estimated_hours: z.number().optional(),
+  required_skills: z.unknown().optional(),
+  min_experience_months: z.number().int().min(0).optional().default(0),
+  dress_code: z.string().optional(),
+  special_instructions: z.string().optional(),
+  positions_available: z.number().int().positive().optional().default(1),
+  urgency: z.enum(["normal", "urgent"]).optional().default("normal"),
+});
 
 // Get all published jobs with filtering
 export async function GET(request: NextRequest) {
@@ -15,12 +42,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
 
-    // Build query
+    // Build query — colonnes explicites (jamais SELECT *)
     let query = supabase
       .from("jobs")
       .select(
         `
-        *,
+        id, title, description, address, city, start_date, start_time,
+        end_time, hourly_rate, positions_available, positions_filled,
+        status, urgency, published_at, category_id, sandbox_level_required,
         company:company_profiles(id, company_name, logo_url, city),
         category:job_categories(id, name_fr, name_en, icon)
       `,
@@ -108,58 +137,46 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-
-    // Validate required fields
-    const requiredFields = [
-      "title",
-      "description",
-      "address",
-      "city",
-      "start_date",
-      "start_time",
-      "end_time",
-      "hourly_rate",
-    ];
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}` },
-          { status: 400 },
-        );
-      }
+    const parsed = JobCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Données invalides", details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
+    const d = parsed.data;
 
     // Create job
     const { data: job, error: jobError } = await supabase
       .from("jobs")
       .insert({
         company_id: company.id,
-        title: body.title,
-        description: body.description,
-        category_id: body.category_id,
-        job_type: body.job_type || "shift",
-        address: body.address,
-        city: body.city,
-        quartier: body.quartier,
-        latitude: body.latitude,
-        longitude: body.longitude,
-        start_date: body.start_date,
-        end_date: body.end_date,
-        start_time: body.start_time,
-        end_time: body.end_time,
-        is_recurring: body.is_recurring || false,
-        recurring_days: body.recurring_days,
-        hourly_rate: body.hourly_rate,
-        estimated_hours: body.estimated_hours,
-        required_skills: body.required_skills,
-        min_experience_months: body.min_experience_months || 0,
-        dress_code: body.dress_code,
-        special_instructions: body.special_instructions,
-        positions_available: body.positions_available || 1,
-        urgency: body.urgency || "normal",
+        title: d.title,
+        description: d.description,
+        category_id: d.category_id,
+        job_type: d.job_type,
+        address: d.address,
+        city: d.city,
+        quartier: d.quartier,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        start_date: d.start_date,
+        end_date: d.end_date,
+        start_time: d.start_time,
+        end_time: d.end_time,
+        is_recurring: d.is_recurring,
+        recurring_days: d.recurring_days,
+        hourly_rate: d.hourly_rate,
+        estimated_hours: d.estimated_hours,
+        required_skills: d.required_skills,
+        min_experience_months: d.min_experience_months,
+        dress_code: d.dress_code,
+        special_instructions: d.special_instructions,
+        positions_available: d.positions_available,
+        urgency: d.urgency,
         status: "pending_moderation", // All jobs start as pending
       })
-      .select()
+      .select("id, title, status")
       .single();
 
     if (jobError) {
