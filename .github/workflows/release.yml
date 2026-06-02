@@ -40,6 +40,9 @@ on:
 # Créer sur github.com → Settings → Developer settings → Personal access tokens → Fine-grained
 # Puis ajouter en secret repo sous le nom GH_PAT.
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
