@@ -1,11 +1,13 @@
+<!-- ============================================================ -->
+<!-- EMAIL ADDRESS CHANGED — Notification sécurité               -->
+<!-- Coller dans : Auth > Templates > Email address changed       -->
+<!-- ============================================================ -->
 <!doctype html>
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>
-      EasyJob CM — Réinitialise ton mot de passe | Reset your password
-    </title>
+    <title>EasyJob CM — Adresse email modifiée | Email address changed</title>
   </head>
   <body
     style="
@@ -45,7 +47,6 @@
               box-shadow: 0 4px 24px rgba(124, 58, 237, 0.08);
             "
           >
-            <!-- Header violet -->
             <tr>
               <td
                 style="
@@ -93,10 +94,8 @@
                 </p>
               </td>
             </tr>
-
-            <!-- Body FR -->
             <tr>
-              <td style="padding: 32px 28px 8px">
+              <td style="padding: 32px 28px 16px">
                 <h2
                   style="
                     margin: 0 0 8px;
@@ -105,7 +104,7 @@
                     color: #1a0a2e;
                   "
                 >
-                  Réinitialisation du mot de passe 🔑
+                  Adresse email modifiée ✉️
                 </h2>
                 <p
                   style="
@@ -115,57 +114,40 @@
                     line-height: 1.55;
                   "
                 >
-                  Tu as demandé à réinitialiser le mot de passe de ton compte
-                  <strong>EasyJob CM</strong>.<br /><br />
-                  Saisis ce code dans l'application pour choisir un nouveau mot
-                  de passe :
+                  L'adresse email associée à ton compte
+                  <strong>EasyJob CM</strong> vient d'être modifiée avec succès.
                 </p>
               </td>
             </tr>
-
-            <!-- OTP -->
             <tr>
-              <td style="padding: 16px 28px 0">
+              <td style="padding: 0 28px 16px">
                 <div
                   style="
                     background: #f5f3ff;
-                    border: 1px dashed #c4b5fd;
-                    border-radius: 16px;
-                    padding: 24px 16px;
-                    text-align: center;
+                    border-radius: 12px;
+                    padding: 14px 16px;
                   "
                 >
-                  <div
-                    style="
-                      font-size: 32px;
-                      font-weight: 800;
-                      letter-spacing: 12px;
-                      color: #5b21b6;
-                      font-family:
-                        &quot;SF Mono&quot;, Menlo, Consolas, monospace;
-                    "
-                  >
-                    {{ .Token }}
-                  </div>
                   <p
                     style="
-                      margin: 12px 0 0;
-                      font-size: 12px;
-                      color: #7c3aed;
-                      text-transform: uppercase;
-                      letter-spacing: 1px;
+                      margin: 0;
+                      font-size: 13px;
+                      color: #5b21b6;
                       font-weight: 600;
                     "
                   >
-                    Valable 1h · Valid for 1 hour
+                    📧 Nouvelle adresse enregistrée
+                  </p>
+                  <p style="margin: 6px 0 0; font-size: 13px; color: #4b5563">
+                    Si tu n'es pas à l'origine de ce changement, contacte
+                    immédiatement notre support.<br />If you didn't make this
+                    change, contact our support immediately.
                   </p>
                 </div>
               </td>
             </tr>
-
-            <!-- Alerte sécurité -->
             <tr>
-              <td style="padding: 16px 28px 0">
+              <td style="padding: 0 28px 16px">
                 <div
                   style="
                     background: #fef3c7;
@@ -182,21 +164,16 @@
                       line-height: 1.55;
                     "
                   >
-                    ⚠️
-                    <strong
-                      >Tu n'as pas demandé cette réinitialisation ?</strong
-                    >
-                    Ignore cet email. Ton mot de passe actuel reste inchangé.<br />
-                    Didn't request this? Ignore this email. Your current
-                    password remains unchanged.
+                    ⚠️ <strong>Ce n'est pas toi ?</strong> Sécurise ton compte
+                    maintenant : réinitialise ton mot de passe et contacte le
+                    support.<br />Not you? Secure your account: reset your
+                    password and contact support.
                   </p>
                 </div>
               </td>
             </tr>
-
-            <!-- Body EN -->
             <tr>
-              <td style="padding: 24px 28px 0">
+              <td style="padding: 0 28px 28px">
                 <hr
                   style="
                     border: none;
@@ -204,55 +181,9 @@
                     margin: 0 0 16px;
                   "
                 />
-                <h3
-                  style="
-                    margin: 0 0 8px;
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: #1a0a2e;
-                  "
-                >
-                  Password reset 🔑
-                </h3>
                 <p
                   style="
                     margin: 0;
-                    color: #4b5563;
-                    font-size: 14px;
-                    line-height: 1.55;
-                  "
-                >
-                  You requested a password reset for your
-                  <strong>EasyJob CM</strong> account.<br /><br />
-                  Enter this code in the app to set a new password.
-                </p>
-              </td>
-            </tr>
-
-            <!-- Footer -->
-            <tr>
-              <td style="padding: 24px 28px 28px">
-                <hr
-                  style="
-                    border: none;
-                    border-top: 1px solid #e5e7eb;
-                    margin: 16px 0;
-                  "
-                />
-                <p
-                  style="
-                    margin: 0;
-                    font-size: 12px;
-                    color: #9ca3af;
-                    line-height: 1.55;
-                  "
-                >
-                  Ce code est à usage unique et expirera dans 1 heure.<br />
-                  This code is single-use and will expire in 1 hour.
-                </p>
-                <p
-                  style="
-                    margin: 12px 0 0;
                     font-size: 12px;
                     color: #9ca3af;
                     text-align: center;

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PhoneInput } from "@/components/auth/phone-input";
@@ -128,10 +129,12 @@ export default function VerifyPhonePage() {
         >
           {/* Logo / Brand */}
           <div className="mb-8 text-center">
-            <img
+            <Image
               src="/images/easyjob-logo.png"
               alt="EasyJob CM"
-              className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#7C3AED]"
+              width={56}
+              height={56}
+              className="mx-auto mb-3 rounded-2xl"
             />
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               EasyJob CM
