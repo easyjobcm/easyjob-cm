@@ -14,12 +14,15 @@ interface ProfileAvatar3DProps {
   initial: string;
   sandboxBadge?: { icon: LucideIcon; label: string; color: string } | null;
   size?: number;
+  /** Couleur d'accentuation — par défaut violet #7C3AED */
+  accentColor?: string;
 }
 
 export function ProfileAvatar3D({
   initial,
   sandboxBadge,
   size = 96,
+  accentColor,
 }: ProfileAvatar3DProps) {
   const cardRef = React.useRef<HTMLDivElement>(null);
 
@@ -46,7 +49,7 @@ export function ProfileAvatar3D({
     animate(rawY, 0, { type: "spring", stiffness: 200, damping: 25 });
   };
 
-  const color = sandboxBadge?.color ?? "#7C3AED";
+  const color = accentColor ?? sandboxBadge?.color ?? "#7C3AED";
 
   return (
     <div

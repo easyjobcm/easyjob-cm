@@ -445,50 +445,154 @@ export const en: TranslationKeys = {
     premiumCompanyBenefits: {
       sectionTitle: "My benefits",
       expiresOn: "Expires on {date}",
-      directEdit: {
-        title: "Direct editing",
-        desc: "Edit your published jobs anytime, without going through support.",
+      // ── Free plan (5 perks) ──
+      jobsUnlimited: {
+        title: "Unlimited jobs",
+        desc: "Post as many jobs as you want, 24/7.",
       },
-      verifiedCandidates: {
-        title: "ID-verified candidates",
-        desc: "Priority access to profiles with validated identity and clean records.",
+      serviceFee10: {
+        title: "10% service fee",
+        desc: "Transparent commission, no hidden charges.",
       },
-      urgentBoost: {
-        title: "Urgent option included",
-        desc: "Boost a job in 1h to fill a critical position fast.",
+      urgentPaid: {
+        title: "Urgent boost available",
+        desc: "Boost a job for 2,000 FCFA whenever you need it.",
+      },
+      securePayment: {
+        title: "Secure payment",
+        desc: "Your payments are held until the mission is validated.",
+      },
+      historyAccess: {
+        title: "Full history",
+        desc: "Access all your past missions and invoices.",
+      },
+      // ── Starter plan (4 perks) ──
+      reducedFee: {
+        title: "Reduced 8% service fee",
+        desc: "Save 2% on every mission compared to Free.",
+      },
+      urgentReduced: {
+        title: "Discounted urgent boost",
+        desc: "1,000 FCFA instead of 2,000 FCFA to promote your jobs.",
+      },
+      visibility: {
+        title: "Higher visibility",
+        desc: "Your jobs appear higher in candidate search results.",
+      },
+      standardSupport: {
+        title: "Standard support 48h",
+        desc: "A team available to help you within 48h.",
+      },
+      // ── Pro plan (10 perks) ──
+      zeroFee: {
+        title: "0% service fee",
+        desc: "No commission on your missions, your plan covers it all.",
+      },
+      freeUrgent: {
+        title: "Unlimited urgent boosts",
+        desc: "Boost all your jobs with no extra cost.",
       },
       aiMatch: {
         title: "AI Talent Match",
         desc: "AI pre-selects the best profiles for each of your jobs.",
       },
-      unlimited: {
-        title: "Unlimited jobs",
-        desc: "Post as many jobs as needed, 24/7, without restriction.",
+      favorites: {
+        title: "Favorites list",
+        desc: "Bookmark your top candidates and find them quickly.",
       },
-      reporting: {
-        title: "Recruitment reporting",
-        desc: "Track time-to-hire, conversion rates and candidate satisfaction.",
+      directInvite: {
+        title: "Direct invitations",
+        desc: "Invite your favorites to a mission without public applications.",
       },
-      accountManager: {
+      templates: {
+        title: "Job templates",
+        desc: "Create and reuse templates to publish in 30 seconds.",
+      },
+      monthlyReport: {
+        title: "Monthly report",
+        desc: "Track your KPIs: time-to-fill, no-show, satisfaction.",
+      },
+      pdfExport: {
+        title: "PDF / Excel export",
+        desc: "Download your data and invoices for accounting.",
+      },
+      directEdit: {
+        title: "Direct editing",
+        desc: "Edit your published jobs anytime, no support needed.",
+      },
+      trialFree: {
+        title: "7-day free trial",
+        desc: "Try the plan with no commitment, cancel anytime.",
+      },
+      // ── Business plan (10 perks) ──
+      guaranteedReplacement: {
+        title: "Guaranteed replacement",
+        desc: "If a candidate doesn't show up, we replace them within 2h.",
+      },
+      bulkHiring: {
+        title: "Bulk hiring",
+        desc: "Hire 10+ candidates in a single action.",
+      },
+      priorityInvite: {
+        title: "Priority invitations",
+        desc: "Your invitations appear at the top of candidate notifications.",
+      },
+      availabilityAlerts: {
+        title: "Availability alerts",
+        desc: "Get notified the moment a favorite candidate becomes available.",
+      },
+      presenceDashboard: {
+        title: "Presence dashboard",
+        desc: "See in real time who's on-site for your missions.",
+      },
+      sectorContracts: {
+        title: "Sector contracts",
+        desc: "Legally vetted templates per sector (construction, events, etc.).",
+      },
+      advancedReporting: {
+        title: "Advanced reporting",
+        desc: "Multi-dimensional analytics and cross-team comparisons.",
+      },
+      dedicatedManager: {
         title: "Dedicated Account Manager",
-        desc: "An expert available within 4h to support your growth.",
+        desc: "A single point of contact, 4h SLA, monthly strategic reviews.",
       },
-      multiUser: {
-        title: "Multi-user HR team",
-        desc: "Up to 10 teammates with customized permissions.",
+      prioritySLA: {
+        title: "Priority SLA",
+        desc: "24/7 support, tickets handled within 1h.",
       },
-      branding: {
-        title: "Company branding",
-        desc: "Your jobs with your logo and colors to attract top talent.",
+      immediateModeration: {
+        title: "Immediate moderation",
+        desc: "Your jobs are validated in under 30 minutes.",
+      },
+      // ── Cancellation penalties ──
+      cancellationPenalty: {
+        label: "Late cancellation:",
+        freeStarter:
+          "you recover 50% of the locked amount. 25% goes to premium candidates, 25% to EasyJob.",
+        pro: "you recover 75% of the locked amount. 25% goes to premium candidates.",
+        business:
+          "you recover 100% of the locked amount. No penalty — guaranteed replacement.",
       },
     },
     upgradeBanner: {
-      title: "Unlock the full power of EasyJob",
-      tagline: "More jobs, more talent, more growth.",
-      starter: "Starter — 5 jobs + urgent options",
-      pro: "Pro — Unlimited jobs + AI",
-      business: "Business — Everything unlimited + advanced reporting",
-      cta: "Discover plans",
+      title: "Your competitors hire faster",
+      tagline: "0% fees. AI screens candidates for you. Free 7-day trial.",
+      taglineStarter: "Stop paying fees. Switch to Pro — 7 days free.",
+      // Short labels inside plan rows
+      starter: "Starter",
+      starterKicker: "8% fee · Urgent boost at 1,000 FCFA · Higher visibility",
+      pro: "Pro",
+      proKicker: "0% fee · AI shortlisting · Favorites · Templates · Report",
+      business: "Business",
+      businessKicker:
+        "7 days free · Replacement in 2h guaranteed · Dedicated manager · <30 min SLA",
+      // Badges & CTA
+      recommended: "Recommended",
+      trialBadge: "7d free",
+      ctaTrial: "Try Pro — 7 days free",
+      cta: "See plans",
+      businessCta: "Learn more about Business",
     },
 
     // ── Premium Company Showcase ────────────────────────────

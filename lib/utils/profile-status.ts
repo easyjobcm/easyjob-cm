@@ -67,13 +67,13 @@ export function getPlanLimits(plan: CompanyPlan): PlanLimits {
   switch (plan) {
     case "starter":
       return {
-        jobsLimit: 5,
-        urgentIncluded: true,
-        aiRecommendations: true,
+        jobsLimit: "unlimited",
+        urgentIncluded: false,
+        aiRecommendations: false,
         reporting: "none",
-        directEdit: true,
+        directEdit: false,
         prioritySupport: false,
-        accent: "#3B82F6",
+        accent: "#2563EB",
         gradient: "from-blue-50 to-indigo-50",
       };
     case "pro":
@@ -100,15 +100,16 @@ export function getPlanLimits(plan: CompanyPlan): PlanLimits {
       };
     case "free":
     default:
+      // SRS v1.2 : offres illimitées pour tous les plans
       return {
-        jobsLimit: 2,
+        jobsLimit: "unlimited",
         urgentIncluded: false,
         aiRecommendations: false,
         reporting: "none",
         directEdit: false,
         prioritySupport: false,
-        accent: "#3B82F6",
-        gradient: "from-blue-50 to-sky-50",
+        accent: "#6B7280",
+        gradient: "from-gray-50 to-slate-50",
       };
   }
 }

@@ -1,5 +1,13 @@
 import type { Enums, Tables } from "@/lib/database.types";
 
+// Plans entreprise (SRS v1.2) — constantes et types
+export {
+  COMPANY_PLAN_FEES,
+  CANCELLATION_PENALTY_RULES,
+  PAYMENT_DELAY_RULES,
+  type CompanyPlan,
+} from "./types/index";
+
 // User types (sourced from generated DB schema)
 export type UserRole = Enums<"user_role">;
 export type Locale = Enums<"locale_type">;
