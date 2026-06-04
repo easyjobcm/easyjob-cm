@@ -35,7 +35,7 @@ export default async function CompanyProfilePage() {
   const { data: companyProfile } = await supabase
     .from("company_profiles")
     .select(
-      "id, company_name, sector, description, logo_url, city, address, rccm, niu, contact_name, contact_phone, subscription_tier, subscription_expires_at",
+      "id, company_name, sector, description, logo_url, city, address, rccm, niu, contact_name, contact_phone, subscription_tier, subscription_plan, subscription_expires_at, trial_ends_at",
     )
     .eq("user_id", user.id)
     .single();
@@ -61,11 +61,18 @@ export default async function CompanyProfilePage() {
     activeJobsCount = count ?? 0;
   }
 
+  // SRS v1.2 : source de vérité = company_profiles.subscription_plan
   const planRaw =
-    subscription?.plan ?? companyProfile?.subscription_tier ?? "free";
+    companyProfile?.subscription_plan ??
+    subscription?.plan ??
+    companyProfile?.subscription_tier ??
+    "free";
   const plan = normalizeCompanyPlan(planRaw);
   const subscriptionExpiresAt =
     subscription?.expires_at ?? companyProfile?.subscription_expires_at ?? null;
+
+  // SRS v1.2 : l'essai est consommé dès que trial_ends_at est défini en DB
+  const hasUsedTrial = !!companyProfile?.trial_ends_at;
 
   const criteria = computeCompanyCriteria(companyProfile ?? {});
   const completionPct = computeCompletion(criteria);
@@ -92,6 +99,7 @@ export default async function CompanyProfilePage() {
       plan={plan}
       activeJobsCount={activeJobsCount}
       subscriptionExpiresAt={subscriptionExpiresAt}
+      hasUsedTrial={hasUsedTrial}
     />
   );
 }

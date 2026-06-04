@@ -445,50 +445,158 @@ export const fr = {
     premiumCompanyBenefits: {
       sectionTitle: "Mes avantages",
       expiresOn: "Expire le {date}",
-      directEdit: {
-        title: "Modification directe",
-        desc: "Éditez vos offres publiées à tout moment, sans passer par le support.",
+      // ── Plan Free (5 avantages) ──
+      jobsUnlimited: {
+        title: "Offres illimitées",
+        desc: "Publiez autant d'offres que vous voulez, 24h/7j.",
       },
-      verifiedCandidates: {
-        title: "Candidats CNI vérifiés",
-        desc: "Accès prioritaire aux profils avec identité validée et sans antécédents.",
+      serviceFee10: {
+        title: "Frais de service 10%",
+        desc: "Commission transparente, pas de frais cachés.",
       },
-      urgentBoost: {
-        title: "Option urgente incluse",
-        desc: "Boostez une offre en 1h pour combler un poste critique rapidement.",
+      urgentPaid: {
+        title: "Option urgente disponible",
+        desc: "Boostez une offre pour 2 000 FCFA quand vous en avez besoin.",
+      },
+      securePayment: {
+        title: "Paiement sécurisé",
+        desc: "Vos paiements sont bloqués jusqu'à validation de la mission.",
+      },
+      historyAccess: {
+        title: "Historique complet",
+        desc: "Accédez à toutes vos missions passées et factures.",
+      },
+      // ── Plan Starter (4 avantages propres) ──
+      reducedFee: {
+        title: "Frais de service réduits 8%",
+        desc: "Économisez 2% sur chaque mission par rapport au Gratuit.",
+      },
+      urgentReduced: {
+        title: "Option urgente réduite",
+        desc: "1 000 FCFA au lieu de 2 000 FCFA pour booster vos offres.",
+      },
+      visibility: {
+        title: "Visibilité accrue",
+        desc: "Vos offres apparaissent en priorité dans les recherches.",
+      },
+      standardSupport: {
+        title: "Support standard 48h",
+        desc: "Une équipe disponible pour vous accompagner sous 48h.",
+      },
+      // ── Plan Pro (10 avantages) ──
+      zeroFee: {
+        title: "0% de frais de service",
+        desc: "Aucune commission sur vos missions, votre abonnement couvre tout.",
+      },
+      freeUrgent: {
+        title: "Options urgentes illimitées",
+        desc: "Boostez toutes vos offres sans frais supplémentaires.",
       },
       aiMatch: {
         title: "IA Talent Match",
         desc: "L'IA pré-sélectionne les meilleurs profils pour chacune de vos offres.",
       },
-      unlimited: {
-        title: "Offres illimitées",
-        desc: "Publiez autant d'offres que nécessaire, 24h/7j, sans restriction.",
+      favorites: {
+        title: "Liste de favoris",
+        desc: "Sauvegardez vos meilleurs candidats pour les retrouver rapidement.",
       },
-      reporting: {
-        title: "Reporting recrutement",
-        desc: "Suivez vos délais d'embauche, taux de conversion et satisfaction.",
+      directInvite: {
+        title: "Invitation directe",
+        desc: "Invitez vos favoris sur une mission sans passer par la candidature publique.",
       },
-      accountManager: {
+      templates: {
+        title: "Modèles d'offres",
+        desc: "Créez et réutilisez vos modèles pour publier en 30 secondes.",
+      },
+      monthlyReport: {
+        title: "Rapport mensuel",
+        desc: "Suivez vos KPI : temps de remplissage, no-show, satisfaction.",
+      },
+      pdfExport: {
+        title: "Export PDF / Excel",
+        desc: "Téléchargez vos données et factures pour votre comptabilité.",
+      },
+      directEdit: {
+        title: "Modification directe",
+        desc: "Éditez vos offres publiées à tout moment, sans support.",
+      },
+      trialFree: {
+        title: "7 jours d'essai gratuits",
+        desc: "Testez le plan sans engagement, annulez à tout moment.",
+      },
+      // ── Plan Business (10 avantages) ──
+      guaranteedReplacement: {
+        title: "Remplacement garanti",
+        desc: "En cas de no-show, nous remplaçons le candidat sous 2h.",
+      },
+      bulkHiring: {
+        title: "Recrutement en masse",
+        desc: "Embauchez 10+ candidats en une seule action.",
+      },
+      priorityInvite: {
+        title: "Invitations prioritaires",
+        desc: "Vos invitations apparaissent en tête des notifications candidats.",
+      },
+      availabilityAlerts: {
+        title: "Alertes disponibilité",
+        desc: "Soyez prévenu dès qu'un candidat de votre liste est disponible.",
+      },
+      presenceDashboard: {
+        title: "Tableau de présence",
+        desc: "Visualisez en temps réel qui est présent sur vos missions.",
+      },
+      sectorContracts: {
+        title: "Contrats sectoriels",
+        desc: "Modèles juridiques validés par secteur (BTP, événementiel, etc.).",
+      },
+      advancedReporting: {
+        title: "Reporting avancé",
+        desc: "Analytics multi-dimensionnels et comparaisons inter-équipes.",
+      },
+      dedicatedManager: {
         title: "Account Manager dédié",
-        desc: "Un expert disponible en moins de 4h pour accompagner votre croissance.",
+        desc: "Un interlocuteur unique, SLA 4h, suivi stratégique mensuel.",
       },
-      multiUser: {
-        title: "Équipe RH multi-comptes",
-        desc: "Jusqu'à 10 collaborateurs avec permissions personnalisées.",
+      prioritySLA: {
+        title: "SLA prioritaire",
+        desc: "Support 24/7, traitement de vos tickets sous 1h.",
       },
-      branding: {
-        title: "Branding entreprise",
-        desc: "Vos offres avec votre logo et vos couleurs pour attirer les meilleurs talents.",
+      immediateModeration: {
+        title: "Modération immédiate",
+        desc: "Vos offres sont validées en moins de 30 minutes.",
+      },
+      // ── Pénalités d'annulation ──
+      cancellationPenalty: {
+        label: "Annulation tardive :",
+        freeStarter:
+          "vous récupérez 50% du montant bloqué. 25% pour les candidats premium, 25% pour EasyJob.",
+        pro: "vous récupérez 75% du montant bloqué. 25% pour les candidats premium.",
+        business:
+          "vous récupérez 100% du montant bloqué. Aucune pénalité — remplacement garanti.",
       },
     },
     upgradeBanner: {
-      title: "Débloquez tout le potentiel d'EasyJob",
-      tagline: "Plus d'offres, plus de talents, plus de croissance.",
-      starter: "Starter — 5 offres + options urgentes",
-      pro: "Pro — Offres illimitées + IA",
-      business: "Business — Tout illimité + reporting avancé",
-      cta: "Découvrir les plans",
+      title: "Vos concurrents recrutent plus vite",
+      tagline:
+        "0% de frais. L'IA sélectionne pour vous. Essai gratuit 7 jours.",
+      taglineStarter:
+        "Arrêtez de payer des frais. Passez au Pro — 7 jours offerts.",
+      // Labels courts dans les lignes de plan
+      starter: "Starter",
+      starterKicker:
+        "Frais réduits à 8% · Urgentes à 1 000 FCFA · Visibilité accrue",
+      pro: "Pro",
+      proKicker:
+        "0% de frais · IA qui sélectionne · Favoris · Modèles · Rapport",
+      business: "Business",
+      businessKicker:
+        "7j offerts · Remplacement en 2h garanti · Manager dédié · SLA <30 min",
+      // Badges & CTA
+      recommended: "Recommandé",
+      trialBadge: "7j gratuits",
+      ctaTrial: "Essayer Pro — 7 jours gratuits",
+      cta: "Voir les plans",
+      businessCta: "En savoir plus sur Business",
     },
 
     // ── Showcase Premium Entreprise ─────────────────────────

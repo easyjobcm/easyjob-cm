@@ -18,11 +18,7 @@ import { ActiveJobsCounter } from "@/components/company/profile/active-jobs-coun
 import { PremiumCompanyBenefits } from "@/components/company/profile/premium-company-benefits";
 import { StatusPill } from "@/components/candidate/profile/status-pill";
 import { type Criterion } from "@/lib/utils/profile-completion";
-import {
-  type CompanyPlan,
-  getPlanLimits,
-  isCompanyPremium,
-} from "@/lib/utils/profile-status";
+import { type CompanyPlan, getPlanLimits } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 
@@ -43,6 +39,7 @@ interface CompanyProfileClientProps {
   plan: CompanyPlan;
   activeJobsCount: number;
   subscriptionExpiresAt: string | null;
+  hasUsedTrial: boolean;
 }
 
 function HeroOrb({
@@ -86,28 +83,31 @@ export function CompanyProfileClient({
   plan,
   activeJobsCount,
   subscriptionExpiresAt,
+  hasUsedTrial,
 }: CompanyProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const premium = isCompanyPremium(user.role);
+  // SRS v1.2 : la source de vérité est company_profiles.subscription_plan, jamais role.
+  const isPaidPlan = plan !== "free";
+  const premium = isPaidPlan; // alias visuel pour orbes/glow
   const limits = getPlanLimits(plan);
 
   const displayName = profile?.company_name || user.phone || "—";
   const initial = profile?.company_name?.[0] || user.phone?.[0] || "E";
   const contactInfo = user.phone || user.email || "";
 
-  // Hero gradient adapté au plan
-  const heroGradient = !premium
-    ? "bg-linear-to-br from-[#0F172A] via-[#1E3A8A] to-[#3B82F6]" // bleu = standard
-    : plan === "business"
+  // Hero gradient aligné palette SRS v1.2
+  const heroGradient =
+    plan === "business"
       ? "bg-linear-to-br from-[#1F2937] via-[#92400E] to-[#D97706]" // doré
       : plan === "pro"
         ? "bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]" // violet
-        : "bg-linear-to-br from-[#0F172A] via-[#1E1B4B] to-[#5B21B6]"; // starter
+        : plan === "starter"
+          ? "bg-linear-to-br from-[#0F172A] via-[#1E3A8A] to-[#2563EB]" // bleu
+          : "bg-linear-to-br from-[#1F2937] via-[#374151] to-[#6B7280]"; // gris (free)
 
   // Libellé du badge plan
   const planLabel = (() => {
-    if (!premium) return t.profile.status.company;
     switch (plan) {
       case "starter":
         return t.profile.plan.starter;
@@ -115,10 +115,21 @@ export function CompanyProfileClient({
         return t.profile.plan.pro;
       case "business":
         return t.profile.plan.business;
+      case "free":
       default:
-        return t.profile.status.companyPremium;
+        return t.profile.plan.free;
     }
   })();
+
+  // Couleur d'accent alignée sur le plan
+  const planAccentColor =
+    plan === "business"
+      ? "#D97706"
+      : plan === "pro"
+        ? "#7C3AED"
+        : plan === "starter"
+          ? "#2563EB"
+          : "#6B7280"; // free → gris
 
   return (
     <AppShell hideNav>
@@ -213,19 +224,20 @@ export function CompanyProfileClient({
                   initial={initial}
                   sandboxBadge={null}
                   size={100}
+                  accentColor={planAccentColor}
                 />
               </div>
             </div>
 
             <div className="mt-4 flex flex-col items-center gap-2 text-center">
-              {premium ? (
-                <PlanBadge plan={plan} label={planLabel} />
-              ) : (
+              {plan === "free" ? (
                 <StatusPill
-                  label={t.profile.status.company}
+                  label={planLabel}
                   Icon={Briefcase}
-                  variant="blue"
+                  variant="neutral"
                 />
+              ) : (
+                <PlanBadge plan={plan} label={planLabel} />
               )}
 
               <motion.h1
@@ -277,17 +289,18 @@ export function CompanyProfileClient({
           {/* Compteur d'offres actives — limites visibles si standard */}
           <ActiveJobsCounter used={activeJobsCount} limit={limits.jobsLimit} />
 
-          {/* Détail plan (premium) ou bannière upgrade (standard) */}
-          {premium ? (
-            <PremiumCompanyBenefits
-              plan={plan}
-              limits={limits}
-              expiresAt={subscriptionExpiresAt}
-              locale={locale}
-            />
-          ) : (
-            <UpgradeBanner />
-          )}
+          {/* Avantages du plan — affichés pour TOUS les plans (free inclus) */}
+          <PremiumCompanyBenefits
+            plan={plan}
+            limits={limits}
+            expiresAt={subscriptionExpiresAt}
+            locale={locale}
+          />
+
+          {/* Bannière upgrade — uniquement free/starter */}
+          {plan === "free" || plan === "starter" ? (
+            <UpgradeBanner currentPlan={plan} hasUsedTrial={hasUsedTrial} />
+          ) : null}
 
           {/* Infos entreprise */}
           {(profile?.sector || profile?.city) && (
