@@ -355,6 +355,197 @@ export const en: TranslationKeys = {
     logoutTitle: "Log out?",
     logoutDesc: "Are you sure you want to log out?",
     cancel: "Cancel",
+
+    // ── Statuses & Premium (candidate) ───────────────────────
+    status: {
+      candidate: "Candidate",
+      candidatePremium: "Premium Candidate",
+      company: "Company",
+      companyPremium: "Premium Company",
+      new: "New",
+    },
+    premium: {
+      sectionTitle: "My Premium benefits",
+      activeBadge: "Premium active",
+      expiresOn: "Expires on {date}",
+      renewSoon: "Renewing soon",
+      benefits: {
+        fastPayment: {
+          title: "Fast payment",
+          desc4Stars:
+            "100% within 48h once your rating exceeds 4★. Otherwise 50% immediately + 50% within 7 days.",
+          descDefault: "50% immediately + 50% within 7 days.",
+        },
+        priority: {
+          title: "Priority on applications",
+          desc: "Your profile is shown first to companies.",
+        },
+        exclusive: {
+          title: "Exclusive jobs",
+          desc: "Access missions reserved for Premium candidates.",
+        },
+      },
+    },
+    upgradePremium: {
+      title: "Go Premium",
+      tagline: "Boost your chances. Get paid faster.",
+      price: "1,000 FCFA",
+      pricePeriod: "/ month",
+      ctaPrimary: "Become Premium",
+      ctaSecondary: "See benefits",
+      socialProof: "Joined by 1,200+ Premium candidates",
+      bullets: {
+        fastPayment: "Paid in 48h instead of 7 days",
+        priority: "Priority on every application",
+        exclusive: "Access to exclusive Premium jobs",
+      },
+      microCommitment: "No commitment · Cancel anytime",
+    },
+    paymentDelay: {
+      title: "Payment delay",
+      standard: "7 days after the mission",
+      premiumFast: "100% within 48h",
+      premiumSplit: "50% immediate + 50% within 7d",
+      improveCta: "Improve your rating to unlock 48h payment",
+    },
+
+    // ── Statuses & Plans (company) ───────────────────────────
+    plan: {
+      free: "Free",
+      starter: "Starter",
+      pro: "Pro",
+      business: "Business",
+      currentPlan: "Current plan",
+      expiresOn: "Expires on {date}",
+      renews: "Renews on {date}",
+      prioritySupport: "Priority 24/7 support",
+      features: {
+        title: "My plan",
+        jobsLimitFree: "Up to 2 active jobs",
+        jobsLimitStarter: "5 active jobs",
+        jobsLimitPro: "Unlimited jobs",
+        jobsLimitBusiness: "Unlimited jobs",
+        urgentPaid: "Urgent options paid",
+        urgentFree: "Urgent options included",
+        aiRecoOff: "No AI recommendations",
+        aiRecoOn: "AI recommendations from past workers",
+        reportingOff: "No reporting",
+        reportingBasic: "Basic reporting",
+        reportingAdvanced: "Advanced reporting",
+        editOff: "Limited editing — contact support",
+        editOn: "Direct editing of active jobs",
+      },
+    },
+    activeJobs: {
+      title: "My published jobs",
+      used: "{used} published out of {total} available",
+      unlimited: "Unlimited jobs",
+      full: "Quota reached. Upgrade your plan to publish more.",
+    },
+    premiumCompanyBenefits: {
+      sectionTitle: "My benefits",
+      expiresOn: "Expires on {date}",
+      directEdit: {
+        title: "Direct editing",
+        desc: "Edit your published jobs anytime, without going through support.",
+      },
+      verifiedCandidates: {
+        title: "ID-verified candidates",
+        desc: "Priority access to profiles with validated identity and clean records.",
+      },
+      urgentBoost: {
+        title: "Urgent option included",
+        desc: "Boost a job in 1h to fill a critical position fast.",
+      },
+      aiMatch: {
+        title: "AI Talent Match",
+        desc: "AI pre-selects the best profiles for each of your jobs.",
+      },
+      unlimited: {
+        title: "Unlimited jobs",
+        desc: "Post as many jobs as needed, 24/7, without restriction.",
+      },
+      reporting: {
+        title: "Recruitment reporting",
+        desc: "Track time-to-hire, conversion rates and candidate satisfaction.",
+      },
+      accountManager: {
+        title: "Dedicated Account Manager",
+        desc: "An expert available within 4h to support your growth.",
+      },
+      multiUser: {
+        title: "Multi-user HR team",
+        desc: "Up to 10 teammates with customized permissions.",
+      },
+      branding: {
+        title: "Company branding",
+        desc: "Your jobs with your logo and colors to attract top talent.",
+      },
+    },
+    upgradeBanner: {
+      title: "Unlock the full power of EasyJob",
+      tagline: "More jobs, more talent, more growth.",
+      starter: "Starter — 5 jobs + urgent options",
+      pro: "Pro — Unlimited jobs + AI",
+      business: "Business — Everything unlimited + advanced reporting",
+      cta: "Discover plans",
+    },
+
+    // ── Premium Company Showcase ────────────────────────────
+    premiumCompany: {
+      sectionLabel: "Your strategic advantage",
+      headlineStarter: "Hire faster. Without limits.",
+      headlinePro: "AI hires for you.",
+      headlineBusiness: "Tailor-made for large teams.",
+      taglineStarter:
+        "5 simultaneous jobs, urgent options included, direct editing.",
+      taglinePro:
+        "Unlimited jobs, AI recommending your top candidates, reporting.",
+      taglineBusiness:
+        "Dedicated account manager, guaranteed SLA, branding, multi-user, advanced reporting.",
+      metrics: {
+        timeToHire: { value: "−45%", label: "Time to hire" },
+        compliance: { value: "100%", label: "Contract compliance" },
+        retention: { value: "×2", label: "Reliable talent retention" },
+      },
+      pillars: {
+        control: {
+          title: "Full control",
+          desc: "Instantly edit your active jobs without going through support.",
+        },
+        security: {
+          title: "Enhanced security",
+          desc: "Priority ID-verified candidates + signed and archived contracts.",
+        },
+        aiTalent: {
+          title: "AI Talent Match",
+          desc: "Smart recommendations based on your past high-performing workers.",
+        },
+        priorityPool: {
+          title: "Priority talent pool",
+          desc: "Your jobs appear first to Premium and 4★+ rated candidates.",
+        },
+        reporting: {
+          title: "Reporting & Analytics",
+          desc: "Track your KPIs in real time: fill rate, no-show, satisfaction.",
+        },
+        accountManager: {
+          title: "Dedicated Account Manager",
+          desc: "Single point of contact, 4h SLA, monthly strategic guidance.",
+        },
+        branding: {
+          title: "Company branding",
+          desc: "Your jobs with your logo, colors, and tone of voice.",
+        },
+        team: {
+          title: "Multi-user accounts",
+          desc: "Grant access to your full HR team with granular permissions.",
+        },
+      },
+      socialProof: "12 major Cameroonian companies already trust us",
+      manageButton: "Manage subscription",
+      upgradePlan: "Upgrade to {plan}",
+    },
   },
 
   // Days
