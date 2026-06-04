@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Briefcase, Edit2, Star } from "lucide-react";
+import { MapPin, Briefcase, Edit2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,17 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
 import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
 import { ProfileMenu } from "@/components/profile/profile-menu";
+import { PlanBadge } from "@/components/company/profile/plan-badge";
+import { UpgradeBanner } from "@/components/company/profile/upgrade-banner";
+import { ActiveJobsCounter } from "@/components/company/profile/active-jobs-counter";
+import { PremiumCompanyBenefits } from "@/components/company/profile/premium-company-benefits";
+import { StatusPill } from "@/components/candidate/profile/status-pill";
 import { type Criterion } from "@/lib/utils/profile-completion";
+import {
+  type CompanyPlan,
+  getPlanLimits,
+  isCompanyPremium,
+} from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 
@@ -24,14 +34,15 @@ interface CompanyProfileClientProps {
   };
   profile: {
     company_name?: string | null;
-    average_rating?: number | null;
     city?: string | null;
     sector?: string | null;
     logo_url?: string | null;
   } | null;
   completionPct: number;
   criteria: Criterion[];
-  totalMissionsPosted: number;
+  plan: CompanyPlan;
+  activeJobsCount: number;
+  subscriptionExpiresAt: string | null;
 }
 
 function HeroOrb({
@@ -72,42 +83,80 @@ export function CompanyProfileClient({
   profile,
   completionPct,
   criteria: _criteria,
-  totalMissionsPosted,
+  plan,
+  activeJobsCount,
+  subscriptionExpiresAt,
 }: CompanyProfileClientProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
+  const premium = isCompanyPremium(user.role);
+  const limits = getPlanLimits(plan);
 
   const displayName = profile?.company_name || user.phone || "—";
   const initial = profile?.company_name?.[0] || user.phone?.[0] || "E";
   const contactInfo = user.phone || user.email || "";
-  const averageRating = profile?.average_rating ?? 0;
-  const starsCount = Math.min(5, Math.round(averageRating));
 
-  const stats = [
-    {
-      value: totalMissionsPosted,
-      label: t.profile.missionsPosted,
-      color: "#7C3AED",
-    },
-    {
-      value: averageRating > 0 ? averageRating.toFixed(1) : "0.0",
-      label: t.profile.statScore,
-      color: "#22C55E",
-    },
-  ];
+  // Hero gradient adapté au plan
+  const heroGradient = !premium
+    ? "bg-linear-to-br from-[#0F172A] via-[#1E3A8A] to-[#3B82F6]" // bleu = standard
+    : plan === "business"
+      ? "bg-linear-to-br from-[#1F2937] via-[#92400E] to-[#D97706]" // doré
+      : plan === "pro"
+        ? "bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]" // violet
+        : "bg-linear-to-br from-[#0F172A] via-[#1E1B4B] to-[#5B21B6]"; // starter
+
+  // Libellé du badge plan
+  const planLabel = (() => {
+    if (!premium) return t.profile.status.company;
+    switch (plan) {
+      case "starter":
+        return t.profile.plan.starter;
+      case "pro":
+        return t.profile.plan.pro;
+      case "business":
+        return t.profile.plan.business;
+      default:
+        return t.profile.status.companyPremium;
+    }
+  })();
 
   return (
     <AppShell hideNav>
       <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618]">
         {/* ── HERO ────────────────────────────────────────────── */}
         <div className="relative overflow-hidden pb-10 pt-safe-top">
-          {/* Gradient — shifted toward teal for companies */}
-          <div className="absolute inset-0 bg-linear-to-br from-[#0F172A] via-[#1E1B4B] to-[#5B21B6]" />
+          <div className={`absolute inset-0 ${heroGradient}`} />
 
-          {/* Floating orbs */}
-          <HeroOrb size={200} color="#818CF855" x="-15%" y="-25%" delay={0} />
-          <HeroOrb size={110} color="#6D28D966" x="65%" y="5%" delay={2} />
-          <HeroOrb size={80} color="#A5B4FC44" x="25%" y="55%" delay={4} />
+          {premium ? (
+            <>
+              <HeroOrb
+                size={200}
+                color={`${limits.accent}55`}
+                x="-15%"
+                y="-25%"
+                delay={0}
+              />
+              <HeroOrb
+                size={110}
+                color={`${limits.accent}66`}
+                x="65%"
+                y="5%"
+                delay={2}
+              />
+              <HeroOrb size={80} color="#A5B4FC44" x="25%" y="55%" delay={4} />
+            </>
+          ) : (
+            <>
+              <HeroOrb
+                size={180}
+                color="#3B82F655"
+                x="-15%"
+                y="-25%"
+                delay={0}
+              />
+              <HeroOrb size={120} color="#1D4ED844" x="65%" y="5%" delay={2} />
+            </>
+          )}
 
           {/* Top bar */}
           <div className="relative z-10 flex items-center justify-between px-4 pb-2 pt-4">
@@ -117,6 +166,7 @@ export function CompanyProfileClient({
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm"
               onClick={() => router.back()}
               whileTap={{ scale: 0.9 }}
+              aria-label={t.common.back}
             >
               ←
             </motion.button>
@@ -128,7 +178,10 @@ export function CompanyProfileClient({
             >
               <LangSwitch variant="light" />
               <ThemeToggle variant="light" />
-              <Link href="/profile/company/edit">
+              <Link
+                href="/profile/company/edit"
+                aria-label={t.profile.editProfile}
+              >
                 <motion.div
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm"
                   whileTap={{ scale: 0.9 }}
@@ -139,58 +192,50 @@ export function CompanyProfileClient({
             </motion.div>
           </div>
 
-          {/* Avatar + name */}
+          {/* Avatar + glow plan */}
           <div className="relative z-10 flex flex-col items-center gap-6 px-4 pt-4">
-            <ProfileAvatar3D initial={initial} sandboxBadge={null} size={100} />
+            <div className="relative">
+              {premium && (
+                <motion.div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-5 rounded-full blur-2xl"
+                  style={{ background: `${limits.accent}99` }}
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              )}
+              <div className="relative">
+                <ProfileAvatar3D
+                  initial={initial}
+                  sandboxBadge={null}
+                  size={100}
+                />
+              </div>
+            </div>
 
-            <div className="mt-4 flex flex-col items-center gap-1 text-center">
+            <div className="mt-4 flex flex-col items-center gap-2 text-center">
+              {premium ? (
+                <PlanBadge plan={plan} label={planLabel} />
+              ) : (
+                <StatusPill
+                  label={t.profile.status.company}
+                  Icon={Briefcase}
+                  variant="blue"
+                />
+              )}
+
               <motion.h1
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-2xl font-bold text-white"
+                className="mt-1 text-2xl font-bold text-white"
               >
                 {displayName}
               </motion.h1>
-
-              {/* Stars */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="flex items-center gap-1"
-              >
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{
-                      delay: 0.45 + i * 0.07,
-                      type: "spring",
-                      stiffness: 500,
-                    }}
-                  >
-                    <Star
-                      className="h-4 w-4"
-                      style={{
-                        color:
-                          i < starsCount ? "#EAB308" : "rgba(255,255,255,0.25)",
-                        fill: i < starsCount ? "#EAB308" : "none",
-                        filter:
-                          i < starsCount
-                            ? "drop-shadow(0 1px 4px #EAB30880)"
-                            : "none",
-                      }}
-                    />
-                  </motion.div>
-                ))}
-                {averageRating > 0 && (
-                  <span className="ml-1 text-sm font-semibold text-white/80">
-                    {averageRating.toFixed(1)}
-                  </span>
-                )}
-              </motion.div>
 
               <motion.p
                 initial={{ opacity: 0 }}
@@ -201,31 +246,6 @@ export function CompanyProfileClient({
                 {contactInfo}
               </motion.p>
             </div>
-
-            {/* Stats bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.55 }}
-              className="flex w-full max-w-xs divide-x divide-white/10 overflow-hidden rounded-2xl bg-white/10 backdrop-blur-md"
-            >
-              {stats.map((stat, i) => (
-                <div
-                  key={i}
-                  className="flex flex-1 flex-col items-center gap-0.5 py-3"
-                >
-                  <span
-                    className="text-xl font-bold text-white"
-                    style={{ textShadow: `0 0 12px ${stat.color}99` }}
-                  >
-                    {stat.value}
-                  </span>
-                  <span className="text-[10px] text-white/55">
-                    {stat.label}
-                  </span>
-                </div>
-              ))}
-            </motion.div>
           </div>
         </div>
 
@@ -254,12 +274,27 @@ export function CompanyProfileClient({
             </Card>
           </motion.div>
 
+          {/* Compteur d'offres actives — limites visibles si standard */}
+          <ActiveJobsCounter used={activeJobsCount} limit={limits.jobsLimit} />
+
+          {/* Détail plan (premium) ou bannière upgrade (standard) */}
+          {premium ? (
+            <PremiumCompanyBenefits
+              plan={plan}
+              limits={limits}
+              expiresAt={subscriptionExpiresAt}
+              locale={locale}
+            />
+          ) : (
+            <UpgradeBanner />
+          )}
+
           {/* Infos entreprise */}
           {(profile?.sector || profile?.city) && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.3 }}
               className="space-y-3"
             >
               {profile?.sector && (
