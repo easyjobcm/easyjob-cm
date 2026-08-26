@@ -529,16 +529,16 @@ export default function WelcomePage() {
 
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={() => router.push("/auth/login")}
+              onClick={() => router.push("/auth/signup")}
               className={`hidden sm:flex h-9 px-4 rounded-full border text-[13px] font-semibold transition-colors pt-2 ${scrolled && !isDark ? "border-[#DDD6FE] text-[#7C3AED] hover:bg-[#EDE9FE]" : "border-white/12 text-white/70 hover:border-[#7C3AED]/40 hover:text-white"}`}
             >
-              {t("auth.signIn")}
+              {t("auth.signUp")}
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.97 }}
               whileHover={{ scale: 1.02 }}
-              onClick={() => router.push("/auth/signup")}
+              onClick={() => router.push("/auth/login")}
               className="h-9 px-4 rounded-full text-[13px] font-bold text-white"
               style={{
                 background: "linear-gradient(135deg,#7C3AED,#5B21B6)",
@@ -546,7 +546,7 @@ export default function WelcomePage() {
                   "0 0 20px rgba(124,58,237,0.5),0 4px 12px rgba(124,58,237,0.3)",
               }}
             >
-              {t("auth.signUp")}
+              {t("auth.signIn")}
             </motion.button>
 
             <motion.button
@@ -586,16 +586,16 @@ export default function WelcomePage() {
                 <div className="pt-3 space-y-2">
                   <button
                     onClick={() => {
-                      router.push("/auth/login");
+                      router.push("/auth/signup");
                       setMobileMenuOpen(false);
                     }}
                     className="w-full h-11 rounded-full border border-[#DDD6FE] text-[#7C3AED] text-[14px] font-semibold hover:bg-[#EDE9FE] transition-colors"
                   >
-                    {t("auth.signIn")}
+                    {t("auth.signUp")}
                   </button>
                   <button
                     onClick={() => {
-                      router.push("/auth/signup");
+                      router.push("/auth/login");
                       setMobileMenuOpen(false);
                     }}
                     className="w-full h-11 rounded-full text-white text-[14px] font-bold"
@@ -604,7 +604,7 @@ export default function WelcomePage() {
                       boxShadow: "0 0 20px rgba(124,58,237,0.4)",
                     }}
                   >
-                    {t("auth.signUp")}
+                    {t("auth.signIn")}
                   </button>
                 </div>
               </div>
@@ -818,6 +818,13 @@ export default function WelcomePage() {
                         pay: "4 500",
                         cat: "Événementiel",
                         rating: "4.6",
+                        urgent: false,
+                      },
+                      {
+                        role: "Serveur·euse",
+                        pay: "4 000",
+                        cat: "Restauration",
+                        rating: "4.7",
                         urgent: false,
                       },
                     ].map((job, i) => (
