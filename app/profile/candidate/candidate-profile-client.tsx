@@ -12,7 +12,12 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
 import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
 import { ProfileMenu } from "@/components/profile/profile-menu";
+import { PremiumBadge } from "@/components/candidate/profile/premium-badge";
+import { PremiumBanner } from "@/components/candidate/profile/premium-banner";
+import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
+import { PaymentDelayInfo } from "@/components/candidate/profile/payment-delay-info";
 import { SANDBOX_LEVELS, type Criterion } from "@/lib/utils/profile-completion";
+import { isCandidatePremium } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 
@@ -28,6 +33,7 @@ interface CandidateProfileClientProps {
     average_rating?: number | null;
     city?: string | null;
     quartier?: string | null;
+    premium_until?: string | null;
   } | null;
   skills: Array<{ id: string; skill_name: string }>;
   completionPct: number;
@@ -36,7 +42,6 @@ interface CandidateProfileClientProps {
   totalMissions: number;
 }
 
-// Animated floating orb for hero background
 function HeroOrb({
   size,
   color,
@@ -79,8 +84,9 @@ export function CandidateProfileClient({
   criteria: _criteria,
   totalMissions,
 }: CandidateProfileClientProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
+  const premium = isCandidatePremium(user.role);
 
   const currentLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
   const sandboxNames = t.profile.completion.sandbox;
@@ -93,7 +99,7 @@ export function CandidateProfileClient({
   const sandboxBadge = {
     icon: currentLevelConfig.icon,
     label: levelNameMap[currentLevelConfig.nameKey],
-    color: currentLevelConfig.color,
+    color: premium ? "#7C3AED" : currentLevelConfig.color,
   };
 
   const displayName =
@@ -109,7 +115,7 @@ export function CandidateProfileClient({
     {
       value: totalMissions,
       label: t.profile.statMissions,
-      color: "#7C3AED",
+      color: premium ? "#7C3AED" : "#A78BFA",
     },
     {
       value: averageRating > 0 ? averageRating.toFixed(1) : "0.0",
@@ -123,18 +129,54 @@ export function CandidateProfileClient({
     },
   ];
 
+  // Différenciation visuelle Hero selon statut
+  const heroGradient = premium
+    ? "bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]"
+    : "bg-linear-to-br from-[#1F2937] via-[#374151] to-[#4B5563]";
+
   return (
     <AppShell hideNav>
       <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618]">
         {/* ── HERO ────────────────────────────────────────────── */}
         <div className="relative overflow-hidden pb-10 pt-safe-top">
-          {/* Gradient background */}
-          <div className="absolute inset-0 bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]" />
+          <div className={`absolute inset-0 ${heroGradient}`} />
 
-          {/* Floating orbs */}
-          <HeroOrb size={180} color="#A78BFA55" x="-10%" y="-20%" delay={0} />
-          <HeroOrb size={120} color="#7C3AED66" x="70%" y="10%" delay={1.5} />
-          <HeroOrb size={90} color="#C4B5FD44" x="30%" y="60%" delay={3} />
+          {premium ? (
+            <>
+              <HeroOrb
+                size={180}
+                color="#A78BFA55"
+                x="-10%"
+                y="-20%"
+                delay={0}
+              />
+              <HeroOrb
+                size={120}
+                color="#7C3AED66"
+                x="70%"
+                y="10%"
+                delay={1.5}
+              />
+              <HeroOrb size={90} color="#C4B5FD55" x="30%" y="60%" delay={3} />
+            </>
+          ) : (
+            <>
+              <HeroOrb
+                size={160}
+                color="#6B728044"
+                x="-10%"
+                y="-20%"
+                delay={0}
+              />
+              <HeroOrb
+                size={100}
+                color="#9CA3AF33"
+                x="70%"
+                y="10%"
+                delay={1.5}
+              />
+            </>
+          )}
 
           {/* Top bar */}
           <div className="relative z-10 flex items-center justify-between px-4 pb-2 pt-4">
@@ -144,6 +186,7 @@ export function CandidateProfileClient({
               className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm"
               onClick={() => router.back()}
               whileTap={{ scale: 0.9 }}
+              aria-label={t.common.back}
             >
               ←
             </motion.button>
@@ -155,7 +198,10 @@ export function CandidateProfileClient({
             >
               <LangSwitch variant="light" />
               <ThemeToggle variant="light" />
-              <Link href="/profile/candidate/edit">
+              <Link
+                href="/profile/candidate/edit"
+                aria-label={t.profile.editProfile}
+              >
                 <motion.div
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm"
                   whileTap={{ scale: 0.9 }}
@@ -166,25 +212,47 @@ export function CandidateProfileClient({
             </motion.div>
           </div>
 
-          {/* Avatar + name */}
+          {/* Avatar + glow premium */}
           <div className="relative z-10 flex flex-col items-center gap-6 px-4 pt-4">
-            <ProfileAvatar3D
-              initial={initial}
-              sandboxBadge={sandboxBadge}
-              size={100}
-            />
+            <div className="relative">
+              {premium && (
+                <motion.div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-5 rounded-full blur-2xl"
+                  style={{ background: "#7C3AED99" }}
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+              )}
+              <div className="relative">
+                <ProfileAvatar3D
+                  initial={initial}
+                  sandboxBadge={sandboxBadge}
+                  size={100}
+                />
+              </div>
+            </div>
 
-            <div className="mt-4 flex flex-col items-center gap-1 text-center">
+            <div className="mt-4 flex flex-col items-center gap-2 text-center">
+              {/* Pill statut uniquement pour Premium — pour Standard,
+                  le badge Sandbox est déjà visible sur l'avatar 3D. */}
+              {premium && (
+                <PremiumBadge label={t.profile.status.candidatePremium} />
+              )}
+
               <motion.h1
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-2xl font-bold text-white"
+                className="mt-1 text-2xl font-bold text-white"
               >
                 {displayName}
               </motion.h1>
 
-              {/* Stars */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -233,7 +301,6 @@ export function CandidateProfileClient({
               </motion.p>
             </div>
 
-            {/* Stats bar */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -289,6 +356,20 @@ export function CandidateProfileClient({
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Différenciation Premium ↔ Standard */}
+          {premium ? (
+            <PremiumBenefits
+              averageRating={averageRating}
+              premiumUntil={profile?.premium_until ?? null}
+              locale={locale}
+            />
+          ) : (
+            <PremiumBanner />
+          )}
+
+          {/* Délai de paiement (contenu adapté au statut) */}
+          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
 
           {/* Skills */}
           {skills.length > 0 && (

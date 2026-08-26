@@ -56,6 +56,60 @@ export type Database = {
           },
         ]
       }
+      cancellation_penalties: {
+        Row: {
+          applied_at: string | null
+          candidates_affected: string[] | null
+          company_id: string
+          company_plan: string
+          id: string
+          job_id: string
+          penalty_to_candidates_pct: number | null
+          penalty_to_easyjob_pct: number | null
+          refund_to_company_pct: number | null
+          total_blocked_amount: number
+        }
+        Insert: {
+          applied_at?: string | null
+          candidates_affected?: string[] | null
+          company_id: string
+          company_plan: string
+          id?: string
+          job_id: string
+          penalty_to_candidates_pct?: number | null
+          penalty_to_easyjob_pct?: number | null
+          refund_to_company_pct?: number | null
+          total_blocked_amount: number
+        }
+        Update: {
+          applied_at?: string | null
+          candidates_affected?: string[] | null
+          company_id?: string
+          company_plan?: string
+          id?: string
+          job_id?: string
+          penalty_to_candidates_pct?: number | null
+          penalty_to_easyjob_pct?: number | null
+          refund_to_company_pct?: number | null
+          total_blocked_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cancellation_penalties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cancellation_penalties_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_availability: {
         Row: {
           candidate_id: string
@@ -281,9 +335,100 @@ export type Database = {
           },
         ]
       }
+      company_availability_alerts: {
+        Row: {
+          category_id: string | null
+          city: string | null
+          company_id: string
+          created_at: string | null
+          day_of_week: number[] | null
+          id: string
+          is_active: boolean | null
+          min_rating: number | null
+          quartier: string | null
+          sandbox_level_min: number | null
+        }
+        Insert: {
+          category_id?: string | null
+          city?: string | null
+          company_id: string
+          created_at?: string | null
+          day_of_week?: number[] | null
+          id?: string
+          is_active?: boolean | null
+          min_rating?: number | null
+          quartier?: string | null
+          sandbox_level_min?: number | null
+        }
+        Update: {
+          category_id?: string | null
+          city?: string | null
+          company_id?: string
+          created_at?: string | null
+          day_of_week?: number[] | null
+          id?: string
+          is_active?: boolean | null
+          min_rating?: number | null
+          quartier?: string | null
+          sandbox_level_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_availability_alerts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "job_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_availability_alerts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_favorite_candidates: {
+        Row: {
+          added_at: string | null
+          candidate_id: string
+          company_id: string
+          id: string
+        }
+        Insert: {
+          added_at?: string | null
+          candidate_id: string
+          company_id: string
+          id?: string
+        }
+        Update: {
+          added_at?: string | null
+          candidate_id?: string
+          company_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_favorite_candidates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_favorite_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_profiles: {
         Row: {
           address: string | null
+          average_rating: number | null
           city: string | null
           company_name: string
           company_size: Database["public"]["Enums"]["company_size"] | null
@@ -292,14 +437,17 @@ export type Database = {
           contact_phone: string | null
           created_at: string | null
           description: string | null
+          device_fingerprint: string | null
           documents_url: string[] | null
           id: string
           is_active: boolean | null
+          late_cancellation_count: number | null
           latitude: number | null
           legal_name: string | null
           logo_url: string | null
           longitude: number | null
           niu: string | null
+          niu_verified: boolean | null
           onboarding_status:
             | Database["public"]["Enums"]["onboarding_status"]
             | null
@@ -308,7 +456,11 @@ export type Database = {
           rccm: string | null
           sector: string | null
           subscription_expires_at: string | null
+          subscription_plan: string | null
           subscription_tier: string | null
+          total_missions_posted: number | null
+          trial_ends_at: string | null
+          trust_score: number | null
           updated_at: string | null
           user_id: string
           verification_rejection_reason: string | null
@@ -319,6 +471,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          average_rating?: number | null
           city?: string | null
           company_name: string
           company_size?: Database["public"]["Enums"]["company_size"] | null
@@ -327,14 +480,17 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           description?: string | null
+          device_fingerprint?: string | null
           documents_url?: string[] | null
           id?: string
           is_active?: boolean | null
+          late_cancellation_count?: number | null
           latitude?: number | null
           legal_name?: string | null
           logo_url?: string | null
           longitude?: number | null
           niu?: string | null
+          niu_verified?: boolean | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
             | null
@@ -343,7 +499,11 @@ export type Database = {
           rccm?: string | null
           sector?: string | null
           subscription_expires_at?: string | null
+          subscription_plan?: string | null
           subscription_tier?: string | null
+          total_missions_posted?: number | null
+          trial_ends_at?: string | null
+          trust_score?: number | null
           updated_at?: string | null
           user_id: string
           verification_rejection_reason?: string | null
@@ -354,6 +514,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          average_rating?: number | null
           city?: string | null
           company_name?: string
           company_size?: Database["public"]["Enums"]["company_size"] | null
@@ -362,14 +523,17 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string | null
           description?: string | null
+          device_fingerprint?: string | null
           documents_url?: string[] | null
           id?: string
           is_active?: boolean | null
+          late_cancellation_count?: number | null
           latitude?: number | null
           legal_name?: string | null
           logo_url?: string | null
           longitude?: number | null
           niu?: string | null
+          niu_verified?: boolean | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
             | null
@@ -378,7 +542,11 @@ export type Database = {
           rccm?: string | null
           sector?: string | null
           subscription_expires_at?: string | null
+          subscription_plan?: string | null
           subscription_tier?: string | null
+          total_missions_posted?: number | null
+          trial_ends_at?: string | null
+          trust_score?: number | null
           updated_at?: string | null
           user_id?: string
           verification_rejection_reason?: string | null
@@ -635,6 +803,7 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          is_direct_invite: boolean | null
           job_id: string
           match_score: number | null
           previous_rating: number | null
@@ -654,6 +823,7 @@ export type Database = {
           distance_km?: number | null
           has_worked_here_before?: boolean
           id?: string
+          is_direct_invite?: boolean | null
           job_id: string
           match_score?: number | null
           previous_rating?: number | null
@@ -673,6 +843,7 @@ export type Database = {
           distance_km?: number | null
           has_worked_here_before?: boolean
           id?: string
+          is_direct_invite?: boolean | null
           job_id?: string
           match_score?: number | null
           previous_rating?: number | null
@@ -772,6 +943,81 @@ export type Database = {
           },
         ]
       }
+      job_templates: {
+        Row: {
+          benefits: string[] | null
+          category_id: string | null
+          company_id: string
+          created_at: string | null
+          description: string | null
+          dress_code: string | null
+          end_time: string | null
+          id: string
+          provided_equipment: string[] | null
+          required_documents: string[] | null
+          required_equipment: string[] | null
+          required_skills: string[] | null
+          sandbox_level_required: number | null
+          special_instructions: string | null
+          start_time: string | null
+          template_name: string
+          title: string | null
+        }
+        Insert: {
+          benefits?: string[] | null
+          category_id?: string | null
+          company_id: string
+          created_at?: string | null
+          description?: string | null
+          dress_code?: string | null
+          end_time?: string | null
+          id?: string
+          provided_equipment?: string[] | null
+          required_documents?: string[] | null
+          required_equipment?: string[] | null
+          required_skills?: string[] | null
+          sandbox_level_required?: number | null
+          special_instructions?: string | null
+          start_time?: string | null
+          template_name: string
+          title?: string | null
+        }
+        Update: {
+          benefits?: string[] | null
+          category_id?: string | null
+          company_id?: string
+          created_at?: string | null
+          description?: string | null
+          dress_code?: string | null
+          end_time?: string | null
+          id?: string
+          provided_equipment?: string[] | null
+          required_documents?: string[] | null
+          required_equipment?: string[] | null
+          required_skills?: string[] | null
+          sandbox_level_required?: number | null
+          special_instructions?: string | null
+          start_time?: string | null
+          template_name?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "job_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           address: string
@@ -794,6 +1040,7 @@ export type Database = {
           is_recurring: boolean | null
           is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold: string | null
           latitude: number | null
           location_map_url: string | null
           location_photo_url: string | null
@@ -812,16 +1059,21 @@ export type Database = {
           recurring_days: number[] | null
           rejection_reason: string | null
           required_candidates_count: number
+          required_equipment: string[] | null
           required_skills: string[] | null
+          salary_locked: boolean | null
           salary_per_person_per_day: number | null
           sandbox_level_required: number
+          selection_deadline: string | null
           special_instructions: string | null
           start_date: string
           start_time: string
           status: Database["public"]["Enums"]["job_status"] | null
+          template_id: string | null
           title: string
           updated_at: string | null
           urgency: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee: number | null
         }
         Insert: {
           address: string
@@ -844,6 +1096,7 @@ export type Database = {
           is_recurring?: boolean | null
           is_sandbox?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold?: string | null
           latitude?: number | null
           location_map_url?: string | null
           location_photo_url?: string | null
@@ -862,16 +1115,21 @@ export type Database = {
           recurring_days?: number[] | null
           rejection_reason?: string | null
           required_candidates_count?: number
+          required_equipment?: string[] | null
           required_skills?: string[] | null
+          salary_locked?: boolean | null
           salary_per_person_per_day?: number | null
           sandbox_level_required?: number
+          selection_deadline?: string | null
           special_instructions?: string | null
           start_date: string
           start_time: string
           status?: Database["public"]["Enums"]["job_status"] | null
+          template_id?: string | null
           title: string
           updated_at?: string | null
           urgency?: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee?: number | null
         }
         Update: {
           address?: string
@@ -894,6 +1152,7 @@ export type Database = {
           is_recurring?: boolean | null
           is_sandbox?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold?: string | null
           latitude?: number | null
           location_map_url?: string | null
           location_photo_url?: string | null
@@ -912,16 +1171,21 @@ export type Database = {
           recurring_days?: number[] | null
           rejection_reason?: string | null
           required_candidates_count?: number
+          required_equipment?: string[] | null
           required_skills?: string[] | null
+          salary_locked?: boolean | null
           salary_per_person_per_day?: number | null
           sandbox_level_required?: number
+          selection_deadline?: string | null
           special_instructions?: string | null
           start_date?: string
           start_time?: string
           status?: Database["public"]["Enums"]["job_status"] | null
+          template_id?: string | null
           title?: string
           updated_at?: string | null
           urgency?: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee?: number | null
         }
         Relationships: [
           {
@@ -950,6 +1214,13 @@ export type Database = {
             columns: ["parent_job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "job_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1014,7 +1285,9 @@ export type Database = {
           arrival_longitude: number | null
           arrival_validated: boolean | null
           break_minutes: number | null
+          cancellation_penalty_applied: boolean | null
           cancellation_reason: string | null
+          cancelled_by: string | null
           candidate_id: string
           candidate_notes: string | null
           candidate_validation_code: string | null
@@ -1036,6 +1309,7 @@ export type Database = {
           status: Database["public"]["Enums"]["mission_status"] | null
           updated_at: string | null
           validated_at: string | null
+          validation_code_attempts: number | null
         }
         Insert: {
           actual_end_time?: string | null
@@ -1046,7 +1320,9 @@ export type Database = {
           arrival_longitude?: number | null
           arrival_validated?: boolean | null
           break_minutes?: number | null
+          cancellation_penalty_applied?: boolean | null
           cancellation_reason?: string | null
+          cancelled_by?: string | null
           candidate_id: string
           candidate_notes?: string | null
           candidate_validation_code?: string | null
@@ -1068,6 +1344,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["mission_status"] | null
           updated_at?: string | null
           validated_at?: string | null
+          validation_code_attempts?: number | null
         }
         Update: {
           actual_end_time?: string | null
@@ -1078,7 +1355,9 @@ export type Database = {
           arrival_longitude?: number | null
           arrival_validated?: boolean | null
           break_minutes?: number | null
+          cancellation_penalty_applied?: boolean | null
           cancellation_reason?: string | null
+          cancelled_by?: string | null
           candidate_id?: string
           candidate_notes?: string | null
           candidate_validation_code?: string | null
@@ -1100,6 +1379,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["mission_status"] | null
           updated_at?: string | null
           validated_at?: string | null
+          validation_code_attempts?: number | null
         }
         Relationships: [
           {
@@ -1536,6 +1816,7 @@ export type Database = {
           ban_expires_at: string | null
           ban_reason: string | null
           created_at: string | null
+          device_fingerprint: string | null
           email: string | null
           id: string
           is_active: boolean | null
@@ -1551,6 +1832,7 @@ export type Database = {
           ban_expires_at?: string | null
           ban_reason?: string | null
           created_at?: string | null
+          device_fingerprint?: string | null
           email?: string | null
           id: string
           is_active?: boolean | null
@@ -1566,6 +1848,7 @@ export type Database = {
           ban_expires_at?: string | null
           ban_reason?: string | null
           created_at?: string | null
+          device_fingerprint?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null

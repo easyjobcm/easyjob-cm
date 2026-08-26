@@ -149,10 +149,13 @@ export function OnboardingClient({
     setError("");
 
     try {
+      const { skills: _skills, ...profileFields } = formData;
       const { error: updateError } = await supabase
         .from("candidate_profiles")
         .update({
-          ...formData,
+          ...profileFields,
+          // omit empty string for enum column
+          gender: profileFields.gender || undefined,
           onboarding_step: nextStep,
           onboarding_status: nextStep > 4 ? "completed" : "in_progress",
         })

@@ -33,7 +33,14 @@ export default async function CandidateProfilePage() {
 
   const { data: candidateProfile } = await supabase
     .from("candidate_profiles")
-    .select("*")
+    .select(
+      `id, first_name, last_name, date_of_birth, average_rating, city, quartier,
+       address, latitude, longitude, max_travel_distance_km,
+       profile_photo_url, bio,
+       cni_front_url, cni_back_url, cni_selfie_url, momo_verified,
+       total_missions, completed_missions, sandbox_level,
+       profile_completion_pct, premium_until`,
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -72,6 +79,7 @@ export default async function CandidateProfilePage() {
               average_rating: candidateProfile.average_rating,
               city: candidateProfile.city,
               quartier: candidateProfile.quartier,
+              premium_until: candidateProfile.premium_until ?? null,
             }
           : null
       }

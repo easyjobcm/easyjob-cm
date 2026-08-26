@@ -355,6 +355,306 @@ export const fr = {
     logoutTitle: "Se déconnecter ?",
     logoutDesc: "Êtes-vous sûr de vouloir vous déconnecter ?",
     cancel: "Annuler",
+
+    // ── Statuts & Premium (candidat) ─────────────────────────
+    status: {
+      candidate: "Candidat",
+      candidatePremium: "Candidat Premium",
+      company: "Entreprise",
+      companyPremium: "Entreprise Premium",
+      new: "Nouveau",
+    },
+    premium: {
+      sectionTitle: "Mon avantage Premium",
+      activeBadge: "Premium actif",
+      expiresOn: "Expire le {date}",
+      renewSoon: "Renouvellement imminent",
+      benefits: {
+        fastPayment: {
+          title: "Paiement accéléré",
+          desc4Stars:
+            "100 % en 48h dès que votre note dépasse 4★. Sinon 50 % immédiat + 50 % sous 7 jours.",
+          descDefault: "50 % immédiat + 50 % sous 7 jours.",
+        },
+        priority: {
+          title: "Priorité dans les candidatures",
+          desc: "Votre profil remonte en premier auprès des entreprises.",
+        },
+        exclusive: {
+          title: "Offres exclusives",
+          desc: "Accédez aux missions réservées aux candidats Premium.",
+        },
+      },
+    },
+    upgradePremium: {
+      title: "Passez à Premium",
+      tagline: "Multipliez vos chances. Soyez payé plus vite.",
+      price: "1 000 FCFA",
+      pricePeriod: "/ mois",
+      ctaPrimary: "Devenir Premium",
+      ctaSecondary: "Voir les avantages",
+      socialProof: "Rejoint par 1 200+ candidats déjà Premium",
+      bullets: {
+        fastPayment: "Payé en 48h au lieu de 7 jours",
+        priority: "Priorité sur toutes les candidatures",
+        exclusive: "Accès aux offres exclusives Premium",
+      },
+      microCommitment: "Sans engagement · Annulable à tout moment",
+    },
+    paymentDelay: {
+      title: "Délai de paiement",
+      standard: "7 jours après la mission",
+      premiumFast: "100 % en 48 h",
+      premiumSplit: "50 % immédiat + 50 % sous 7 j",
+      improveCta: "Améliorez votre note pour passer à 48 h",
+    },
+
+    // ── Statuts & Plans (entreprise) ─────────────────────────
+    plan: {
+      free: "Gratuit",
+      starter: "Starter",
+      pro: "Pro",
+      business: "Business",
+      currentPlan: "Plan actuel",
+      expiresOn: "Expire le {date}",
+      renews: "Renouvellement le {date}",
+      prioritySupport: "Support prioritaire 24/7",
+      features: {
+        title: "Mon plan",
+        jobsLimitFree: "2 offres actives maximum",
+        jobsLimitStarter: "5 offres actives",
+        jobsLimitPro: "Offres illimitées",
+        jobsLimitBusiness: "Offres illimitées",
+        urgentPaid: "Options urgentes payantes",
+        urgentFree: "Options urgentes incluses",
+        aiRecoOff: "Pas de recommandations IA",
+        aiRecoOn: "Recommandations IA d'anciens travailleurs",
+        reportingOff: "Pas de reporting",
+        reportingBasic: "Reporting basique",
+        reportingAdvanced: "Reporting avancé",
+        editOff: "Modification limitée — contactez le support",
+        editOn: "Modification directe des offres actives",
+      },
+    },
+    activeJobs: {
+      title: "Mes offres publiées",
+      used: "{used} publiée(s) sur {total} disponibles",
+      unlimited: "Offres illimitées",
+      full: "Quota atteint. Passez au plan supérieur pour publier plus.",
+    },
+    premiumCompanyBenefits: {
+      sectionTitle: "Mes avantages",
+      expiresOn: "Expire le {date}",
+      // ── Plan Free (5 avantages) ──
+      jobsUnlimited: {
+        title: "Offres illimitées",
+        desc: "Publiez autant d'offres que vous voulez, 24h/7j.",
+      },
+      serviceFee10: {
+        title: "Frais de service 10%",
+        desc: "Commission transparente, pas de frais cachés.",
+      },
+      urgentPaid: {
+        title: "Option urgente disponible",
+        desc: "Boostez une offre pour 2 000 FCFA quand vous en avez besoin.",
+      },
+      securePayment: {
+        title: "Paiement sécurisé",
+        desc: "Vos paiements sont bloqués jusqu'à validation de la mission.",
+      },
+      historyAccess: {
+        title: "Historique complet",
+        desc: "Accédez à toutes vos missions passées et factures.",
+      },
+      // ── Plan Starter (4 avantages propres) ──
+      reducedFee: {
+        title: "Frais de service réduits 8%",
+        desc: "Économisez 2% sur chaque mission par rapport au Gratuit.",
+      },
+      urgentReduced: {
+        title: "Option urgente réduite",
+        desc: "1 000 FCFA au lieu de 2 000 FCFA pour booster vos offres.",
+      },
+      visibility: {
+        title: "Visibilité accrue",
+        desc: "Vos offres apparaissent en priorité dans les recherches.",
+      },
+      standardSupport: {
+        title: "Support standard 48h",
+        desc: "Une équipe disponible pour vous accompagner sous 48h.",
+      },
+      // ── Plan Pro (10 avantages) ──
+      zeroFee: {
+        title: "0% de frais de service",
+        desc: "Aucune commission sur vos missions, votre abonnement couvre tout.",
+      },
+      freeUrgent: {
+        title: "Options urgentes illimitées",
+        desc: "Boostez toutes vos offres sans frais supplémentaires.",
+      },
+      aiMatch: {
+        title: "IA Talent Match",
+        desc: "L'IA pré-sélectionne les meilleurs profils pour chacune de vos offres.",
+      },
+      favorites: {
+        title: "Liste de favoris",
+        desc: "Sauvegardez vos meilleurs candidats pour les retrouver rapidement.",
+      },
+      directInvite: {
+        title: "Invitation directe",
+        desc: "Invitez vos favoris sur une mission sans passer par la candidature publique.",
+      },
+      templates: {
+        title: "Modèles d'offres",
+        desc: "Créez et réutilisez vos modèles pour publier en 30 secondes.",
+      },
+      monthlyReport: {
+        title: "Rapport mensuel",
+        desc: "Suivez vos KPI : temps de remplissage, no-show, satisfaction.",
+      },
+      pdfExport: {
+        title: "Export PDF / Excel",
+        desc: "Téléchargez vos données et factures pour votre comptabilité.",
+      },
+      directEdit: {
+        title: "Modification directe",
+        desc: "Éditez vos offres publiées à tout moment, sans support.",
+      },
+      trialFree: {
+        title: "7 jours d'essai gratuits",
+        desc: "Testez le plan sans engagement, annulez à tout moment.",
+      },
+      // ── Plan Business (10 avantages) ──
+      guaranteedReplacement: {
+        title: "Remplacement garanti",
+        desc: "En cas de no-show, nous remplaçons le candidat sous 2h.",
+      },
+      bulkHiring: {
+        title: "Recrutement en masse",
+        desc: "Embauchez 10+ candidats en une seule action.",
+      },
+      priorityInvite: {
+        title: "Invitations prioritaires",
+        desc: "Vos invitations apparaissent en tête des notifications candidats.",
+      },
+      availabilityAlerts: {
+        title: "Alertes disponibilité",
+        desc: "Soyez prévenu dès qu'un candidat de votre liste est disponible.",
+      },
+      presenceDashboard: {
+        title: "Tableau de présence",
+        desc: "Visualisez en temps réel qui est présent sur vos missions.",
+      },
+      sectorContracts: {
+        title: "Contrats sectoriels",
+        desc: "Modèles juridiques validés par secteur (BTP, événementiel, etc.).",
+      },
+      advancedReporting: {
+        title: "Reporting avancé",
+        desc: "Analytics multi-dimensionnels et comparaisons inter-équipes.",
+      },
+      dedicatedManager: {
+        title: "Account Manager dédié",
+        desc: "Un interlocuteur unique, SLA 4h, suivi stratégique mensuel.",
+      },
+      prioritySLA: {
+        title: "SLA prioritaire",
+        desc: "Support 24/7, traitement de vos tickets sous 1h.",
+      },
+      immediateModeration: {
+        title: "Modération immédiate",
+        desc: "Vos offres sont validées en moins de 30 minutes.",
+      },
+      // ── Pénalités d'annulation ──
+      cancellationPenalty: {
+        label: "Annulation tardive :",
+        freeStarter:
+          "vous récupérez 50% du montant bloqué. 25% pour les candidats premium, 25% pour EasyJob.",
+        pro: "vous récupérez 75% du montant bloqué. 25% pour les candidats premium.",
+        business:
+          "vous récupérez 100% du montant bloqué. Aucune pénalité — remplacement garanti.",
+      },
+    },
+    upgradeBanner: {
+      title: "Vos concurrents recrutent plus vite",
+      tagline:
+        "0% de frais. L'IA sélectionne pour vous. Essai gratuit 7 jours.",
+      taglineStarter:
+        "Arrêtez de payer des frais. Passez au Pro — 7 jours offerts.",
+      // Labels courts dans les lignes de plan
+      starter: "Starter",
+      starterKicker:
+        "Frais réduits à 8% · Urgentes à 1 000 FCFA · Visibilité accrue",
+      pro: "Pro",
+      proKicker:
+        "0% de frais · IA qui sélectionne · Favoris · Modèles · Rapport",
+      business: "Business",
+      businessKicker:
+        "7j offerts · Remplacement en 2h garanti · Manager dédié · SLA <30 min",
+      // Badges & CTA
+      recommended: "Recommandé",
+      trialBadge: "7j gratuits",
+      ctaTrial: "Essayer Pro — 7 jours gratuits",
+      cta: "Voir les plans",
+      businessCta: "En savoir plus sur Business",
+    },
+
+    // ── Showcase Premium Entreprise ─────────────────────────
+    premiumCompany: {
+      sectionLabel: "Votre avantage stratégique",
+      headlineStarter: "Recrutez plus vite. Sans limite.",
+      headlinePro: "L'IA recrute pour vous.",
+      headlineBusiness: "Le sur-mesure pour les grandes équipes.",
+      taglineStarter:
+        "5 offres simultanées, options urgentes incluses, modification directe.",
+      taglinePro:
+        "Offres illimitées, IA qui recommande vos meilleurs candidats, reporting.",
+      taglineBusiness:
+        "Account manager dédié, SLA garanti, branding, multi-utilisateurs, reporting avancé.",
+      metrics: {
+        timeToHire: { value: "−45%", label: "Temps de recrutement" },
+        compliance: { value: "100%", label: "Conformité contractuelle" },
+        retention: { value: "×2", label: "Rétention talents fiables" },
+      },
+      pillars: {
+        control: {
+          title: "Contrôle total",
+          desc: "Modification instantanée de vos offres actives, sans passer par le support.",
+        },
+        security: {
+          title: "Sécurité renforcée",
+          desc: "Candidats vérifiés CNI prioritaires + contrats signés et archivés.",
+        },
+        aiTalent: {
+          title: "IA Talent Match",
+          desc: "Recommandations intelligentes basées sur vos anciens travailleurs performants.",
+        },
+        priorityPool: {
+          title: "Pool de talents prioritaire",
+          desc: "Vos offres remontent en premier auprès des candidats Premium et notés 4★+.",
+        },
+        reporting: {
+          title: "Reporting & Analytics",
+          desc: "Suivez vos KPI temps réel : taux de remplissage, no-show, satisfaction.",
+        },
+        accountManager: {
+          title: "Account Manager dédié",
+          desc: "Un interlocuteur unique, SLA 4h, accompagnement stratégique mensuel.",
+        },
+        branding: {
+          title: "Branding entreprise",
+          desc: "Vos offres avec votre logo, vos couleurs, votre voix.",
+        },
+        team: {
+          title: "Comptes multi-utilisateurs",
+          desc: "Donnez accès à toute votre équipe RH avec des permissions granulaires.",
+        },
+      },
+      socialProof:
+        "12 grandes entreprises camerounaises nous font déjà confiance",
+      manageButton: "Gérer mon abonnement",
+      upgradePlan: "Évoluer vers {plan}",
+    },
   },
 
   // Days
