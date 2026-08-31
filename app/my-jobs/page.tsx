@@ -20,6 +20,7 @@ import Link from "next/link";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
+import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
 
 type TabType = "applied" | "booked" | "completed";
 
@@ -134,6 +135,8 @@ export default function MyJobsPage() {
   const { locale } = useTranslation();
   const [activeTab, setActiveTab] = React.useState<TabType>("applied");
   const { data, isLoading } = useSWR("/api/my-jobs", fetcher);
+
+  useRealtimeCandidateSync("/api/my-jobs");
 
   const tabs: { id: TabType; label: string; labelEn: string }[] = [
     { id: "applied", label: "Candidatures", labelEn: "Applied" },
