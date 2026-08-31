@@ -32,7 +32,12 @@ export function AppShell({
 
   return (
     <div className={cn("flex min-h-screen flex-col bg-background", className)}>
-      <main className={cn("flex-1", resolvedShowNav && "pb-20")}>
+      <main
+        className={cn(
+          "flex-1",
+          resolvedShowNav && "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+        )}
+      >
         {children}
       </main>
       {resolvedShowNav && <BottomNav userRole={userRole} />}

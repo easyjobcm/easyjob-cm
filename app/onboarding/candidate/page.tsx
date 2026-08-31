@@ -46,9 +46,9 @@ export default async function CandidateOnboardingPage() {
     profile = newProfile;
   }
 
-  // If onboarding is already completed, redirect to dashboard
+  // If onboarding is already completed, redirect to the Offres tab
   if (profile?.onboarding_status === "completed") {
-    redirect("/dashboard");
+    redirect("/jobs");
   }
 
   // Get job categories for skills selection

@@ -139,6 +139,36 @@ Le workflow `.github/workflows/ci.yml` execute:
 
 Cela garantit qu'un merge ne casse pas l'app.
 
+## 8. Hooks Git (Husky)
+
+Les hooks Git sont geres par Husky et lint-staged. Ils sont installes
+automatiquement via le script `prepare` lors de `pnpm install`.
+
+Activation manuelle si besoin:
+
+```powershell
+pnpm install
+pnpm exec husky
+```
+
+Ce qui est execute:
+
+- **pre-commit**: `lint-staged` (ESLint + Prettier) uniquement sur les fichiers
+  modifies. Rapide, pas de build.
+- **pre-push**: `pnpm exec tsc --noEmit`, `pnpm exec eslint . --max-warnings=0`,
+  `pnpm exec prettier --check .`. Memes controles que la CI.
+
+Lancer manuellement les memes verifications:
+
+```powershell
+pnpm exec lint-staged        # controles pre-commit
+pnpm typecheck               # tsc --noEmit
+pnpm lint                    # eslint
+pnpm exec prettier --check . # format
+```
+
+Ne jamais contourner un echec avec `--no-verify`.
+
 ## Notes utiles
 
 - Ne jamais commiter `.env.local`.
