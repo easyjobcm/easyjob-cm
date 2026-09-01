@@ -4,6 +4,8 @@ import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/hooks/use-theme";
 import { SplashScreen } from "@/components/ui/splash-screen";
+import { PageTransition } from "@/components/layout/page-transition";
+import { CandidateTabBar } from "@/components/layout/candidate-tab-bar";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -92,7 +94,8 @@ export default function RootLayout({
         <ThemeProvider>
           <I18nProvider>
             <SplashScreen />
-            {children}
+            <PageTransition>{children}</PageTransition>
+            <CandidateTabBar />
           </I18nProvider>
         </ThemeProvider>
       </body>

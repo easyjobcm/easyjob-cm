@@ -135,7 +135,7 @@ export function CandidateProfileClient({
     : "bg-linear-to-br from-[#1F2937] via-[#374151] to-[#4B5563]";
 
   return (
-    <AppShell hideNav>
+    <AppShell>
       <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0D0618]">
         {/* ── HERO ────────────────────────────────────────────── */}
         <div className="relative overflow-hidden pb-10 pt-safe-top">

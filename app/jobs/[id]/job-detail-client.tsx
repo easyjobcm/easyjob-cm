@@ -452,7 +452,7 @@ export function JobDetailClient({
             variant="outline"
             className="w-full"
             size="lg"
-            onClick={() => router.push("/dashboard/applications")}
+            onClick={() => router.push("/my-jobs")}
           >
             {locale === "fr" ? "Voir mes candidatures" : "View my applications"}
           </Button>

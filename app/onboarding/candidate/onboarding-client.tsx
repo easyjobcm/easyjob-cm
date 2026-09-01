@@ -188,7 +188,7 @@ export function OnboardingClient({
       }
 
       if (nextStep > 4) {
-        router.push("/dashboard");
+        router.push("/jobs");
       } else {
         setCurrentStep(nextStep);
       }
