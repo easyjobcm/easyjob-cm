@@ -122,8 +122,15 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 bg-card/80 backdrop-blur-xl safe-area-bottom">
       <div className="mx-auto flex h-16 max-w-lg items-center justify-around px-2">
         {navItems.map((item) => {
+          const isProfileTab = item.href === "/profile";
           const isActive =
-            pathname === item.href || pathname?.startsWith(`${item.href}/`);
+            pathname === item.href ||
+            pathname?.startsWith(`${item.href}/`) ||
+            (isProfileTab &&
+              (pathname?.startsWith("/help") ||
+                pathname?.startsWith("/terms") ||
+                pathname?.startsWith("/privacy") ||
+                pathname?.startsWith("/upgrade")));
           const Icon = item.icon;
 
           // Special styling for the "Post" button in company nav
@@ -147,6 +154,7 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "group flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-all",
                 isActive ? "text-primary" : "text-muted-foreground",

@@ -3,15 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Star, Edit2 } from "lucide-react";
+import { MapPin, Star, Edit2, ShieldAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
-import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
+import { ProfileCompletionWidget } from "@/components/profile/profile-completion-widget";
 import { ProfileMenu } from "@/components/profile/profile-menu";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { PremiumBadge } from "@/components/candidate/profile/premium-badge";
 import { PremiumBanner } from "@/components/candidate/profile/premium-banner";
 import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
@@ -20,6 +21,26 @@ import { SANDBOX_LEVELS, type Criterion } from "@/lib/utils/profile-completion";
 import { isCandidatePremium } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
+
+// Ordre d'affichage lundi→dimanche du résumé de disponibilité ; value =
+// day_of_week Postgres (0=dimanche), même convention que /profile/availability.
+type WeekDayKey =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+const WEEK_DAY_ORDER: { value: number; key: WeekDayKey }[] = [
+  { value: 1, key: "monday" },
+  { value: 2, key: "tuesday" },
+  { value: 3, key: "wednesday" },
+  { value: 4, key: "thursday" },
+  { value: 5, key: "friday" },
+  { value: 6, key: "saturday" },
+  { value: 0, key: "sunday" },
+];
 
 interface CandidateProfileClientProps {
   user: {
@@ -34,11 +55,18 @@ interface CandidateProfileClientProps {
     city?: string | null;
     quartier?: string | null;
     premium_until?: string | null;
+    profile_photo_url?: string | null;
+    cni_verified?: "pending" | "verified" | "rejected" | null;
+    cni_front_url?: string | null;
+    cni_back_url?: string | null;
+    cni_selfie_url?: string | null;
   } | null;
   skills: Array<{ id: string; skill_name: string }>;
   completionPct: number;
   sandboxLevel: number;
   criteria: Criterion[];
+  availableDays: number[];
+  onboardingStatus: string | null;
   totalMissions: number;
 }
 
@@ -81,12 +109,33 @@ export function CandidateProfileClient({
   skills,
   completionPct,
   sandboxLevel,
-  criteria: _criteria,
+  criteria,
+  availableDays,
+  onboardingStatus,
   totalMissions,
 }: CandidateProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const premium = isCandidatePremium(user.role);
+  const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
+
+  // Le chemin stocké en base pointe vers un bucket privé : on échange contre
+  // une URL signée à courte durée via l'API déjà utilisée par la page d'édition.
+  React.useEffect(() => {
+    if (!profile?.profile_photo_url) return;
+    let cancelled = false;
+    fetch("/api/profile/documents?field=profile_photo_url")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) setPhotoUrl(data.url);
+      })
+      .catch(() => {
+        // Silencieux : l'avatar retombe sur les initiales.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.profile_photo_url]);
 
   const currentLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
   const sandboxNames = t.profile.completion.sandbox;
@@ -196,6 +245,7 @@ export function CandidateProfileClient({
               transition={{ delay: 0.1 }}
               className="flex items-center gap-2"
             >
+              <NotificationBell className="text-white" />
               <LangSwitch variant="light" />
               <ThemeToggle variant="light" />
               <Link
@@ -213,7 +263,7 @@ export function CandidateProfileClient({
           </div>
 
           {/* Avatar + glow premium */}
-          <div className="relative z-10 flex flex-col items-center gap-6 px-4 pt-4">
+          <div className="z-10 flex flex-col items-center gap-6 px-4 pt-4">
             <div className="relative">
               {premium && (
                 <motion.div
@@ -231,13 +281,14 @@ export function CandidateProfileClient({
               <div className="relative">
                 <ProfileAvatar3D
                   initial={initial}
+                  photoUrl={photoUrl}
                   sandboxBadge={sandboxBadge}
                   size={100}
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col items-center gap-2 text-center">
+            <div className="relative mt-4 flex flex-col items-center gap-2 text-center">
               {/* Pill statut uniquement pour Premium — pour Standard,
                   le badge Sandbox est déjà visible sur l'avatar 3D. */}
               {premium && (
@@ -329,60 +380,117 @@ export function CandidateProfileClient({
 
         {/* ── CONTENT ─────────────────────────────────────────── */}
         <div className="space-y-5 px-4 pb-10 pt-6">
+          {" "}
+          {profile?.cni_verified === "pending" &&
+            (profile.cni_front_url ||
+              profile.cni_back_url ||
+              profile.cni_selfie_url) && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+              >
+                <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    {t.profile.reverification.bannerTitle}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-500/80">
+                    {t.profile.reverification.bannerBody}
+                  </p>
+                </div>
+              </motion.div>
+            )}{" "}
           {/* Completion ring */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="overflow-hidden border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-              <CardContent className="flex flex-col items-center gap-2 p-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                  {t.profile.completion.title}
-                </p>
-                <ProfileCompletionRing
-                  pct={completionPct}
-                  label={t.profile.completion.progress}
-                  ctaLabel={
-                    completionPct < 100 ? t.profile.completion.cta : undefined
-                  }
-                  onCta={() => router.push("/onboarding/candidate")}
-                />
-                {completionPct < 60 && (
-                  <p className="text-center text-xs text-amber-500 dark:text-amber-400">
-                    {t.profile.completion.required60}
+            <ProfileCompletionWidget
+              role={user.role}
+              completionPct={completionPct}
+              criteria={criteria}
+              sandboxLevel={sandboxLevel}
+              onboardingStatus={onboardingStatus}
+            />
+          </motion.div>
+          {/* Disponibilité */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                    {t.profile.availability}
+                  </h3>
+                  <Link
+                    href="/profile/availability"
+                    className="text-xs font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.availabilityEdit}
+                  </Link>
+                </div>
+                {availableDays.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t.profile.availabilityPage.summaryEmpty}
                   </p>
+                ) : (
+                  <div className="flex gap-1.5">
+                    {WEEK_DAY_ORDER.map(({ value, key }) => {
+                      const isAvailable = availableDays.includes(value);
+                      return (
+                        <span
+                          key={value}
+                          aria-label={t.profile.availabilityPage.days[key]}
+                          title={t.profile.availabilityPage.days[key]}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
+                            isAvailable
+                              ? "bg-[#7C3AED] text-white"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {t.profile.availabilityPage.daysShort[key]}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Différenciation Premium ↔ Standard */}
-          {premium ? (
-            <PremiumBenefits
-              averageRating={averageRating}
-              premiumUntil={profile?.premium_until ?? null}
-              locale={locale}
-            />
-          ) : (
-            <PremiumBanner />
-          )}
-
-          {/* Délai de paiement (contenu adapté au statut) */}
-          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
-
           {/* Skills */}
-          {skills.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-                <CardContent className="p-4">
-                  <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
                     {t.profile.mySkills}
                   </h3>
+                  {skills.length > 0 && (
+                    <Link
+                      href="/profile/candidate/edit?focus=skills"
+                      className="text-xs font-medium text-[#7C3AED]"
+                    >
+                      {t.profile.availabilityEdit}
+                    </Link>
+                  )}
+                </div>
+                {skills.length === 0 ? (
+                  <Link
+                    href="/profile/candidate/edit"
+                    className="inline-flex h-10 items-center rounded-full bg-[#7C3AED]/10 px-4 text-sm font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.edit.addSkills}
+                  </Link>
+                ) : (
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill, i) => (
                       <motion.div
@@ -400,39 +508,54 @@ export function CandidateProfileClient({
                       </motion.div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
           {/* Location */}
-          {(profile?.city || profile?.quartier) && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-            >
-              <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED]/10 dark:bg-[#7C3AED]/20">
-                      <MapPin className="h-5 w-5 text-[#7C3AED]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {profile.quartier ? `${profile.quartier}, ` : ""}
-                        {profile.city}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {t.profile.locationLabel}
-                      </p>
-                    </div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED]/10 dark:bg-[#7C3AED]/20">
+                    <MapPin className="h-5 w-5 text-[#7C3AED]" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground">
+                      {profile?.city || profile?.quartier
+                        ? `${profile?.quartier ? `${profile.quartier}, ` : ""}${profile?.city ?? ""}`
+                        : t.profile.completion.todo}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {t.profile.locationLabel}
+                    </p>
+                  </div>
+                  <Link
+                    href="/profile/candidate/edit?focus=location"
+                    className="shrink-0 text-xs font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.availabilityEdit}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          {/* Délai de paiement (contenu adapté au statut) */}
+          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
+          {/* Différenciation Premium ↔ Standard */}
+          {premium ? (
+            <PremiumBenefits
+              averageRating={averageRating}
+              premiumUntil={profile?.premium_until ?? null}
+              locale={locale}
+            />
+          ) : (
+            <PremiumBanner />
           )}
-
           {/* Menu */}
           <ProfileMenu isCandidate />
         </div>
