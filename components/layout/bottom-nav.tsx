@@ -147,6 +147,7 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "group flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-all",
                 isActive ? "text-primary" : "text-muted-foreground",

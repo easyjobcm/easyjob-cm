@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
-import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
+import { ProfileCompletionWidget } from "@/components/profile/profile-completion-widget";
 import { ProfileMenu } from "@/components/profile/profile-menu";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { PremiumBadge } from "@/components/candidate/profile/premium-badge";
 import { PremiumBanner } from "@/components/candidate/profile/premium-banner";
 import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
@@ -20,6 +21,26 @@ import { SANDBOX_LEVELS, type Criterion } from "@/lib/utils/profile-completion";
 import { isCandidatePremium } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
+
+// Ordre d'affichage lundi→dimanche du résumé de disponibilité ; value =
+// day_of_week Postgres (0=dimanche), même convention que /profile/availability.
+type WeekDayKey =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+const WEEK_DAY_ORDER: { value: number; key: WeekDayKey }[] = [
+  { value: 1, key: "monday" },
+  { value: 2, key: "tuesday" },
+  { value: 3, key: "wednesday" },
+  { value: 4, key: "thursday" },
+  { value: 5, key: "friday" },
+  { value: 6, key: "saturday" },
+  { value: 0, key: "sunday" },
+];
 
 interface CandidateProfileClientProps {
   user: {
@@ -39,6 +60,7 @@ interface CandidateProfileClientProps {
   completionPct: number;
   sandboxLevel: number;
   criteria: Criterion[];
+  availableDays: number[];
   totalMissions: number;
 }
 
@@ -81,7 +103,8 @@ export function CandidateProfileClient({
   skills,
   completionPct,
   sandboxLevel,
-  criteria: _criteria,
+  criteria,
+  availableDays,
   totalMissions,
 }: CandidateProfileClientProps) {
   const { t, locale } = useI18n();
@@ -196,6 +219,7 @@ export function CandidateProfileClient({
               transition={{ delay: 0.1 }}
               className="flex items-center gap-2"
             >
+              <NotificationBell className="text-white" />
               <LangSwitch variant="light" />
               <ThemeToggle variant="light" />
               <Link
@@ -213,7 +237,7 @@ export function CandidateProfileClient({
           </div>
 
           {/* Avatar + glow premium */}
-          <div className="relative z-10 flex flex-col items-center gap-6 px-4 pt-4">
+          <div className="z-10 flex flex-col items-center gap-6 px-4 pt-4">
             <div className="relative">
               {premium && (
                 <motion.div
@@ -237,7 +261,7 @@ export function CandidateProfileClient({
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col items-center gap-2 text-center">
+            <div className="relative mt-4 flex flex-col items-center gap-2 text-center">
               {/* Pill statut uniquement pour Premium — pour Standard,
                   le badge Sandbox est déjà visible sur l'avatar 3D. */}
               {premium && (
@@ -335,54 +359,81 @@ export function CandidateProfileClient({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="overflow-hidden border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-              <CardContent className="flex flex-col items-center gap-2 p-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                  {t.profile.completion.title}
-                </p>
-                <ProfileCompletionRing
-                  pct={completionPct}
-                  label={t.profile.completion.progress}
-                  ctaLabel={
-                    completionPct < 100 ? t.profile.completion.cta : undefined
-                  }
-                  onCta={() => router.push("/onboarding/candidate")}
-                />
-                {completionPct < 60 && (
-                  <p className="text-center text-xs text-amber-500 dark:text-amber-400">
-                    {t.profile.completion.required60}
+            <ProfileCompletionWidget
+              role={user.role}
+              completionPct={completionPct}
+              criteria={criteria}
+              sandboxLevel={sandboxLevel}
+            />
+          </motion.div>
+
+          {/* Disponibilité */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                    {t.profile.availability}
+                  </h3>
+                  <Link
+                    href="/profile/availability"
+                    className="text-xs font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.availabilityEdit}
+                  </Link>
+                </div>
+                {availableDays.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t.profile.availabilityPage.summaryEmpty}
                   </p>
+                ) : (
+                  <div className="flex gap-1.5">
+                    {WEEK_DAY_ORDER.map(({ value, key }) => {
+                      const isAvailable = availableDays.includes(value);
+                      return (
+                        <span
+                          key={value}
+                          aria-label={t.profile.availabilityPage.days[key]}
+                          title={t.profile.availabilityPage.days[key]}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
+                            isAvailable
+                              ? "bg-[#7C3AED] text-white"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {t.profile.availabilityPage.daysShort[key]}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Différenciation Premium ↔ Standard */}
-          {premium ? (
-            <PremiumBenefits
-              averageRating={averageRating}
-              premiumUntil={profile?.premium_until ?? null}
-              locale={locale}
-            />
-          ) : (
-            <PremiumBanner />
-          )}
-
-          {/* Délai de paiement (contenu adapté au statut) */}
-          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
-
           {/* Skills */}
-          {skills.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-                <CardContent className="p-4">
-                  <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                    {t.profile.mySkills}
-                  </h3>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                  {t.profile.mySkills}
+                </h3>
+                {skills.length === 0 ? (
+                  <Link
+                    href="/profile/candidate/edit"
+                    className="inline-flex h-10 items-center rounded-full bg-[#7C3AED]/10 px-4 text-sm font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.edit.addSkills}
+                  </Link>
+                ) : (
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill, i) => (
                       <motion.div
@@ -400,10 +451,10 @@ export function CandidateProfileClient({
                       </motion.div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Location */}
           {(profile?.city || profile?.quartier) && (
@@ -431,6 +482,20 @@ export function CandidateProfileClient({
                 </CardContent>
               </Card>
             </motion.div>
+          )}
+
+          {/* Délai de paiement (contenu adapté au statut) */}
+          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
+
+          {/* Différenciation Premium ↔ Standard */}
+          {premium ? (
+            <PremiumBenefits
+              averageRating={averageRating}
+              premiumUntil={profile?.premium_until ?? null}
+              locale={locale}
+            />
+          ) : (
+            <PremiumBanner />
           )}
 
           {/* Menu */}

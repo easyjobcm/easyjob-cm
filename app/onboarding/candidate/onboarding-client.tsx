@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import {
+  CAMEROON_CITIES,
+  COMMON_SKILLS,
+} from "@/lib/utils/candidate-constants";
 import {
   User,
   MapPin,
@@ -17,6 +22,7 @@ import {
   CheckCircle,
   ChevronRight,
   ChevronLeft,
+  LocateFixed,
 } from "lucide-react";
 
 const MAX_BIRTH_DATE = (() => {
@@ -38,6 +44,8 @@ interface OnboardingClientProps {
     date_of_birth?: string;
     city?: string;
     quartier?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     momo_provider?: string;
     momo_number?: string;
   } | null;
@@ -65,48 +73,13 @@ const STEPS = [
   },
 ];
 
-const CAMEROON_CITIES = [
-  "Douala",
-  "Yaounde",
-  "Bafoussam",
-  "Bamenda",
-  "Garoua",
-  "Maroua",
-  "Ngaoundere",
-  "Bertoua",
-  "Limbe",
-  "Kribi",
-  "Buea",
-  "Ebolowa",
-  "Nkongsamba",
-  "Edea",
-];
-
-const COMMON_SKILLS = [
-  "Service client",
-  "Vente",
-  "Restauration",
-  "Caisse",
-  "Manutention",
-  "Conduite moto",
-  "Conduite voiture",
-  "Securite",
-  "Nettoyage",
-  "Cuisine",
-  "Hotesse accueil",
-  "Evenementiel",
-  "Informatique",
-  "Anglais",
-  "Francais",
-];
-
 export function OnboardingClient({
   user,
   profile,
   categories: _categories,
 }: OnboardingClientProps) {
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const supabase = createClient();
 
   const [currentStep, setCurrentStep] = React.useState(
@@ -123,6 +96,8 @@ export function OnboardingClient({
     date_of_birth: profile?.date_of_birth || "",
     city: profile?.city || "",
     quartier: profile?.quartier || "",
+    latitude: profile?.latitude ?? null,
+    longitude: profile?.longitude ?? null,
     skills: [] as string[],
     momo_provider: profile?.momo_provider || "",
     momo_number: profile?.momo_number || "",
@@ -134,6 +109,11 @@ export function OnboardingClient({
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
+    updateFormData("latitude", coords.latitude);
+    updateFormData("longitude", coords.longitude);
+  });
 
   const toggleSkill = (skill: string) => {
     setFormData((prev) => ({
@@ -370,6 +350,39 @@ export function OnboardingClient({
                     : "Ex: Bonanjo, Akwa..."
                 }
               />
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground">
+                {t.profile.geolocation.explain}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full"
+                onClick={requestLocation}
+                disabled={geoStatus === "loading"}
+              >
+                <LocateFixed className="mr-2 h-4 w-4" />
+                {geoStatus === "loading"
+                  ? t.profile.geolocation.locating
+                  : t.profile.geolocation.useMyLocation}
+              </Button>
+              {geoStatus === "success" && (
+                <p className="mt-2 text-sm text-primary">
+                  {t.profile.geolocation.success}
+                </p>
+              )}
+              {geoStatus === "denied" && (
+                <p className="mt-2 text-sm text-amber-600">
+                  {t.profile.geolocation.denied}
+                </p>
+              )}
+              {geoStatus === "unavailable" && (
+                <p className="mt-2 text-sm text-amber-600">
+                  {t.profile.geolocation.unavailable}
+                </p>
+              )}
             </div>
           </div>
         );

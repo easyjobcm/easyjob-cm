@@ -51,7 +51,15 @@ export default async function CandidateProfilePage() {
         .eq("candidate_id", candidateProfile.id)
     : { data: [] };
 
+  const { data: candidateAvailability } = candidateProfile
+    ? await supabase
+        .from("candidate_availability")
+        .select("day_of_week")
+        .eq("candidate_id", candidateProfile.id)
+    : { data: [] };
+
   const skills = candidateSkills ?? [];
+  const availableDays = (candidateAvailability ?? []).map((a) => a.day_of_week);
   const sandboxLevel = candidateProfile?.sandbox_level ?? 0;
   const criteria = computeCandidateCriteria(
     candidateProfile ?? {},
@@ -87,6 +95,7 @@ export default async function CandidateProfilePage() {
       completionPct={completionPct}
       sandboxLevel={sandboxLevel}
       criteria={criteria}
+      availableDays={availableDays}
       totalMissions={candidateProfile?.total_missions ?? 0}
     />
   );

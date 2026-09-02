@@ -7,12 +7,12 @@ import { motion } from "framer-motion";
 import {
   Clock,
   CreditCard,
-  Bell,
   Shield,
   HelpCircle,
   FileText,
   LogOut,
   ChevronRight,
+  Edit2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import packageJson from "@/package.json";
 
 interface ProfileMenuProps {
   isCandidate: boolean;
@@ -68,7 +69,7 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
             {isCandidate &&
               menuItem("/profile/availability", Clock, t.profile.availability)}
             {menuItem("/profile/payment", CreditCard, t.profile.mobileMoney)}
-            {menuItem("/profile/notifications", Bell, t.profile.notifications)}
+            {menuItem("/profile/candidate/edit", Edit2, t.profile.editProfile)}
             {menuItem("/profile/security", Shield, t.profile.security)}
           </CardContent>
         </Card>
@@ -98,7 +99,7 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
       </Button>
 
       <p className="text-center text-xs text-muted-foreground">
-        EasyJob v1.0.0
+        EasyJob v{packageJson.version}
       </p>
 
       <Modal
