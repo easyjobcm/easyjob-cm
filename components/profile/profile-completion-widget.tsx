@@ -9,6 +9,7 @@ import {
   SANDBOX_LEVELS,
   type Criterion,
   type SandboxLevelConfig,
+  getCandidateCompletionCtaHref,
 } from "@/lib/utils/profile-completion";
 
 interface ProfileCompletionWidgetProps {
@@ -16,6 +17,8 @@ interface ProfileCompletionWidgetProps {
   completionPct: number;
   criteria: Criterion[];
   sandboxLevel?: number;
+  /** Requis pour les candidats : détermine la route réelle du CTA (onboarding vs édition). */
+  onboardingStatus?: string | null;
 }
 
 export function ProfileCompletionWidget({
@@ -23,6 +26,7 @@ export function ProfileCompletionWidget({
   completionPct,
   criteria,
   sandboxLevel = 0,
+  onboardingStatus,
 }: ProfileCompletionWidgetProps) {
   const { t } = useI18n();
   const [expandedLevel, setExpandedLevel] = React.useState<number | null>(null);
@@ -178,14 +182,16 @@ export function ProfileCompletionWidget({
           >
             <Link
               href={
-                isCandidate ? "/onboarding/candidate" : "/onboarding/company"
+                isCandidate
+                  ? getCandidateCompletionCtaHref(criteria, onboardingStatus)
+                  : "/onboarding/company"
               }
             >
               <motion.span
                 whileTap={{ scale: 0.98 }}
                 className="flex h-12 w-full items-center justify-center rounded-full bg-[#5B21B6] font-semibold text-sm text-white shadow shadow-[#5B21B6]/30 transition-colors hover:bg-[#7C3AED]"
               >
-                {tc.cta}
+                {clampedPct >= 60 ? t.profile.editProfile : tc.cta}
               </motion.span>
             </Link>
           </motion.div>

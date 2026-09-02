@@ -44,7 +44,6 @@ export default async function CandidateProfileEditPage() {
 
   return (
     <CandidateProfileEditClient
-      userId={user.id}
       profile={
         candidateProfile ?? {
           id: null,

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Star, Edit2 } from "lucide-react";
+import { MapPin, Star, Edit2, ShieldAlert } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,12 +55,18 @@ interface CandidateProfileClientProps {
     city?: string | null;
     quartier?: string | null;
     premium_until?: string | null;
+    profile_photo_url?: string | null;
+    cni_verified?: "pending" | "verified" | "rejected" | null;
+    cni_front_url?: string | null;
+    cni_back_url?: string | null;
+    cni_selfie_url?: string | null;
   } | null;
   skills: Array<{ id: string; skill_name: string }>;
   completionPct: number;
   sandboxLevel: number;
   criteria: Criterion[];
   availableDays: number[];
+  onboardingStatus: string | null;
   totalMissions: number;
 }
 
@@ -105,11 +111,31 @@ export function CandidateProfileClient({
   sandboxLevel,
   criteria,
   availableDays,
+  onboardingStatus,
   totalMissions,
 }: CandidateProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const premium = isCandidatePremium(user.role);
+  const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
+
+  // Le chemin stocké en base pointe vers un bucket privé : on échange contre
+  // une URL signée à courte durée via l'API déjà utilisée par la page d'édition.
+  React.useEffect(() => {
+    if (!profile?.profile_photo_url) return;
+    let cancelled = false;
+    fetch("/api/profile/documents?field=profile_photo_url")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { url?: string } | null) => {
+        if (!cancelled && data?.url) setPhotoUrl(data.url);
+      })
+      .catch(() => {
+        // Silencieux : l'avatar retombe sur les initiales.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.profile_photo_url]);
 
   const currentLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
   const sandboxNames = t.profile.completion.sandbox;
@@ -255,6 +281,7 @@ export function CandidateProfileClient({
               <div className="relative">
                 <ProfileAvatar3D
                   initial={initial}
+                  photoUrl={photoUrl}
                   sandboxBadge={sandboxBadge}
                   size={100}
                 />
@@ -353,6 +380,27 @@ export function CandidateProfileClient({
 
         {/* ── CONTENT ─────────────────────────────────────────── */}
         <div className="space-y-5 px-4 pb-10 pt-6">
+          {" "}
+          {profile?.cni_verified === "pending" &&
+            (profile.cni_front_url ||
+              profile.cni_back_url ||
+              profile.cni_selfie_url) && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10"
+              >
+                <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    {t.profile.reverification.bannerTitle}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-500/80">
+                    {t.profile.reverification.bannerBody}
+                  </p>
+                </div>
+              </motion.div>
+            )}{" "}
           {/* Completion ring */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -364,9 +412,9 @@ export function CandidateProfileClient({
               completionPct={completionPct}
               criteria={criteria}
               sandboxLevel={sandboxLevel}
+              onboardingStatus={onboardingStatus}
             />
           </motion.div>
-
           {/* Disponibilité */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -414,7 +462,6 @@ export function CandidateProfileClient({
               </CardContent>
             </Card>
           </motion.div>
-
           {/* Skills */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -423,9 +470,19 @@ export function CandidateProfileClient({
           >
             <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
               <CardContent className="p-4">
-                <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                  {t.profile.mySkills}
-                </h3>
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                    {t.profile.mySkills}
+                  </h3>
+                  {skills.length > 0 && (
+                    <Link
+                      href="/profile/candidate/edit?focus=skills"
+                      className="text-xs font-medium text-[#7C3AED]"
+                    >
+                      {t.profile.availabilityEdit}
+                    </Link>
+                  )}
+                </div>
                 {skills.length === 0 ? (
                   <Link
                     href="/profile/candidate/edit"
@@ -455,38 +512,40 @@ export function CandidateProfileClient({
               </CardContent>
             </Card>
           </motion.div>
-
           {/* Location */}
-          {(profile?.city || profile?.quartier) && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-            >
-              <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED]/10 dark:bg-[#7C3AED]/20">
-                      <MapPin className="h-5 w-5 text-[#7C3AED]" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {profile.quartier ? `${profile.quartier}, ` : ""}
-                        {profile.city}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {t.profile.locationLabel}
-                      </p>
-                    </div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card className="border border-[#E5E7EB] dark:border-white/10 dark:bg-[#1A0F2E]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#7C3AED]/10 dark:bg-[#7C3AED]/20">
+                    <MapPin className="h-5 w-5 text-[#7C3AED]" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground">
+                      {profile?.city || profile?.quartier
+                        ? `${profile?.quartier ? `${profile.quartier}, ` : ""}${profile?.city ?? ""}`
+                        : t.profile.completion.todo}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {t.profile.locationLabel}
+                    </p>
+                  </div>
+                  <Link
+                    href="/profile/candidate/edit?focus=location"
+                    className="shrink-0 text-xs font-medium text-[#7C3AED]"
+                  >
+                    {t.profile.availabilityEdit}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
           {/* Délai de paiement (contenu adapté au statut) */}
           <PaymentDelayInfo role={user.role} averageRating={averageRating} />
-
           {/* Différenciation Premium ↔ Standard */}
           {premium ? (
             <PremiumBenefits
@@ -497,7 +556,6 @@ export function CandidateProfileClient({
           ) : (
             <PremiumBanner />
           )}
-
           {/* Menu */}
           <ProfileMenu isCandidate />
         </div>

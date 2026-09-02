@@ -190,5 +190,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ url: data.signedUrl });
+  return NextResponse.json(
+    { url: data.signedUrl },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

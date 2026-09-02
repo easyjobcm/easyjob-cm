@@ -13,6 +13,12 @@ import {
   LogOut,
   ChevronRight,
   Edit2,
+  MapPin,
+  Sparkles,
+  Bell,
+  Settings,
+  Lock,
+  BookOpen,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,31 +65,77 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
       transition={{ delay: 0.3 }}
       className="space-y-6"
     >
-      {/* Settings */}
+      {/* Mon compte — candidat uniquement (l'entreprise gère son profil ailleurs) */}
+      {isCandidate && (
+        <div className="space-y-2">
+          <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+            {t.profile.myAccount}
+          </h3>
+          <Card>
+            <CardContent className="divide-y divide-border p-0">
+              {menuItem(
+                "/profile/candidate/edit",
+                Edit2,
+                t.profile.editProfile,
+              )}
+              {menuItem(
+                "/profile/candidate/edit?focus=skills",
+                Sparkles,
+                t.profile.mySkills,
+              )}
+              {menuItem(
+                "/profile/candidate/edit?focus=location",
+                MapPin,
+                t.profile.myLocation,
+              )}
+              {menuItem("/profile/availability", Clock, t.profile.availability)}
+              {menuItem(
+                "/profile/candidate/edit?focus=photo",
+                FileText,
+                t.profile.myDocuments,
+              )}
+              {menuItem("/profile/payment", CreditCard, t.profile.mobileMoney)}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Préférences */}
       <div className="space-y-2">
         <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-          {t.profile.settings}
+          {t.profile.preferences}
         </h3>
         <Card>
           <CardContent className="divide-y divide-border p-0">
-            {isCandidate &&
-              menuItem("/profile/availability", Clock, t.profile.availability)}
-            {menuItem("/profile/payment", CreditCard, t.profile.mobileMoney)}
-            {menuItem("/profile/candidate/edit", Edit2, t.profile.editProfile)}
+            {menuItem("/profile/notifications", Bell, t.profile.notifications)}
+            {menuItem("/profile/settings", Settings, t.profile.settings)}
             {menuItem("/profile/security", Shield, t.profile.security)}
           </CardContent>
         </Card>
       </div>
 
-      {/* Support */}
+      {/* Comprendre EasyJob */}
       <div className="space-y-2">
         <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-          {t.profile.support}
+          {t.profile.understandEasyJob}
         </h3>
         <Card>
           <CardContent className="divide-y divide-border p-0">
+            {menuItem("/help/guide", BookOpen, t.profile.guidePage.title)}
             {menuItem("/help", HelpCircle, t.profile.helpCenter)}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Informations */}
+      <div className="space-y-2">
+        <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+          {t.profile.informationSection}
+        </h3>
+        <Card>
+          <CardContent className="divide-y divide-border p-0">
             {menuItem("/terms", FileText, t.profile.terms)}
+            {menuItem("/privacy", Lock, t.profile.privacyPage.title)}
           </CardContent>
         </Card>
       </div>

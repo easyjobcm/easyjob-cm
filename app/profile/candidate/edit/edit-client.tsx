@@ -1,14 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading";
-import { ChevronLeft, CheckCircle2, LocateFixed } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import {
+  ChevronLeft,
+  CheckCircle2,
+  LocateFixed,
+  ShieldAlert,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { identitySchema } from "@/lib/validations/profile";
@@ -27,7 +33,6 @@ type DocumentField =
   | "cni_selfie_url";
 
 interface CandidateProfileEditClientProps {
-  userId: string;
   profile: {
     id: string | null;
     first_name: string | null;
@@ -49,11 +54,11 @@ interface CandidateProfileEditClientProps {
 }
 
 export function CandidateProfileEditClient({
-  userId,
   profile,
   initialSkills,
 }: CandidateProfileEditClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const supabase = React.useMemo(() => createClient(), []);
   const tEdit = t.profile.edit;
@@ -73,6 +78,7 @@ export function CandidateProfileEditClient({
   const [saved, setSaved] = React.useState(false);
   const [apiError, setApiError] = React.useState("");
   const [isDirty, setIsDirty] = React.useState(false);
+  const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
   const [previews, setPreviews] = React.useState<
     Partial<Record<DocumentField, string>>
@@ -167,22 +173,36 @@ export function CandidateProfileEditClient({
       return;
     }
 
+    const nameChanged =
+      result.data.first_name !== (profile.first_name ?? "") ||
+      result.data.last_name !== (profile.last_name ?? "");
+
+    if (nameChanged && documents.cni_verified === "verified") {
+      setShowReverifyModal(true);
+      return;
+    }
+
+    await performSave();
+  };
+
+  const performSave = async () => {
+    setShowReverifyModal(false);
+    const result = identitySchema.safeParse(formData);
+    if (!result.success) return;
+
     setSaving(true);
     try {
-      const { error: updateError } = await supabase
-        .from("candidate_profiles")
-        .update({
-          first_name: result.data.first_name,
-          last_name: result.data.last_name,
-          city: result.data.city,
-          quartier: result.data.quartier || null,
-          bio: result.data.bio || null,
+      const res = await fetch("/api/profile/identity", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...result.data,
           latitude: formData.latitude,
           longitude: formData.longitude,
-        })
-        .eq("user_id", userId);
-
-      if (updateError) throw updateError;
+        }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      const data = (await res.json()) as { requiresReverification?: boolean };
 
       if (profile.id) {
         await supabase
@@ -201,6 +221,14 @@ export function CandidateProfileEditClient({
         }
       }
 
+      if (data.requiresReverification) {
+        setDocuments((prev) => ({
+          ...prev,
+          cni_verified: "pending",
+          cni_rejection_reason: null,
+        }));
+      }
+
       setIsDirty(false);
       setSaved(true);
     } catch {
@@ -211,6 +239,23 @@ export function CandidateProfileEditClient({
   };
 
   const bioLength = formData.bio.trim().length;
+
+  // Route depuis ProfileCompletionWidget vers le premier critère manquant
+  // (?focus=photo|cni|bio|identity|location|skills) : on y scrolle une fois monté.
+  React.useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (!focus) return;
+    const sectionId =
+      focus === "photo" || focus === "cni"
+        ? "documents"
+        : focus === "skills"
+          ? "skills"
+          : "identity";
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- exécuté une seule fois au montage
+  }, []);
 
   return (
     <AppShell>
@@ -230,7 +275,23 @@ export function CandidateProfileEditClient({
         </div>
 
         <div className="space-y-5 px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-6">
-          <Card>
+          {documents.cni_verified === "pending" &&
+            (documents.cni_front_url ||
+              documents.cni_back_url ||
+              documents.cni_selfie_url) && (
+              <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+                <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    {t.profile.reverification.bannerTitle}
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-500/80">
+                    {t.profile.reverification.bannerBody}
+                  </p>
+                </div>
+              </div>
+            )}
+          <Card id="identity">
             <CardContent className="space-y-4 p-4">
               <Input
                 label={tEdit.firstName}
@@ -322,7 +383,7 @@ export function CandidateProfileEditClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="documents">
             <CardContent className="space-y-3 p-4">
               <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
                 {t.profile.documents.title}
@@ -367,7 +428,7 @@ export function CandidateProfileEditClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="skills">
             <CardContent className="p-4">
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
                 {tEdit.skills}
@@ -418,6 +479,34 @@ export function CandidateProfileEditClient({
           </Button>
         </div>
       </div>
+
+      <Modal
+        isOpen={showReverifyModal}
+        onClose={() => setShowReverifyModal(false)}
+        title={t.profile.reverification.modalTitle}
+      >
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            {t.profile.reverification.modalBody}
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowReverifyModal(false)}
+            >
+              {t.profile.cancel}
+            </Button>
+            <Button className="flex-1" onClick={performSave} disabled={saving}>
+              {saving ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                t.profile.reverification.confirm
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

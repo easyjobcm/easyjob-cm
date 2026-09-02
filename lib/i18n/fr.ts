@@ -10,6 +10,7 @@ export const fr = {
     delete: "Supprimer",
     edit: "Modifier",
     back: "Retour",
+    close: "Fermer",
     next: "Suivant",
     previous: "Précédent",
     search: "Rechercher",
@@ -321,6 +322,11 @@ export const fr = {
       summaryEmpty: "Disponibilité non renseignée",
     },
     myAccount: "Mon compte",
+    myLocation: "Ma localisation",
+    myDocuments: "Mes documents",
+    preferences: "Préférences",
+    understandEasyJob: "Comprendre EasyJob",
+    informationSection: "Informations",
     personalData: "Données personnelles",
     newsUpdates: "Actualités",
     settings: "Paramètres",
@@ -335,6 +341,8 @@ export const fr = {
       loadError: "Impossible de charger les notifications.",
       openLabel: "Notifications ({count} non lues)",
       openLabelEmpty: "Notifications",
+      channelsNote:
+        "Les préférences par canal (push/SMS/email) ne sont pas encore configurables.",
     },
     darkMode: "Mode sombre",
     completion: {
@@ -427,6 +435,15 @@ export const fr = {
         "Permission refusée. Vous pouvez continuer avec la ville et le quartier.",
       unavailable: "Position indisponible sur cet appareil.",
     },
+    reverification: {
+      modalTitle: "Confirmer la modification",
+      modalBody:
+        "La modification de votre nom nécessitera une nouvelle vérification de votre pièce d'identité. Voulez-vous continuer ?",
+      confirm: "Confirmer la modification",
+      bannerTitle: "Vérification en cours",
+      bannerBody:
+        "Votre pièce d'identité est en cours de nouvelle vérification suite à une modification de votre nom.",
+    },
     myProfile: "Mon Profil",
     missionsCompleted: "missions réalisées",
     missionsPosted: "missions publiées",
@@ -455,6 +472,21 @@ export const fr = {
         "Changer le numéro ou l'opérateur nécessitera une nouvelle vérification.",
     },
     security: "Sécurité",
+    settingsPage: {
+      title: "Paramètres",
+      languageSection: "Langue",
+      languageHint:
+        "Le changement est appliqué immédiatement et conservé après rafraîchissement.",
+      systemSection: "Informations sur le système",
+      appVersion: "Version de l'application",
+      contractSection: "Résilier le contrat",
+      contractUnavailable:
+        "La résiliation en libre-service n'est pas encore disponible. Contactez le support pour toute demande concernant votre abonnement ou votre compte.",
+      deleteSection: "Suppression du compte",
+      deleteUnavailable:
+        "La demande de suppression de compte n'est pas encore disponible en libre-service : aucune politique de rétention ou d'anonymisation n'est encore définie. Contactez le support pour en faire la demande manuellement.",
+      contactSupport: "Contacter le support",
+    },
     securityPage: {
       title: "Sécurité du compte",
       subtitle: "Modifiez votre mot de passe de connexion.",
@@ -475,11 +507,89 @@ export const fr = {
       subtitle:
         "Notre assistant peut répondre à vos questions immédiatement. Touchez la bulle en bas de l'écran pour lui parler.",
     },
+    guidePage: {
+      title: "Comment fonctionne EasyJob ?",
+      items: [
+        {
+          q: "Comment compléter et faire vérifier mon profil ?",
+          a: "Ouvrez Profil > Modifier le profil pour renseigner votre identité, votre photo et vos documents (CNI recto/verso/selfie). Chaque document envoyé passe au statut « en attente » jusqu'à validation par un administrateur, puis « validé » ou « refusé ».",
+        },
+        {
+          q: "Pourquoi un pourcentage minimal est-il requis ?",
+          a: "Un profil complété à au moins 60% est nécessaire pour postuler à une offre. Ce seuil garantit que les entreprises reçoivent des candidatures fiables.",
+        },
+        {
+          q: "Comment rechercher une offre ?",
+          a: "Depuis l'onglet Offres, utilisez la recherche et les filtres (ville, catégorie) pour trouver les missions qui vous correspondent.",
+        },
+        {
+          q: "Comment postuler ?",
+          a: "Ouvrez une offre et appuyez sur Postuler. La candidature est envoyée en un clic, sans message à rédiger.",
+        },
+        {
+          q: "À quoi sert l'onglet Tâches ?",
+          a: "C'est votre centre de suivi pour les démarches liées à vos missions : validez vos heures d'arrivée et de départ après un job, signez numériquement vos contrats de courte durée avant de démarrer une mission, et donnez votre avis une fois la mission terminée. Tant qu'une signature de contrat ou une évaluation reste en attente, le démarrage de votre prochaine mission peut être retardé. Le dépôt d'autres documents (RIB, justificatif étudiant, certificat de travail) et les formations/briefings ne sont pas encore disponibles dans l'application.",
+        },
+        {
+          q: "Comment suivre mes candidatures dans Mes Jobs ?",
+          a: "L'onglet Mes Jobs regroupe vos candidatures (onglet Candidatures), vos missions réservées et celles terminées.",
+        },
+        {
+          q: "Quels sont les statuts d'une candidature ?",
+          a: "En attente, présélectionné, sélectionné, refusé, retiré ou absence non justifiée.",
+        },
+        {
+          q: "Comment gérer mes disponibilités ?",
+          a: "Depuis Profil > Ma disponibilité, choisissez vos jours et horaires ainsi que votre distance de déplacement maximale.",
+        },
+        {
+          q: "Comment modifier mes compétences ?",
+          a: "Depuis Profil > Modifier le profil, ajoutez ou retirez des compétences dans la section dédiée.",
+        },
+        {
+          q: "Comment modifier ma localisation ?",
+          a: "Depuis Profil > Modifier le profil, changez votre ville et quartier, ou utilisez le bouton « Utiliser ma position » avec votre consentement.",
+        },
+        {
+          q: "Comment envoyer et remplacer mes documents ?",
+          a: "Depuis Profil > Modifier le profil, section Documents : touchez une pièce pour en envoyer une nouvelle, elle remplace automatiquement l'ancienne.",
+        },
+        {
+          q: "Comment fonctionnent les notifications ?",
+          a: "La cloche en haut du profil affiche vos notifications non lues réelles ; touchez-la pour les consulter et les marquer comme lues.",
+        },
+        {
+          q: "Comment fonctionne Mobile Money ?",
+          a: "Depuis Profil > Mobile Money, ajoutez ou modifiez votre numéro MTN ou Orange. Un changement de numéro nécessite une nouvelle vérification.",
+        },
+        {
+          q: "Quand suis-je payé ?",
+          a: "Selon votre profil : 7 jours après la mission par défaut, 48h si vous êtes Premium et bien noté, ou moitié-moitié si l'une des deux conditions est remplie.",
+        },
+        {
+          q: "Comment fonctionne Premium ?",
+          a: "Premium (1 000 FCFA/mois) améliore votre priorité de candidature et votre délai de paiement. La souscription en libre-service n'est pas encore disponible : contactez le support.",
+        },
+        {
+          q: "Comment obtenir de l'aide ?",
+          a: "Ouvrez le Centre d'aide depuis le menu Profil pour parler à l'assistant.",
+        },
+        {
+          q: "Quelles sont les règles essentielles de sécurité ?",
+          a: "Ne partagez jamais votre mot de passe, vérifiez votre identité avant toute modification sensible, et gérez votre mot de passe depuis Profil > Sécurité.",
+        },
+      ],
+    },
     terms: "Conditions d'utilisation",
     termsPage: {
       title: "Conditions d'utilisation",
       pending:
         "Le contenu officiel des conditions générales d'utilisation n'est pas encore publié sur cette page. Il sera ajouté dès sa validation.",
+    },
+    privacyPage: {
+      title: "Politique de confidentialité",
+      pending:
+        "Le contenu officiel de la politique de confidentialité n'est pas encore publié sur cette page. Il sera ajouté dès sa validation.",
     },
     logout: "Se déconnecter",
     logoutTitle: "Se déconnecter ?",
@@ -523,13 +633,19 @@ export const fr = {
       pricePeriod: "/ mois",
       ctaPrimary: "Devenir Premium",
       ctaSecondary: "Voir les avantages",
-      socialProof: "Rejoint par 1 200+ candidats déjà Premium",
       bullets: {
         fastPayment: "Payé en 48h au lieu de 7 jours",
         priority: "Priorité sur toutes les candidatures",
         exclusive: "Accès aux offres exclusives Premium",
       },
-      microCommitment: "Sans engagement · Annulable à tout moment",
+      statusActive: "Premium actif jusqu'au {date}",
+      statusExpired: "Votre abonnement Premium a expiré le {date}",
+      statusNone: "Vous n'êtes pas encore abonné Premium",
+      subscribeUnavailable:
+        "Le paiement en libre-service n'est pas encore disponible. Contactez le support pour activer votre abonnement Premium.",
+      renewalNote:
+        "Le renouvellement et l'annulation sont gérés manuellement par le support tant que le paiement en ligne n'est pas disponible.",
+      contactSupport: "Contacter le support",
     },
     paymentDelay: {
       title: "Délai de paiement",

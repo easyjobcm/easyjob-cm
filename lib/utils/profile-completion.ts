@@ -143,6 +143,41 @@ export function computeCompletion(criteria: Criterion[]): number {
   return criteria.filter((c) => c.done).reduce((sum, c) => sum + c.weight, 0);
 }
 
+/**
+ * Route de destination réelle pour le premier critère candidat manquant.
+ * Le formulaire d'onboarding ne couvre que identity/skills/momo (partiel) :
+ * une fois `onboarding_status` passé à "completed", les critères restants
+ * (photo, CNI, bio, localisation, disponibilité) ne peuvent être complétés
+ * que depuis /profile/candidate/edit, /profile/availability ou
+ * /profile/payment — jamais en repassant par l'assistant d'onboarding.
+ */
+const CANDIDATE_CRITERION_ROUTES: Record<string, string> = {
+  identity: "/profile/candidate/edit",
+  photo: "/profile/candidate/edit",
+  bio: "/profile/candidate/edit",
+  cni: "/profile/candidate/edit",
+  location: "/profile/candidate/edit",
+  skills: "/profile/candidate/edit",
+  availability: "/profile/availability",
+  momo: "/profile/payment",
+};
+
+export function getCandidateCompletionCtaHref(
+  criteria: Criterion[],
+  onboardingStatus: string | null | undefined,
+): string {
+  if (onboardingStatus !== "completed") {
+    return "/onboarding/candidate";
+  }
+  const firstMissing = criteria.find((c) => !c.done);
+  if (!firstMissing) return "/profile/candidate/edit";
+  const base =
+    CANDIDATE_CRITERION_ROUTES[firstMissing.key] ?? "/profile/candidate/edit";
+  return base === "/profile/candidate/edit"
+    ? `${base}?focus=${firstMissing.key}`
+    : base;
+}
+
 export interface SandboxLevelConfig {
   level: number;
   icon: LucideIcon;

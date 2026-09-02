@@ -12,6 +12,7 @@ export const en: TranslationKeys = {
     delete: "Delete",
     edit: "Edit",
     back: "Back",
+    close: "Close",
     next: "Next",
     previous: "Previous",
     search: "Search",
@@ -320,6 +321,11 @@ export const en: TranslationKeys = {
       summaryEmpty: "Availability not set",
     },
     myAccount: "My account",
+    myLocation: "My location",
+    myDocuments: "My documents",
+    preferences: "Preferences",
+    understandEasyJob: "Understand EasyJob",
+    informationSection: "Information",
     personalData: "Personal data",
     newsUpdates: "News & Updates",
     settings: "Settings",
@@ -334,6 +340,8 @@ export const en: TranslationKeys = {
       loadError: "Could not load notifications.",
       openLabel: "Notifications ({count} unread)",
       openLabelEmpty: "Notifications",
+      channelsNote:
+        "Per-channel preferences (push/SMS/email) aren't configurable yet.",
     },
     darkMode: "Dark mode",
     completion: {
@@ -425,6 +433,15 @@ export const en: TranslationKeys = {
         "Permission denied. You can continue with your city and neighborhood.",
       unavailable: "Location unavailable on this device.",
     },
+    reverification: {
+      modalTitle: "Confirm the change",
+      modalBody:
+        "Changing your name will require a new verification of your ID document. Do you want to continue?",
+      confirm: "Confirm the change",
+      bannerTitle: "Verification in progress",
+      bannerBody:
+        "Your ID document is being re-verified following a change to your name.",
+    },
     myProfile: "My Profile",
     missionsCompleted: "missions completed",
     missionsPosted: "missions posted",
@@ -453,6 +470,21 @@ export const en: TranslationKeys = {
         "Changing the number or provider will require a new verification.",
     },
     security: "Security",
+    settingsPage: {
+      title: "Settings",
+      languageSection: "Language",
+      languageHint:
+        "The change applies immediately and is kept after refreshing.",
+      systemSection: "System information",
+      appVersion: "App version",
+      contractSection: "Terminate contract",
+      contractUnavailable:
+        "Self-service termination isn't available yet. Contact support for any request about your subscription or account.",
+      deleteSection: "Account deletion",
+      deleteUnavailable:
+        "Self-service account deletion isn't available yet: no retention or anonymization policy has been defined yet. Contact support to request it manually.",
+      contactSupport: "Contact support",
+    },
     securityPage: {
       title: "Account security",
       subtitle: "Change your sign-in password.",
@@ -473,11 +505,89 @@ export const en: TranslationKeys = {
       subtitle:
         "Our assistant can answer your questions right away. Tap the bubble at the bottom of the screen to talk to it.",
     },
+    guidePage: {
+      title: "How does EasyJob work?",
+      items: [
+        {
+          q: "How do I complete and get my profile verified?",
+          a: 'Open Profile > Edit profile to fill in your identity, photo and documents (ID front/back/selfie). Each document goes to "pending" until an admin reviews it, then "verified" or "rejected".',
+        },
+        {
+          q: "Why is a minimum percentage required?",
+          a: "A profile at least 60% complete is required to apply to a job. This threshold ensures companies receive reliable applications.",
+        },
+        {
+          q: "How do I search for a job?",
+          a: "From the Jobs tab, use search and filters (city, category) to find missions that fit you.",
+        },
+        {
+          q: "How do I apply?",
+          a: "Open a job and tap Apply. Your application is sent in one click, no message needed.",
+        },
+        {
+          q: "What is the Tasks tab for?",
+          a: "It's your tracking center for mission-related steps: confirm your arrival and departure check-in times after a job, digitally sign your short-term contracts before a mission starts, and leave your review once a mission is completed. As long as a contract signature or an evaluation is pending, your next mission may be delayed. Uploading other documents (bank details, student proof, work certificate) and training/briefings aren't available yet in the app.",
+        },
+        {
+          q: "How do I track my applications in My Jobs?",
+          a: "The My Jobs tab groups your applications, booked missions and completed ones.",
+        },
+        {
+          q: "What are the possible application statuses?",
+          a: "Pending, shortlisted, selected, rejected, withdrawn, or no-show.",
+        },
+        {
+          q: "How do I manage my availability?",
+          a: "From Profile > My availability, pick your days, hours, and maximum travel distance.",
+        },
+        {
+          q: "How do I edit my skills?",
+          a: "From Profile > Edit profile, add or remove skills in the dedicated section.",
+        },
+        {
+          q: "How do I change my location?",
+          a: 'From Profile > Edit profile, change your city and neighborhood, or use "Use my location" with your consent.',
+        },
+        {
+          q: "How do I send and replace my documents?",
+          a: "From Profile > Edit profile, Documents section: tap a document to upload a new one, it automatically replaces the old one.",
+        },
+        {
+          q: "How do notifications work?",
+          a: "The bell at the top of your profile shows your real unread notifications; tap it to view and mark them read.",
+        },
+        {
+          q: "How does Mobile Money work?",
+          a: "From Profile > Mobile Money, add or edit your MTN or Orange number. Changing the number requires a new verification.",
+        },
+        {
+          q: "When do I get paid?",
+          a: "It depends on your profile: 7 days after the mission by default, 48h if you're Premium and well rated, or split 50/50 if only one condition is met.",
+        },
+        {
+          q: "How does Premium work?",
+          a: "Premium (1,000 FCFA/month) improves your application priority and payment delay. Self-service subscription isn't available yet: contact support.",
+        },
+        {
+          q: "How do I get help?",
+          a: "Open the Help center from the Profile menu to talk to the assistant.",
+        },
+        {
+          q: "What are the essential security rules?",
+          a: "Never share your password, verify your identity before any sensitive change, and manage your password from Profile > Security.",
+        },
+      ],
+    },
     terms: "Terms of Service",
     termsPage: {
       title: "Terms of Service",
       pending:
         "The official terms of use content has not been published on this page yet. It will be added once validated.",
+    },
+    privacyPage: {
+      title: "Privacy Policy",
+      pending:
+        "The official privacy policy content has not been published on this page yet. It will be added once validated.",
     },
     logout: "Log out",
     logoutTitle: "Log out?",
@@ -521,13 +631,19 @@ export const en: TranslationKeys = {
       pricePeriod: "/ month",
       ctaPrimary: "Become Premium",
       ctaSecondary: "See benefits",
-      socialProof: "Joined by 1,200+ Premium candidates",
       bullets: {
         fastPayment: "Paid in 48h instead of 7 days",
         priority: "Priority on every application",
         exclusive: "Access to exclusive Premium jobs",
       },
-      microCommitment: "No commitment · Cancel anytime",
+      statusActive: "Premium active until {date}",
+      statusExpired: "Your Premium subscription expired on {date}",
+      statusNone: "You're not subscribed to Premium yet",
+      subscribeUnavailable:
+        "Self-service payment isn't available yet. Contact support to activate your Premium subscription.",
+      renewalNote:
+        "Renewal and cancellation are handled manually by support until online payment is available.",
+      contactSupport: "Contact support",
     },
     paymentDelay: {
       title: "Payment delay",
