@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { checkJobDocumentRequirements } from "@/lib/matching/skill-document-requirements";
 
 export async function POST(
   request: NextRequest,
@@ -20,7 +21,11 @@ export async function POST(
     // Get candidate profile (include fields required for SRS validation)
     const { data: candidateProfile } = await supabase
       .from("candidate_profiles")
-      .select("id, onboarding_status, profile_completion_pct, sandbox_level")
+      .select(
+        `id, onboarding_status, profile_completion_pct, sandbox_level,
+         cni_verified, cni_expires_at,
+         driving_license_verified, driving_license_expires_at`,
+      )
       .eq("user_id", user.id)
       .single();
 
@@ -50,7 +55,7 @@ export async function POST(
     const { data: job } = await supabase
       .from("jobs")
       .select(
-        "id, status, positions_available, positions_filled, sandbox_level_required",
+        "id, status, positions_available, positions_filled, sandbox_level_required, required_documents",
       )
       .eq("id", jobId)
       .single();
@@ -81,6 +86,19 @@ export async function POST(
         { error: "No positions available" },
         { status: 400 },
       );
+    }
+
+    // SRS §5.4/§6.6 — documents requis par l'offre (CNI, permis, casier,
+    // diplôme/certificat par compétence). Vérification serveur obligatoire :
+    // le masquage du bouton côté frontend ne suffit jamais.
+    const documentCheck = await checkJobDocumentRequirements(
+      supabase,
+      candidateProfile.id,
+      job,
+      candidateProfile,
+    );
+    if (!documentCheck.ok) {
+      return NextResponse.json({ error: documentCheck.error }, { status: 403 });
     }
 
     // Check if already applied

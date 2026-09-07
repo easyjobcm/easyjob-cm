@@ -300,6 +300,111 @@ export type Database = {
           },
         ]
       }
+      candidate_documents: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          document_type: string
+          expires_at: string | null
+          id: string
+          issued_at: string | null
+          issuing_organization: string | null
+          reference_number: string | null
+          rejection_reason: string | null
+          status: string
+          storage_path: string
+          title: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          document_type: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          issuing_organization?: string | null
+          reference_number?: string | null
+          rejection_reason?: string | null
+          status?: string
+          storage_path: string
+          title: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          document_type?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          issuing_organization?: string | null
+          reference_number?: string | null
+          rejection_reason?: string | null
+          status?: string
+          storage_path?: string
+          title?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_skill_documents: {
+        Row: {
+          candidate_document_id: string
+          candidate_skill_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          candidate_document_id: string
+          candidate_skill_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          candidate_document_id?: string
+          candidate_skill_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_skill_documents_candidate_document_id_fkey"
+            columns: ["candidate_document_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_skill_documents_candidate_skill_id_fkey"
+            columns: ["candidate_skill_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_skills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_skills: {
         Row: {
           candidate_id: string
@@ -308,6 +413,7 @@ export type Database = {
           is_ai_suggested: boolean | null
           skill_level: number | null
           skill_name: string
+          verification_status: string
         }
         Insert: {
           candidate_id: string
@@ -316,6 +422,7 @@ export type Database = {
           is_ai_suggested?: boolean | null
           skill_level?: number | null
           skill_name: string
+          verification_status?: string
         }
         Update: {
           candidate_id?: string
@@ -324,6 +431,7 @@ export type Database = {
           is_ai_suggested?: boolean | null
           skill_level?: number | null
           skill_name?: string
+          verification_status?: string
         }
         Relationships: [
           {
@@ -726,6 +834,7 @@ export type Database = {
       }
       document_expirations: {
         Row: {
+          candidate_document_id: string | null
           candidate_id: string
           created_at: string
           document_type: string
@@ -737,6 +846,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          candidate_document_id?: string | null
           candidate_id: string
           created_at?: string
           document_type: string
@@ -748,6 +858,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          candidate_document_id?: string | null
           candidate_id?: string
           created_at?: string
           document_type?: string
@@ -759,6 +870,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "document_expirations_candidate_document_id_fkey"
+            columns: ["candidate_document_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "document_expirations_candidate_id_fkey"
             columns: ["candidate_id"]
@@ -943,6 +1061,38 @@ export type Database = {
           },
         ]
       }
+      job_required_skill_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          job_id: string
+          skill_name: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          id?: string
+          job_id: string
+          skill_name: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          job_id?: string
+          skill_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_required_skill_documents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_templates: {
         Row: {
           benefits: string[] | null
@@ -1059,6 +1209,7 @@ export type Database = {
           recurring_days: number[] | null
           rejection_reason: string | null
           required_candidates_count: number
+          required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
           salary_locked: boolean | null
@@ -1115,6 +1266,7 @@ export type Database = {
           recurring_days?: number[] | null
           rejection_reason?: string | null
           required_candidates_count?: number
+          required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
           salary_locked?: boolean | null
@@ -1171,6 +1323,7 @@ export type Database = {
           recurring_days?: number[] | null
           rejection_reason?: string | null
           required_candidates_count?: number
+          required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
           salary_locked?: boolean | null
@@ -1933,6 +2086,7 @@ export type Database = {
         | "payment"
         | "review_request"
         | "system"
+        | "document_status"
       onboarding_status: "pending" | "in_progress" | "completed" | "rejected"
       payment_method: "mtn_momo" | "orange_money" | "bank_transfer" | "cash"
       payment_status:
@@ -2143,6 +2297,7 @@ export const Constants = {
         "payment",
         "review_request",
         "system",
+        "document_status",
       ],
       onboarding_status: ["pending", "in_progress", "completed", "rejected"],
       payment_method: ["mtn_momo", "orange_money", "bank_transfer", "cash"],
