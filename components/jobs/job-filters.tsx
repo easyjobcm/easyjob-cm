@@ -26,20 +26,7 @@ interface JobFiltersProps {
   categories: Category[];
 }
 
-const CAMEROON_CITIES = [
-  "Douala",
-  "Yaounde",
-  "Bafoussam",
-  "Bamenda",
-  "Garoua",
-  "Maroua",
-  "Ngaoundere",
-  "Bertoua",
-  "Limbe",
-  "Kribi",
-  "Buea",
-  "Ebolowa",
-];
+const CAMEROON_CITIES = ["Douala", "Yaounde"];
 
 export function JobFilters({
   search,

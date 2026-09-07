@@ -575,10 +575,6 @@ export default function CompanyOnboardingPage() {
                   </option>
                   <option value="douala">Douala</option>
                   <option value="yaounde">Yaounde</option>
-                  <option value="bafoussam">Bafoussam</option>
-                  <option value="garoua">Garoua</option>
-                  <option value="bamenda">Bamenda</option>
-                  <option value="kribi">Kribi</option>
                 </select>
               </div>
 

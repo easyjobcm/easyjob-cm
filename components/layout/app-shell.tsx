@@ -1,41 +1,36 @@
 "use client";
 
 import * as React from "react";
-import { BottomNav } from "./bottom-nav";
 import { cn } from "@/lib/utils";
-
-type UserRole =
-  | "candidate"
-  | "candidate_premium"
-  | "company"
-  | "company_premium"
-  | "admin_support"
-  | "admin_ops"
-  | "admin_founder";
 
 interface AppShellProps {
   children: React.ReactNode;
   showNav?: boolean;
   hideNav?: boolean;
   className?: string;
-  userRole?: UserRole;
 }
 
+// La barre de navigation basse est rendue une seule fois dans le layout racine
+// (composant persistant `CandidateTabBar`). Ici on ne gère plus que l'espace
+// réservé en bas pour que le contenu ne passe pas sous la barre fixe.
 export function AppShell({
   children,
   showNav = true,
   hideNav = false,
   className,
-  userRole = "candidate",
 }: AppShellProps) {
-  const resolvedShowNav = hideNav ? false : showNav;
+  const reserveNavSpace = hideNav ? false : showNav;
 
   return (
     <div className={cn("flex min-h-screen flex-col bg-background", className)}>
-      <main className={cn("flex-1", resolvedShowNav && "pb-20")}>
+      <main
+        className={cn(
+          "flex-1",
+          reserveNavSpace && "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+        )}
+      >
         {children}
       </main>
-      {resolvedShowNav && <BottomNav userRole={userRole} />}
     </div>
   );
 }

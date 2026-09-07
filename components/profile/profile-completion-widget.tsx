@@ -9,6 +9,7 @@ import {
   SANDBOX_LEVELS,
   type Criterion,
   type SandboxLevelConfig,
+  getCandidateCompletionCtaHref,
 } from "@/lib/utils/profile-completion";
 
 interface ProfileCompletionWidgetProps {
@@ -16,6 +17,8 @@ interface ProfileCompletionWidgetProps {
   completionPct: number;
   criteria: Criterion[];
   sandboxLevel?: number;
+  /** Requis pour les candidats : détermine la route réelle du CTA (onboarding vs édition). */
+  onboardingStatus?: string | null;
 }
 
 export function ProfileCompletionWidget({
@@ -23,6 +26,7 @@ export function ProfileCompletionWidget({
   completionPct,
   criteria,
   sandboxLevel = 0,
+  onboardingStatus,
 }: ProfileCompletionWidgetProps) {
   const { t } = useI18n();
   const [expandedLevel, setExpandedLevel] = React.useState<number | null>(null);
@@ -91,7 +95,7 @@ export function ProfileCompletionWidget({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 shadow-sm"
+        className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#1A0F2E]"
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
@@ -176,12 +180,18 @@ export function ProfileCompletionWidget({
             transition={{ delay: 0.6 }}
             className="mt-5"
           >
-            <Link href="/onboarding">
+            <Link
+              href={
+                isCandidate
+                  ? getCandidateCompletionCtaHref(criteria, onboardingStatus)
+                  : "/onboarding/company"
+              }
+            >
               <motion.span
                 whileTap={{ scale: 0.98 }}
                 className="flex h-12 w-full items-center justify-center rounded-full bg-[#5B21B6] font-semibold text-sm text-white shadow shadow-[#5B21B6]/30 transition-colors hover:bg-[#7C3AED]"
               >
-                {tc.cta}
+                {clampedPct >= 60 ? t.profile.editProfile : tc.cta}
               </motion.span>
             </Link>
           </motion.div>
@@ -194,7 +204,7 @@ export function ProfileCompletionWidget({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.15 }}
-          className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 shadow-sm"
+          className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#1A0F2E]"
         >
           <p className="mb-4 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
             {ts.title}

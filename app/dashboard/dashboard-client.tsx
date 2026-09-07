@@ -263,7 +263,7 @@ export function DashboardClient({
                 : "Recent applications"}
             </h2>
             <Link
-              href="/dashboard/applications"
+              href="/my-jobs"
               className="text-sm text-primary font-medium flex items-center gap-1"
             >
               {locale === "fr" ? "Tout voir" : "See all"}

@@ -12,6 +12,8 @@ import { type LucideIcon } from "lucide-react";
 
 interface ProfileAvatar3DProps {
   initial: string;
+  /** URL (signée ou statique) de la photo de profil ; fallback initiales si absente ou en erreur. */
+  photoUrl?: string | null;
   sandboxBadge?: { icon: LucideIcon; label: string; color: string } | null;
   size?: number;
   /** Couleur d'accentuation — par défaut violet #7C3AED */
@@ -20,10 +22,17 @@ interface ProfileAvatar3DProps {
 
 export function ProfileAvatar3D({
   initial,
+  photoUrl,
   sandboxBadge,
   size = 96,
   accentColor,
 }: ProfileAvatar3DProps) {
+  const [imageError, setImageError] = React.useState(false);
+  const [lastPhotoUrl, setLastPhotoUrl] = React.useState(photoUrl);
+  if (photoUrl !== lastPhotoUrl) {
+    setLastPhotoUrl(photoUrl);
+    setImageError(false);
+  }
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   // Motion values for 3D tilt
@@ -112,7 +121,17 @@ export function ProfileAvatar3D({
               background: `radial-gradient(circle at ${glowX} ${glowY}, rgba(255,255,255,0.6) 0%, transparent 60%)`,
             }}
           />
-          {initial.toUpperCase()}
+          {photoUrl && !imageError ? (
+            <img
+              src={photoUrl}
+              alt=""
+              onError={() => setImageError(true)}
+              className="h-full w-full rounded-2xl object-cover"
+              style={{ transform: "translateZ(1px)" }}
+            />
+          ) : (
+            initial.toUpperCase()
+          )}
         </div>
 
         {/* Bottom depth shadow */}

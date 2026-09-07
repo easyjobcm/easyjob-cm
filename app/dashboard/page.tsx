@@ -1,88 +1,43 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardClient } from "./dashboard-client";
 
-export default async function CandidateDashboardPage() {
+/**
+ * /dashboard — route legacy dissoute dans la navigation à 4 onglets.
+ * Conservée comme redirection compatible (pas de 404) vers la destination
+ * adaptée au rôle. Les métriques candidat sont dans Profil, les candidatures
+ * dans Mes Jobs.
+ */
+export default async function DashboardRedirectPage() {
   const supabase = await createClient();
 
   const {
     data: { user },
-    error: authError,
+    error,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    redirect("/login?redirect=/dashboard");
+  if (error || !user) {
+    redirect("/auth/login?next=/dashboard");
   }
 
-  // Get user data
   const { data: userData } = await supabase
     .from("users")
-    .select("*")
+    .select("role")
     .eq("id", user.id)
     .single();
 
-  if (!userData || userData.role !== "candidate") {
-    redirect("/");
+  const role = userData?.role as string | undefined;
+
+  if (role === "company" || role === "company_premium") {
+    redirect("/company/dashboard");
   }
 
-  // Get candidate profile
-  const { data: profile } = await supabase
-    .from("candidate_profiles")
-    .select("*, candidate_skills(*)")
-    .eq("user_id", user.id)
-    .single();
-
-  // Check if needs onboarding
-  if (!profile || profile.onboarding_status !== "completed") {
-    redirect("/onboarding/candidate");
+  if (
+    role === "admin_support" ||
+    role === "admin_ops" ||
+    role === "admin_founder"
+  ) {
+    redirect("/admin");
   }
 
-  // Get recent applications
-  const { data: applications } = await supabase
-    .from("job_applications")
-    .select(
-      `
-      *,
-      job:jobs(
-        id,
-        title,
-        city,
-        start_date,
-        start_time,
-        end_time,
-        hourly_rate,
-        currency,
-        company:company_profiles(company_name, logo_url)
-      )
-    `,
-    )
-    .eq("candidate_id", profile.id)
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  // Get stats
-  const { count: totalApplications } = await supabase
-    .from("job_applications")
-    .select("*", { count: "exact", head: true })
-    .eq("candidate_id", profile.id);
-
-  const { count: selectedCount } = await supabase
-    .from("job_applications")
-    .select("*", { count: "exact", head: true })
-    .eq("candidate_id", profile.id)
-    .eq("status", "selected");
-
-  return (
-    <DashboardClient
-      user={userData}
-      profile={profile}
-      applications={applications || []}
-      stats={{
-        totalApplications: totalApplications || 0,
-        selectedCount: selectedCount || 0,
-        completedMissions: profile.completed_missions || 0,
-        reliabilityScore: profile.reliability_score || 0,
-      }}
-    />
-  );
+  redirect("/jobs");
 }

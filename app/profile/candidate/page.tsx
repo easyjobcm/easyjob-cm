@@ -37,9 +37,9 @@ export default async function CandidateProfilePage() {
       `id, first_name, last_name, date_of_birth, average_rating, city, quartier,
        address, latitude, longitude, max_travel_distance_km,
        profile_photo_url, bio,
-       cni_front_url, cni_back_url, cni_selfie_url, momo_verified,
+       cni_front_url, cni_back_url, cni_selfie_url, cni_verified, momo_verified,
        total_missions, completed_missions, sandbox_level,
-       profile_completion_pct, premium_until`,
+       profile_completion_pct, premium_until, onboarding_status`,
     )
     .eq("user_id", user.id)
     .single();
@@ -51,7 +51,15 @@ export default async function CandidateProfilePage() {
         .eq("candidate_id", candidateProfile.id)
     : { data: [] };
 
+  const { data: candidateAvailability } = candidateProfile
+    ? await supabase
+        .from("candidate_availability")
+        .select("day_of_week")
+        .eq("candidate_id", candidateProfile.id)
+    : { data: [] };
+
   const skills = candidateSkills ?? [];
+  const availableDays = (candidateAvailability ?? []).map((a) => a.day_of_week);
   const sandboxLevel = candidateProfile?.sandbox_level ?? 0;
   const criteria = computeCandidateCriteria(
     candidateProfile ?? {},
@@ -80,6 +88,11 @@ export default async function CandidateProfilePage() {
               city: candidateProfile.city,
               quartier: candidateProfile.quartier,
               premium_until: candidateProfile.premium_until ?? null,
+              profile_photo_url: candidateProfile.profile_photo_url ?? null,
+              cni_verified: candidateProfile.cni_verified ?? null,
+              cni_front_url: candidateProfile.cni_front_url ?? null,
+              cni_back_url: candidateProfile.cni_back_url ?? null,
+              cni_selfie_url: candidateProfile.cni_selfie_url ?? null,
             }
           : null
       }
@@ -87,6 +100,8 @@ export default async function CandidateProfilePage() {
       completionPct={completionPct}
       sandboxLevel={sandboxLevel}
       criteria={criteria}
+      availableDays={availableDays}
+      onboardingStatus={candidateProfile?.onboarding_status ?? null}
       totalMissions={candidateProfile?.total_missions ?? 0}
     />
   );

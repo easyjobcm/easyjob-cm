@@ -111,16 +111,6 @@ export function PremiumBanner() {
             <ArrowRight className="h-4 w-4" />
           </motion.div>
         </Link>
-
-        {/* Micro-engagement (réduit le frein) */}
-        <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
-          {tr.microCommitment}
-        </p>
-
-        {/* Social proof */}
-        <p className="mt-1 text-center text-[11px] font-medium text-[#7C3AED]/80">
-          {tr.socialProof}
-        </p>
       </div>
     </motion.div>
   );

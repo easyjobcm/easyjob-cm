@@ -308,6 +308,25 @@ body {
   }
 }
 
+/* PWA safe-area utilities (iOS notch + home indicator). Referenced across
+   header, bottom-nav, fixed bars and profile heroes. */
+@utility safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Additive variants: keep a baseline spacing on devices without a notch. */
+@utility pt-safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+@utility pb-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
 /* Hide scrollbar but keep functionality */
 .scrollbar-hide {
   -ms-overflow-style: none;

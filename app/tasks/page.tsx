@@ -21,6 +21,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
 
 interface Mission {
   id: string;
@@ -96,6 +97,8 @@ export default function TasksPage() {
   const { locale } = useTranslation();
   const { data: missions, isLoading } = useSWR("/api/tasks", fetcher);
   const missionList = (missions || []) as unknown as Mission[];
+
+  useRealtimeCandidateSync("/api/tasks");
 
   const hasTasks = missionList.length > 0;
 
