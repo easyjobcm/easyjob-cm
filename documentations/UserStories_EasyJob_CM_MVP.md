@@ -1250,11 +1250,18 @@ THEN l'IA affiche automatiquement une section "Recommandations" avec d'anciens t
 **Critères d'acceptation :**
 
 ```gherkin
-GIVEN je consulte une offre et je remplis tous les prérequis (Sandbox, documents valides, profil >= 60%)
+GIVEN je consulte une offre et je remplis tous les prérequis (champs essentiels — identité complète, CNI vérifiée non expirée, Mobile Money vérifié —, Sandbox, documents valides, profil >= 60%)
 WHEN je clique sur "Postuler"
 THEN ma candidature est enregistrée immédiatement (statut = pending)
   AND un message de confirmation s'affiche : "Candidature envoyée"
   AND l'entreprise est notifiée d'une nouvelle candidature
+
+GIVEN mon profil est à 60% ou plus mais l'un des champs essentiels manque (identité incomplète, CNI non vérifiée ou expirée, Mobile Money non vérifié)
+WHEN j'essaie de postuler
+THEN la candidature est refusée (HTTP 403, code "essentials_incomplete", liste des critères manquants)
+  AND le bouton "Postuler" est remplacé par un CTA "Compléter" vers mon profil
+  AND ma candidature n'est pas enregistrée
+  AND une bannière sur mon profil liste les essentiels manquants
 
 GIVEN j'ai déjà postulé à cette offre ou sous-offre
 WHEN j'essaie de repostuler

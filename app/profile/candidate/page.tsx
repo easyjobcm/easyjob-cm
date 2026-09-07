@@ -37,9 +37,9 @@ export default async function CandidateProfilePage() {
       `id, first_name, last_name, date_of_birth, average_rating, city, quartier,
        address, latitude, longitude, max_travel_distance_km,
        profile_photo_url, bio,
-       cni_front_url, cni_back_url, cni_selfie_url, cni_verified, momo_verified,
-       total_missions, completed_missions, sandbox_level,
-       profile_completion_pct, premium_until, onboarding_status`,
+       cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_expires_at,
+       momo_verified, total_missions, completed_missions,
+       sandbox_level, profile_completion_pct, premium_until, onboarding_status`,
     )
     .eq("user_id", user.id)
     .single();
@@ -47,8 +47,9 @@ export default async function CandidateProfilePage() {
   const { data: candidateSkills } = candidateProfile
     ? await supabase
         .from("candidate_skills")
-        .select("id, skill_name")
+        .select("id, skill_name, verification_status")
         .eq("candidate_id", candidateProfile.id)
+        .order("skill_name", { ascending: true })
     : { data: [] };
 
   const { data: candidateAvailability } = candidateProfile
@@ -95,6 +96,25 @@ export default async function CandidateProfilePage() {
               cni_selfie_url: candidateProfile.cni_selfie_url ?? null,
             }
           : null
+      }
+      gate={
+        candidateProfile
+          ? {
+              first_name: candidateProfile.first_name,
+              last_name: candidateProfile.last_name,
+              date_of_birth: candidateProfile.date_of_birth,
+              cni_verified: candidateProfile.cni_verified ?? null,
+              cni_expires_at: candidateProfile.cni_expires_at ?? null,
+              momo_verified: candidateProfile.momo_verified,
+            }
+          : {
+              first_name: null,
+              last_name: null,
+              date_of_birth: null,
+              cni_verified: null,
+              cni_expires_at: null,
+              momo_verified: false,
+            }
       }
       skills={skills}
       completionPct={completionPct}

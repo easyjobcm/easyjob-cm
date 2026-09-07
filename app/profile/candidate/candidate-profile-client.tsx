@@ -3,10 +3,16 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Star, Edit2, ShieldAlert } from "lucide-react";
+import {
+  MapPin,
+  Star,
+  Edit2,
+  ShieldAlert,
+  Camera,
+  BadgeCheck,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
@@ -17,7 +23,13 @@ import { PremiumBadge } from "@/components/candidate/profile/premium-badge";
 import { PremiumBanner } from "@/components/candidate/profile/premium-banner";
 import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
 import { PaymentDelayInfo } from "@/components/candidate/profile/payment-delay-info";
-import { SANDBOX_LEVELS, type Criterion } from "@/lib/utils/profile-completion";
+import { Modal } from "@/components/ui/modal";
+import {
+  SANDBOX_LEVELS,
+  checkEssentialCriteria,
+  getCandidateCompletionCtaHref,
+  type Criterion,
+} from "@/lib/utils/profile-completion";
 import { isCandidatePremium } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
@@ -42,6 +54,13 @@ const WEEK_DAY_ORDER: { value: number; key: WeekDayKey }[] = [
   { value: 0, key: "sunday" },
 ];
 
+type SkillVerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "expired";
+
 interface CandidateProfileClientProps {
   user: {
     role: string;
@@ -61,7 +80,20 @@ interface CandidateProfileClientProps {
     cni_back_url?: string | null;
     cni_selfie_url?: string | null;
   } | null;
-  skills: Array<{ id: string; skill_name: string }>;
+  /** Profil destiné à checkEssentialCriteria (identifiant/cni/momo). */
+  gate: {
+    first_name: string | null;
+    last_name: string | null;
+    date_of_birth: string | null;
+    cni_verified: "pending" | "verified" | "rejected" | null;
+    cni_expires_at: string | null;
+    momo_verified: boolean | null;
+  };
+  skills: Array<{
+    id: string;
+    skill_name: string;
+    verification_status: SkillVerificationStatus | string;
+  }>;
   completionPct: number;
   sandboxLevel: number;
   criteria: Criterion[];
@@ -106,6 +138,7 @@ function HeroOrb({
 export function CandidateProfileClient({
   user,
   profile,
+  gate,
   skills,
   completionPct,
   sandboxLevel,
@@ -116,8 +149,29 @@ export function CandidateProfileClient({
 }: CandidateProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const te = t.profile.essential;
+  const tpe = t.profile.photo;
+  const tsk = t.profile.skillsOverview;
   const premium = isCandidatePremium(user.role);
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
+  const [showPhotoModal, setShowPhotoModal] = React.useState(false);
+  const essentials = React.useMemo(
+    () => checkEssentialCriteria(gate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- les champs du gate ne changent qu'au refresh
+    [
+      gate.first_name,
+      gate.last_name,
+      gate.date_of_birth,
+      gate.cni_verified,
+      gate.cni_expires_at,
+      gate.momo_verified,
+    ],
+  );
+
+  const refreshPhoto = React.useCallback(() => {
+    router.refresh();
+    setPhotoUrl(null);
+  }, [router]);
 
   // Le chemin stocké en base pointe vers un bucket privé : on échange contre
   // une URL signée à courte durée via l'API déjà utilisée par la page d'édition.
@@ -278,13 +332,34 @@ export function CandidateProfileClient({
                   }}
                 />
               )}
+              {/* Avatar cliquable : ouvrir directement le changement de photo
+                  (réutilise /api/profile/documents?field=profile_photo_url). */}
               <div className="relative">
-                <ProfileAvatar3D
-                  initial={initial}
-                  photoUrl={photoUrl}
-                  sandboxBadge={sandboxBadge}
-                  size={100}
-                />
+                <motion.button
+                  type="button"
+                  aria-label={tpe.modalTitle}
+                  onClick={() => setShowPhotoModal(true)}
+                  whileTap={{ scale: 0.96 }}
+                  className="group relative block rounded-full"
+                >
+                  <ProfileAvatar3D
+                    initial={initial}
+                    photoUrl={photoUrl}
+                    sandboxBadge={sandboxBadge}
+                    size={100}
+                  />
+                  {/* Overlay de clic + pastille caméra */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-black/0 transition-colors group-hover:bg-black/20"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-[#7C3AED] text-white shadow-lg shadow-black/30 ring-4 ring-white/90 transition-transform group-hover:scale-110 dark:ring-[#1A0F2E]"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </span>
+                </motion.button>
               </div>
             </div>
 
@@ -415,6 +490,41 @@ export function CandidateProfileClient({
               onboardingStatus={onboardingStatus}
             />
           </motion.div>
+          {/* Essentiels manquants (identité / CNI / Mobile Money) : la
+              postulation est bloquée côté serveur tant qu'ils sont incomplets. */}
+          {!essentials.ok && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 }}
+              role="alert"
+              className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-500/10 sm:flex-row sm:items-center"
+            >
+              <div className="flex flex-1 items-start gap-3">
+                <ShieldAlert
+                  className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+                  aria-hidden
+                />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    {te.bannerTitle}
+                  </p>
+                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300/80">
+                    {te.bannerBody.replace(
+                      "{missing}",
+                      essentials.missing.map((key) => te[key]).join(", "),
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={getCandidateCompletionCtaHref(criteria, onboardingStatus)}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-[#7C3AED] px-5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition-colors hover:bg-[#5B21B6]"
+              >
+                {te.cta}
+              </Link>
+            </motion.div>
+          )}
           {/* Disponibilité */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -492,21 +602,30 @@ export function CandidateProfileClient({
                   </Link>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {skills.map((skill, i) => (
-                      <motion.div
-                        key={skill.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.25 + i * 0.05 }}
-                      >
-                        <Badge
-                          variant="secondary"
-                          className="dark:bg-[#7C3AED]/20 dark:text-[#C4B5FD]"
+                    {skills.map((skill, i) => {
+                      const verified = skill.verification_status === "verified";
+                      return (
+                        <motion.div
+                          key={skill.id}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.25 + i * 0.05 }}
+                          whileHover={{ y: -1 }}
+                          title={verified ? tsk.verifiedHint : undefined}
                         >
-                          {skill.skill_name}
-                        </Badge>
-                      </motion.div>
-                    ))}
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                              verified
+                                ? "border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/15 dark:text-emerald-300"
+                                : "border-border bg-muted/40 text-muted-foreground dark:bg-[#7C3AED]/15 dark:text-[#C4B5FD]"
+                            }`}
+                          >
+                            {verified && <BadgeCheck className="h-3.5 w-3.5" />}
+                            {skill.skill_name}
+                          </span>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -560,6 +679,88 @@ export function CandidateProfileClient({
           <ProfileMenu isCandidate />
         </div>
       </div>
+
+      <PhotoChangeModal
+        open={showPhotoModal}
+        photoUrl={photoUrl}
+        onClose={() => setShowPhotoModal(false)}
+        onUploaded={refreshPhoto}
+      />
     </AppShell>
+  );
+}
+
+/**
+ * Photo choisie en direct dans le hero (clic sur l'avatar) — réutilise
+ * l'API existante /api/profile/documents (upload + remplacement de l'ancien
+ * fichier), aucune création de composant d'upload en duplicata.
+ */
+function PhotoChangeModal({
+  open,
+  photoUrl,
+  onClose,
+  onUploaded,
+}: {
+  open: boolean;
+  photoUrl: string | null;
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  const { t } = useI18n();
+  const td = t.profile.documents;
+  const tpe = t.profile.photo;
+  const [localPreview, setLocalPreview] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    // Aperçu immédiat pendant l'upload (l'URL signée est régénérée après).
+    setLocalPreview(URL.createObjectURL(file));
+    setUploading(true);
+    const body = new FormData();
+    body.append("field", "profile_photo_url");
+    body.append("file", file);
+    try {
+      const res = await fetch("/api/profile/documents", {
+        method: "POST",
+        body,
+      });
+      if (!res.ok) throw new Error("upload failed");
+      onUploaded();
+      onClose();
+    } catch {
+      // Signalement via les badges existants de l'API en cas d'échec.
+      console.error("Photo upload failed:", td.uploadFailed);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={tpe.modalTitle}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">{tpe.modalHint}</p>
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src={localPreview ?? photoUrl ?? ""}
+            alt=""
+            className="h-32 w-32 rounded-2xl object-cover"
+          />
+          <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full bg-[#7C3AED] px-5 text-sm font-medium text-white shadow-md transition-colors hover:bg-[#5B21B6] active:scale-[0.98]">
+            <Camera className="h-4 w-4" />
+            {uploading ? td.uploading : tpe.change}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={handleFile}
+              disabled={uploading}
+            />
+          </label>
+        </div>
+      </div>
+    </Modal>
   );
 }
