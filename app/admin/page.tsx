@@ -11,7 +11,7 @@ export default async function AdminDashboardPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect("/login?redirect=/admin");
+    redirect("/auth/login?redirect=/admin");
   }
 
   // Get user data and verify admin role
@@ -21,7 +21,8 @@ export default async function AdminDashboardPage() {
     .eq("id", user.id)
     .single();
 
-  if (!userData || userData.role !== "admin") {
+  const adminRoles = ["admin_support", "admin_ops", "admin_founder"];
+  if (!userData || !adminRoles.includes(userData.role)) {
     redirect("/");
   }
 
