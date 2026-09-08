@@ -79,17 +79,18 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
                 t.profile.editProfile,
               )}
               {menuItem("/profile/skills", Sparkles, t.profile.mySkills)}
+              {menuItem("/profile/documents", FileText, t.profile.myDocuments)}
+              {menuItem(
+                "/profile/candidate/edit?focus=photo",
+                FileText,
+                t.profile.documents.photo,
+              )}
               {menuItem(
                 "/profile/candidate/edit?focus=location",
                 MapPin,
                 t.profile.myLocation,
               )}
               {menuItem("/profile/availability", Clock, t.profile.availability)}
-              {menuItem(
-                "/profile/candidate/edit?focus=photo",
-                FileText,
-                t.profile.myDocuments,
-              )}
               {menuItem("/profile/payment", CreditCard, t.profile.mobileMoney)}
             </CardContent>
           </Card>
