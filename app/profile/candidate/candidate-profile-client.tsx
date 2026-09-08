@@ -586,7 +586,7 @@ export function CandidateProfileClient({
                   </h3>
                   {skills.length > 0 && (
                     <Link
-                      href="/profile/candidate/edit?focus=skills"
+                      href="/profile/skills"
                       className="text-xs font-medium text-[#7C3AED]"
                     >
                       {t.profile.availabilityEdit}
@@ -595,7 +595,7 @@ export function CandidateProfileClient({
                 </div>
                 {skills.length === 0 ? (
                   <Link
-                    href="/profile/candidate/edit"
+                    href="/profile/skills"
                     className="inline-flex h-10 items-center rounded-full bg-[#7C3AED]/10 px-4 text-sm font-medium text-[#7C3AED]"
                   >
                     {t.profile.edit.addSkills}

@@ -157,6 +157,7 @@ export type Database = {
           id: string
           issued_at: string | null
           issuing_organization: string | null
+          license_category: string | null
           reference_number: string | null
           rejection_reason: string | null
           status: string
@@ -174,6 +175,7 @@ export type Database = {
           id?: string
           issued_at?: string | null
           issuing_organization?: string | null
+          license_category?: string | null
           reference_number?: string | null
           rejection_reason?: string | null
           status?: string
@@ -191,6 +193,7 @@ export type Database = {
           id?: string
           issued_at?: string | null
           issuing_organization?: string | null
+          license_category?: string | null
           reference_number?: string | null
           rejection_reason?: string | null
           status?: string
@@ -2081,12 +2084,20 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      has_verified_license_for: {
+        Args: { p_candidate_id: string; p_skill_name: string }
+        Returns: boolean
+      }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
+        Returns: string
+      }
+      skill_requires_license: {
+        Args: { p_skill_name: string }
         Returns: string
       }
     }

@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
     expires_at: formData.get("expires_at") ?? "",
     skill_ids: skillIds,
     confirm_accurate: formData.get("confirm_accurate") === "true",
+    license_category: formData.get("license_category") ?? "",
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -201,6 +202,13 @@ export async function POST(request: NextRequest) {
       issuing_organization: input.issuing_organization || null,
       issued_at: input.issued_at || null,
       expires_at: input.expires_at || null,
+      // T3.1 : la catégorie de permis n'a de sens que pour un document
+      // `permis_conduire`. On ne l'écrit jamais pour les autres types
+      // (le CHECK le permet — null est toujours valide).
+      license_category:
+        input.document_type === "permis_conduire" && input.license_category
+          ? input.license_category
+          : null,
       storage_path: path,
     })
     .select("id")
