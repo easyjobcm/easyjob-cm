@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
 import { LoadingSpinner } from "@/components/ui/loading";
+import type { EssentialKey } from "@/lib/utils/profile-completion";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
   MapPin,
@@ -19,6 +20,7 @@ import {
   Info,
   CheckCircle2,
   AlertTriangle,
+  ShieldAlert,
   ExternalLink,
   ChevronRight,
   Share2,
@@ -65,6 +67,8 @@ interface JobDetailClientProps {
   } | null;
   isFavorite: boolean;
   isLoggedIn: boolean;
+  /** Essentiels manquants (identité/CNI/Momo) — postulation bloquée côté serveur. */
+  missingEssentials?: EssentialKey[];
 }
 
 export function JobDetailClient({
@@ -72,13 +76,24 @@ export function JobDetailClient({
   userApplication,
   isFavorite: initialFavorite,
   isLoggedIn,
+  missingEssentials: initialMissingEssentials = [],
 }: JobDetailClientProps) {
   const router = useRouter();
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [showBlockedModal, setShowBlockedModal] = React.useState(false);
   const [applying, setApplying] = React.useState(false);
   const [isFavorite, setIsFavorite] = React.useState(initialFavorite);
   const [hasApplied, setHasApplied] = React.useState(!!userApplication);
+  // Pré-rempli côté serveur (page) ; le POST renvoie la liste à jour.
+  const [missingEssentials, setMissingEssentials] = React.useState(
+    initialMissingEssentials,
+  );
+
+  const te = t.profile.essential;
+  const essentialsMissingLabels = missingEssentials.map((k) => te[k]);
+  const essentialsBlocked =
+    isLoggedIn && missingEssentials.length > 0 && !hasApplied;
 
   const categoryName =
     locale === "fr" ? job.category?.name_fr : job.category?.name_en;
@@ -97,7 +112,7 @@ export function JobDetailClient({
 
   const handleApply = async () => {
     if (!isLoggedIn) {
-      router.push("/login?redirect=/jobs/" + job.id);
+      router.push("/auth/login?redirect=/jobs/" + job.id);
       return;
     }
 
@@ -113,12 +128,33 @@ export function JobDetailClient({
         setShowConfirmModal(false);
         // Show success state
       } else {
-        const error = await res.json();
-        alert(error.error || "Une erreur est survenue");
+        const body = (await res.json()) as {
+          error?: string;
+          code?: string;
+          missing?: EssentialKey[];
+        };
+        // SRS §6.6 — gate essentiels : le serveur renvoie la liste précise.
+        if (
+          body.code === "essentials_incomplete" &&
+          Array.isArray(body.missing)
+        ) {
+          setMissingEssentials(body.missing);
+          setShowConfirmModal(false);
+          setShowBlockedModal(true);
+        } else {
+          alert(
+            body.error ||
+              (locale === "fr"
+                ? "Une erreur est survenue"
+                : "Something went wrong"),
+          );
+        }
       }
     } catch (error) {
       console.error("Error applying:", error);
-      alert("Une erreur est survenue");
+      alert(
+        locale === "fr" ? "Une erreur est survenue" : "Something went wrong",
+      );
     } finally {
       setApplying(false);
     }
@@ -126,7 +162,7 @@ export function JobDetailClient({
 
   const toggleFavorite = async () => {
     if (!isLoggedIn) {
-      router.push("/login?redirect=/jobs/" + job.id);
+      router.push("/auth/login?redirect=/jobs/" + job.id);
       return;
     }
     // Optimistic update
@@ -456,6 +492,16 @@ export function JobDetailClient({
           >
             {locale === "fr" ? "Voir mes candidatures" : "View my applications"}
           </Button>
+        ) : essentialsBlocked ? (
+          <Button
+            variant="outline"
+            className="w-full border-amber-400 text-amber-600 dark:text-amber-400"
+            size="lg"
+            onClick={() => router.push("/profile/candidate/edit")}
+          >
+            <ShieldAlert className="mr-2 h-4 w-4" />
+            {te.cta}
+          </Button>
         ) : (
           <Button
             onClick={() => setShowConfirmModal(true)}
@@ -467,6 +513,45 @@ export function JobDetailClient({
           </Button>
         )}
       </div>
+
+      {/* Essentiels manquants — le POST /apply renvoie 403 essentials_incomplete */}
+      <Modal
+        isOpen={showBlockedModal}
+        onClose={() => setShowBlockedModal(false)}
+        title={te.bannerTitle}
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-500/10">
+            <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                {te.bannerBody.replace(
+                  "{missing}",
+                  essentialsMissingLabels.join(", "),
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBlockedModal(false)}
+              className="flex-1"
+            >
+              {locale === "fr" ? "Fermer" : "Close"}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowBlockedModal(false);
+                router.push("/profile/candidate/edit");
+              }}
+              className="flex-1"
+            >
+              {te.cta}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirmation Modal */}
       <Modal

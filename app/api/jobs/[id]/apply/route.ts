@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { checkJobDocumentRequirements } from "@/lib/matching/skill-document-requirements";
+import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
 
 export async function POST(
   request: NextRequest,
@@ -23,7 +24,8 @@ export async function POST(
       .from("candidate_profiles")
       .select(
         `id, onboarding_status, profile_completion_pct, sandbox_level,
-         cni_verified, cni_expires_at,
+         first_name, last_name, date_of_birth,
+         cni_verified, cni_expires_at, momo_verified,
          driving_license_verified, driving_license_expires_at`,
       )
       .eq("user_id", user.id)
@@ -48,6 +50,21 @@ export async function POST(
       return NextResponse.json(
         { error: "Profile must be at least 60% complete to apply" },
         { status: 400 },
+      );
+    }
+
+    // SRS §6.6 — essentiels (identité + CNI vérifiée non expirée + Mobile
+    // Money vérifié) : bloquants même si le pourcentage global atteint 60%.
+    // Réponse structurée pour que le frontend puisse lister ce qui manque.
+    const essentials = checkEssentialCriteria(candidateProfile);
+    if (!essentials.ok) {
+      return NextResponse.json(
+        {
+          error: "Essential profile fields are incomplete",
+          code: "essentials_incomplete",
+          missing: essentials.missing,
+        },
+        { status: 403 },
       );
     }
 
