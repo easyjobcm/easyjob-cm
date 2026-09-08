@@ -345,12 +345,37 @@ export const fr = {
         "Les préférences par canal (push/SMS/email) ne sont pas encore configurables.",
     },
     darkMode: "Mode sombre",
+    essential: {
+      title: "Pour pouvoir postuler",
+      bannerTitle: "Profil incomplet pour postuler",
+      bannerBody:
+        "Il vous manque : {missing}. Complétez-les pour être éligible aux offres.",
+      cta: "Compléter",
+      required: "Requis",
+      identity: "Nom, prénom et date de naissance",
+      cni: "CNI vérifiée",
+      momo: "Mobile Money vérifié",
+    },
+    photo: {
+      modalTitle: "Modifier la photo de profil",
+      modalHint:
+        "Choisissez une photo récente et claire (JPEG, PNG ou WebP — 5 Mo max).",
+      change: "Changer la photo",
+    },
+    skillsOverview: {
+      verifiedLabel: "Vérifiée",
+      verifiedHint: "Compétence certifiée par un justificatif",
+      editSkills: "Modifier",
+    },
     completion: {
       title: "Complétez votre profil",
       subtitle: "Atteignez 60% pour postuler aux missions",
       progress: "complété",
       cta: "Compléter mon profil",
       required60: "60% requis pour postuler",
+      essentialsTitle: "Essentiels pour postuler",
+      optionalTitle: "Pour renforcer votre profil",
+      premiumCta: "Passez à Premium",
       done: "Fait",
       todo: "À compléter",
       criteria: {

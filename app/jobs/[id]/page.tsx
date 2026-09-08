@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import {
+  checkEssentialCriteria,
+  type EssentialKey,
+} from "@/lib/utils/profile-completion";
 import { JobDetailClient } from "./job-detail-client";
 
 interface PageProps {
@@ -40,15 +44,31 @@ export default async function JobDetailPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
   let userApplication = null;
   let isFavorite = false;
+  let missingEssentials: EssentialKey[] = [];
 
   if (user) {
     const { data: candidateProfile } = await supabase
       .from("candidate_profiles")
-      .select("id")
+      .select(
+        `id, onboarding_status, profile_completion_pct,
+         first_name, last_name, date_of_birth,
+         cni_verified, cni_expires_at, momo_verified`,
+      )
       .eq("user_id", user.id)
       .single();
 
     if (candidateProfile) {
+      // Pré-calcul du gate pour désactiver le bouton et afficher directement
+      // la liste des essentiels manquants (le serveur reste la source de vérité).
+      if (
+        candidateProfile.onboarding_status === "completed" &&
+        (candidateProfile.profile_completion_pct ?? 0) >= 60
+      ) {
+        const essentials = checkEssentialCriteria(candidateProfile);
+        if (!essentials.ok) {
+          missingEssentials = essentials.missing;
+        }
+      }
       const { data: application } = await supabase
         .from("job_applications")
         .select("id, status, created_at")
@@ -75,6 +95,7 @@ export default async function JobDetailPage({ params }: PageProps) {
       userApplication={userApplication}
       isFavorite={isFavorite}
       isLoggedIn={!!user}
+      missingEssentials={missingEssentials}
     />
   );
 }

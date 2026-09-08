@@ -344,12 +344,36 @@ export const en: TranslationKeys = {
         "Per-channel preferences (push/SMS/email) aren't configurable yet.",
     },
     darkMode: "Dark mode",
+    essential: {
+      title: "To start applying",
+      bannerTitle: "Profile not ready to apply",
+      bannerBody:
+        "You are missing: {missing}. Complete them to become eligible.",
+      cta: "Complete",
+      required: "Required",
+      identity: "First name, last name and date of birth",
+      cni: "Verified national ID",
+      momo: "Verified Mobile Money",
+    },
+    photo: {
+      modalTitle: "Change profile photo",
+      modalHint: "Pick a recent, clear photo (JPEG, PNG or WebP — 5 MB max).",
+      change: "Change photo",
+    },
+    skillsOverview: {
+      verifiedLabel: "Verified",
+      verifiedHint: "Skill certified with a proof document",
+      editSkills: "Edit",
+    },
     completion: {
       title: "Complete your profile",
       subtitle: "Reach 60% to apply for jobs",
       progress: "complete",
       cta: "Complete my profile",
       required60: "60% required to apply",
+      essentialsTitle: "Essentials to apply",
+      optionalTitle: "To strengthen your profile",
+      premiumCta: "Go Premium",
       done: "Done",
       todo: "To complete",
       criteria: {

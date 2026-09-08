@@ -164,7 +164,7 @@ Voir section 12.
 
 - Toute mission doit être contractualisée avant le début du travail.
 - Le paiement doit être confirmé (fonds bloqués) avant que l'offre ne soit soumise à la modération admin.
-- Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%.
+- Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
 - Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h).
 
 ### 5.2 Système Sandbox (niveaux candidat)
@@ -302,7 +302,12 @@ Le score est visible par les candidats sur la fiche entreprise.
 - Un document expiré est automatiquement marqué invalide. L'upload du document renouvelé relance la validation.
 - Tant qu'un document requis par une offre est expiré, le candidat ne peut pas postuler à cette offre.
 
-**Complétude minimale requise :** 60% pour postuler.
+**Complétude minimale requise :** 60% pour postuler, **et** trois champs essentiels obligatoires :
+- **Identité complète** — nom, prénom et date de naissance (déduit de l'âge) ;
+- **CNI vérifiée** — `cni_verified = verified` et non expirée (`cni_expires_at` > aujourd'hui) ;
+- **Compte Mobile Money vérifié** — `momo_verified = true`.
+
+Ces trois critères sont évalués **indépendamment** du pourcentage global de complétude : un profil à 100% mais sans CNI vérifiée ne peut pas postuler. La vérification est faite côté serveur à chaque soumission de candidature (masquage côté client insuffisante) — voir §6.6.
 
 **Critères d'acceptation :**
 - L'IA suggère des compétences à partir d'une description libre en moins de 3 secondes.
@@ -395,7 +400,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 **Flux candidat :**
 1. Consultation de l'offre (ou de la sous-offre journalière).
-2. Vérification automatique des prérequis (niveau Sandbox, documents valides et non expirés).
+2. Vérification automatique des prérequis (profil complet ≥ 60%, **champs essentiels**, niveau Sandbox, documents valides et non expirés). Les champs essentiels (identité complète, CNI vérifiée non expirée, Mobile Money vérifié) sont contrôlés côté serveur avant toute création de candidature. En cas d'échec, la candidature est refusée (HTTP 403), le candidat est notifié de la liste précise des critères manquants et redirigé vers la page de complétion.
 3. Soumission de la candidature en un clic (sans message libre).
 4. Suivi du statut : **en attente** / **accepté** / **refusé**.
 
@@ -413,6 +418,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 - Le candidat est notifié immédiatement (push + SMS).
 - Un candidat ne peut postuler qu'une seule fois à la même offre ou sous-offre.
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
+- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants (`code: "essentials_incomplete"`).
 
 ---
 
