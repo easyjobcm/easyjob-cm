@@ -528,6 +528,26 @@ export const fr = {
       selectSkillRequired:
         "Sélectionnez au moins une compétence (sauf CV et permis de conduire)",
     },
+    documentsPage: {
+      title: "Mes documents",
+      subtitle:
+        "L'ensemble de vos justificatifs — CV, permis, diplôme et attestations — avec leur statut de vérification.",
+      addTitle: "Ajouter un justificatif",
+      addHint:
+        "Ajoutez et certifiez vos documents depuis la page « Mes compétences ».",
+      addCta: "Mes compétences",
+      empty: "Aucun document pour l'instant.",
+      emptyHint:
+        "Ajoutez votre CV, votre permis ou un justificatif depuis « Mes compétences ».",
+      issuedAt: "Obtenu le",
+      expiresAt: "Expire le",
+      view: "Voir",
+      viewError: "Impossible de charger cette pièce. Réessayez.",
+      download: "Télécharger",
+      downloadError: "Impossible de télécharger cette pièce. Réessayez.",
+      linkedSkills: "Compétences associées",
+      category: "Catégorie : {cat}",
+    },
     skills: {
       title: "Mes compétences",
       subtitle:

@@ -522,6 +522,25 @@ export const en: TranslationKeys = {
       selectSkillRequired:
         "Select at least one skill (not required for a CV or a driving license)",
     },
+    documentsPage: {
+      title: "My documents",
+      subtitle:
+        "All your supporting documents — CV, driving license, degree and certificates — with their verification status.",
+      addTitle: "Add a supporting document",
+      addHint: "Add and certify your documents from the “My skills” page.",
+      addCta: "My skills",
+      empty: "No documents yet.",
+      emptyHint:
+        "Add your CV, driving license or a supporting document from “My skills”.",
+      issuedAt: "Issued on",
+      expiresAt: "Expires on",
+      view: "View",
+      viewError: "Could not load this document. Please try again.",
+      download: "Download",
+      downloadError: "Could not download this document. Please try again.",
+      linkedSkills: "Linked skills",
+      category: "Category: {cat}",
+    },
     skills: {
       title: "My skills",
       subtitle:

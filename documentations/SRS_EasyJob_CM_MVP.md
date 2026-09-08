@@ -743,6 +743,32 @@ Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyen
 - Onboarding (HTML rendu) : les chips de conduite sont `disabled` sans permis vérifié couvrant.
 - Bypass système : avec `easyjob.system_update = on` (service role), l'INSERT passe malgré l'absence de permis.
 
+### 6.14.3 Page « Mes documents » (candidat) — T4
+
+**Description :** page dédiée `GET /profile/documents` (menu *Profil → Mes documents*) qui liste **uniquement et exhaustivement** tous les justificatifs `candidate_documents` du candidat (CV, permis, diplôme, certificat, attestations de formation/travail, casier judiciaire, autre). Elle est une vue **lecture seule** de consultation : chaque document expose son **statut effectif** et permet de **Voir** (aperçu) et **Télécharger** le fichier. L'ajout de justificatif reste la responsabilité de la page « Mes compétences » (§6.14.1) et le **remplacement** est géré côté **administrateur** (§6.14.4, T8) — la page n'expose donc ni bouton d'ajout inline ni de suppression côté candidat.
+
+**Périmètre (lecture seule, décidé avec le produit) :**
+- **Liste** : tous les `candidate_documents` du candidat, triés par date de création décroissante. Chaque ligne affiche : type (`document_type`), titre, organisme émetteur, catégorie du permis (si `permis_conduire`, T3.1), dates d'obtention et d'expiration, **compétences associées** (via `candidate_skill_documents`), et le **motif de refus** si `rejected`.
+- **Statut effectif « au vol »** : la base n'a pas de job qui passe `status` de `verified` à `expired` (point ouvert : pas de cron). Comme §6.5 / `lib/matching/skill-document-requirements.ts`, le statut affiché est **dérivé en lecture** : un document `verified` dont `expires_at` est dépassé s'affiche **Expiré** (`lib/utils/document-status.ts` : `effectiveDocStatus`). Un `rejected`/`pending`/`expired` brut s'affiche tel quel. C'est la **même source de vérité** que le matching des offres.
+- **Voir** : ouvre un modal de consultation du fichier via **URL signée de courte durée** (`GET /api/profile/skill-documents/[id]/url`, TTL 60 s, bucket privé `candidate-documents`) — jamais de lien public permanent (confidentialité §6.14). PDF affiché en `<iframe>`, images en `<img>`.
+- **Télécharger** : même URL signée, déclenche le téléchargement du fichier avec un nom lisible dérivé du titre.
+- **Aucune écriture côté candidat** sur cette page : pas de suppression (la RLS `candidate_documents_delete_own_pending_or_rejected` reste la garante du retrait par le candidat, utilisée par la page compétences), pas de remplacement. L'ajout d'`expires_at`/métadonnées passe par le flow d'upload existant.
+
+**Navigation :** menu profil *Mes documents* → `/profile/documents` (remplace l'ancien pointeur vers *Modifier mes informations → focus photo*, qui reste accessible via celle-ci). Accès candidat / `candidate_premium` uniquement ; sans `candidate_profiles` → `/onboarding/candidate`.
+
+**Autorisations / confidentialité :** lecture `candidate_documents_select_own_or_admin` ; URL signée (TTL 60 s) ; le candidat ne voit **que ses** documents ; l'entreprise ne voit jamais de fichier (uniquement un statut, §6.14).
+
+**Remplacement — décision produit (implémenté côté admin en T8) :** lorsqu'un document doit être **remplacé ou mis à jour**, c'est l'administrateur qui le **signale au candidat via une notification et la page « Mes tâches »** (pas un bouton de remplacement côté candidat). La **règle de rétention** : **l'ancien document (ligne `candidate_documents` + fichier Storage) n'est supprimé que si le nouveau document est `verified` par l'admin** ; tant que le nouveau est `pending`/`rejected`, l'ancien reste en place. Cette règle est portée par l'UI/canale admin (T8) et n'implique **aucun** changement de RLS candidat ni d'écriture côté candidat.
+
+**Critères d'acceptation :**
+- `GET /profile/documents` → 200, liste tous les `candidate_documents` du candidat (CV, permis, diplôme, attestations…), triés par création décroissante.
+- Un document `verified` en cours de validité s'affiche **Vérifié** ; un `verified` dont la date d'expiration est dépassée s'affiche **Expiré** (détection au vol, sans écriture DB).
+- « Voir » charge l'aperçu via une URL **signée** (TTL ≈ 60 s) ; PDF en `iframe`, images en `img` ; « Télécharger » télécharge le fichier via la même URL signée.
+- La page n'expose **aucun** bouton d'ajout inline ni de suppression côté candidat (l'ajout est en `/profile/skills` ; le remplacement via notif/admin est en T8).
+- Motif de refus affiché pour un document `rejected` ; compétences associées listées via `candidate_skill_documents`.
+- Candidat sans document → état vide dédié.
+- Non connecté → redirect login ; rôle non-candidat → redirect `/profile`.
+
 ---
 
 ## 7. Flux utilisateurs principaux
@@ -962,6 +988,8 @@ title, issuing_organization, reference_number,
 issued_at, expires_at, storage_path,
 status (pending/verified/rejected/expired),
 rejection_reason, verified_by, verified_at,
+license_category (moto/voiture/fourgon/camion/bus/tous_types ; T3.1 —
+  nulle sauf pour document_type = permis_conduire),
 created_at, updated_at
 ```
 
@@ -977,7 +1005,8 @@ id, job_id, skill_name, document_type, created_at
 
 **`document_expirations`**
 ```
-id, candidate_id, document_type (cni/driving_license/other),
+id, candidate_id, candidate_document_id (nullable),
+document_type (cni/driving_license/skill_document/other),
 expires_at, notified_30d, notified_7d, notified_expired,
 updated_at
 ```
