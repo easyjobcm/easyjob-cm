@@ -164,7 +164,7 @@ async function createTestCandidate(email: string): Promise<ProofUser> {
       first_name: "Celine",
       last_name: "Kouam",
       date_of_birth: "1997-02-02",
-      city: "Yaounde",
+      city: "Yaoundé",
       quartier: "Bastos",
       cni_verified: "pending",
       momo_verified: false,

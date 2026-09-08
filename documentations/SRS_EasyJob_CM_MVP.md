@@ -306,6 +306,9 @@ Le score est visible par les candidats sur la fiche entreprise.
 4. Expériences passées (saisie libre + structuration IA).
 5. Disponibilités (jours, horaires, mobilité géographique).
 6. **Localisation GPS du domicile** : enregistrement de la position GPS depuis le lieu de résidence. Utilisée comme référence pour calculer les distances par rapport aux offres. Peut être mise à jour depuis le profil.
+   - **T5 — flux de permission** : le navigateur ne réclame la permission d'accès à la localisation qu'après un geste utilisateur. Le candidat clique sur « Utiliser ma position » → la demande de permission du navigateur s'affiche à ce moment (un indice le rappelle tant que la position n'est pas enregistrée). Le badge « GPS enregistré » (précision ± m quand fournie par l'appareil) confirme le fix ; aucun chiffre lat/lng n'est affiché (principe de confidentialité : l'entreprise ne voit jamais le GPS domicile — US-ONBC, §12).
+   - **T5 — coordonnées validées** : les coordonnées lat/lng sont bornées à leurs plages géographiques légales (±90/±180) côté API `identity` et côté onboarding (règle double AGENTS).
+   - **T5 — ville** : le catalogue partagé `CAMEROON_CITIES` porte la graphie accentuée « Yaoundé » ; une migration (20260909150000) remplit les anciennes lignes sans accent.
 7. Upload **CNI** (recto/verso) + **selfie tenant la CNI** pour validation admin dans les 24h. La date d'expiration de la CNI est enregistrée et surveillée.
 8. Vérification numéro **Mobile Money** (MTN ou Orange). Le nom enregistré sur le compte MoMo **doit correspondre au nom complet du candidat**. Les comptes au nom d'un tiers ne sont pas acceptés.
 9. Consentement RGPD local.
@@ -874,7 +877,7 @@ photo_url, bio, skills[], sectors[], availability{},
 driving_license_verified, driving_license_expires_at,
 cni_verified, cni_expires_at, cni_selfie_url,
 momo_verified, momo_number, momo_operator, momo_name_match,
-home_gps_lat, home_gps_lng,
+quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement, `address` n'est pas collectée par l'UI candidat)
 sandbox_level, average_rating, total_missions,
 profile_completion_pct, premium_until,
 created_at, updated_at

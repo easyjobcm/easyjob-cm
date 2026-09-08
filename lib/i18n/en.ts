@@ -602,9 +602,16 @@ export const en: TranslationKeys = {
       useMyLocation: "Use my location",
       locating: "Locating…",
       success: "Location saved",
+      recordedBadge: "GPS saved",
+      precision: "± {m} m",
+      /** Shown until GPS is saved: browsers only ask for permission on user gesture. */
+      firstPermissionHint:
+        "On your first click, your browser will ask for location permission — allow it.",
       denied:
         "Permission denied. You can continue with your city and neighborhood.",
       unavailable: "Location unavailable on this device.",
+      /** T5: server error (coords out of bounds -90..90 / -180..180). */
+      geoOutOfRange: "Geographic coordinates out of range.",
     },
     reverification: {
       modalTitle: "Confirm the change",

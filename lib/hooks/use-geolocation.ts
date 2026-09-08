@@ -13,6 +13,8 @@ export type GeolocationStatus =
 export interface GeolocationCoords {
   latitude: number;
   longitude: number;
+  /** Précision estimée en mètres (undefined si non fournie par l'appareil). */
+  accuracy?: number;
 }
 
 /**
@@ -41,10 +43,13 @@ export function useGeolocation(
     setStatus("loading");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const next = {
+        const next: GeolocationCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         };
+        if (typeof position.coords.accuracy === "number") {
+          next.accuracy = position.coords.accuracy;
+        }
         setCoords(next);
         setStatus("success");
         onSuccessRef.current?.(next);

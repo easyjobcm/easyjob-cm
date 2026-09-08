@@ -609,10 +609,21 @@ export const fr = {
         "Utilisée pour calculer votre distance par rapport aux offres. Facultatif : vous pouvez continuer avec juste la ville et le quartier.",
       useMyLocation: "Utiliser ma position",
       locating: "Localisation en cours…",
+      /** Affiché sous le bouton si une position est déjà enregistrée :
+       *  badge « GPS enregistré » + précision (± X m) — sans chiffres lat/lng,
+       *  convention de confidentialité (l'entreprise ne voit jamais le GPS). */
       success: "Position enregistrée",
+      recordedBadge: "GPS enregistré",
+      precision: "± {m} m",
+      /** Indice affiché tant que le GPS n'est PAS encore enregistré :
+       *  les navigateurs refusent toute requête GPS sans geste utilisateur. */
+      firstPermissionHint:
+        "Au premier clic, votre navigateur vous demandera la permission d'accéder à votre localisation — autorisez-la.",
       denied:
         "Permission refusée. Vous pouvez continuer avec la ville et le quartier.",
       unavailable: "Position indisponible sur cet appareil.",
+      /** T5 : erreur serveur (coordonnées hors bornes -90..90 / -180..180). */
+      geoOutOfRange: "Coordonnées géographiques hors bornes.",
     },
     reverification: {
       modalTitle: "Confirmer la modification",

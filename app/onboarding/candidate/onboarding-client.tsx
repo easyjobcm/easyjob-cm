@@ -14,6 +14,7 @@ import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
+import { isCleanGeoCoords } from "@/lib/validations/profile";
 import {
   licenseSatisfies,
   requiredLicenseCategory,
@@ -153,6 +154,16 @@ export function OnboardingClient({
 
     try {
       const { skills: _skills, ...profileFields } = formData;
+      // T5 : l'onboarding écrit candidate_profiles directement (pas de route
+      // API) — garde-bouche équivalent au serveur : les coordonnées doivent
+      // être absentes, ou complètes + dans les bornes géographiques.
+      if (!isCleanGeoCoords(formData.latitude, formData.longitude)) {
+        throw new Error(
+          locale === "fr"
+            ? t.profile.geolocation.geoOutOfRange
+            : t.profile.geolocation.geoOutOfRange,
+        );
+      }
       const { error: updateError } = await supabase
         .from("candidate_profiles")
         .update({
@@ -379,6 +390,18 @@ export function OnboardingClient({
               <p className="text-sm text-muted-foreground">
                 {t.profile.geolocation.explain}
               </p>
+              {(formData.latitude !== null && formData.longitude !== null) ||
+              geoStatus === "success" ? (
+                <div className="mt-3">
+                  <Badge variant="success">
+                    {t.profile.geolocation.recordedBadge}
+                  </Badge>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t.profile.geolocation.firstPermissionHint}
+                </p>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -391,11 +414,6 @@ export function OnboardingClient({
                   ? t.profile.geolocation.locating
                   : t.profile.geolocation.useMyLocation}
               </Button>
-              {geoStatus === "success" && (
-                <p className="mt-2 text-sm text-primary">
-                  {t.profile.geolocation.success}
-                </p>
-              )}
               {geoStatus === "denied" && (
                 <p className="mt-2 text-sm text-amber-600">
                   {t.profile.geolocation.denied}

@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { identitySchema } from "@/lib/validations/profile";
 import {
   changedIdentityFields,
@@ -11,11 +10,6 @@ import {
   completePendingRequests,
   pendingRequestedGroups,
 } from "@/lib/utils/profile-lock-server";
-
-const requestSchema = identitySchema.extend({
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
-});
 
 /**
  * Le nom/prénom sert à la vérification CNI (SRS §11.5 : le nom du document
@@ -55,7 +49,7 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = requestSchema.safeParse(body);
+  const parsed = identitySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid input", issues: parsed.error.flatten() },

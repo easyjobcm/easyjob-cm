@@ -24,15 +24,54 @@ export const birthDateSchema = z
   .refine((v) => v <= maxBirthDate(), { message: "ageInvalid" })
   .refine((v) => v >= "1900-01-01", { message: "birthDateInvalid" });
 
-/** Étape identité de l'édition de profil (mêmes champs que l'onboarding). */
-export const identitySchema = z.object({
-  first_name: z.string().trim().min(1, "firstNameRequired").max(60),
-  last_name: z.string().trim().min(1, "lastNameRequired").max(60),
-  date_of_birth: birthDateSchema,
-  city: z.string().trim().min(1, "cityRequired"),
-  quartier: z.string().trim().max(100).optional().or(z.literal("")),
-  bio: bioSchema.optional().or(z.literal("")),
+/** Coordonnées domicile (T5) : bornes géographiques + null (pas de GPS =
+ *  validable par ville/quartier seul → fallback matching « même ville »). */
+export const geoSchema = z.object({
+  latitude: z
+    .number()
+    .min(-90, "geoOutOfRange")
+    .max(90, "geoOutOfRange")
+    .nullable()
+    .optional(),
+  longitude: z
+    .number()
+    .min(-180, "geoOutOfRange")
+    .max(180, "geoOutOfRange")
+    .nullable()
+    .optional(),
 });
+export type GeoInput = z.infer<typeof geoSchema>;
+
+/** Garde-bouche client pour les écritures qui ne passent pas par la route
+ *  identity (l'onboarding écrit candidate_profiles directement) : une paire
+ *  lat/lng « propre » est SOIT absente (undefined/null, fallback même-ville
+ *  du matching) SOIT une paire de nombres bornés. Jamais un seul des deux
+ *  absent/à null (une coord seule n'a pas de sens). */
+export function isCleanGeoCoords(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+): boolean {
+  const latAbsent = latitude === undefined || latitude === null;
+  const lngAbsent = longitude === undefined || longitude === null;
+  if (latAbsent && lngAbsent) return true; // aucun GPS (ou jamais fourni)
+  if (!latAbsent && !lngAbsent) {
+    return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  }
+  return false; // mixte : un présent, l'autre absent → non propre
+}
+
+/** Étape identité de l'édition de profil (mêmes champs que l'onboarding)
+ *  + coordonnées validées — source de vérité client ET serveur. */
+export const identitySchema = z
+  .object({
+    first_name: z.string().trim().min(1, "firstNameRequired").max(60),
+    last_name: z.string().trim().min(1, "lastNameRequired").max(60),
+    date_of_birth: birthDateSchema,
+    city: z.string().trim().min(1, "cityRequired"),
+    quartier: z.string().trim().max(100).optional().or(z.literal("")),
+    bio: bioSchema.optional().or(z.literal("")),
+  })
+  .and(geoSchema);
 export type IdentityInput = z.infer<typeof identitySchema>;
 
 /**

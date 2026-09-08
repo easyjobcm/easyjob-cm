@@ -15,6 +15,7 @@ import {
   LocateFixed,
   ShieldAlert,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
 import { identitySchema, maxBirthDate } from "@/lib/validations/profile";
 import {
@@ -89,6 +90,10 @@ export function CandidateProfileEditClient({
   const [apiError, setApiError] = React.useState("");
   const [apiLocked, setApiLocked] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
+  // Précision estimée du dernier fix GPS (en mètres) — définie uniquement
+  // quand la capture via le bouton réussit (l'accuracy n'est pas stockée en
+  // DB ; les coordonnées déjà enregistrées affichent le badge sans précision).
+  const [geoAccuracyM, setGeoAccuracyM] = React.useState<number | null>(null);
   const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
   const [previews, setPreviews] = React.useState<
@@ -135,8 +140,9 @@ export function CandidateProfileEditClient({
         birthDateInvalid: tEdit.birthDateInvalid,
         cityRequired: tEdit.cityRequired,
         bioTooLong: tEdit.bioHint,
+        geoOutOfRange: t.profile.geolocation.geoOutOfRange,
       }) satisfies Record<string, string>,
-    [tEdit],
+    [tEdit, t.profile.geolocation],
   );
 
   const loadPreview = React.useCallback(async (field: DocumentField) => {
@@ -197,6 +203,7 @@ export function CandidateProfileEditClient({
   const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
     updateField("latitude", coords.latitude);
     updateField("longitude", coords.longitude);
+    setGeoAccuracyM(coords.accuracy ?? null);
   });
 
   const handleBack = () => {
@@ -289,14 +296,21 @@ export function CandidateProfileEditClient({
 
   const bioLength = formData.bio.trim().length;
 
-  // Route depuis ProfileCompletionWidget vers le premier critère manquant
-  // (?focus=photo|cni|bio|identity|location) : on y scrolle une fois monté.
+  // Route depuis ProfileCompletionWidget / menu profil vers le premier
+  // critère manquant (?focus=photo|cni|bio|identity|location).
   // (?focus=skills) est ignoré : les compétences vivent dans /profile/skills (T3).
+  // T5 : focus=location cible maintenant la SECTION LOCALISATION dédiée
+  // (ville/quartier/GPS) — avant T5 le param était résolu vers l'identité,
+  // un dead link.
   React.useEffect(() => {
     const focus = searchParams.get("focus");
     if (!focus || focus === "skills") return;
     const sectionId =
-      focus === "photo" || focus === "cni" ? "documents" : "identity";
+      focus === "photo" || focus === "cni"
+        ? "documents"
+        : focus === "location"
+          ? "location"
+          : "identity";
     document
       .getElementById(sectionId)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -393,6 +407,31 @@ export function CandidateProfileEditClient({
               />
               <div>
                 <label className="mb-2 block text-sm font-medium text-foreground">
+                  {tEdit.bio}
+                </label>
+                <Textarea
+                  value={formData.bio}
+                  onChange={(e) => updateField("bio", e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {tEdit.bioHint} ({bioLength}/500)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Localisation (T5) — cible du menu « Ma localisation »
+              (?focus=location) : ville + quartier + GPS domicile. Hors verrou
+              §5.1 (seuls identité + CNI sont verrouillés). */}
+          <Card id="location">
+            <CardContent className="space-y-4 p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                {t.profile.myLocation}
+              </h3>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
                   {tEdit.city}
                 </label>
                 <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto">
@@ -420,10 +459,30 @@ export function CandidateProfileEditClient({
                 value={formData.quartier}
                 onChange={(e) => updateField("quartier", e.target.value)}
               />
-              <div className="rounded-xl border border-border p-3">
+              <div
+                id="geolocation"
+                className="rounded-xl border border-border p-3"
+              >
                 <p className="text-sm text-muted-foreground">
                   {t.profile.geolocation.explain}
                 </p>
+                {formData.latitude !== null && formData.longitude !== null ? (
+                  <div className="mt-3">
+                    <Badge variant="success">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      {t.profile.geolocation.recordedBadge}
+                      {geoAccuracyM !== null &&
+                        ` · ${t.profile.geolocation.precision.replace(
+                          "{m}",
+                          String(geoAccuracyM),
+                        )}`}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t.profile.geolocation.firstPermissionHint}
+                  </p>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -436,11 +495,6 @@ export function CandidateProfileEditClient({
                     ? t.profile.geolocation.locating
                     : t.profile.geolocation.useMyLocation}
                 </Button>
-                {(formData.latitude !== null || geoStatus === "success") && (
-                  <p className="mt-2 text-sm text-primary">
-                    {t.profile.geolocation.success}
-                  </p>
-                )}
                 {geoStatus === "denied" && (
                   <p className="mt-2 text-sm text-amber-600">
                     {t.profile.geolocation.denied}
@@ -451,20 +505,6 @@ export function CandidateProfileEditClient({
                     {t.profile.geolocation.unavailable}
                   </p>
                 )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  {tEdit.bio}
-                </label>
-                <Textarea
-                  value={formData.bio}
-                  onChange={(e) => updateField("bio", e.target.value)}
-                  maxLength={500}
-                  rows={4}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {tEdit.bioHint} ({bioLength}/500)
-                </p>
               </div>
             </CardContent>
           </Card>
