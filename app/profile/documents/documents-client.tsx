@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Loader2,
+  ChevronLeft,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import {
   SKILL_DOCUMENT_TYPES,
   type SkillDocumentType,
 } from "@/lib/validations/skill-documents";
+import { useRouter } from "next/navigation";
 
 interface SkillNameRef {
   skill_name: string | null;
@@ -116,6 +118,7 @@ export function DocumentsPageClient({
     string | null
   >(null);
   const [error, setError] = React.useState("");
+  const router = useRouter();
 
   const dateFmt = React.useMemo(
     () =>
@@ -199,10 +202,22 @@ export function DocumentsPageClient({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <h1 className="mb-1 text-2xl font-bold text-foreground">
-            {tpd.title}
-          </h1>
-          <p className="mb-6 text-sm text-muted-foreground">{tpd.subtitle}</p>
+          <div className="mb-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label={t.common.back}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground transition-transform active:scale-95"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">
+                {tpd.title}
+              </h1>
+              <p className="text-sm text-muted-foreground">{tpd.subtitle}</p>
+            </div>
+          </div>
         </motion.div>
 
         {error && (
