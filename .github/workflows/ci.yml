@@ -92,7 +92,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Version du générateur de types figée : le lib/database.types.ts commité
+          # est produit par cette même version, le diff du check types est donc stable.
+          # À bump uniquement en réconciliant avec une régénération du types file.
+          version: "2.117.0"
 
       - name: Start Supabase local stack
         run: supabase start

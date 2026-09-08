@@ -19,11 +19,43 @@ export interface CandidateProfileForCompletion {
   cni_front_url?: string | null;
   cni_back_url?: string | null;
   cni_selfie_url?: string | null;
+  cni_verified?: "pending" | "verified" | "rejected" | null;
+  cni_expires_at?: string | null;
   momo_verified?: boolean | null;
   profile_completion_pct?: number;
   sandbox_level?: number;
   average_rating?: number;
   completed_missions?: number | null;
+}
+
+/**
+ * Critères sans lesquels un candidat ne peut postuler, indépendamment de son
+ * pourcentage global (nom + prénom + âge, CNI vérifiée non expirée, compte
+ * Mobile Money vérifié). Le pourcentage (>= 60%) reste exigé en sus.
+ */
+export type EssentialKey = "identity" | "cni" | "momo";
+
+export interface EssentialCheck {
+  ok: boolean;
+  missing: EssentialKey[];
+}
+
+export function checkEssentialCriteria(
+  profile: CandidateProfileForCompletion,
+): EssentialCheck {
+  const missing: EssentialKey[] = [];
+  if (!(profile.first_name && profile.last_name && profile.date_of_birth)) {
+    missing.push("identity");
+  }
+  const cniExpired =
+    !!profile.cni_expires_at && new Date(profile.cni_expires_at) < new Date();
+  if (profile.cni_verified !== "verified" || cniExpired) {
+    missing.push("cni");
+  }
+  if (!profile.momo_verified) {
+    missing.push("momo");
+  }
+  return { ok: missing.length === 0, missing };
 }
 
 export interface CompanyProfileForCompletion {

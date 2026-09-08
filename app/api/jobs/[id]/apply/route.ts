@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { checkJobDocumentRequirements } from "@/lib/matching/skill-document-requirements";
+import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
 
 export async function POST(
   request: NextRequest,
@@ -20,7 +22,12 @@ export async function POST(
     // Get candidate profile (include fields required for SRS validation)
     const { data: candidateProfile } = await supabase
       .from("candidate_profiles")
-      .select("id, onboarding_status, profile_completion_pct, sandbox_level")
+      .select(
+        `id, onboarding_status, profile_completion_pct, sandbox_level,
+         first_name, last_name, date_of_birth,
+         cni_verified, cni_expires_at, momo_verified,
+         driving_license_verified, driving_license_expires_at`,
+      )
       .eq("user_id", user.id)
       .single();
 
@@ -46,11 +53,26 @@ export async function POST(
       );
     }
 
+    // SRS §6.6 — essentiels (identité + CNI vérifiée non expirée + Mobile
+    // Money vérifié) : bloquants même si le pourcentage global atteint 60%.
+    // Réponse structurée pour que le frontend puisse lister ce qui manque.
+    const essentials = checkEssentialCriteria(candidateProfile);
+    if (!essentials.ok) {
+      return NextResponse.json(
+        {
+          error: "Essential profile fields are incomplete",
+          code: "essentials_incomplete",
+          missing: essentials.missing,
+        },
+        { status: 403 },
+      );
+    }
+
     // Check if job exists and is active (SRS ENUM: active, not published)
     const { data: job } = await supabase
       .from("jobs")
       .select(
-        "id, status, positions_available, positions_filled, sandbox_level_required",
+        "id, status, positions_available, positions_filled, sandbox_level_required, required_documents",
       )
       .eq("id", jobId)
       .single();
@@ -81,6 +103,19 @@ export async function POST(
         { error: "No positions available" },
         { status: 400 },
       );
+    }
+
+    // SRS §5.4/§6.6 — documents requis par l'offre (CNI, permis, casier,
+    // diplôme/certificat par compétence). Vérification serveur obligatoire :
+    // le masquage du bouton côté frontend ne suffit jamais.
+    const documentCheck = await checkJobDocumentRequirements(
+      supabase,
+      candidateProfile.id,
+      job,
+      candidateProfile,
+    );
+    if (!documentCheck.ok) {
+      return NextResponse.json({ error: documentCheck.error }, { status: 403 });
     }
 
     // Check if already applied

@@ -727,6 +727,63 @@ THEN la liste des évaluations s'affiche avec critères, notes et commentaires
 
 ---
 
+### US-PROF-04
+
+| Champ | Valeur |
+|---|---|
+| **ID** | US-PROF-04 |
+| **Titre** | Preuve des compétences par document |
+| **Rôle** | candidat |
+| **Action** | ajouter un diplôme, un certificat ou une attestation à une compétence déclarée |
+| **Bénéfice** | faire vérifier cette compétence et améliorer la confiance des entreprises dans mon profil |
+| **Priorité** | P1 |
+| **Complexité** | M |
+| **Épique** | PROF |
+| **Dépend de** | US-ONBC-02 |
+
+**Critères d'acceptation :**
+
+```gherkin
+GIVEN j'ai déclaré une compétence dans mon profil
+WHEN j'accède à la section "Documents et compétences vérifiées"
+  AND je choisis "Ajouter un justificatif" pour cette compétence
+THEN je peux uploader un document (diplôme, certificat, attestation de formation ou de travail, permis de conduire, autre justificatif)
+  AND renseigner : type, titre, organisme émetteur (facultatif), date d'obtention, date d'expiration (si applicable), compétence(s) associée(s)
+
+GIVEN je viens d'envoyer un justificatif
+WHEN l'upload réussit
+THEN le statut de la compétence passe à "Vérification en attente"
+  AND je vois le message "Document envoyé — vérification en attente"
+  AND aucune mention "Compétence vérifiée" n'apparaît avant validation admin
+
+GIVEN je souhaite justifier plusieurs compétences réellement couvertes par le même document
+WHEN j'associe ce document à plusieurs compétences lors de l'upload
+THEN un seul fichier est stocké et lié aux compétences sélectionnées
+
+GIVEN j'ajoute un CV
+WHEN je remplis le formulaire
+THEN aucun organisme émetteur ni date d'expiration ne me sont demandés
+  AND le CV est présenté comme un document général du profil, non rattaché à une compétence spécifique
+
+GIVEN mon justificatif est refusé par un administrateur
+WHEN je consulte mon profil
+THEN je vois le motif du refus
+  AND je peux uploader un document de remplacement
+
+GIVEN mon justificatif validé arrive à expiration
+WHEN la date d'expiration est atteinte
+THEN le statut de la compétence repasse à "Justificatif expiré"
+  AND je suis notifié et invité à le remplacer
+  AND seules les offres exigeant ce justificatif précis me sont bloquées
+
+GIVEN je n'ai aucun justificatif pour une compétence
+WHEN je consulte mon profil
+THEN la compétence reste visible avec le statut "Déclarée" (ou "Justificatif manquant" si une offre l'exige)
+  AND je ne suis pas empêché d'utiliser la plateforme pour autant
+```
+
+---
+
 ## ÉPIQUE 5 — JOB : Publication d'offres
 
 ---
@@ -1193,11 +1250,18 @@ THEN l'IA affiche automatiquement une section "Recommandations" avec d'anciens t
 **Critères d'acceptation :**
 
 ```gherkin
-GIVEN je consulte une offre et je remplis tous les prérequis (Sandbox, documents valides, profil >= 60%)
+GIVEN je consulte une offre et je remplis tous les prérequis (champs essentiels — identité complète, CNI vérifiée non expirée, Mobile Money vérifié —, Sandbox, documents valides, profil >= 60%)
 WHEN je clique sur "Postuler"
 THEN ma candidature est enregistrée immédiatement (statut = pending)
   AND un message de confirmation s'affiche : "Candidature envoyée"
   AND l'entreprise est notifiée d'une nouvelle candidature
+
+GIVEN mon profil est à 60% ou plus mais l'un des champs essentiels manque (identité incomplète, CNI non vérifiée ou expirée, Mobile Money non vérifié)
+WHEN j'essaie de postuler
+THEN la candidature est refusée (HTTP 403, code "essentials_incomplete", liste des critères manquants)
+  AND le bouton "Postuler" est remplacé par un CTA "Compléter" vers mon profil
+  AND ma candidature n'est pas enregistrée
+  AND une bannière sur mon profil liste les essentiels manquants
 
 GIVEN j'ai déjà postulé à cette offre ou sous-offre
 WHEN j'essaie de repostuler
@@ -1208,6 +1272,25 @@ GIVEN un document requis par l'offre est expiré dans mon profil
 WHEN j'essaie de postuler
 THEN un message "Document requis expiré — mettez à jour votre [CNI/permis] pour postuler" s'affiche
   AND ma candidature est bloquée
+
+GIVEN une compétence exigée par l'offre n'a pas de justificatif associé dans mon profil
+WHEN j'essaie de postuler
+THEN un message "Cette offre exige un diplôme ou certificat valide pour la compétence « [nom] »" s'affiche avec un CTA vers la section « Documents et compétences vérifiées » de mon profil
+  AND ma candidature est bloquée
+
+GIVEN le justificatif de la compétence exigée est encore en attente de vérification admin
+WHEN j'essaie de postuler
+THEN un message "Votre justificatif est encore en cours de vérification" s'affiche
+  AND ma candidature est bloquée
+
+GIVEN le justificatif de la compétence exigée a été refusé ou a expiré
+WHEN j'essaie de postuler
+THEN un message "Votre justificatif a été refusé. Consultez votre profil pour le remplacer." (ou "Votre justificatif a expiré. Mettez-le à jour pour postuler.") s'affiche
+  AND ma candidature est bloquée
+
+GIVEN je tente de contourner ces vérifications en appelant directement l'API de candidature
+WHEN la requête est reçue côté serveur
+THEN elle est refusée avec la même règle que l'interface (aucun contournement possible)
 
 GIVEN mon niveau Sandbox est insuffisant pour cette offre
 WHEN j'essaie de postuler
@@ -1966,6 +2049,58 @@ THEN une confirmation à deux facteurs (2FA) est demandée
 GIVEN admin_ops tente d'accéder à cette section
 WHEN il navigue vers "Paramètres > Commissions"
 THEN un message "Accès non autorisé — section réservée à admin_founder" s'affiche
+```
+
+---
+
+### US-ADMIN-05
+
+| Champ | Valeur |
+|---|---|
+| **ID** | US-ADMIN-05 |
+| **Titre** | Validation des justificatifs professionnels |
+| **Rôle** | admin_ops |
+| **Action** | examiner les justificatifs professionnels soumis par les candidats |
+| **Bénéfice** | valider ou refuser les compétences associées et fiabiliser les profils candidats |
+| **Priorité** | P1 |
+| **Complexité** | M |
+| **Épique** | ADMIN |
+| **Dépend de** | US-PROF-04 |
+
+**Critères d'acceptation :**
+
+```gherkin
+GIVEN je suis connecté en tant qu'admin_ops
+WHEN j'accède à la file d'attente des justificatifs en attente
+THEN je peux filtrer par type de document, rechercher un candidat, et consulter les métadonnées et le document via une URL signée de courte durée
+
+WHEN je clique sur "Valider"
+THEN le document passe au statut "verified"
+  AND les compétences associées et couvertes par ce document passent à "Vérifiée" avec badge affiché
+  AND le candidat reçoit une notification de confirmation
+  AND l'action est loguée dans audit_logs
+
+WHEN je clique sur "Refuser" sans indiquer de motif
+THEN le refus est bloqué avec le message "Un motif de refus est obligatoire"
+
+WHEN je clique sur "Refuser" avec un motif renseigné
+THEN le document passe au statut "rejected" avec le motif enregistré
+  AND le candidat est notifié avec ce motif
+  AND aucune compétence n'est vérifiée
+  AND l'action est loguée dans audit_logs
+
+GIVEN un candidat tente d'appeler directement l'API de validation de son propre document
+WHEN la requête est reçue côté serveur
+THEN elle est rejetée (403) quel que soit le contenu envoyé
+
+GIVEN je suis connecté en tant qu'admin_support
+WHEN j'accède à un justificatif professionnel
+THEN je peux le consulter (métadonnées + document) en lecture seule
+  AND les actions "Valider" et "Refuser" sont désactivées pour mon rôle
+
+GIVEN je suis connecté en tant que company ou candidate
+WHEN je tente d'accéder à une route d'administration des justificatifs
+THEN l'accès est refusé (403)
 ```
 
 ---

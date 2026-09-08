@@ -90,6 +90,11 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
               )}
               {menuItem("/profile/availability", Clock, t.profile.availability)}
               {menuItem(
+                "/profile/skill-documents",
+                FileText,
+                t.profile.skillDocuments.menuLabel,
+              )}
+              {menuItem(
                 "/profile/candidate/edit?focus=photo",
                 FileText,
                 t.profile.myDocuments,

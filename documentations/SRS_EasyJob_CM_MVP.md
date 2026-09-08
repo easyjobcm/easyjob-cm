@@ -164,7 +164,7 @@ Voir section 12.
 
 - Toute mission doit être contractualisée avant le début du travail.
 - Le paiement doit être confirmé (fonds bloqués) avant que l'offre ne soit soumise à la modération admin.
-- Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%.
+- Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
 - Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h).
 
 ### 5.2 Système Sandbox (niveaux candidat)
@@ -177,6 +177,8 @@ Les seuils ci-dessous sont les **valeurs initiales configurables** depuis le das
 | Niveau 1 — Confirmé | 1 mission réussie + note >= 3.5/5 | Missions intermédiaires (accueil, assistance vente) |
 | Niveau 2 — Fiable | 3 missions réussies + note >= 4/5 + profil >= 80% | Missions à responsabilité (caissier, gestion de stock) |
 | Niveau 3 — Expert | 10 missions + note >= 4.5/5 + badge vérifié | Toutes missions, priorisation dans le matching |
+
+> **Badge vérifié (Niveau 3)** — voir décision formalisée en §11.11 : le badge vérifié désigne exclusivement l'**identité vérifiée** (CNI validée par un admin, `cni_verified = verified`). La vérification de compétences par documents (§6.14) n'élargit pas cette condition tant qu'une évolution du Sandbox n'est pas explicitement validée par `admin_founder`.
 
 ### 5.3 Règles de paiement candidat
 
@@ -214,7 +216,7 @@ Une offre doit obligatoirement contenir les éléments suivants :
   - Plus de 8h30 de travail : **45 minutes** de pause.
 - **Salaire** par jour et par personne. Le total par date = nombre de personnes × prix journalier. L'IA vérifie que le montant est raisonnable selon la durée effective (brute moins pause) et le marché camerounais.
 - **Compétences requises** (générées et validées par l'IA).
-- **Documents requis** (optionnel : casier judiciaire vierge, diplôme, permis de conduire, CNI vérifiée...).
+- **Documents requis** (optionnel : casier judiciaire vierge, diplôme, permis de conduire, CNI vérifiée...). Lorsqu'un diplôme ou certificat est exigé pour une **compétence précise**, l'exigence précise le type de document et la compétence concernée (voir §6.14 et §8.1). Le candidat ne peut postuler que si le justificatif correspondant est présent, validé et non expiré (vérification serveur, pas seulement frontend).
 - **Équipement demandé au candidat** (ex : chaussures fermées, tenue noire).
 - **Équipement mis à disposition par l'entreprise** (ex : tablier, badge).
 - **Avantages** (optionnels) : repas offert, remboursement de taxi, prime de présence, etc.
@@ -286,7 +288,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 **Étapes :**
 1. Informations personnelles (nom, prénom, date de naissance, ville).
 2. Photo de profil.
-3. Compétences et secteurs d'activité (choix guidé + suggestion IA). Le **permis de conduire** est une compétence déclarable : upload du document + date d'expiration enregistrée.
+3. Compétences et secteurs d'activité (choix guidé + suggestion IA). Le **permis de conduire** est une compétence déclarable : upload du document + date d'expiration enregistrée. Toute compétence déclarée peut, de façon **facultative**, être justifiée par un document probant (diplôme, certificat, attestation de formation ou de travail) pour obtenir le statut « Vérifiée » — voir §6.14. Le CV, lui, reste un document général du profil et ne vérifie jamais une compétence à lui seul.
 4. Expériences passées (saisie libre + structuration IA).
 5. Disponibilités (jours, horaires, mobilité géographique).
 6. **Localisation GPS du domicile** : enregistrement de la position GPS depuis le lieu de résidence. Utilisée comme référence pour calculer les distances par rapport aux offres. Peut être mise à jour depuis le profil.
@@ -300,7 +302,12 @@ Le score est visible par les candidats sur la fiche entreprise.
 - Un document expiré est automatiquement marqué invalide. L'upload du document renouvelé relance la validation.
 - Tant qu'un document requis par une offre est expiré, le candidat ne peut pas postuler à cette offre.
 
-**Complétude minimale requise :** 60% pour postuler.
+**Complétude minimale requise :** 60% pour postuler, **et** trois champs essentiels obligatoires :
+- **Identité complète** — nom, prénom et date de naissance (déduit de l'âge) ;
+- **CNI vérifiée** — `cni_verified = verified` et non expirée (`cni_expires_at` > aujourd'hui) ;
+- **Compte Mobile Money vérifié** — `momo_verified = true`.
+
+Ces trois critères sont évalués **indépendamment** du pourcentage global de complétude : un profil à 100% mais sans CNI vérifiée ne peut pas postuler. La vérification est faite côté serveur à chaque soumission de candidature (masquage côté client insuffisante) — voir §6.6.
 
 **Critères d'acceptation :**
 - L'IA suggère des compétences à partir d'une description libre en moins de 3 secondes.
@@ -393,7 +400,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 **Flux candidat :**
 1. Consultation de l'offre (ou de la sous-offre journalière).
-2. Vérification automatique des prérequis (niveau Sandbox, documents valides et non expirés).
+2. Vérification automatique des prérequis (profil complet ≥ 60%, **champs essentiels**, niveau Sandbox, documents valides et non expirés). Les champs essentiels (identité complète, CNI vérifiée non expirée, Mobile Money vérifié) sont contrôlés côté serveur avant toute création de candidature. En cas d'échec, la candidature est refusée (HTTP 403), le candidat est notifié de la liste précise des critères manquants et redirigé vers la page de complétion.
 3. Soumission de la candidature en un clic (sans message libre).
 4. Suivi du statut : **en attente** / **accepté** / **refusé**.
 
@@ -411,6 +418,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 - Le candidat est notifié immédiatement (push + SMS).
 - Un candidat ne peut postuler qu'une seule fois à la même offre ou sous-offre.
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
+- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants (`code: "essentials_incomplete"`).
 
 ---
 
@@ -589,6 +597,70 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 - L'escalade vers un humain est proposée si le chatbot ne peut pas résoudre en 2 échanges.
 - L'historique de conversation est conservé 30 jours.
 - Le chatbot répond en français et en anglais selon la langue de l'utilisateur.
+
+---
+
+### 6.14 Vérification des compétences par documents
+
+**Description :** Un candidat peut justifier une compétence déclarée en joignant un document probant (diplôme, certificat professionnel, attestation de formation, attestation de travail/expérience, permis de conduire, ou autre justificatif professionnel pertinent). Un CV général peut également être stocké sur le profil, mais ne vaut jamais preuve d'une compétence.
+
+**Statuts d'une compétence déclarée :**
+
+| Statut | Signification |
+|---|---|
+| Déclarée | Compétence ajoutée sans justificatif |
+| Justificatif manquant | Un document requis par une offre est absent pour cette compétence |
+| Vérification en attente | Document envoyé, en attente de traitement admin |
+| Vérifiée | Document validé par un administrateur autorisé |
+| Justificatif rejeté | Document refusé (motif obligatoire) |
+| Justificatif expiré | Document validé mais dont la date d'expiration est dépassée |
+
+**Ajout d'un document :**
+- Types acceptés : CV, diplôme, certificat professionnel, attestation de formation, attestation de travail/expérience, permis de conduire, autre justificatif professionnel.
+- Champs demandés : type, titre, organisme émetteur (facultatif pour le CV), date d'obtention, date d'expiration (facultative — non exigée pour les documents qui n'expirent normalement pas, comme un diplôme), compétence(s) associée(s) (le CV reste un document général, non rattaché à une compétence), fichier.
+- Formats acceptés : PDF, JPEG, PNG, WebP — réutilisation du bucket privé `candidate-documents` existant (limite 5 Mio, extension de `allowed_mime_types` pour inclure `application/pdf`).
+- Un même document peut être associé à plusieurs compétences réellement couvertes, sans dupliquer le fichier.
+- Après envoi, le statut passe à "Vérification en attente". Aucune compétence n'est marquée "Vérifiée" avant validation admin — un CV seul ne suffit jamais à vérifier une compétence.
+
+**Validation administrateur :**
+- Rôle autorisé à valider/refuser : `admin_ops` (et `admin_founder` par accès total). `admin_support` dispose d'un accès **lecture seule** aux justificatifs (consultation des métadonnées et du document via URL signée), sans droit de validation ni de refus.
+- Validation : le document passe à "verified" ; les compétences associées et couvertes par ce document passent à "Vérifiée" ; le badge "Compétence vérifiée" s'affiche ; le candidat est notifié ; un audit log est enregistré ; les offres exigeant ce justificatif deviennent accessibles si les autres conditions sont remplies.
+- Refus : motif obligatoire ; le candidat est notifié avec le motif ; le document ne vérifie aucune compétence ; le candidat peut le remplacer ; un audit log est enregistré.
+- Toute transition de statut est effectuée côté serveur. Un candidat ne peut jamais valider son propre document.
+
+**Expiration et remplacement :**
+- Réutilisation de la table `document_expirations` (alertes J-30 / J-7 / expiré), dont la contrainte de types est étendue au-delà de `cni`/`driving_license`.
+- À expiration, le statut "Vérifiée" de la compétence repasse à "Justificatif expiré" ; seules les offres exigeant ce justificatif précis sont bloquées, jamais l'ensemble des candidatures du candidat.
+- Le remplacement d'un document relance une nouvelle vérification admin (statut "Vérification en attente").
+
+**Documents requis par une offre (par compétence) :**
+- Une entreprise peut exiger, pour une compétence donnée, un type de justificatif précis (diplôme, certificat, permis de conduire, CNI vérifiée, casier judiciaire, autre document professionnel validé).
+- Avant candidature, le serveur vérifie que le document correspondant est présent, validé, non expiré et associé à la compétence exigée. Le masquage du bouton côté frontend seul ne suffit pas : un appel API direct à la candidature doit être bloqué de la même façon.
+- L'entreprise ne voit jamais le fichier privé : uniquement un statut ("Compétence vérifiée"), le type de preuve validée, et l'organisme émetteur si cette donnée est autorisée.
+
+**Récompense (strictement fonctionnelle) :**
+
+Après validation d'un justificatif, le candidat obtient uniquement :
+1. le badge "Compétence vérifiée" sur la ou les compétences validées ;
+2. une notification de confirmation ;
+3. l'accès aux offres exigeant ce justificatif (si les autres conditions sont remplies) ;
+4. la prise en compte normale de la compétence dans le matching existant (§6.5), sans pondération additionnelle.
+
+Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyenne, n'augmente pas automatiquement le niveau Sandbox, n'accorde pas Premium, et ne modifie pas les pondérations du matching. Voir §11.11 pour la définition du "badge vérifié" du Sandbox Niveau 3, qui reste **distinct** de cette fonctionnalité.
+
+**Confidentialité :**
+- Bucket Storage privé existant réutilisé (`candidate-documents`), policies RLS fondées sur `auth.uid()` pour le candidat propriétaire, plus une policy dédiée de lecture pour les administrateurs autorisés.
+- URLs signées de courte durée uniquement, jamais de lien public permanent.
+- Aucune donnée sensible (ex : numéro complet de diplôme) exposée aux entreprises.
+
+**Critères d'acceptation :**
+- Un candidat peut déclarer une compétence sans justificatif (statut "Déclarée", ou "Justificatif manquant" si une offre l'exige).
+- Un CV seul ne vérifie jamais une compétence ni ne débloque une offre exigeant un diplôme.
+- Un document peut être associé à plusieurs compétences sans duplication de fichier.
+- Un candidat ne peut pas valider son propre document (contrôle serveur systématique).
+- Un refus nécessite un motif obligatoire, visible par le candidat.
+- Un document expiré retire uniquement le statut vérifié des compétences concernées et bloque uniquement les offres qui l'exigent.
+- `admin_support` peut consulter un justificatif mais ne peut ni le valider ni le refuser.
 
 ---
 
@@ -785,6 +857,35 @@ id, user_id, type, title, body, data{},
 channel (push/sms/email), is_read, sent_at, created_at
 ```
 
+**`candidate_skills`** *(étendue)*
+```
+id, candidate_id, skill_name, skill_level, is_ai_suggested,
+verification_status (unverified/pending/verified/rejected/expired),
+created_at
+```
+
+**`candidate_documents`** *(nouveau)*
+```
+id, candidate_id, document_type
+  (cv/diplome/certificat/attestation_formation/attestation_travail/
+   permis_conduire/casier_judiciaire/autre),
+title, issuing_organization, reference_number,
+issued_at, expires_at, storage_path,
+status (pending/verified/rejected/expired),
+rejection_reason, verified_by, verified_at,
+created_at, updated_at
+```
+
+**`candidate_skill_documents`** *(nouveau — table de liaison compétence ↔ document)*
+```
+id, candidate_skill_id, candidate_document_id, created_at
+```
+
+**`job_required_skill_documents`** *(nouveau — exigence de document par compétence sur une offre)*
+```
+id, job_id, skill_name, document_type, created_at
+```
+
 **`document_expirations`**
 ```
 id, candidate_id, document_type (cni/driving_license/other),
@@ -847,6 +948,7 @@ metadata{}, ip_address, created_at
 - Les numéros de CNI et données biométriques ne sont jamais stockés en clair.
 - Les numéros Mobile Money sont masqués dans l'interface (ex : +237 *** *** 45).
 - Les données personnelles des candidats (téléphone, email, CNI) ne sont jamais exposées aux entreprises.
+- Les justificatifs de compétences (diplôme, certificat, attestation, permis, CV) sont stockés dans le bucket privé `candidate-documents` : accès restreint au candidat propriétaire et aux administrateurs autorisés (`admin_ops`, `admin_founder`, `admin_support` en lecture seule), jamais d'URL publique permanente.
 - Les secrets sont uniquement dans les variables d'environnement.
 - Aucune donnée sensible dans les logs.
 
@@ -999,6 +1101,19 @@ metadata{}, ip_address, created_at
 **Recommandation :** Option C avec escalade automatique si dépassement.
 
 **Statut :** ☐ Décision à prendre.
+
+---
+
+### 11.11 — Définition du "badge vérifié" du Sandbox Niveau 3
+
+**Question :** Le §5.2 exige un "badge vérifié" pour débloquer le Niveau 3, sans préciser sa nature exacte (identité vérifiée, compétence vérifiée, ou profil professionnel globalement vérifié).
+
+**Décision : Option A appliquée pour le MVP.**
+- Le "badge vérifié" du Sandbox Niveau 3 désigne exclusivement l'**identité vérifiée** (`cni_verified = verified`), inchangé par rapport au comportement actuel. Aucune modification du calcul Sandbox n'est appliquée par la fonctionnalité de vérification des compétences (§6.14).
+- La vérification de compétences par documents introduit un badge **distinct** "Compétence vérifiée", qui **n'entre pas** dans le calcul du Sandbox Niveau 3 pour le MVP.
+- Toute évolution (ex : exiger en plus au moins une compétence vérifiée pour le Niveau 3) devra être explicitement validée par `admin_founder` et documentée ici avant toute implémentation.
+
+**Statut :** ✅ Décision prise (périmètre MVP).
 
 ---
 
