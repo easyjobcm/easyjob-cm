@@ -8,15 +8,47 @@ import { phoneSchema } from "@/lib/validations/auth";
  */
 export const bioSchema = z.string().trim().max(500, "bioTooLong");
 
+/** Date de naissance : format ISO + âge minimal 18 ans (règle onboarding)
+ *  et pas de date future ou antérieure à 1900. */
+export const MIN_CANDIDATE_AGE_YEARS = 18;
+
+export function maxBirthDate(today = new Date()): string {
+  const d = new Date(today);
+  d.setFullYear(d.getFullYear() - MIN_CANDIDATE_AGE_YEARS);
+  return d.toISOString().split("T")[0];
+}
+
+export const birthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "birthDateInvalid")
+  .refine((v) => v <= maxBirthDate(), { message: "ageInvalid" })
+  .refine((v) => v >= "1900-01-01", { message: "birthDateInvalid" });
+
 /** Étape identité de l'édition de profil (mêmes champs que l'onboarding). */
 export const identitySchema = z.object({
   first_name: z.string().trim().min(1, "firstNameRequired").max(60),
   last_name: z.string().trim().min(1, "lastNameRequired").max(60),
+  date_of_birth: birthDateSchema,
   city: z.string().trim().min(1, "cityRequired"),
   quartier: z.string().trim().max(100).optional().or(z.literal("")),
   bio: bioSchema.optional().or(z.literal("")),
 });
 export type IdentityInput = z.infer<typeof identitySchema>;
+
+/**
+ * Demande de mise à jour de profil initiée par l'admin (verrou SRS §5.1) :
+ * déverrouille temporairement les champs vérifiés (`identity` et/ou
+ * `cni_documents`) le temps qu'ils soient resoumis puis re-vérifiés.
+ */
+export const updateRequestSchema = z.object({
+  candidate_id: z.string().uuid(),
+  fields: z
+    .array(z.enum(["identity", "cni_documents"]))
+    .min(1, "fieldsRequired")
+    .max(2),
+  reason: z.string().trim().min(5, "reasonTooShort").max(500),
+});
+export type UpdateRequestInput = z.infer<typeof updateRequestSchema>;
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "timeInvalid");
 

@@ -1,0 +1,31 @@
+# ────────────────────────────────────────────────────────────────
+# Fin de ligne (line endings) — Easyjob CM
+#
+# Problème résolu : avec `core.autocrlf=true` (Windows) et l'absence
+# antérieure de ce fichier, un `git checkout` convertissait les
+# fichiers du blob (LF) en CRLF dans le worktree. Le hook
+# `.husky/pre-push` exécute `prettier --check .` sur le WORKTREE :
+# les fichiers CRLF échouaient le check (Prettier attend du LF) →
+# le 1er push d'une branche fraîche échouait en faux-positif,
+# même sans aucune faute de code (reproduit sur T0, T1 et le
+# fix RLS jobs, 2026-08/09).
+#
+# Règle : le repo est LF partout (blobs, index, worktree),
+# indépendamment de la config machine. `eol=lf` prime sur
+# `core.autocrlf` ; `text=auto` laisse Git traiter le reste
+# (détection texte) sur les autres plateformes.
+# ────────────────────────────────────────────────────────────────
+
+# Tout texte : LF dans le repo ET dans le worktree.
+* text=auto eol=lf
+
+# Binaires : jamais de conversion.
+*.jpg   binary
+*.jpeg  binary
+*.png   binary
+*.ico   binary
+*.webm  binary
+*.pdf   binary
+
+# Hooks husky (shell, lancés via sh) : du texte, en LF obligatoire.
+.husky/* text eol=lf

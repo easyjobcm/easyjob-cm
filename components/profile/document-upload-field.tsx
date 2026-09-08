@@ -27,6 +27,8 @@ interface DocumentUploadFieldProps {
   expiresAt?: string | null;
   previewUrl?: string | null;
   onUploaded: () => void;
+  /** Verrouillage SRS §5.1 : champ vérifié sans demande admin `pending`. */
+  locked?: boolean;
 }
 
 const ACCEPTED_MIME = "image/jpeg,image/png,image/webp";
@@ -41,6 +43,7 @@ export function DocumentUploadField({
   expiresAt,
   previewUrl,
   onUploaded,
+  locked = false,
 }: DocumentUploadFieldProps) {
   const { t } = useI18n();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -52,7 +55,7 @@ export function DocumentUploadField({
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || locked) return;
 
     setError("");
     if (file.size > MAX_SIZE_BYTES) {
@@ -128,9 +131,19 @@ export function DocumentUploadField({
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border p-3">
-      <label className="relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted transition-colors hover:border-primary/50">
+      <label
+        className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed ${
+          locked
+            ? "cursor-not-allowed border-border bg-muted"
+            : "cursor-pointer border-border bg-muted transition-colors hover:border-primary/50"
+        }`}
+      >
         {previewUrl ? (
-          <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+          <img
+            src={previewUrl}
+            alt=""
+            className={`h-full w-full object-cover ${locked ? "opacity-50" : ""}`}
+          />
         ) : (
           <Camera className="h-6 w-6 text-muted-foreground" />
         )}
@@ -140,12 +153,18 @@ export function DocumentUploadField({
           accept={ACCEPTED_MIME}
           className="sr-only"
           aria-label={label}
+          aria-disabled={locked}
+          disabled={locked}
           onChange={handleFileSelected}
         />
       </label>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{label}</p>
-        {uploading ? (
+        {locked ? (
+          <span className="text-xs font-medium text-muted-foreground">
+            {t.profile.documents.locked}
+          </span>
+        ) : uploading ? (
           <span className="text-xs text-muted-foreground">
             {t.profile.documents.uploading}
           </span>
