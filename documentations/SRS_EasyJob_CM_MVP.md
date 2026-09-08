@@ -229,6 +229,7 @@ Une offre doit obligatoirement contenir les éléments suivants :
 - Toute offre détectée comme malveillante (fausse offre, arnaque, demande de frais de dossier) est automatiquement signalée à l'équipe admin et à l'entreprise pour correction. Elle ne sera jamais publiée sans correction validée.
 - Une offre expire automatiquement si elle n'est pas pourvue **2 heures avant** la date de début.
 - Une offre peut être marquée **"urgente"** : visible en premier dans les résultats. Option **gratuite pour les comptes premium**, **payante pour les comptes standard**.
+- **Visibilité RLS** : une offre n'est lisible et postulable par un candidat qu'au statut `active` (après approbation admin). Les statuts `draft`, `pending_review`, `pending_moderation`, `rejected`, `filled`, `expired`, `cancelled` sont masqués aux candidats via la policy de lecture `jobs` (seul l'état `active`, ainsi que les offres de l'entreprise propriétaire, sont exposés). Cette règle est appliquée côté base (RLS), pas seulement côté frontend.
 
 **Gestion des offres multi-jours :**
 - Une offre couvrant plusieurs journées est automatiquement décomposée en **sous-offres journalières** après validation admin.
@@ -418,6 +419,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Le candidat est notifié immédiatement (push + SMS).
 - Un candidat ne peut postuler qu'une seule fois à la même offre ou sous-offre.
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
+- **Lecture RLS de l'offre** : le candidat ne peut lire ni postuler qu'à une offre au statut `active`. Une offre non active est inexistante pour lui via RLS (HTTP 404 à la lecture) : la postulation d'un candidat exige donc une offre lisible, ce qui garantit qu'une offre jamais approuvée ne peut générer de candidature.
 - **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants (`code: "essentials_incomplete"`).
 
 ---
