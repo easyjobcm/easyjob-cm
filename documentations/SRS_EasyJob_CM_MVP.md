@@ -167,6 +167,19 @@ Voir section 12.
 - Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
 - Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h).
 
+#### 5.1.1 Verrouillage des informations vérifiées — mise à jour initiée par l'admin
+
+Pour éviter qu'un candidat ne contrevienne aux informations personnelles et documents **déjà vérifiés** (intégrité de l'identité vérifiée côté CNI), les données vérifiées sont **verrouillées** pour le candidat :
+
+- **Scope verrouillé** (si `cni_verified = verified`) : identité (`first_name`, `last_name`, `date_of_birth`) + documents CNI (recto/verso/selfie). Hors périmètre : bio, ville, quartier, géolocalisation, compétences, photo de profil, Mobile Money.
+- **Déverrouillage** : uniquement si un administrateur (`admin_ops` / `admin_founder`) a initié une **demande de mise à jour** (`profile_update_requests` en statut `pending` couvrant le groupe `identity` et/ou `cni_documents`).
+- **Canaux d'information** : la demande se matérialise **à la fois** (1) en **notification** (centre `notifications`, type `document_status`) et (2) en **tâche** (page *Tâches*, carte dédiée + modal détaillant le motif de l'admin).
+- **Exécution** : le candidat ouvre la page *Modifier mes informations* ; les champs déverrouillés y sont actifs ; l'admin peut suivre le motif (colonne `reason`) ; la date d'initiation (colonne `created_at`) est tracée.
+- **Révérification obligatoire** : la résoumission d'un champ déverrouillé repasse `cni_verified` à `pending` (même mécanisme que T1 — SRS §6.2/§6.6). Le candidat ne peut pas contourner la révérification en changeant uniquement la DOB ou un nom partiel sans déclencher la ré-évaluation.
+- **Clôture automatique** : la demande `pending` passe `done` dès que le candidat exécute la mise à jour (seules les lignes couvrant un groupe effectivement modifié sont clôturées, jamais celles qui se contentent de rester `pending`).
+- **Garde-fou RLS** : la RLS garantit (1) que le candidat ne peut lire que ses propres demandes `pending`, (2) que seul un admin `admin_ops/admin_founder` peut créer/annuler une demande, (3) que le candidat ne peut la clôturer qu'en `done`. Le serveur reste la source de vérité (masquage client = confort seulement, jamais le seul contrôle).
+- **UI admin d'initiation** : incluse en **T8** (refonte dashboard admin) ; l'endpoint `POST /api/admin/profile-update-requests` est disponible depuis T2.
+
 ### 5.2 Système Sandbox (niveaux candidat)
 
 Les seuils ci-dessous sont les **valeurs initiales configurables** depuis le dashboard `admin_founder`. Ils peuvent être modifiés à tout moment sans redéploiement.
@@ -310,12 +323,15 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 Ces trois critères sont évalués **indépendamment** du pourcentage global de complétude : un profil à 100% mais sans CNI vérifiée ne peut pas postuler. La vérification est faite côté serveur à chaque soumission de candidature (masquage côté client insuffisante) — voir §6.6.
 
+**Modifier le profil candidat (post-onboarding) :** le candidat édite ses informations depuis *Profil → Modifier mes informations* : prénom, nom, **date de naissance**, ville, quartier, bio, géolocalisation, photo de profil, CNI et compétences. La **date de naissance** est modifiable (elle fait partie de l'identité complète exigée à la postulation) ; un changement de prénom, nom ou date de naissance sur un CNI déjà `verified` déclenche la **révérification** (modal de confirmation, CNI → `pending`, poste bloqué tant que non re-vérifiée). Les champs vérifiés sont **verrouillés** et ne peuvent être modifiés qu'après une demande de mise à jour initiée par l'admin — voir §5.1.1.
+
 **Critères d'acceptation :**
 - L'IA suggère des compétences à partir d'une description libre en moins de 3 secondes.
 - La vérification CNI/MoMo affiche un statut clair (en attente / validé / rejeté).
 - L'utilisateur peut sauvegarder et reprendre l'onboarding à tout moment.
 - Les champs obligatoires sont indiqués visuellement.
 - Le nom du compte MoMo est contrôlé pour correspondance avec le nom du candidat.
+- Un changement de prénom/nom/date de naissance sur un CNI `verified` déclenche la révérification (modal + `cni_verified = pending`) et, en l'absence de demande admin `pending`, la modification est refusée côté serveur (`403 field_locked`, §5.1.1).
 
 ---
 
@@ -773,6 +789,14 @@ home_gps_lat, home_gps_lng,
 sandbox_level, average_rating, total_missions,
 profile_completion_pct, premium_until,
 created_at, updated_at
+```
+
+**`profile_update_requests`** (T2 — verrou des infos vérifiées, §5.1.1)
+```
+id, candidate_id, fields[] (identity | cni_documents),
+status (pending / done / cancelled),
+reason, requested_by (uuid -> users),
+created_at, updated_at, completed_at
 ```
 
 **`company_profiles`**

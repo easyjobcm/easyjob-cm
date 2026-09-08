@@ -1,6 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import {
+  evaluateProfileLock,
+  lockedGroupsForCni,
+  lockGroupForField,
+} from "@/lib/utils/profile-lock";
+import {
+  completePendingRequests,
+  pendingRequestedGroups,
+} from "@/lib/utils/profile-lock-server";
 
 const BUCKET = "candidate-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -81,7 +90,7 @@ async function getAuthorizedCandidate() {
   const { data: profile } = await supabase
     .from("candidate_profiles")
     .select(
-      "id, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url",
+      "id, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url, cni_verified",
     )
     .eq("user_id", user.id)
     .single();
@@ -112,6 +121,34 @@ export async function POST(request: NextRequest) {
   }
   if (file.size === 0 || file.size > MAX_SIZE_BYTES) {
     return NextResponse.json({ error: "File too large" }, { status: 400 });
+  }
+
+  // ── Verrou SRS §5.1 : un document CNI vérifié n'est ré-enregistrable QUE
+  //    si un admin a initié une mise à jour (demande `pending` couvrant
+  //    `cni_documents`). La photo de profil reste libre. ──
+  const group = lockGroupForField(field as string);
+  if (group) {
+    const requestedGroups = await pendingRequestedGroups(supabase, candidateId);
+    const lock = evaluateProfileLock(
+      [field as string],
+      lockedGroupsForCni(
+        (profile as { cni_verified?: string | null }).cni_verified ?? null,
+      ),
+      requestedGroups,
+    );
+    if (lock.blocked) {
+      return NextResponse.json(
+        {
+          error: "Field locked",
+          code: "field_locked",
+          lockedGroups: lock.lockedGroups,
+        },
+        { status: 403 },
+      );
+    }
+    if (lock.unlockedByRequests.length > 0) {
+      await completePendingRequests(supabase, candidateId, [group]);
+    }
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());

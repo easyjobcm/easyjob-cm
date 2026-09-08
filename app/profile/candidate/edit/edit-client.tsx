@@ -17,13 +17,26 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import { identitySchema } from "@/lib/validations/profile";
+import { identitySchema, maxBirthDate } from "@/lib/validations/profile";
+import {
+  evaluateProfileLock,
+  lockedGroupsForCni,
+  type ProfileLockGroup,
+} from "@/lib/utils/profile-lock";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
 import { DocumentUploadField } from "@/components/profile/document-upload-field";
+
+/** Demande de mise à jour admin en attente (SRS §5.1) — déverrouille des champs. */
+interface PendingUpdateRequest {
+  id: string;
+  fields: ProfileLockGroup[];
+  reason: string;
+  createdAt: string;
+}
 
 type VerificationStatus = "pending" | "verified" | "rejected";
 type DocumentField =
@@ -37,6 +50,7 @@ interface CandidateProfileEditClientProps {
     id: string | null;
     first_name: string | null;
     last_name: string | null;
+    date_of_birth: string | null;
     city: string | null;
     quartier: string | null;
     bio: string | null;
@@ -51,11 +65,14 @@ interface CandidateProfileEditClientProps {
     cni_expires_at: string | null;
   };
   initialSkills: string[];
+  /** Demandes admin `pending` (SRS §5.1) qui déverrouillent les champs vérifiés. */
+  pendingUpdateRequests: PendingUpdateRequest[];
 }
 
 export function CandidateProfileEditClient({
   profile,
   initialSkills,
+  pendingUpdateRequests,
 }: CandidateProfileEditClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,6 +83,7 @@ export function CandidateProfileEditClient({
   const [formData, setFormData] = React.useState({
     first_name: profile.first_name ?? "",
     last_name: profile.last_name ?? "",
+    date_of_birth: profile.date_of_birth ?? "",
     city: profile.city ?? "",
     quartier: profile.quartier ?? "",
     bio: profile.bio ?? "",
@@ -77,12 +95,57 @@ export function CandidateProfileEditClient({
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [apiError, setApiError] = React.useState("");
+  const [apiLocked, setApiLocked] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
   const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
   const [previews, setPreviews] = React.useState<
     Partial<Record<DocumentField, string>>
   >({});
+
+  // Verrou SRS §5.1 — miroir client de la source de vérité côté serveur :
+  // un groupe est verrouillé si le CNI est vérifié ET qu'aucune demande
+  // admin `pending` ne le couvre. Le serveur reste le vrai garde-fou.
+  const requestedGroups = React.useMemo(() => {
+    const s = new Set<ProfileLockGroup>();
+    pendingUpdateRequests.forEach((r) => r.fields.forEach((g) => s.add(g)));
+    return [...s];
+  }, [pendingUpdateRequests]);
+
+  const identityLocked = React.useMemo(
+    () =>
+      evaluateProfileLock(
+        ["first_name"],
+        lockedGroupsForCni(documents.cni_verified),
+        requestedGroups,
+      ).lockedGroups.includes("identity"),
+    [documents.cni_verified, requestedGroups],
+  );
+  const cniDocsLocked = React.useMemo(
+    () =>
+      evaluateProfileLock(
+        ["cni_front_url"],
+        lockedGroupsForCni(documents.cni_verified),
+        requestedGroups,
+      ).lockedGroups.includes("cni_documents"),
+    [documents.cni_verified, requestedGroups],
+  );
+
+  // Les messages Zod du serveur (`identitySchema`) sont des clés i18n,
+  // pas du texte littéral — on les traduit ici avant affichage.
+  const zodMessages: Record<string, string> = React.useMemo(
+    () =>
+      ({
+        firstNameRequired: tEdit.firstNameRequired,
+        lastNameRequired: tEdit.lastNameRequired,
+        birthDateRequired: tEdit.birthDateRequired,
+        ageInvalid: tEdit.ageInvalid,
+        birthDateInvalid: tEdit.birthDateInvalid,
+        cityRequired: tEdit.cityRequired,
+        bioTooLong: tEdit.bioHint,
+      }) satisfies Record<string, string>,
+    [tEdit],
+  );
 
   const loadPreview = React.useCallback(async (field: DocumentField) => {
     const res = await fetch(`/api/profile/documents?field=${field}`);
@@ -167,17 +230,27 @@ export function CandidateProfileEditClient({
       const fieldErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
         const key = issue.path[0];
-        if (typeof key === "string") fieldErrors[key] = issue.message;
+        if (typeof key === "string")
+          fieldErrors[key] = zodMessages[issue.message] ?? issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
 
-    const nameChanged =
+    // Changement d'identité (nom OU date de naissance) sur un CNI vérifié
+    // → modal de confirmation de révérification (SRS §6.2, §5.1).
+    const identityChanged =
       result.data.first_name !== (profile.first_name ?? "") ||
-      result.data.last_name !== (profile.last_name ?? "");
+      result.data.last_name !== (profile.last_name ?? "") ||
+      result.data.date_of_birth !== (profile.date_of_birth ?? "");
 
-    if (nameChanged && documents.cni_verified === "verified") {
+    if (identityChanged && documents.cni_verified === "verified") {
+      if (identityLocked) {
+        // Le verrou serveur renverra 403 si aucune demande admin ne couvre
+        // le groupe : on l'affiche directement plutôt que de lancer la save.
+        setApiLocked(true);
+        return;
+      }
       setShowReverifyModal(true);
       return;
     }
@@ -201,7 +274,14 @@ export function CandidateProfileEditClient({
           longitude: formData.longitude,
         }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { code?: string };
+        if (res.status === 403 && data.code === "field_locked") {
+          setApiLocked(true);
+          throw new Error("field_locked");
+        }
+        throw new Error("save failed");
+      }
       const data = (await res.json()) as { requiresReverification?: boolean };
 
       if (profile.id) {
@@ -231,8 +311,10 @@ export function CandidateProfileEditClient({
 
       setIsDirty(false);
       setSaved(true);
-    } catch {
-      setApiError(tEdit.error);
+    } catch (err) {
+      if (!(err instanceof Error && err.message === "field_locked")) {
+        setApiError(tEdit.error);
+      }
     } finally {
       setSaving(false);
     }
@@ -275,7 +357,23 @@ export function CandidateProfileEditClient({
         </div>
 
         <div className="space-y-5 px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-6">
+          {pendingUpdateRequests.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+              <ShieldAlert className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {t.profile.profileUpdateRequests.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pendingUpdateRequests[0].reason}
+                </p>
+              </div>
+            </div>
+          )}
           {documents.cni_verified === "pending" &&
+            !pendingUpdateRequests.some((r) =>
+              r.fields.includes("cni_documents"),
+            ) &&
             (documents.cni_front_url ||
               documents.cni_back_url ||
               documents.cni_selfie_url) && (
@@ -293,17 +391,41 @@ export function CandidateProfileEditClient({
             )}
           <Card id="identity">
             <CardContent className="space-y-4 p-4">
+              {identityLocked && (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {tEdit.lockedIdentityLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tEdit.lockedIdentityBody}
+                    </p>
+                  </div>
+                </div>
+              )}
               <Input
                 label={tEdit.firstName}
                 value={formData.first_name}
                 onChange={(e) => updateField("first_name", e.target.value)}
                 error={errors.first_name}
+                disabled={identityLocked}
               />
               <Input
                 label={tEdit.lastName}
                 value={formData.last_name}
                 onChange={(e) => updateField("last_name", e.target.value)}
                 error={errors.last_name}
+                disabled={identityLocked}
+              />
+              <Input
+                label={tEdit.birthDate}
+                type="date"
+                value={formData.date_of_birth}
+                onChange={(e) => updateField("date_of_birth", e.target.value)}
+                error={errors.date_of_birth}
+                max={maxBirthDate()}
+                disabled={identityLocked}
               />
               <div>
                 <label className="mb-2 block text-sm font-medium text-foreground">
@@ -395,6 +517,19 @@ export function CandidateProfileEditClient({
                 previewUrl={previews.profile_photo_url}
                 onUploaded={() => refreshDocument("profile_photo_url")}
               />
+              {cniDocsLocked && (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {tEdit.lockedDocLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tEdit.lockedDocBody}
+                    </p>
+                  </div>
+                </div>
+              )}
               <DocumentUploadField
                 field="cni_front_url"
                 label={t.profile.documents.cniFront}
@@ -404,6 +539,7 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_front_url}
                 onUploaded={() => refreshDocument("cni_front_url")}
+                locked={cniDocsLocked}
               />
               <DocumentUploadField
                 field="cni_back_url"
@@ -414,6 +550,7 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_back_url}
                 onUploaded={() => refreshDocument("cni_back_url")}
+                locked={cniDocsLocked}
               />
               <DocumentUploadField
                 field="cni_selfie_url"
@@ -424,6 +561,7 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_selfie_url}
                 onUploaded={() => refreshDocument("cni_selfie_url")}
+                locked={cniDocsLocked}
               />
             </CardContent>
           </Card>
@@ -456,6 +594,22 @@ export function CandidateProfileEditClient({
             <p role="alert" className="text-sm text-destructive">
               {apiError}
             </p>
+          )}
+          {apiLocked && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+            >
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {tEdit.lockedIdentityLabel}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tEdit.lockedIdentityBody}
+                </p>
+              </div>
+            </div>
           )}
         </div>
 

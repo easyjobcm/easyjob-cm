@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useTranslation } from "@/lib/i18n";
+import { Modal } from "@/components/ui/modal";
+import { useI18n } from "@/lib/i18n";
 import {
   ClipboardList,
   Calendar,
@@ -16,12 +19,14 @@ import {
   QrCode,
   CheckCircle,
   Loader2,
+  FileEdit,
 } from "lucide-react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDateShort } from "@/lib/utils/profile-status";
 import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
+import type { ProfileLockGroup } from "@/lib/utils/profile-lock";
 
 interface Mission {
   id: string;
@@ -43,13 +48,21 @@ interface Mission {
   };
 }
 
+/** Demande de mise à jour de profil initiée par l'admin (SRS §5.1). */
+interface ProfileUpdateRequest {
+  id: string;
+  fields: ProfileLockGroup[];
+  reason: string | null;
+  created_at: string | null;
+}
+
 const fetcher = async () => {
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return [];
+  if (!user) return { missions: [], updateRequests: [] };
 
   // Get candidate profile
   const { data: profile } = await supabase
@@ -58,49 +71,70 @@ const fetcher = async () => {
     .eq("user_id", user.id)
     .single();
 
-  if (!profile) return [];
+  if (!profile) return { missions: [], updateRequests: [] };
 
-  // Get upcoming missions
+  // Get upcoming missions + profile-update requests initiated by the admin
   const today = new Date().toISOString().split("T")[0];
-  const { data: missions } = await supabase
-    .from("missions")
-    .select(
-      `
-      id,
-      status,
-      scheduled_date,
-      scheduled_start_time,
-      scheduled_end_time,
-      arrival_validated,
-      departure_validated,
-      job:jobs (
+  const [missionsRes, requestsRes] = await Promise.all([
+    supabase
+      .from("missions")
+      .select(
+        `
         id,
-        title,
-        city,
-        address,
-        hourly_rate,
-        company:company_profiles (
-          company_name
+        status,
+        scheduled_date,
+        scheduled_start_time,
+        scheduled_end_time,
+        arrival_validated,
+        departure_validated,
+        job:jobs (
+          id,
+          title,
+          city,
+          address,
+          hourly_rate,
+          company:company_profiles (
+            company_name
+          )
         )
+      `,
       )
-    `,
-    )
-    .eq("candidate_id", profile.id)
-    .in("status", ["pending", "confirmed", "in_progress"])
-    .gte("scheduled_date", today)
-    .order("scheduled_date", { ascending: true });
+      .eq("candidate_id", profile.id)
+      .in("status", ["pending", "confirmed", "in_progress"])
+      .gte("scheduled_date", today)
+      .order("scheduled_date", { ascending: true }),
+    supabase
+      .from("profile_update_requests")
+      .select("id, fields, reason, created_at")
+      .eq("candidate_id", profile.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+  ]);
 
-  return missions || [];
+  return {
+    missions: (missionsRes.data as unknown as Mission[] | null) ?? [],
+    updateRequests:
+      (requestsRes.data as unknown as ProfileUpdateRequest[] | null) ?? [],
+  };
 };
 
 export default function TasksPage() {
-  const { locale } = useTranslation();
-  const { data: missions, isLoading } = useSWR("/api/tasks", fetcher);
-  const missionList = (missions || []) as unknown as Mission[];
+  const router = useRouter();
+  const { t, locale } = useI18n();
+  const tr = t.profile.profileUpdateRequests;
+  const { data, isLoading } = useSWR<{
+    missions: Mission[];
+    updateRequests: ProfileUpdateRequest[];
+  } | null>("/api/tasks", fetcher);
+  const missions = data?.missions ?? [];
+  const updateRequests = data?.updateRequests ?? [];
+  const [openRequestId, setOpenRequestId] = React.useState<string | null>(null);
 
   useRealtimeCandidateSync("/api/tasks");
 
-  const hasTasks = missionList.length > 0;
+  const hasTasks = missions.length > 0 || updateRequests.length > 0;
+
+  const openRequest = updateRequests.find((r) => r.id === openRequestId);
 
   const isToday = (dateStr: string) => {
     const today = new Date().toISOString().split("T")[0];
@@ -174,24 +208,24 @@ export default function TasksPage() {
           {/* Check-in status */}
           <div className="flex gap-2 mb-4">
             <div
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+              className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs ${
                 mission.arrival_validated
                   ? "bg-success/10 text-success"
                   : "bg-muted text-muted-foreground"
               }`}
             >
               <CheckCircle className="h-3 w-3" />
-              <span>{locale === "fr" ? "Arrivee" : "Arrival"}</span>
+              <span>{locale === "fr" ? "Arrivée" : "Arrival"}</span>
             </div>
             <div
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+              className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs ${
                 mission.departure_validated
                   ? "bg-success/10 text-success"
                   : "bg-muted text-muted-foreground"
               }`}
             >
               <CheckCircle className="h-3 w-3" />
-              <span>{locale === "fr" ? "Depart" : "Departure"}</span>
+              <span>{locale === "fr" ? "Départ" : "Departure"}</span>
             </div>
           </div>
 
@@ -215,7 +249,7 @@ export default function TasksPage() {
                 <Link href={`/missions/${mission.id}/check-out`}>
                   <Button size="sm" variant="outline" className="gap-2">
                     <QrCode className="h-4 w-4" />
-                    {locale === "fr" ? "Depart" : "Check Out"}
+                    {locale === "fr" ? "Départ" : "Check Out"}
                   </Button>
                 </Link>
               )}
@@ -225,11 +259,22 @@ export default function TasksPage() {
     );
   };
 
+  const fieldLabelsFor = (fields: ProfileLockGroup[]) =>
+    fields
+      .map((g) =>
+        g === "identity"
+          ? tr.identity
+          : g === "cni_documents"
+            ? tr.cni_documents
+            : g,
+      )
+      .join(" · ");
+
   return (
     <AppShell>
       <div className="px-4 py-6">
-        <h1 className="text-2xl font-bold text-foreground mb-6">
-          {locale === "fr" ? "Taches" : "Tasks"}
+        <h1 className="mb-6 text-2xl font-bold text-foreground">
+          {locale === "fr" ? "Tâches" : "Tasks"}
         </h1>
 
         {isLoading ? (
@@ -239,34 +284,135 @@ export default function TasksPage() {
         ) : !hasTasks ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="relative mb-6">
-              <div className="h-24 w-24 rounded-3xl bg-linear-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-linear-to-br from-primary/20 to-accent/20">
                 <ClipboardList className="h-12 w-12 text-primary" />
               </div>
-              <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-xl bg-card border-2 border-background flex items-center justify-center">
+              <div className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-xl border-2 border-background bg-card">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
               </div>
             </div>
 
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              {locale === "fr" ? "Vous etes pret !" : "You're all set!"}
+            <h2 className="mb-2 text-xl font-semibold">
+              {locale === "fr" ? "Vous êtes prêt !" : "You're all set!"}
             </h2>
-            <p className="text-muted-foreground max-w-xs mb-6">
+            <p className="mb-6 max-w-xs text-muted-foreground">
               {locale === "fr"
-                ? "Aucune tache en attente. Explorez les offres pour trouver votre prochaine mission."
+                ? "Aucune tâche en attente. Explorez les offres pour trouver votre prochaine mission."
                 : "No pending tasks. Explore jobs to find your next opportunity."}
             </p>
 
             <Link href="/jobs">
               <Button>
-                {locale === "fr" ? "Decouvrir les offres" : "Discover jobs"}
+                {locale === "fr" ? "Découvrir les offres" : "Discover jobs"}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">{missionList.map(renderMissionCard)}</div>
+          <div className="space-y-4">
+            {/* Mises à jour de profil demandées par l'admin (SRS §5.1) */}
+            {updateRequests.map((r) => (
+              <Card key={r.id} className="border-primary/40 bg-primary/5">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <FileEdit className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-foreground">
+                          {tr.title}
+                        </h3>
+                        <Badge variant="default" className="bg-primary">
+                          {fieldLabelsFor(r.fields)}
+                        </Badge>
+                      </div>
+                      {r.created_at && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatDateShort(r.created_at, locale)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {r.reason && (
+                    <p className="rounded-lg bg-card/70 px-3 py-2 text-sm text-muted-foreground">
+                      {r.reason}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setOpenRequestId(r.id)}
+                    >
+                      {tr.start}
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Missions à accomplir */}
+            {missions.map(renderMissionCard)}
+          </div>
         )}
       </div>
+
+      {/* Modal détail demande + CTA vers la page d'édition */}
+      <Modal
+        isOpen={!!openRequest}
+        onClose={() => setOpenRequestId(null)}
+        title={tr.title}
+      >
+        {openRequest && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {openRequest.fields.map((g) => (
+                <Badge key={g} variant="outline">
+                  {fieldLabelsFor([g])}
+                </Badge>
+              ))}
+            </div>
+            {openRequest.reason && (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {tr.reasonLabel} :{" "}
+                </span>
+                {openRequest.reason}
+              </p>
+            )}
+            <p className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              {tr.hint}
+            </p>
+            <div className="flex flex-col gap-2">
+              {openRequest.fields.includes("identity") && (
+                <Button
+                  onClick={() => {
+                    setOpenRequestId(null);
+                    router.push("/profile/candidate/edit");
+                  }}
+                >
+                  {tr.goToEdit}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+              {openRequest.fields.includes("cni_documents") && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setOpenRequestId(null);
+                    router.push("/profile/candidate/edit?focus=photo");
+                  }}
+                >
+                  {tr.goToDocuments}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </AppShell>
   );
 }

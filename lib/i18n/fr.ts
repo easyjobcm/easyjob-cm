@@ -416,6 +416,7 @@ export const fr = {
       title: "Modifier mes informations",
       firstName: "Prénom",
       lastName: "Nom",
+      birthDate: "Date de naissance",
       city: "Ville",
       quartier: "Quartier",
       bio: "À propos de vous",
@@ -429,9 +430,18 @@ export const fr = {
       error: "Impossible d'enregistrer. Réessayez.",
       firstNameRequired: "Le prénom est requis",
       lastNameRequired: "Le nom est requis",
+      birthDateRequired: "La date de naissance est requise",
+      ageInvalid: "Vous devez avoir au moins 18 ans",
+      birthDateInvalid: "Date de naissance invalide",
       cityRequired: "Sélectionnez une ville",
       unsavedWarning:
         "Des modifications ne sont pas enregistrées. Quitter quand même ?",
+      lockedIdentityLabel: "Informations vérifiées",
+      lockedIdentityBody:
+        "Vos informations d'identité sont vérifiées et ne peuvent être modifiées qu'après une demande de l'administration. Contactez l'admin si la mise à jour est justifiée.",
+      lockedDocLabel: "Document vérifié",
+      lockedDocBody:
+        "Ce document est vérifié et ne peut être remplacé qu'après une demande de l'administration.",
     },
     documents: {
       title: "Documents",
@@ -446,6 +456,7 @@ export const fr = {
       verified: "Validé",
       rejected: "Refusé",
       expired: "Expiré",
+      locked: "Modifiable sur demande admin",
       tooLarge: "Fichier trop volumineux (5 Mo maximum)",
       uploadFailed: "L'envoi a échoué. Réessayez.",
     },
@@ -532,11 +543,23 @@ export const fr = {
     reverification: {
       modalTitle: "Confirmer la modification",
       modalBody:
-        "La modification de votre nom nécessitera une nouvelle vérification de votre pièce d'identité. Voulez-vous continuer ?",
+        "La modification de votre identité (nom ou date de naissance) nécessitera une nouvelle vérification de votre pièce d'identité. Voulez-vous continuer ?",
       confirm: "Confirmer la modification",
       bannerTitle: "Vérification en cours",
       bannerBody:
-        "Votre pièce d'identité est en cours de nouvelle vérification suite à une modification de votre nom.",
+        "Votre pièce d'identité est en cours de nouvelle vérification suite à une modification de votre identité.",
+    },
+    profileUpdateRequests: {
+      title: "Mise à jour de profil demandée",
+      reasonLabel: "Raisons de la demande",
+      identity: "Vos informations d'identité",
+      cni_documents: "Vos documents CNI",
+      start: "Préparer la mise à jour",
+      goToEdit: "Ouvrir mes informations",
+      goToDocuments: "Ouvrir mes documents",
+      hint: "L'admin a déverrouillé ces champs pour une durée limitée. Une fois enregistrés, la vérification repart de zéro.",
+      done: "Mise à jour enregistrée. L'examen de votre pièce reprendra après la prochaine vérification.",
+      expiredLabel: "Cette demande a été clôturée",
     },
     myProfile: "Mon Profil",
     missionsCompleted: "missions réalisées",
