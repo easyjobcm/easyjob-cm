@@ -16,6 +16,10 @@ export type SkillDocumentType = (typeof SKILL_DOCUMENT_TYPES)[number];
 
 export const skillDocumentTypeSchema = z.enum(SKILL_DOCUMENT_TYPES);
 
+/** Documents « généraux » non rattachés à une compétence (CV et permis de
+ * conduire) : aucun `skill_ids` obligatoire à l'upload (T3). */
+export const GENERAL_DOC_TYPES: SkillDocumentType[] = ["cv", "permis_conduire"];
+
 /** Métadonnées envoyées avec le fichier lors de l'upload d'un justificatif. */
 export const skillDocumentUploadSchema = z
   .object({
@@ -32,10 +36,14 @@ export const skillDocumentUploadSchema = z
     skill_ids: z.array(z.string().uuid()).max(20),
     confirm_accurate: z.literal(true, { error: "confirmRequired" }),
   })
-  .refine((v) => v.document_type === "cv" || v.skill_ids.length > 0, {
-    message: "selectSkillRequired",
-    path: ["skill_ids"],
-  })
+  .refine(
+    (v) =>
+      GENERAL_DOC_TYPES.includes(v.document_type) || v.skill_ids.length > 0,
+    {
+      message: "selectSkillRequired",
+      path: ["skill_ids"],
+    },
+  )
   .refine((v) => !v.issued_at || !v.expires_at || v.issued_at <= v.expires_at, {
     message: "expiryBeforeIssued",
     path: ["expires_at"],

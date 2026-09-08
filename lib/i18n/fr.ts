@@ -422,7 +422,6 @@ export const fr = {
       bio: "À propos de vous",
       bioHint:
         "Décrivez brièvement votre expérience (plus de 10 caractères pour compter dans votre complétion).",
-      skills: "Compétences",
       addSkills: "Ajouter mes compétences",
       save: "Enregistrer",
       saving: "Enregistrement…",
@@ -527,7 +526,47 @@ export const fr = {
       unsupportedType:
         "Format non supporté (PDF, JPEG, PNG ou WebP uniquement)",
       selectSkillRequired:
-        "Sélectionnez au moins une compétence (sauf pour un CV)",
+        "Sélectionnez au moins une compétence (sauf CV et permis de conduire)",
+    },
+    skills: {
+      title: "Mes compétences",
+      subtitle:
+        "Gérez vos compétences, certifiez-les avec des justificatifs et joignez votre CV et votre permis de conduire.",
+      noSkills:
+        "Aucune compétence pour l'instant. Ajoutez-en depuis le catalogue ci-dessous.",
+      addSection: "Ajouter une compétence",
+      searchPlaceholder: "Rechercher une compétence…",
+      noSearch: "Aucune compétence trouvée dans le catalogue.",
+      otherSkills: "Vos autres compétences",
+      catalog: {
+        services: "Services et réception",
+        vente: "Vente",
+        restauration: "Restauration",
+        manutention: "Manutention et logistique",
+        transport: "Transport et livraison",
+        artisanat: "Bâtiment et métiers d'artisan",
+        nettoyage: "Nettoyage et entretien",
+        securite: "Sécurité",
+        events: "Événementiel",
+        bureautique: "Bureautique et administration",
+        digital: "Digital et informatique",
+        beaute: "Beauté",
+        soins: "Soins et assistance",
+        langues: "Langues",
+      },
+      confirmTitle: "Certifier cette compétence ?",
+      confirmBody:
+        "Voulez-vous certifier « {skill} » maintenant avec un justificatif ?",
+      confirmNow: "Certifier maintenant",
+      confirmLater: "Plus tard",
+      deleteSkill: "Supprimer la compétence",
+      deleteSkillConfirm: "Supprimer « {skill} » de votre profil ?",
+      deleteSkillError: "La suppression a échoué. Réessayez.",
+      addError: "L'ajout a échoué. Réessayez.",
+      drivingLicenseTitle: "Permis de conduire",
+      drivingLicenseHint:
+        "Document général de votre profil, utile pour les missions de conduite et de transport.",
+      addDrivingLicense: "Ajouter mon permis",
     },
     geolocation: {
       title: "Localisation précise",

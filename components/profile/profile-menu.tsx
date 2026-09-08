@@ -78,22 +78,13 @@ export function ProfileMenu({ isCandidate }: ProfileMenuProps) {
                 Edit2,
                 t.profile.editProfile,
               )}
-              {menuItem(
-                "/profile/candidate/edit?focus=skills",
-                Sparkles,
-                t.profile.mySkills,
-              )}
+              {menuItem("/profile/skills", Sparkles, t.profile.mySkills)}
               {menuItem(
                 "/profile/candidate/edit?focus=location",
                 MapPin,
                 t.profile.myLocation,
               )}
               {menuItem("/profile/availability", Clock, t.profile.availability)}
-              {menuItem(
-                "/profile/skill-documents",
-                FileText,
-                t.profile.skillDocuments.menuLabel,
-              )}
               {menuItem(
                 "/profile/candidate/edit?focus=photo",
                 FileText,

@@ -35,13 +35,6 @@ export default async function CandidateProfileEditPage() {
     .eq("user_id", user.id)
     .single();
 
-  const { data: candidateSkills } = candidateProfile
-    ? await supabase
-        .from("candidate_skills")
-        .select("id, skill_name")
-        .eq("candidate_id", candidateProfile.id)
-    : { data: [] };
-
   // Demandes de mise à jour admin en attente pour ce candidat (SRS §5.1) :
   // elles déverrouillent les champs vérifiés côté serveur ET s'affichent en
   // tâche sur /tasks ; la page edit les affiche aussi (état des champs).
@@ -76,7 +69,6 @@ export default async function CandidateProfileEditPage() {
           cni_expires_at: null,
         }
       }
-      initialSkills={(candidateSkills ?? []).map((s) => s.skill_name)}
       pendingUpdateRequests={(pendingRequests ?? []).map((r) => ({
         id: r.id,
         fields: Array.isArray(r.fields) ? [...r.fields] : [],

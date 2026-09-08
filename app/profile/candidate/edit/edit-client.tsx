@@ -16,7 +16,6 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
 import { identitySchema, maxBirthDate } from "@/lib/validations/profile";
 import {
   evaluateProfileLock,
@@ -24,10 +23,7 @@ import {
   type ProfileLockGroup,
 } from "@/lib/utils/profile-lock";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import {
-  CAMEROON_CITIES,
-  COMMON_SKILLS,
-} from "@/lib/utils/candidate-constants";
+import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 import { DocumentUploadField } from "@/components/profile/document-upload-field";
 
 /** Demande de mise à jour admin en attente (SRS §5.1) — déverrouille des champs. */
@@ -64,20 +60,17 @@ interface CandidateProfileEditClientProps {
     cni_rejection_reason: string | null;
     cni_expires_at: string | null;
   };
-  initialSkills: string[];
   /** Demandes admin `pending` (SRS §5.1) qui déverrouillent les champs vérifiés. */
   pendingUpdateRequests: PendingUpdateRequest[];
 }
 
 export function CandidateProfileEditClient({
   profile,
-  initialSkills,
   pendingUpdateRequests,
 }: CandidateProfileEditClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
-  const supabase = React.useMemo(() => createClient(), []);
   const tEdit = t.profile.edit;
 
   const [formData, setFormData] = React.useState({
@@ -90,7 +83,6 @@ export function CandidateProfileEditClient({
     latitude: profile.latitude,
     longitude: profile.longitude,
   });
-  const [skills, setSkills] = React.useState<string[]>(initialSkills);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -207,14 +199,6 @@ export function CandidateProfileEditClient({
     updateField("longitude", coords.longitude);
   });
 
-  const toggleSkill = (skill: string) => {
-    setSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
-    );
-    setIsDirty(true);
-    setSaved(false);
-  };
-
   const handleBack = () => {
     if (isDirty && !window.confirm(tEdit.unsavedWarning)) return;
     router.push("/profile/candidate");
@@ -284,23 +268,6 @@ export function CandidateProfileEditClient({
       }
       const data = (await res.json()) as { requiresReverification?: boolean };
 
-      if (profile.id) {
-        await supabase
-          .from("candidate_skills")
-          .delete()
-          .eq("candidate_id", profile.id);
-
-        if (skills.length > 0) {
-          await supabase.from("candidate_skills").insert(
-            skills.map((skill_name) => ({
-              candidate_id: profile.id as string,
-              skill_name,
-              skill_level: 3,
-            })),
-          );
-        }
-      }
-
       if (data.requiresReverification) {
         setDocuments((prev) => ({
           ...prev,
@@ -323,16 +290,13 @@ export function CandidateProfileEditClient({
   const bioLength = formData.bio.trim().length;
 
   // Route depuis ProfileCompletionWidget vers le premier critère manquant
-  // (?focus=photo|cni|bio|identity|location|skills) : on y scrolle une fois monté.
+  // (?focus=photo|cni|bio|identity|location) : on y scrolle une fois monté.
+  // (?focus=skills) est ignoré : les compétences vivent dans /profile/skills (T3).
   React.useEffect(() => {
     const focus = searchParams.get("focus");
-    if (!focus) return;
+    if (!focus || focus === "skills") return;
     const sectionId =
-      focus === "photo" || focus === "cni"
-        ? "documents"
-        : focus === "skills"
-          ? "skills"
-          : "identity";
+      focus === "photo" || focus === "cni" ? "documents" : "identity";
     document
       .getElementById(sectionId)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -563,30 +527,6 @@ export function CandidateProfileEditClient({
                 onUploaded={() => refreshDocument("cni_selfie_url")}
                 locked={cniDocsLocked}
               />
-            </CardContent>
-          </Card>
-
-          <Card id="skills">
-            <CardContent className="p-4">
-              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                {tEdit.skills}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {COMMON_SKILLS.map((skill) => (
-                  <button
-                    key={skill}
-                    type="button"
-                    onClick={() => toggleSkill(skill)}
-                    className={`rounded-full border px-3 py-2 text-sm transition-colors ${
-                      skills.includes(skill)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}
-                  >
-                    {skill}
-                  </button>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
