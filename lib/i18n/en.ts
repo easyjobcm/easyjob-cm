@@ -560,6 +560,21 @@ export const en: TranslationKeys = {
       drivingLicenseHint:
         "A general profile document, useful for driving and delivery missions.",
       addDrivingLicense: "Add my driving license",
+      licenseCategoryLabel: "License category",
+      licenseCategoryPlaceholder: "Select the category",
+      licenseCategories: {
+        moto: "Motorcycle",
+        voiture: "Car",
+        fourgon: "Van",
+        camion: "Truck",
+        bus: "Bus",
+        tous_types: "All types (international license)",
+      },
+      licenseCategoryBadge: "Category: {cat}",
+      licenseCategoryRequired:
+        "The license category is required to add this document.",
+      licenseRequiredError:
+        '"{skill}" requires a verified driving license. Add and get your license verified before adding this skill.',
     },
     geolocation: {
       title: "Precise location",

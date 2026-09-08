@@ -55,6 +55,7 @@ export default async function SkillsPage() {
       .select(
         `id, document_type, title, issuing_organization, issued_at,
          expires_at, status, rejection_reason, verified_at, created_at,
+         license_category,
          candidate_skill_documents ( candidate_skill_id )`,
       )
       .eq("candidate_id", candidateProfile.id)

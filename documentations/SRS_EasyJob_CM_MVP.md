@@ -635,7 +635,7 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 
 **Ajout d'un document :**
 - Types acceptés : CV, diplôme, certificat professionnel, attestation de formation, attestation de travail/expérience, permis de conduire, autre justificatif professionnel.
-- Champs demandés : type, titre, organisme émetteur (facultatif pour le CV), date d'obtention, date d'expiration (facultative — non exigée pour les documents qui n'expirent normalement pas, comme un diplôme), compétence(s) associée(s) (le CV reste un document général, non rattaché à une compétence), fichier.
+- Champs demandés : type, titre, organisme émetteur (facultatif pour le CV), date d'obtention, date d'expiration (facultative — non exigée pour les documents qui n'expirent normalement pas, comme un diplôme ; **obligatoire pour le permis de conduire** depuis T3.1), **catégorie du permis** (obligatoire pour `permis_conduire`, T3.1 — §6.14.2), compétence(s) associée(s) (le CV reste un document général, non rattaché à une compétence), fichier.
 - Formats acceptés : PDF, JPEG, PNG, WebP — réutilisation du bucket privé `candidate-documents` existant (limite 5 Mio, extension de `allowed_mime_types` pour inclure `application/pdf`).
 - Un même document peut être associé à plusieurs compétences réellement couvertes, sans dupliquer le fichier.
 - Après envoi, le statut passe à "Vérification en attente". Aucune compétence n'est marquée "Vérifiée" avant validation admin — un CV seul ne suffit jamais à vérifier une compétence.
@@ -687,7 +687,7 @@ Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyen
 **Section CV / permis (documents « généraux ») :** le CV et le permis de conduire sont gérés comme des documents généraux du profil (`document_type = cv` / `permis_conduire`, **non rattachés à une compétence** — `skill_ids = []`) :
 - deux cartes (CV, permis) affichant le statut du dernier document (`pending` / `rejected` / `verified` / `expired`) et permettant la **suppression** quand le document est `pending` ou `rejected` (RLS T0) ;
 - l'upload utilise le même endpoint et la même validation Zod que §6.14 (`POST /api/profile/skill-documents`), en verrouillant le `document_type` ; la contrainte Zod « au moins une compétence » est exemptée **exclusivement** pour `GENERAL_DOC_TYPES` (`cv`, `permis_conduire`) ;
-- le permis est saisi **sans date d'expiration** dans ce formulaire (document général) ; le contrôle d'expiration exigé par les offres le lit depuis `candidate_documents.expires_at` (§6.14) — le flag mort `candidate_profiles.driving_license_verified` n'est alimenté par aucune UI et sera corrigé en **T8** (refonte admin).
+- le permis est saisi **avec date d'expiration et catégorie** depuis T3.1 (document général) ; le contrôle d'expiration exigé par les offres le lit depuis `candidate_documents.expires_at` (§6.14) et le verrou des compétences de conduite depuis `license_category` (§6.14.2) — le flag mort `candidate_profiles.driving_license_verified` n'est alimenté par aucune UI et sera corrigé en **T8** (refonte admin).
 
 **Ajout de compétences (catalogue) :**
 - **Catalogue** (`lib/data/skill-catalog.ts`) : 14 groupes thématiques (services, vente, restauration, manutention, transport, artisanat, nettoyage, sécurité, événementiel, bureautique, digital, beauté, soins, langues) couvrant les compétences fréquentes camerounaises (Douala / Yaoundé). Noms des compétences non accentués, **identiques** à l'existant (`COMMON_SKILLS` de l'onboarding) : un candidat existant retrouve ses compétences cochées dans l'UI.
@@ -706,6 +706,42 @@ Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyen
 - Le CV et le permis peuvent être uploadés **sans sélectionner de compétence** ; tout autre type exige au moins une compétence (client **et** serveur).
 - Un candidat retrouve ses compétences de l'onboarding cochées dans le catalogue.
 - Les compétences vérifiées conservent leur badge émeraude après un save de profil (bug T1 corrigé).
+
+### 6.14.2 Catégories de permis + verrou des compétences de conduite — T3.1
+
+**Description :** le permis de conduire est désormais saisi **avec une catégorie** (`candidate_documents.license_category`), et un candidat ne peut déclarer une **compétence de conduite** que s'il détient un permis **vérifié** couvrant la catégorie requise. La règle s'applique dans **tous** les points d'entrée des compétences : la page `/profile/skills` **et** l'onboarding (step 3).
+
+**Catégories** (CHECK DB `candidate_documents_license_category_chk` + Zod `licenseCategorySchema`) : `moto`, `voiture`, `fourgon`, `camion`, `bus`, `tous_types` (wildcard côté document — couvre **toute** exigence).
+
+**Mapping compétences → catégorie requise** (fonction SQL `public.skill_requires_license` **et** miroir TS `lib/utils/license-requirements.ts` — les deux doivent rester synchrones, verrouillé par vitest + preuve E2E) :
+
+| Compétence(s) | Catégorie requise |
+|---|---|
+| Conduite moto · Taxi moto · Livraison moto | `moto` |
+| Conduite voiture · Livraison voiture | `voiture` |
+| Conduite fourgon | `fourgon` (satisfaite par `fourgon` **ou** `camion`) |
+| Conduite camion | `camion` |
+| Conduite bus | `bus` (compétence ajoutée au catalogue en T3.1) |
+| Toute autre compétence | aucune exigence |
+
+**Modèle de satisfaction (sets) :** un permis vérifié satisfait l'exigence si sa catégorie appartient au set requis (`fourgon ← {fourgon, camion}`) **ou** si sa catégorie est `tous_types` (wildcard). Implémenté de façon identique côté SQL (`public.has_verified_license_for`, sets en `VALUES`) et côté TS (`SATISFIES_SETS`).
+
+**Trigger Postgres :** `BEFORE INSERT` sur `candidate_skills` (`trg_enforce_license_for_driving_skill`) — si la compétence requiert un permis que le candidat ne possède pas vérifié, l'insertion est **refusée** avec un message préfixé `EASYJOB_LICENSE_REQUIRED:` (préfixe stable détecté côté client, pas de SQLSTATE). Exonération système via `set_config('easyjob.system_update','on',true)` (même mécanisme que la recompute T0) — service role uniquement.
+
+**UI :**
+- **`/profile/skills`** : le modal « Ajouter mon permis » exige la **catégorie** (select obligatoire) **et** la date d'expiration ; la carte permis affiche un **badge de catégorie** (« Catégorie : Moto ») ; les chips de compétences de conduite sans permis couvrant vérifié sont **désactivées** (verrou visuel + tooltip) et l'insertion est bloquée côté client également (double défense avec le trigger) ; un échec d'insertion préfixé `EASYJOB_LICENSE_REQUIRED:` affiche le message dédié.
+- **Onboarding (step 3)** : les chips de conduite (`Conduite moto`, `Conduite voiture` dans `COMMON_SKILLS`) sont **désactivées** tant que le candidat n'a pas de permis vérifié couvrant la catégorie (liste calculée côté serveur à l'ouverture de la page depuis `candidate_documents`) + hint « Les compétences de conduite nécessitent un permis de conduire vérifié. Ajoutez-les dans votre profil après vérification. ». La règle « minimum 2 compétences » ne compte que les compétences réellement sélectionnables.
+
+**Conséquence assumée :** le permis étant validé *a posteriori* par un administrateur, le candidat qui termine son onboarding sans permis vérifié **ajoute ses compétences de conduite ensuite, dans `/profile/skills`**, après la vérification du permis.
+
+**Critères d'acceptation :**
+- INSERT `candidate_skills` sans permis vérifié → **refusé** (session candidat réelle) avec un message préfixé `EASYJOB_LICENSE_REQUIRED` ; aucune ligne créée.
+- Permis `moto` vérifié → « Conduite moto » OK ; « Conduite voiture » **refusée** (catégories distinctes).
+- Permis `tous_types` vérifié → « Conduite camion » **OK** (wildcard).
+- Permis `camion` vérifié → « Conduite fourgon » **OK** (set de satisfaction).
+- Compétence non-conduite (ex. « Cuisine ») : toujours insérable, quel que soit le permis.
+- Onboarding (HTML rendu) : les chips de conduite sont `disabled` sans permis vérifié couvrant.
+- Bypass système : avec `easyjob.system_update = on` (service role), l'INSERT passe malgré l'absence de permis.
 
 ---
 

@@ -15,6 +15,11 @@ import {
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
 import {
+  licenseSatisfies,
+  requiredLicenseCategory,
+  type LicenseCategoryT31,
+} from "@/lib/utils/license-requirements";
+import {
   User,
   MapPin,
   Briefcase,
@@ -54,6 +59,9 @@ interface OnboardingClientProps {
     name_fr?: string;
     name_en?: string;
   }>;
+  /** T3.1 — catégories de permis VÉRIFIÉES du candidat (drives the
+   *  "chip de conduite désactivée sans permis" du step 3). */
+  verifiedLicenseCategories: string[];
 }
 
 const STEPS = [
@@ -77,6 +85,7 @@ export function OnboardingClient({
   user,
   profile,
   categories: _categories,
+  verifiedLicenseCategories,
 }: OnboardingClientProps) {
   const router = useRouter();
   const { locale, t } = useI18n();
@@ -122,6 +131,20 @@ export function OnboardingClient({
         ? prev.skills.filter((s) => s !== skill)
         : [...prev.skills, skill],
     }));
+  };
+
+  /** T3.1 : une compétence de conduite est BLOQUÉE au step 3 tant qu'aucun
+   *  permis de la bonne catégorie n'est `verified` (même modèle que le
+   *  trigger SQL : `has_verified_license_for`). `tous_types` est wildcard.
+   *  Le candidat ajoute la compétence APRÈS vérification du permis (voir
+   *  SRS §6.14.1 / §6.2). La compétence reste sélectionnable si le driver
+   *  coche un chip « déjà ajouté » (rare cas : onboarding après un permis). */
+  const skillBlockedByLicense = (skill: string): boolean => {
+    const required = requiredLicenseCategory(skill);
+    if (required === undefined) return false;
+    return !verifiedLicenseCategories.some((cat) =>
+      licenseSatisfies(required, (cat as LicenseCategoryT31 | null) ?? null),
+    );
   };
 
   const saveProgress = async (nextStep: number) => {
@@ -396,20 +419,34 @@ export function OnboardingClient({
                 : "Select your skills (minimum 2)"}
             </p>
             <div className="flex flex-wrap gap-2">
-              {COMMON_SKILLS.map((skill) => (
-                <button
-                  key={skill}
-                  type="button"
-                  onClick={() => toggleSkill(skill)}
-                  className={`px-3 py-2 rounded-full border text-sm transition-colors ${
-                    formData.skills.includes(skill)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card border-border hover:border-primary/50"
-                  }`}
-                >
-                  {skill}
-                </button>
-              ))}
+              {COMMON_SKILLS.map((skill) => {
+                const selected = formData.skills.includes(skill);
+                const blocked = !selected && skillBlockedByLicense(skill);
+                return (
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => toggleSkill(skill)}
+                    disabled={blocked}
+                    title={
+                      blocked
+                        ? locale === "fr"
+                          ? "Un permis de conduire verifie est requis pour cette competence"
+                          : "A verified driving license is required for this skill"
+                        : undefined
+                    }
+                    className={`px-3 py-2 rounded-full border text-sm transition-colors ${
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : blocked
+                          ? "cursor-not-allowed border-input bg-muted/40 text-muted-foreground opacity-60"
+                          : "bg-card border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {skill}
+                  </button>
+                );
+              })}
             </div>
             {formData.skills.length > 0 && (
               <p className="text-sm text-primary">
@@ -419,6 +456,11 @@ export function OnboardingClient({
                   : "skill(s) selected"}
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              {locale === "fr"
+                ? "Les competences de conduite necessitent un permis de conduire verifie. Ajoutez-les dans votre profil apres verification."
+                : "Driving skills require a verified driving license. Add them in your profile after verification."}
+            </p>
           </div>
         );
 

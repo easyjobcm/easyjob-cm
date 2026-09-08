@@ -21,6 +21,7 @@ import {
   Search,
   BadgeCheck,
   Car,
+  AlertCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,8 +34,14 @@ import { SKILL_CATALOG, searchSkillCatalog } from "@/lib/data/skill-catalog";
 import {
   SKILL_DOCUMENT_TYPES,
   GENERAL_DOC_TYPES,
+  LICENSE_CATEGORIES,
   type SkillDocumentType,
 } from "@/lib/validations/skill-documents";
+import {
+  licenseDocCovers,
+  requiredLicenseCategory,
+  type LicenseCategoryT31,
+} from "@/lib/utils/license-requirements";
 
 type SkillVerificationStatus =
   | "unverified"
@@ -60,6 +67,8 @@ interface DocumentRow {
   rejection_reason: string | null;
   verified_at: string | null;
   created_at: string;
+  /** T3.1 : catégorie du permis (nulle sauf permis_conduire). */
+  license_category: LicenseCategoryT31 | null;
   candidate_skill_documents: { candidate_skill_id: string }[];
 }
 
@@ -166,9 +175,29 @@ export function SkillsPageClient({
     );
   };
 
-  /** Insert la skill si elle n'existe pas, puis propulse le modal certifier. */
+  /** Insert la skill si elle n'existe pas, puis propulse le modal certifier.
+   *  T3.1 : une compétence de conduite exige un permis vérifié de la bonne
+   *  catégorie (trigger Postgres de secours) — on intercepte le refus côté
+   *  client (message dédié) et l'affiche. */
   const addSkill = async (skillName: string) => {
     if (busy) return;
+    const required = requiredLicenseCategory(skillName);
+    if (required) {
+      const permit = documents.find(
+        (d) => d.document_type === "permis_conduire",
+      );
+      if (
+        !permit ||
+        !licenseDocCovers(
+          skillName,
+          permit.status,
+          permit.license_category ?? null,
+        )
+      ) {
+        setError(tsp.licenseRequiredError.replace("{skill}", skillName));
+        return;
+      }
+    }
     setError("");
     if (addedNames.has(skillName)) return;
     setBusy(true);
@@ -183,7 +212,15 @@ export function SkillsPageClient({
         .select("id, skill_name, verification_status")
         .single();
       if (insertError || !data) {
-        setError(tsp.addError);
+        // Le trigger `trg_enforce_license_for_driving_skill` lève un message
+        // avec ce préfixe stable — on l'affiche en message dédié (i18n),
+        // sinon on retombe sur l'erreur générique.
+        const msg = insertError?.message ?? "";
+        if (msg.startsWith("EASYJOB_LICENSE_REQUIRED")) {
+          setError(tsp.licenseRequiredError.replace("{skill}", skillName));
+        } else {
+          setError(tsp.addError);
+        }
         return;
       }
       setSkills((prev) => [...prev, data as SkillRow]);
@@ -253,6 +290,33 @@ export function SkillsPageClient({
     setUploadLockedType(type);
   };
 
+  /** T3.1 : la carte « Permis » affiche la catégorie du dernier document
+   *  (ex : « Vérifié — Moto ») pour que le candidat sache quelle catégorie
+   *  est validée et peut en ajouter une autre. */
+  const permitCategorySuffix =
+    permitDocument?.license_category != null
+      ? tsp.licenseCategoryBadge.replace(
+          "{cat}",
+          tsp.licenseCategories[permitDocument.license_category],
+        )
+      : "";
+
+  /** T3.1 : si la compétence de conduite n'est pas couverte par un permis
+   *  vérifié de la bonne catégorie, le chip est verrouillé avec un hint. */
+  const chipLockedHint = (name: string): string | undefined => {
+    if (addedNames.has(name)) return undefined;
+    if (
+      !licenseDocCovers(
+        name,
+        permitDocument?.status ?? "",
+        permitDocument?.license_category ?? null,
+      )
+    ) {
+      return tsp.licenseRequiredError.replace("{skill}", name);
+    }
+    return undefined;
+  };
+
   /** Carte document général (CV / permis) — statut + ajouter + supprimer. */
   const docCard = (
     doc: DocumentRow | null,
@@ -261,6 +325,7 @@ export function SkillsPageClient({
     addLabel: string,
     type: SkillDocumentType,
     Icon: React.ElementType,
+    badgeSuffix = "",
   ) => (
     <Card>
       <CardContent className="flex items-start gap-3 p-4">
@@ -271,6 +336,11 @@ export function SkillsPageClient({
           {doc && (
             <div className="mt-1 flex flex-wrap items-center gap-3">
               {statusBadge(doc.status)}
+              {badgeSuffix && (
+                <span className="text-sm text-muted-foreground">
+                  {badgeSuffix}
+                </span>
+              )}
               {(doc.status === "pending" || doc.status === "rejected") && (
                 <Button
                   variant="ghost"
@@ -341,6 +411,7 @@ export function SkillsPageClient({
             tsp.addDrivingLicense,
             "permis_conduire",
             Car,
+            permitCategorySuffix,
           )}
         </motion.div>
 
@@ -467,6 +538,7 @@ export function SkillsPageClient({
                       name={s.name}
                       added={addedNames.has(s.name)}
                       busy={busy}
+                      locked={chipLockedHint(s.name)}
                       onAdd={() => addSkill(s.name)}
                       onRemove={() => {
                         const found = skills.find(
@@ -494,6 +566,7 @@ export function SkillsPageClient({
                           name={name}
                           added={addedNames.has(name)}
                           busy={busy}
+                          locked={chipLockedHint(name)}
                           onAdd={() => addSkill(name)}
                           onRemove={() => {
                             const found = skills.find(
@@ -673,35 +746,46 @@ export function SkillsPageClient({
   );
 }
 
-/** Chip de compétence du catalogue : inactive = ajouter, active = retirer. */
+/** Chip de compétence du catalogue : inactive = ajouter, active = retirer.
+ *  T3.1 : `locked` = un permis vérifié de la bonne catégorie est requis
+ *  (pas encore satisfaisant) ; le chip est désactivé avec un hint. */
 function SkillChip({
   name,
   added,
   busy,
   onAdd,
   onRemove,
+  locked,
 }: {
   name: string;
   added: boolean;
   busy: boolean;
   onAdd: () => void;
   onRemove: () => void;
+  /** T3.1 : le blocage permis vérifié (message affiché dans le hint). */
+  locked?: string;
 }) {
+  const isDisabled = busy || (locked !== undefined && !added);
   return (
     <button
       type="button"
-      disabled={busy}
+      disabled={isDisabled}
       onClick={added ? onRemove : onAdd}
       aria-pressed={added}
+      title={!added && locked ? locked : undefined}
       className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition-colors ${
         added
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-input bg-background hover:border-primary/50"
+          : locked
+            ? "cursor-not-allowed border-input bg-muted/40 text-muted-foreground opacity-60"
+            : "border-input bg-background hover:border-primary/50"
       }`}
     >
       <span className="max-w-64 truncate">{name}</span>
       {added ? (
         <Trash2 className="h-3.5 w-3.5 shrink-0 opacity-80" />
+      ) : locked ? (
+        <AlertCircle className="h-3.5 w-3.5 shrink-0 opacity-80" />
       ) : (
         <Plus className="h-3.5 w-3.5 shrink-0 opacity-60" />
       )}
@@ -739,6 +823,9 @@ function UploadModal({
   const [issuingOrganization, setIssuingOrganization] = React.useState("");
   const [issuedAt, setIssuedAt] = React.useState("");
   const [expiresAt, setExpiresAt] = React.useState("");
+  const [licenseCategory, setLicenseCategory] = React.useState<
+    LicenseCategoryT31 | ""
+  >("");
   const [selectedSkillIds, setSelectedSkillIds] = React.useState<string[]>(
     initialSkillId ? [initialSkillId] : [],
   );
@@ -748,6 +835,11 @@ function UploadModal({
   const [error, setError] = React.useState("");
 
   const isGeneral = GENERAL_DOC_TYPES.includes(documentType);
+  const isPermit = documentType === "permis_conduire";
+  // T3.1 : le permis a bien une date d'expiration (seul document « général »
+  // qui en a une — le CV non). On collecte donc `expires_at` pour le permis
+  // comme pour les documents rattachés à une compétence.
+  const showExpires = !isGeneral || isPermit;
 
   const toggleSkill = (id: string) => {
     setSelectedSkillIds((prev) =>
@@ -780,6 +872,11 @@ function UploadModal({
       setError(ts.selectSkillRequired);
       return;
     }
+    // T3.1 : la catégorie du permis est obligatoire quand document_type = permis_conduire
+    if (isPermit && licenseCategory === "") {
+      setError(t.profile.skills.licenseCategoryRequired);
+      return;
+    }
     if (!confirmAccurate) {
       setError(ts.uploadError);
       return;
@@ -798,6 +895,9 @@ function UploadModal({
         JSON.stringify(isGeneral ? [] : selectedSkillIds),
       );
       body.append("confirm_accurate", "true");
+      if (isPermit && licenseCategory) {
+        body.append("license_category", licenseCategory);
+      }
       body.append("file", file);
 
       const res = await fetch("/api/profile/skill-documents", {
@@ -840,6 +940,30 @@ function UploadModal({
           </div>
         )}
 
+        {isPermit && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              {t.profile.skills.licenseCategoryLabel}
+            </label>
+            <select
+              className="w-full rounded-lg border border-input bg-background p-2"
+              value={licenseCategory}
+              onChange={(e) =>
+                setLicenseCategory(e.target.value as LicenseCategoryT31)
+              }
+            >
+              <option value="" disabled>
+                {t.profile.skills.licenseCategoryPlaceholder}
+              </option>
+              {LICENSE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {t.profile.skills.licenseCategories[cat]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div>
           <label className="mb-1 block text-sm font-medium">
             {tf.documentTitle}
@@ -877,7 +1001,7 @@ function UploadModal({
               onChange={(e) => setIssuedAt(e.target.value)}
             />
           </div>
-          {!isGeneral && (
+          {showExpires && (
             <div>
               <label className="mb-1 block text-sm font-medium">
                 {tf.expiresAt}

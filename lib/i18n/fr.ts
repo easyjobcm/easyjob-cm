@@ -567,6 +567,21 @@ export const fr = {
       drivingLicenseHint:
         "Document général de votre profil, utile pour les missions de conduite et de transport.",
       addDrivingLicense: "Ajouter mon permis",
+      licenseCategoryLabel: "Catégorie du permis",
+      licenseCategoryPlaceholder: "Sélectionnez la catégorie",
+      licenseCategories: {
+        moto: "Moto",
+        voiture: "Voiture",
+        fourgon: "Fourgon",
+        camion: "Camion",
+        bus: "Bus",
+        tous_types: "Tous types (permis international)",
+      },
+      licenseCategoryBadge: "Catégorie : {cat}",
+      licenseCategoryRequired:
+        "La catégorie du permis est requise pour ajouter ce document.",
+      licenseRequiredError:
+        "« {skill} » nécessite un permis de conduire vérifié. Ajoutez et faites vérifier votre permis avant d'ajouter cette compétence.",
     },
     geolocation: {
       title: "Localisation précise",

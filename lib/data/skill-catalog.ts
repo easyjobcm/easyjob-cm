@@ -97,6 +97,7 @@ export const SKILL_CATALOG: SkillCatalogGroup[] = [
       "Taxi moto",
       "Conduite fourgon",
       "Conduite camion",
+      "Conduite bus",
       "Livraison moto",
       "Livraison voiture",
       "Livreur",
