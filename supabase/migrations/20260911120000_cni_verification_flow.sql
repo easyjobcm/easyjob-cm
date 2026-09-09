@@ -5,12 +5,17 @@
 --                    déjà présent dans le CHECK depuis la baseline)
 --
 -- Objectif (SRS §6.2 / §6.6 / §8.4 / §11.5) :
---   1. Protéger les colonnes de vérification CNI (cni_verified,
---      cni_rejection_reason, cni_expires_at) : un candidat NE PEUT PAS
+--   1. Protéger la certification CNI : un candidat NE PEUT PAS
 --      s'auto-marquer cni_verified='verified' via la RLS "update own
 --      profile" (avant T8.3 : aucun trigger, colonne librement écri-
---      table). Seuls les RPC SECURITY DEFINER `moderate_cni` (admin) et
---      `candidate_update_cni` (candidat, pose 'pending') les écrivent.
+--      table). Le trigger est CIBLÉ — il n'interdit que le saut vers
+--      'verified' (+ protège cni_expires_at) ; il L'AUTORISE les écritures
+--      'pending'/'rejected' qui portent le flux légitime de ré-soumission
+--      des routes PostgREST /api/profile/documents + /api/profile/identity.
+--      cni_rejection_reason n'est PAS protégée (cosmétique : remis à null
+--      à la ré-soumission). Seuls les RPC SECURITY DEFINER `moderate_cni`
+--      (admin) et `candidate_update_cni` (candidat, pose 'pending')
+--      écrivent avec le GUC posé.
 --   2. `moderate_cni` : revue admin (admin_ops/admin_founder). Approbation
 --      → cni_verified='verified' (+ cni_expires_at par défaut = naissance
 --         + 10 ans si non fourni) + ligne document_expirations (type
@@ -56,6 +61,19 @@
 DO $cni$
 BEGIN
   -- ── 1. Trigger de protection des colonnes CNI (pattern T6 MoMo) ──
+  -- PROTECTION CIBLÉE, PAS un revert aveugle des 3 colonnes :
+  --   * `cni_verified` : interdit de passer à 'verified' soi-même (le vrai
+  --     trou de sécurité : le candidat s'auto-certifie). Les écritures
+  --     'pending'/'rejected' restent autorisées (GUC off) — c'est le flux
+  --     de RÉ-SOUMISSION établi (route /api/profile/documents ré-uploade
+  --     un CNI refusé → 'pending' ; /api/profile/identity sur un nom/DOB
+  --     changé d'un CNI vérifié → 'pending') ; sans cette tolérance ces
+  --     deux routes seraient bloquées (le trigger reverrait la valeur).
+  --   * `cni_expires_at` : protégée à l'écriture directe (pas d'extension
+  --     d'expiration self-service) — seul le RPC moderate_cni la pose.
+  --   * `cni_rejection_reason` : NON protégée (cosmétique, pas une colonne
+  --     de gate) — la route candidat remet le motif à null à la ré-soumission,
+  --     ce que le revert aveugle T6 aurait annulé.
   EXECUTE $ext$
     create or replace function public.protect_cni_verification()
     returns trigger
@@ -63,9 +81,14 @@ BEGIN
     as $body$
     begin
       if coalesce(current_setting('easyjob.system_update', true), 'off') <> 'on' then
-        new.cni_verified        := old.cni_verified;
-        new.cni_rejection_reason := old.cni_rejection_reason;
-        new.cni_expires_at      := old.cni_expires_at;
+        -- (a) interdiction de s'auto-POSER 'verified' ;
+        -- (b) 'unverified'->'unverified' ou 'unverified'->'rejected' ou
+        --     'rejected'->'pending' sont autorisés (flux de ré-soumission).
+        if new.cni_verified = 'verified' and old.cni_verified <> 'verified' then
+          new.cni_verified := old.cni_verified;
+        end if;
+        -- Expiration : jamais écrite hors system_update.
+        new.cni_expires_at := old.cni_expires_at;
       end if;
       return new;
     end;

@@ -34,11 +34,12 @@
  *       recherche du job — preuve que le gate a été traversé) ;
  *     - photos NULLifiées + momo_verified=true + cni_verified='verified'
  *       → is_verified reste TRUE (recompute sur état, pas photos).
- *  F. Trigger `trg_protect_cni_verification` :
- *     - candidat fait `update own profile set first_name='X',
- *       cni_verified='verified'` via RLS → la valeur cni_verified
- *       est RESTORÉE à l'état d'avant (le trigger rétablit l'ancien
- *       value car GUC `easyjob.system_update` n'est pas posé).
+ *  F. Trigger `trg_protect_cni_verification` (protection ciblée) :
+ *     - F1 : candidat self-mark cni_verified='verified' via RLS →
+ *       RESTORÉ à l'état d'avant (seul le saut vers 'verified' est
+ *       interdit).
+ *     - F2 : candidat self-mark cni_verified='pending' (flux légitime
+ *       de ré-soumission — route /api/profile/documents) → AUTORISÉ.
  *
  * Méthode : sessions RÉELLES (@supabase/ssr signInWithPassword), 3
  * photos CNI uploadées via le service role dans le bucket privé
@@ -519,7 +520,33 @@ async function main() {
         error: selfMark.error?.message,
       },
     );
-    // On restaure l'état 'rejected' pour la suite (déjà 'rejected').
+    // Le profil est toujours 'rejected' après F1 (le trigger a restauré).
+    // Régression T8.3 (fix) : le flux de RÉ-SOUMISSION doit rester autorisé —
+    // le candidat ré-uploade ses photos via /api/profile/documents (PostgREST,
+    // GUC off) qui écrit 'pending'. Le trigger doit L'AUTORISER, uniquement
+    // le saut vers 'verified' est bloqué.
+    const selfReopen = await cookiesW.client
+      .from("candidate_profiles")
+      .update({ cni_verified: "pending" })
+      .eq("id", WprofileId)
+      .select("cni_verified")
+      .single();
+    report(
+      "F2 : candidat self-mark cni_verified='pending' (flux ré-soumission) → AUTORISÉ (passé en pending)",
+      selfReopen.data?.cni_verified === "pending",
+      {
+        afterSelfReopen: selfReopen.data,
+        error: selfReopen.error?.message,
+      },
+    );
+    // On restaure l'état 'rejected' pour la suite (D-approve est le même
+    // quel que soit l'état, mais on garde la cohérence du scénario).
+    await ignore(
+      cookiesW.client
+        .from("candidate_profiles")
+        .update({ cni_verified: "rejected" })
+        .eq("id", WprofileId),
+    );
 
     // ── D. POST /api/admin/cni — approbation ────────────────────
     const opsApprove = await fetchJson(
