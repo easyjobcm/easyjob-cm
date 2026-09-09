@@ -84,14 +84,25 @@ export async function POST(request: NextRequest) {
   }
 
   // Audit : traçabilité (qui a demandé quoi, quand, pour quel motif).
-  await supabase.from("audit_logs").insert({
-    user_id: user.id,
+  // La table n'a que `actor_id` (pas de `user_id`) — un champ inconnu
+  // ferait échouer SILENCIEUSEMENT l'insert PostgREST (résultat non
+  // inspecté) : aucune ligne n'aurait été tracée.
+  const { error: auditError } = await supabase.from("audit_logs").insert({
+    actor_id: user.id,
     actor_role: userData.role,
     action: "request_profile_update",
     resource_type: "profile_update_requests",
     resource_id: inserted.id,
     metadata: { candidate_id, fields, reason },
   });
+  if (auditError) {
+    // L'audit est traçabilité, pas business : on ne casse pas la demande
+    // créée, on loggue l'échec pour qu'il soit remonté.
+    console.error(
+      "[admin-profile-update] audit insert failed:",
+      auditError.message,
+    );
+  }
 
   // Notification centre de notifications (Tâche /tasks utilise la table).
   const notificationTitle = "Mise à jour de profil requise";
