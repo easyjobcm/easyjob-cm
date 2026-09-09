@@ -520,7 +520,16 @@ async function main() {
       const response = await fetch(
         "https://nominatim.openstreetmap.org/reverse?lat=4.05&lon=9.77&format=jsonv2&addressdetails=1&limit=1&accept-language=fr",
         {
-          headers: { Accept: "application/json" },
+          // Nominatim REQUiert un User-Agent valide (policy OSM) : sans,
+          // l'API renvoie 403. Le `fetch` navigateur envoie celui du
+          // navigateur (header « forbidden » côté client, donc pas
+          // modifiable mais présent) ; la preuve Node (undici) doit le
+          // fournir explicitement.
+          headers: {
+            Accept: "application/json",
+            "User-Agent":
+              "Easyjob-CM-Proof/1.0 (preuve locale T5.1) contact@easyjob.cm",
+          },
           signal: controller.signal,
         },
       );
