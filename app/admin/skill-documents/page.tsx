@@ -1,17 +1,23 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { SkillDocumentsAdminClient } from "./skill-documents-admin-client";
 
+/**
+ * Garde de rôle admin : assurée par `app/admin/layout.tsx`
+ * (T8.1). Cette page ne fait plus que charger les données et
+ * dériver `canModerate` (ops + founder uniquement).
+ */
 export default async function AdminSkillDocumentsPage() {
   const supabase = await createClient();
 
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    redirect("/auth/login?next=/admin/skill-documents");
+  // Le layout admin garde déjà le rôle ; ce filet protège un accès
+  // direct (SSR) sans session valide.
+  if (!user) {
+    redirect("/");
   }
 
   const { data: userData } = await supabase
@@ -19,11 +25,6 @@ export default async function AdminSkillDocumentsPage() {
     .select("role")
     .eq("id", user.id)
     .single();
-
-  const adminRoles = ["admin_support", "admin_ops", "admin_founder"];
-  if (!userData?.role || !adminRoles.includes(userData.role)) {
-    redirect("/admin");
-  }
 
   const { data: documents } = await supabase
     .from("candidate_documents")
@@ -62,7 +63,9 @@ export default async function AdminSkillDocumentsPage() {
   return (
     <SkillDocumentsAdminClient
       initialDocuments={normalized}
-      canModerate={["admin_ops", "admin_founder"].includes(userData.role)}
+      canModerate={
+        !!userData && ["admin_ops", "admin_founder"].includes(userData.role)
+      }
     />
   );
 }

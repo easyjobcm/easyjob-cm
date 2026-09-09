@@ -34,6 +34,47 @@ export const en: TranslationKeys = {
       "The platform connecting candidates and companies for flexible missions in Cameroon.",
   },
 
+  // Administration (T8)
+  admin: {
+    dashboard: {
+      title: "Administration",
+      subtitle: "Platform management",
+    },
+    stats: {
+      users: "Users",
+      candidates: "candidates",
+      companies: "companies",
+      totalJobs: "Total jobs",
+      activeJobs: "active",
+      applications: "Applications",
+      pending: "Pending review",
+    },
+    quickActions: {
+      users: "Users",
+      jobs: "Jobs",
+      momo: "Mobile Money",
+      skillProofs: "Skill proofs",
+    },
+    moderation: {
+      pendingJobsTitle: "Jobs to moderate",
+      viewAll: "See all",
+      view: "View",
+      approve: "Approve",
+      reject: "Reject",
+      empty: "No jobs pending moderation",
+      pendingStatus: "Pending",
+      urgent: "Urgent",
+    },
+    jobPreview: {
+      company: "Company",
+      description: "Description",
+      date: "Date",
+      time: "Time",
+      location: "Location",
+      salary: "Salary",
+    },
+  },
+
   // Auth
   auth: {
     welcome: "Welcome to EasyJob CM",

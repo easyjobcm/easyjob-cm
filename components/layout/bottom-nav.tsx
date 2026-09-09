@@ -14,9 +14,10 @@ import {
   Users,
   Plus,
   Settings,
+  FileCheck,
 } from "lucide-react";
 
-type UserRole =
+export type UserRole =
   | "candidate"
   | "candidate_premium"
   | "company"
@@ -70,6 +71,12 @@ const adminNavItems: NavItem[] = [
     label: "Dashboard",
     labelEn: "Dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    href: "/admin/momo",
+    label: "MoMo",
+    labelEn: "MoMo",
+    icon: FileCheck,
   },
   {
     href: "/admin/users",

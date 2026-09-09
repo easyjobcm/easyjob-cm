@@ -10,7 +10,6 @@ import {
   Eye,
   ChevronLeft,
 } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -80,9 +79,12 @@ export function SkillDocumentsAdminClient({
     return name.includes(search.trim().toLowerCase());
   });
 
+  // NB (T8.1) : plus de AppShell — le layout admin
+  // (`app/admin/layout.tsx`) fournit la nav basse admin et la
+  // safe-area-inset. Le `pb` reste suffisant pour la nav haute.
   return (
-    <AppShell>
-      <div className="mx-auto max-w-3xl space-y-4 px-4 pb-24 pt-6">
+    <div>
+      <div className="mx-auto max-w-3xl space-y-4 px-4 pb-8 pt-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
@@ -189,7 +191,7 @@ export function SkillDocumentsAdminClient({
           }}
         />
       )}
-    </AppShell>
+    </div>
   );
 }
 

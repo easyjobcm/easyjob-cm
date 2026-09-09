@@ -32,6 +32,47 @@ export const fr = {
       "La plateforme de mise en relation entre candidats et entreprises pour des missions flexibles au Cameroun.",
   },
 
+  // Administration (T8)
+  admin: {
+    dashboard: {
+      title: "Administration",
+      subtitle: "Gestion de la plateforme",
+    },
+    stats: {
+      users: "Utilisateurs",
+      candidates: "candidats",
+      companies: "entreprises",
+      totalJobs: "Offres totales",
+      activeJobs: "actives",
+      applications: "Candidatures",
+      pending: "En attente de revue",
+    },
+    quickActions: {
+      users: "Utilisateurs",
+      jobs: "Offres",
+      momo: "Mobile Money",
+      skillProofs: "Justificatifs",
+    },
+    moderation: {
+      pendingJobsTitle: "Offres à modérer",
+      viewAll: "Tout voir",
+      view: "Voir",
+      approve: "Approuver",
+      reject: "Rejeter",
+      empty: "Aucune offre en attente de modération",
+      pendingStatus: "En attente",
+      urgent: "Urgent",
+    },
+    jobPreview: {
+      company: "Entreprise",
+      description: "Description",
+      date: "Date",
+      time: "Horaires",
+      location: "Lieu",
+      salary: "Salaire",
+    },
+  },
+
   // Auth
   auth: {
     welcome: "Bienvenue sur EasyJob CM",
