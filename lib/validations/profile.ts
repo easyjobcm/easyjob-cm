@@ -133,9 +133,57 @@ export const availabilitySchema = z.object({
 });
 export type AvailabilityInput = z.infer<typeof availabilitySchema>;
 
-/** Mobile Money — même format téléphone que l'auth (candidatSchema réutilisé). */
+/**
+ * Mobile Money — même format téléphone que l'auth (`phoneSchema`
+ * réutilisé). `momo_account_name` est le nom porté par le compte déclaré
+ * par le candidat : l'admin le confronte au nom de la CNI lors de la
+ * validation (SRS §11.5 — les comptes au nom d'un tiers / comptes
+ * familiaux sont refusés). Optionnel : un candidat peut saisir le numéro
+ * d'abord et compléter le nom ensuite ; l'admin voit l'absence de nom.
+ */
 export const paymentSchema = z.object({
   momo_provider: z.enum(["mtn", "orange"], { error: "momoProviderInvalid" }),
   momo_number: phoneSchema,
+  momo_account_name: z
+    .string()
+    .trim()
+    .max(100, "momoAccountNameTooLong")
+    .optional(),
 });
 export type PaymentInput = z.infer<typeof paymentSchema>;
+
+/**
+ * Code OTP de preuve de possession du numéro MoMo. `token` = 6 chiffres ;
+ * `number` = le numéro MOBILE MONEY tel qu'enregistré (9 chiffres, format
+ * `phoneSchema`) — la route le compare au numéro courant en base pour
+ * s'assurer qu'aucun ancien code ne prouve un autre numéro.
+ */
+export const momoOtpSchema = z.object({
+  token: z.string().regex(/^\d{6}$/, "otpInvalid"),
+  number: phoneSchema,
+});
+export type MomoOtpInput = z.infer<typeof momoOtpSchema>;
+
+/**
+ * Validation admin MoMo (T6) : `approve` / `reject` sur un profil précis.
+ * `reject` exige un motif (3..300 car) ; `approve` n'en porte pas.
+ * La preuve OTP préalable est vérifiée côté RPC `apply_momo_verification`
+ * (momo_otp_status = 'verified'), PAS ici — le Zod borne seulement la
+ * forme de la requête, la règle métier vit en base.
+ */
+export const momoModerateSchema = z
+  .object({
+    profile_id: z.string().uuid(),
+    action: z.enum(["approve", "reject"]),
+    rejection_reason: z
+      .string()
+      .trim()
+      .min(3, "momoRejectReasonTooShort")
+      .max(300)
+      .optional(),
+  })
+  .refine((v) => v.action === "approve" || !!v.rejection_reason, {
+    message: "momoRejectReasonRequired",
+    path: ["rejection_reason"],
+  });
+export type MomoModerateInput = z.infer<typeof momoModerateSchema>;

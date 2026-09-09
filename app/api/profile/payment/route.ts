@@ -3,10 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { paymentSchema } from "@/lib/validations/profile";
 
 /**
+ * T6 — enregistrement / changement du numéro Mobile Money.
+ *
+ * Le candidat ne peut JAMAIS positionner `momo_verified` / `momo_name_match`
+ * / `momo_verified_*` lui-même : la migration T6 a protégé ces 6 colonnes
+ * par un trigger `BEFORE UPDATE` (le flag session `easyjob.system_update`
+ * n'étant pas posé pour un client). On passe donc par le RPC
+ * SECURITY DEFINER `candidate_update_momo` qui réinitialise proprement
+ * TOUT le cycle (vérification + preuve OTP) et supprime le code actif.
+ *
  * Un changement de numéro/opérateur invalide toujours la vérification en
- * cours : cette règle n'est définie ni dans le SRS ni par un trigger DB ;
- * elle est appliquée ici explicitement, côté serveur uniquement. Le client ne
- * peut jamais positionner `momo_verified` lui-même (champ absent du schéma).
+ * cours (règle SRS §11.5) — appliqué par le RPC, pas par cette route.
  */
 export async function PUT(request: NextRequest) {
   const supabase = await createClient();
@@ -41,16 +48,13 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const { error: updateError } = await supabase
-    .from("candidate_profiles")
-    .update({
-      momo_provider: parsed.data.momo_provider,
-      momo_number: parsed.data.momo_number,
-      momo_verified: false,
-    })
-    .eq("user_id", user.id);
+  const { error: rpcError } = await supabase.rpc("candidate_update_momo", {
+    p_provider: parsed.data.momo_provider,
+    p_number: parsed.data.momo_number,
+    p_account_name: parsed.data.momo_account_name ?? null,
+  });
 
-  if (updateError) {
+  if (rpcError) {
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }
 

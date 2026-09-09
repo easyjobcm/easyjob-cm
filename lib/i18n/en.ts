@@ -675,6 +675,11 @@ export const en: TranslationKeys = {
       provider: "Provider",
       number: "Mobile Money number",
       numberPlaceholder: "6XX XXX XXX",
+      accountName: "Mobile Money account name",
+      accountNamePlaceholder: "As registered on the account",
+      accountNameHint:
+        "The account name must match your CNI — accounts registered in someone else's name are not accepted.",
+      accountNameOptional: "(optional)",
       save: "Save",
       saving: "Saving…",
       saved: "Mobile Money updated",
@@ -685,6 +690,45 @@ export const en: TranslationKeys = {
       edit: "Edit",
       revalidateNotice:
         "Changing the number or provider will require a new verification.",
+      // T6 — proof of ownership (OTP) + rejected status.
+      otpTitle: "Confirm this number is yours",
+      otpBody:
+        "A 6-digit code has been sent by SMS to {number}. Enter it to prove you own the number.",
+      otpSent: "Code sent",
+      otpSend: "Send code",
+      otpResend: "Resend code",
+      otpVerify: "Verify code",
+      otpVerifying: "Verifying…",
+      otpExpired: "Code expired. Request a new code.",
+      otpVerified: "Number proven — pending admin review before verification.",
+      otpNoCode:
+        "No code in progress. Request a code to prove ownership of the number.",
+      otpWrong: "Incorrect code. Check the SMS and try again.",
+      otpResendNote:
+        "A new code replaces the previous one. 3 wrong codes reject the proof.",
+      rejected: "Rejected",
+      rejectedOtp:
+        "Number verification was rejected after several wrong codes. Request a new code to start over.",
+      rejectedReason: "Reason: {reason}",
+      reviewPending: "The number is proven. Admin review can take up to 24 h.",
+      // Error messages (machine codes returned by the API routes).
+      otpNotRequested: "Request the SMS code first before entering a code.",
+      otpNumberMismatch:
+        "This code does not match the registered number. Save the number again and relaunch verification.",
+      otpMaxAttempts:
+        "Too many wrong codes. The proof was rejected — request a new code.",
+      otpSmsFailed: "Sending the code failed. Try again in a moment.",
+      otpQuotaExceeded:
+        "Too many codes recently sent to this number. Try again later.",
+      otpNotConfigured:
+        "Save a Mobile Money number first before requesting a code.",
+      momoProviderInvalid:
+        "Invalid Mobile Money provider (MTN MoMo or Orange Money).",
+      momoAccountNameTooLong:
+        "Mobile Money account name is too long (100 characters max).",
+      momoRejectReasonTooShort: "The rejection reason is too short.",
+      momoRejectReasonRequired:
+        "A rejection reason is required to reject a verification.",
     },
     security: "Security",
     settingsPage: {

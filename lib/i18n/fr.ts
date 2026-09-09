@@ -688,6 +688,11 @@ export const fr = {
       provider: "Opérateur",
       number: "Numéro Mobile Money",
       numberPlaceholder: "6XX XXX XXX",
+      accountName: "Nom du compte Mobile Money",
+      accountNamePlaceholder: "Selon l'immatriculation du compte",
+      accountNameHint:
+        "Le nom du compte doit correspondre à votre CNI — les comptes au nom d'un tiers ne sont pas acceptés.",
+      accountNameOptional: "(facultatif)",
       save: "Enregistrer",
       saving: "Enregistrement…",
       saved: "Mobile Money mis à jour",
@@ -698,6 +703,49 @@ export const fr = {
       edit: "Modifier",
       revalidateNotice:
         "Changer le numéro ou l'opérateur nécessitera une nouvelle vérification.",
+      // T6 — preuve de possession (OTP) + statut refus.
+      otpTitle: "Vérifiez que ce numéro est le vôtre",
+      otpBody:
+        "Un code à 6 chiffres a été envoyé par SMS au {number}. Saisissez-le pour prouver la possession du numéro.",
+      otpSent: "Code envoyé",
+      otpSend: "Envoyer le code",
+      otpResend: "Renvoyer le code",
+      otpVerify: "Vérifier le code",
+      otpVerifying: "Vérification…",
+      otpExpired: "Code expiré. Demandez l'envoi d'un nouveau code.",
+      otpVerified:
+        "Numéro prouvé — en attente de validation par l'administration.",
+      otpNoCode:
+        "Aucun code en cours. Demandez l'envoi d'un code pour prouver la possession du numéro.",
+      otpWrong: "Code incorrect. Vérifiez le SMS et réessayez.",
+      otpResendNote:
+        "Un nouveau code remplace l'ancien. 3 codes erronés refusent la preuve.",
+      rejected: "Refusé",
+      rejectedOtp:
+        "La vérification du numéro a été refusée après plusieurs codes erronés. Demandez l'envoi d'un nouveau code.",
+      rejectedReason: "Motif : {reason}",
+      reviewPending:
+        "Le numéro est prouvé. Sa validation par l'administration peut prendre jusqu'à 24 h.",
+      // Messages d'erreur (codes machine renvoyés par les routes API).
+      otpNotRequested:
+        "Demande d'abord l'envoi du code par SMS avant de saisir un code.",
+      otpNumberMismatch:
+        "Ce code ne correspond pas au numéro enregistré. Enregistrez à nouveau le numéro et relancez la vérification.",
+      otpMaxAttempts:
+        "Trop de codes erronés. La preuve a été refusée — relancez l'envoi d'un code.",
+      otpSmsFailed:
+        "L'envoi du code a échoué. Réessayez dans quelques instants.",
+      otpQuotaExceeded:
+        "Trop de codes envoyés récemment pour ce numéro. Réessayez plus tard.",
+      otpNotConfigured:
+        "Enregistrez d'abord un numéro Mobile Money avant de demander un code.",
+      momoProviderInvalid:
+        "Opérateur Mobile Money invalide (MTN MoMo ou Orange Money).",
+      momoAccountNameTooLong:
+        "Le nom du compte Mobile Money est trop long (100 caractères maximum).",
+      momoRejectReasonTooShort: "Le motif de refus est trop court.",
+      momoRejectReasonRequired:
+        "Un motif de refus est requis pour refuser une vérification.",
     },
     security: "Sécurité",
     settingsPage: {

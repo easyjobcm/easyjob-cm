@@ -29,7 +29,9 @@ export default async function PaymentPage() {
 
   const { data: candidateProfile } = await supabase
     .from("candidate_profiles")
-    .select("momo_provider, momo_number, momo_verified")
+    .select(
+      "momo_provider, momo_number, momo_account_name, momo_verified, momo_otp_status, momo_reject_reason",
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -37,7 +39,12 @@ export default async function PaymentPage() {
     <PaymentClient
       momoProvider={candidateProfile?.momo_provider ?? null}
       momoNumber={candidateProfile?.momo_number ?? null}
+      momoAccountName={candidateProfile?.momo_account_name ?? null}
       momoVerified={candidateProfile?.momo_verified ?? false}
+      momoOtpStatus={
+        (candidateProfile?.momo_otp_status as string | null) ?? "none"
+      }
+      momoRejectReason={candidateProfile?.momo_reject_reason ?? null}
     />
   );
 }

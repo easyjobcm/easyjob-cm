@@ -16,7 +16,7 @@ import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
-import { isCleanGeoCoords } from "@/lib/validations/profile";
+import { isCleanGeoCoords, paymentSchema } from "@/lib/validations/profile";
 import {
   licenseSatisfies,
   requiredLicenseCategory,
@@ -56,6 +56,7 @@ interface OnboardingClientProps {
     longitude?: number | null;
     momo_provider?: string;
     momo_number?: string;
+    momo_account_name?: string | null;
   } | null;
   categories: Array<{
     id: string;
@@ -121,6 +122,7 @@ export function OnboardingClient({
     skills: [] as string[],
     momo_provider: profile?.momo_provider || "",
     momo_number: profile?.momo_number || "",
+    momo_account_name: profile?.momo_account_name || "",
   });
 
   const updateFormData = <K extends keyof typeof formData>(
@@ -215,12 +217,34 @@ export function OnboardingClient({
       ) {
         throw new Error(t.profile.geolocation.geoOutOfZone);
       }
+      // T6 : garde-bouche Mobile Money — même schema que la route API
+      // (l'onboarding écrit candidate_profiles directement, sans route).
+      // Numéro absent = champ ignoré ; le nom du compte est optionnel.
+      if (formData.momo_number) {
+        const momoGuard = paymentSchema.safeParse({
+          momo_provider: formData.momo_provider,
+          momo_number: formData.momo_number,
+          momo_account_name: formData.momo_account_name.trim() || undefined,
+        });
+        if (!momoGuard.success) {
+          const key = momoGuard.error.issues[0]?.message ?? "";
+          const momoErrors: Record<string, string> = {
+            momoProviderInvalid: t.profile.paymentPage.momoProviderInvalid,
+            momoAccountNameTooLong:
+              t.profile.paymentPage.momoAccountNameTooLong,
+            phoneInvalid: t.signup.errors.phoneInvalid,
+          };
+          throw new Error(momoErrors[key] ?? key);
+        }
+      }
       const { error: updateError } = await supabase
         .from("candidate_profiles")
         .update({
           ...profileFields,
           // omit empty string for enum column
           gender: profileFields.gender || undefined,
+          // nom de compte optionnel : null plutôt que chaîne vide.
+          momo_account_name: profileFields.momo_account_name?.trim() || null,
           onboarding_step: nextStep,
           onboarding_status: nextStep > 4 ? "completed" : "in_progress",
         })
@@ -612,8 +636,35 @@ export function OnboardingClient({
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {locale === "fr"
-                  ? "Ce numero sera utilise pour recevoir vos paiements"
-                  : "This number will be used to receive your payments"}
+                  ? "Ce numero sera utilise pour recevoir vos paiements. Il doit etre porte a votre nom (conforme a votre CNI)."
+                  : "This number will be used to receive your payments. It must be registered in your own name (matching your ID card)."}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                {locale === "fr"
+                  ? "Nom du compte Mobile Money"
+                  : "Mobile Money account name"}{" "}
+                <span className="text-muted-foreground">
+                  {locale === "fr" ? "(facultatif)" : "(optional)"}
+                </span>
+              </label>
+              <Input
+                value={formData.momo_account_name}
+                onChange={(e) =>
+                  updateFormData("momo_account_name", e.target.value)
+                }
+                placeholder={
+                  locale === "fr"
+                    ? "Selon l'immatriculation du compte"
+                    : "As registered on the account"
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {locale === "fr"
+                  ? "Le nom du compte doit correspondre à votre CNI — les comptes familiaux ou au nom d'un tiers ne sont pas acceptés."
+                  : "The account name must match your ID card — family accounts or accounts in someone else's name are not accepted."}
               </p>
             </div>
           </div>

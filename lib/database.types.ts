@@ -248,10 +248,15 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           max_travel_distance_km: number | null
+          momo_account_name: string | null
           momo_name_match: boolean
           momo_number: string | null
+          momo_otp_status: string
           momo_provider: string | null
+          momo_reject_reason: string | null
           momo_verified: boolean | null
+          momo_verified_at: string | null
+          momo_verified_by: string | null
           no_show_count: number | null
           onboarding_status:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -295,10 +300,15 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
+          momo_otp_status?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -342,10 +352,15 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
+          momo_otp_status?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -1561,6 +1576,38 @@ export type Database = {
           },
         ]
       }
+      momo_otp: {
+        Row: {
+          attempts: number
+          created_at: string
+          expires_at: string
+          profile_id: string
+          token_hash: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          expires_at: string
+          profile_id: string
+          token_hash: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          expires_at?: string
+          profile_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "momo_otp_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string
@@ -2074,6 +2121,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_momo_verification: {
+        Args: {
+          p_action: string
+          p_profile_id: string
+          p_reject_reason: string | null
+        }
+        Returns: undefined
+      }
+      candidate_update_momo: {
+        Args: {
+          p_account_name: string | null
+          p_number: string
+          p_provider: string
+        }
+        Returns: undefined
+      }
       check_email_send_quota: {
         Args: { p_email: string; p_ip: string }
         Returns: boolean
@@ -2092,6 +2155,11 @@ export type Database = {
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      momo_issue_otp: {
+        Args: { p_expires_at: string; p_token_hash: string }
+        Returns: undefined
+      }
+      momo_verify_otp: { Args: { p_token_hash: string }; Returns: string }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
         Returns: string
@@ -2154,6 +2222,7 @@ export type Database = {
         | "review_request"
         | "system"
         | "document_status"
+        | "momo_status"
       onboarding_status: "pending" | "in_progress" | "completed" | "rejected"
       payment_method: "mtn_momo" | "orange_money" | "bank_transfer" | "cash"
       payment_status:
@@ -2365,6 +2434,7 @@ export const Constants = {
         "review_request",
         "system",
         "document_status",
+        "momo_status",
       ],
       onboarding_status: ["pending", "in_progress", "completed", "rejected"],
       payment_method: ["mtn_momo", "orange_money", "bank_transfer", "cash"],
