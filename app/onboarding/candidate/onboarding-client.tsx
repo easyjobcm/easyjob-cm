@@ -486,6 +486,14 @@ export function OnboardingClient({
                   {tGeo.unavailable}
                 </p>
               )}
+              {/* Timeout (fix GPS trop lent, code 3) : échec temporaire,
+                  réessayable (le fix à froid prend parfois plus d'10 s à
+                  réseau instable). */}
+              {geoStatus === "timeout" && (
+                <p role="alert" className="mt-2 text-sm text-amber-600">
+                  {tGeo.timeout}
+                </p>
+              )}
             </div>
           </div>
         );

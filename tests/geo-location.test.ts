@@ -25,6 +25,7 @@ import {
   pickQuartierFromAddress,
   NOMINATIM_REVERSE_URL,
 } from "@/lib/utils/quartier-fetch";
+import { geoErrorCodeToStatus } from "@/lib/hooks/use-geolocation";
 import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 
 describe("CAMEROON_CITIES (T5 — orthographe canonique)", () => {
@@ -394,5 +395,37 @@ describe("NOMINATIM_REVERSE_URL (T5.1 — service de reverse-geocoding)", () => 
     expect(NOMINATIM_REVERSE_URL).toBe(
       "https://nominatim.openstreetmap.org/reverse",
     );
+  });
+});
+
+/**
+ * geoErrorCodeToStatus — mapping code d'erreur navigateur (W3C
+ * GeolocationPositionError) → statut produit. Contexte : sur mobile, un fix
+ * GPS à froid (surtout à réseau instable / A-GPS) dépasse le timeout de 10 s
+ * et le navigateur renvoie le code 3 ; avant le découpage, ce cas était
+ * fondu dans « Position indisponible sur cet appareil ».
+ */
+describe("geoErrorCodeToStatus (codes W3C → statuts)", () => {
+  it("code 1 (permission refusée) -> denied", () => {
+    expect(geoErrorCodeToStatus(1)).toBe("denied");
+  });
+
+  it("code 2 (position indisponible) -> unavailable", () => {
+    expect(geoErrorCodeToStatus(2)).toBe("unavailable");
+  });
+
+  it("code 3 (timeout) -> timeout (distingué de unavailable)", () => {
+    expect(geoErrorCodeToStatus(3)).toBe("timeout");
+  });
+
+  it("code inconnu / 0 / négatif -> unavailable (défaut sûr)", () => {
+    expect(geoErrorCodeToStatus(0)).toBe("unavailable");
+    expect(geoErrorCodeToStatus(4)).toBe("unavailable");
+    expect(geoErrorCodeToStatus(-1)).toBe("unavailable");
+  });
+
+  it("code absent (undefined, NaN) -> unavailable, jamais un statut invalide", () => {
+    expect(geoErrorCodeToStatus(undefined)).toBe("unavailable");
+    expect(geoErrorCodeToStatus(Number.NaN)).toBe("unavailable");
   });
 });

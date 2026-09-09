@@ -610,6 +610,10 @@ export const en: TranslationKeys = {
       denied:
         "Permission denied. You can continue with your city and neighborhood.",
       unavailable: "Location unavailable on this device.",
+      /** GPS fix too slow (browser code 3): the button stays clickable,
+       *  retry or enter the city manually. */
+      timeout:
+        "Detecting your location took too long. Please retry, or select your city and neighborhood manually.",
       /** T5: server error (coords out of bounds -90..90 / -180..180). */
       geoOutOfRange: "Geographic coordinates out of range.",
       /** T5.1: shown under the button when the detected position is OUTSIDE

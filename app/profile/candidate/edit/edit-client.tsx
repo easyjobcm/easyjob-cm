@@ -608,6 +608,14 @@ export function CandidateProfileEditClient({
                     {tGeo.unavailable}
                   </p>
                 )}
+                {/* Timeout (fix GPS trop lent, code 3 navigateur) : échec
+                    temporaire, le candidat peut réessayer ou saisir
+                    manuellement la ville/le quartier. */}
+                {geoStatus === "timeout" && (
+                  <p role="alert" className="mt-2 text-sm text-amber-600">
+                    {tGeo.timeout}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

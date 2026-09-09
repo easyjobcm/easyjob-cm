@@ -622,6 +622,10 @@ export const fr = {
       denied:
         "Permission refusée. Vous pouvez continuer avec la ville et le quartier.",
       unavailable: "Position indisponible sur cet appareil.",
+      /** Fix GPS trop lent (code 3 navigateur) : le bouton reste cliquable,
+       *  on invite à réessayer ou à saisir manuellement la ville. */
+      timeout:
+        "La détection de votre position a pris trop de temps. Réessayez, ou saisissez votre ville et votre quartier manuellement.",
       /** T5 : erreur serveur (coordonnées hors bornes -90..90 / -180..180). */
       geoOutOfRange: "Coordonnées géographiques hors bornes.",
       /** T5.1 : message de refus affiché sous le bouton quand la position
