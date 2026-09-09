@@ -6,28 +6,39 @@ import { momoModerateSchema } from "@/lib/validations/profile";
  * T6 — API admin Mobile Money (pour la future UI admin, planifiée en T8 —
  * cette route est l'infrastructure API de T6).
  *
- * GET  : liste des numéros MoMo à valider. Rôles admin_support (lecture
- *        seule) / admin_ops / admin_founder. Filtre optionnel `?status=`.
- * POST : valider / refuser un numéro (RÔLES admin_ops/admin_founder, comme
- *        la modération des documents ; admin_support ne mute jamais).
+ * Le candidat déclare opérateur + numéro + nom du compte ; l'admin
+ * valide MANUELLEMENT en confrontant le nom déclaré au CNI (comptes
+ * familiaux / au nom d'un tiers refusés, motif de rejet obligatoire).
+ *
+ * GET  : liste des déclarations MoMo à valider + leur statut de
+ *        vérification. Rôles admin_support (lecture seule) / admin_ops /
+ *        admin_founder. Filtre optionnel `?verified=true|false` sur la
+ *        colonne `momo_verified`.
+ * POST : valider / refuser une déclaration (RÔLES admin_ops/admin_founder,
+ *        comme la modération des documents ; admin_support ne mute jamais).
  *
  * Le numéro est renvoyé EN CLAIR à l'admin (besoin de confronter le nom du
  * compte au CNI) — API admin uniquement, jamais exposé au candidat.
  *
- * Toute la logique métier (pré-requis preuve OTP, écriture protégée des
- * colonnes vérification, notification + audit_log) vit dans le RPC SECURITY
- * DEFINER `apply_momo_verification` ; la mutation ne passe PAS par
+ * Toute la logique métier (pré-requis rôle + profil + numéro configuré +
+ * motif de refus, écriture protégée des colonnes vérification,
+ * notification + audit_log) vit dans le RPC SECURITY DEFINER
+ * `apply_momo_verification` ; la mutation ne passe PAS par
  * createAdminClient (service_role) précisément pour que l'audit logue
  * l'admin RÉEL (auth.uid = l'admin connecté) et que les rôles soient
  * vérifiés au niveau `users.role` + SQL.
  */
 
 const RPC_ERROR_MAP: [RegExp, { code: string; status: number }][] = [
-  [/otp proof required/i, { code: "otp_proof_required", status: 400 }],
+  [/profile not found/i, { code: "not_found", status: 404 }],
   [/not authorized.*admin only/i, { code: "forbidden", status: 403 }],
   [/not authorized.*role/i, { code: "forbidden", status: 403 }],
   [/invalid action/i, { code: "invalid_action", status: 400 }],
-  [/profile not found/i, { code: "not_found", status: 404 }],
+  [
+    /momo number not configured/i,
+    { code: "number_not_configured", status: 400 },
+  ],
+  [/reject reason required/i, { code: "reject_reason_required", status: 400 }],
 ];
 
 function roleForbiddenResponse() {
@@ -56,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
+  const verifiedFilter = searchParams.get("verified");
   const limit = Math.min(
     Math.max(Number(searchParams.get("limit") ?? 100) || 100, 1),
     500,
@@ -66,15 +77,15 @@ export async function GET(request: NextRequest) {
     .from("candidate_profiles")
     .select(
       `id, first_name, last_name, momo_provider, momo_number,
-       momo_account_name, momo_verified, momo_otp_status, momo_reject_reason,
-       momo_verified_at`,
+       momo_account_name, momo_verified, momo_name_match,
+       momo_reject_reason, momo_verified_at`,
     )
     .not("momo_number", "is", null)
     .order("momo_verified_at", { ascending: true, nullsFirst: true })
     .limit(limit);
 
-  if (status && status !== "all") {
-    query = query.eq("momo_otp_status", status);
+  if (verifiedFilter === "true" || verifiedFilter === "false") {
+    query = query.eq("momo_verified", verifiedFilter === "true");
   }
 
   const { data, error } = await query;

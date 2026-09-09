@@ -879,8 +879,8 @@ photo_url, bio, skills[], sectors[], availability{},
 driving_license_verified, driving_license_expires_at,
 cni_verified, cni_expires_at, cni_selfie_url,
 momo_verified, momo_number, momo_provider, momo_name_match,
-momo_account_name, momo_otp_status, momo_reject_reason,
-momo_verified_by, momo_verified_at,   ← T6 : cycle de vie de la vérification MoMo — `momo_provider` ∈ (mtn, orange) ; `momo_account_name` = nom déclaré sur le compte (optionnel, ≤ 100, confronté à la CNI par l'admin) ; `momo_otp_status` ∈ (none, awaiting, verified, rejected) = étape de **preuve de possession** (OTP 6 chiffres SMS, 3 échecs = `rejected` + motif `otp_max_attempts`) ; `momo_verified_by` / `momo_verified_at` écrits exclusivement par l'admin. Les 6 colonnes de vérification (`momo_verified`, `momo_name_match`, `momo_verified_by`, `momo_verified_at`, `momo_otp_status`, `momo_reject_reason`) sont **protégées par un trigger** (`easyjob.system_update`) : un candidat ne peut ni se déclarer sa preuve OTP ni se marquer `momo_verified=true` — seules les fonctions SECURITY DEFINER (`candidate_update_momo`, `momo_issue_otp`, `momo_verify_otp`, `apply_momo_verification`) les écrivent.
+momo_account_name, momo_reject_reason,
+momo_verified_by, momo_verified_at,   ← T6 : cycle de vie de la vérification MoMo — `momo_provider` ∈ (mtn, orange) ; `momo_account_name` = nom déclaré sur le compte (optionnel, ≤ 100) ; **validation admin MANUELLE** (pas de preuve de possession OTP au lancement — décision produit 2026-09-10) : l'admin `admin_ops`/`admin_founder` approuve ou refuse (motif requis ≥ 3 car) en confrontant le nom déclaré au nom CNI (comptes familiaux / au nom d'un tiers refusés), revue ≤ 24 h ; `momo_reject_reason` = motif de refus ; `momo_verified_by` / `momo_verified_at` écrits exclusivement par l'admin (RPC `apply_momo_verification`). Les 5 colonnes de vérification (`momo_verified`, `momo_name_match`, `momo_verified_by`, `momo_verified_at`, `momo_reject_reason`) sont **protégées par un trigger** (`easyjob.system_update`) : un candidat ne peut se marquer `momo_verified=true` — seules les fonctions SECURITY DEFINER (`candidate_update_momo`, `apply_momo_verification`) les écrivent.
 quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement ou **auto-rempli par le GPS** depuis T5.1, `address` n'est pas collectée par l'UI candidat) ; T5.1 : les paires lat/lng sont **validées à l'intérieur de la zone de service** (≤ 20 km du centre de Douala ou de Yaoundé) — `latitude: null` / `longitude: null` = fallback « même ville ».
 sandbox_level, average_rating, total_missions,
 profile_completion_pct, premium_until,
@@ -894,16 +894,6 @@ status (pending / done / cancelled),
 reason, requested_by (uuid -> users),
 created_at, updated_at, completed_at
 ```
-
-**`momo_otp`** (T6 — preuve de possession du numéro MoMo, §11.5)
-```
-profile_id (PK, FK candidate_profiles, cascade),
-token_hash (SHA-256 hex du code 6 chiffres — le code en clair n'est JAMAIS stocké),
-expires_at (now() + TTL 10 min, côté application),
-attempts (0..2 ; 3e échec = statut rejected),
-created_at
-```
-RLS **activée sans aucune policy** (deny-by-default, service_role compris) : seules les fonctions SECURITY DEFINER `momo_issue_otp` / `momo_verify_otp` (owner `postgres`) y accèdent — 1 ligne max par profil, purgée à la réussite, à l'échec max, à l'expiration et par `candidate_update_momo`.
 
 **`company_profiles`**
 ```
@@ -1169,38 +1159,44 @@ metadata{}, ip_address, created_at
 - Le nom du compte MoMo doit correspondre au nom complet de la CNI. Comptes familiaux refusés.
 - Option KYC automatisé (Smile Identity) envisagée pour V1.1.
 
-**Implémentation T6 (MoMo) — cycle en 2 étapes :**
-1. **Preuve de possession (candidat, bloquante)** : après enregistrement du numéro
-   (`PUT /api/profile/payment` → RPC `candidate_update_momo`), le candidat demande un
-   code de 6 chiffres par SMS sur le numéro déclaré (`POST /api/profile/momo/otp`).
-   Le code est généré côté serveur (CSPRNG), **jamais stocké : seule son empreinte
-   SHA-256** (TTL 10 min, 1 ligne `momo_otp` par profil). Le candidat saisi le code
-   (`POST /api/profile/momo/otp/verify`) : 2 essais vains comptés, **3e essai vain =
-   preuve refusée** (`momo_reject_reason = 'otp_max_attempts'`, un nouvel envoi
-   réarme). La vérification exige que le numéro transmis = le numéro enregistré
-   (un code ne prouve que son propre numéro).
+**Implémentation T6 (MoMo) — validation admin MANUELLE (Option D) :**
+1. **Déclaration (candidat)** : le candidat déclare opérateur (`MTN MoMo` /
+   `Orange Money`) + numéro (format téléphone camerounais, 9 chiffres préfixe 6)
+   + nom du compte (optionnel, ≤ 100 chars) via `PUT /api/profile/payment` → RPC
+   `candidate_update_momo` (SECURITY DEFINER). Tout changement de numéro/opérateur
+   **réinitialise le cycle** (vérification remise à zéro : l'admin re-voit).
+   **Pas de preuve de possession par OTP SMS au lancement** — l'étape est jugée
+   superflue et coûteuse (1 SMS par numéro) pour le MVP ; le numéro est la
+   responsabilité du candidat, l'admin arbitre.
 2. **Validation admin** (`POST /api/admin/momo`, rôles `admin_ops`/`admin_founder`,
-   `admin_support` en lecture seule) : l'admin ne peut approuver/qu'une preuve OTP
-   obtenue (`momo_otp_status = 'verified'`, sinon 400 `otp_proof_required`). Un
-   rejet admin porte un motif obligatoire (3..300 car). L'opération est
+   `admin_support` en lecture seule via `GET` + filtre `?verified=true|false`) :
+   l'admin approuve ou refuse en **confrontant le nom du compte déclaré au nom
+   de la CNI** — les comptes familiaux / au nom d'un tiers sont **refusés** avec
+   un motif obligatoire (3..300 car, `momo_reject_reason`). L'opération est
    transactionnelle (RPC `apply_momo_verification`, SECURITY DEFINER) : écriture
    protégée de `momo_verified`/`momo_name_match`/`momo_verified_by`/`momo_verified_at`
-   (+ motif au rejet), **notification** `momo_status` au candidat et **audit log**
-   (`approve_momo`/`reject_momo`, acteur = l'admin réel, jamais `service_role`).
+   (+ motif au rejet), **notification** `momo_status` au candidat (« Mobile Money
+   vérifié » / « … refusé » + motif) et **audit log** (`approve_momo`/`reject_momo`,
+   acteur = l'admin réel, jamais `service_role`). La revue est **manuelle ≤ 24 h**.
    L'UI admin de revue est livrée avec la page liste-candidats (T8) ; l'API est
-   opérationnelle dès T6. Le SMS passe par **Twilio** REST natif (env
-   `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_MOMO_OTP_SERVICE_SID`,
-   service `MG…`) ; sans configuration, le flux passe en **sandbox** (code loggé
-   côté serveur, canal `sandbox`) — les quotas anti-abus (`check_sms_send_quota`,
-   5/n°/24 h + 10/IP/h sur `sms_send_log`) s'appliquent dans les deux cas.
-   Tout changement de numéro/opérateur **réinitialise le cycle** (nouvelle
-   vérification complète). La page candidat `/profile/payment` montre le statut :
-   non configuré → formulaire ; preuve en attente/en cours ; « Vérifié » seulement
-   après l'approbation admin (le numéro y est masqué, affiché en clair dans
-   l'interface admin).
+   opérationnelle dès T6. La page candidat `/profile/payment` montre le statut :
+   non configuré → formulaire ; « En attente de vérification » (déclaré, pas
+   encore vu) ; refus avec motif affiché (+ bouton Modifier) ; « Vérifié »
+   seulement après l'approbation admin (le numéro y est **masqué**, affiché en
+   clair dans l'interface admin).
 
-**Statut :** ✅ Décision prise — **implémenté (T6)** : preuve OTP + validation
-admin + notification/audit.
+**Automatisation future (T6.1 — à l'étude, non implémentée)** : un agrégateur
+« get account name » (API B2B opérateur : *MTN MoMo for Business*, *Orange
+Money API Developer* ; ou agrégateur local : *eTrazact*, *Flutterwave*,
+*Hubtel*…) retourne le nom opérateur du numéro pour une auto-confrontation au
+nom déclaré / CNI (auto-approve sur match exact normalisé). Référence produit
+comparable : **Taptap Send** (envoi d'argent Europe → Afrique) qui affiche le
+nom du destinataire avant validation. Coût ≈ 10–200 F CFA par lookup. À
+reprendre comme spike (RFP opérateur + sandbox) une fois le MVP en prod.
+
+**Statut :** ✅ Décision prise — **implémenté (T6)** : déclaration + validation
+admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
+(décision produit 2026-09-10) ; T6.1 à l'étude.
 
 ---
 

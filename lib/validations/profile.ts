@@ -153,23 +153,12 @@ export const paymentSchema = z.object({
 export type PaymentInput = z.infer<typeof paymentSchema>;
 
 /**
- * Code OTP de preuve de possession du numéro MoMo. `token` = 6 chiffres ;
- * `number` = le numéro MOBILE MONEY tel qu'enregistré (9 chiffres, format
- * `phoneSchema`) — la route le compare au numéro courant en base pour
- * s'assurer qu'aucun ancien code ne prouve un autre numéro.
- */
-export const momoOtpSchema = z.object({
-  token: z.string().regex(/^\d{6}$/, "otpInvalid"),
-  number: phoneSchema,
-});
-export type MomoOtpInput = z.infer<typeof momoOtpSchema>;
-
-/**
  * Validation admin MoMo (T6) : `approve` / `reject` sur un profil précis.
  * `reject` exige un motif (3..300 car) ; `approve` n'en porte pas.
- * La preuve OTP préalable est vérifiée côté RPC `apply_momo_verification`
- * (momo_otp_status = 'verified'), PAS ici — le Zod borne seulement la
- * forme de la requête, la règle métier vit en base.
+ * Les pré-requis métier (rôle admin, profil existant, numéro configuré,
+ * motif de refus requis) sont vérifiés côté RPC SECURITY DEFINER
+ * `apply_momo_verification` — le Zod borne seulement la forme de la
+ * requête, la règle métier vit en base.
  */
 export const momoModerateSchema = z
   .object({

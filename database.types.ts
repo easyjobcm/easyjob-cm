@@ -130,7 +130,6 @@ export type Database = {
           momo_account_name: string | null
           momo_name_match: boolean
           momo_number: string | null
-          momo_otp_status: string
           momo_provider: string | null
           momo_reject_reason: string | null
           momo_verified: boolean | null
@@ -182,7 +181,6 @@ export type Database = {
           momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
-          momo_otp_status?: string | null
           momo_provider?: string | null
           momo_reject_reason?: string | null
           momo_verified?: boolean | null
@@ -234,7 +232,6 @@ export type Database = {
           momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
-          momo_otp_status?: string | null
           momo_provider?: string | null
           momo_reject_reason?: string | null
           momo_verified?: boolean | null
@@ -1121,38 +1118,6 @@ export type Database = {
           },
         ]
       }
-      momo_otp: {
-        Row: {
-          attempts: number
-          created_at: string
-          expires_at: string
-          profile_id: string
-          token_hash: string
-        }
-        Insert: {
-          attempts?: number
-          created_at?: string
-          expires_at: string
-          profile_id: string
-          token_hash: string
-        }
-        Update: {
-          attempts?: number
-          created_at?: string
-          expires_at?: string
-          profile_id?: string
-          token_hash?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "momo_otp_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: true
-            referencedRelation: "candidate_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       notifications: {
         Row: {
           body: string
@@ -1608,11 +1573,6 @@ export type Database = {
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
-      momo_issue_otp: {
-        Args: { p_expires_at: string; p_token_hash: string }
-        Returns: undefined
-      }
-      momo_verify_otp: { Args: { p_token_hash: string }; Returns: string }
     }
     Enums: {
       application_status:
