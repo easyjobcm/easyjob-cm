@@ -51,7 +51,10 @@ export async function PUT(request: NextRequest) {
   const { error: rpcError } = await supabase.rpc("candidate_update_momo", {
     p_provider: parsed.data.momo_provider,
     p_number: parsed.data.momo_number,
-    p_account_name: parsed.data.momo_account_name ?? null,
+    // Le type généré (convention Supabase : paramètre à défaut NULL → non
+    // optionnel, sans `| null`) est `string`, alors que le RPC accepte
+    // réellement NULL (colonne text, « nom non déclaré »).
+    p_account_name: (parsed.data.momo_account_name ?? null) as string,
   });
 
   if (rpcError) {

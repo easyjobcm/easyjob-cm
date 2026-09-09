@@ -122,7 +122,11 @@ export async function POST(request: NextRequest) {
   const { error: rpcError } = await supabase.rpc("apply_momo_verification", {
     p_profile_id: profile_id,
     p_action: action,
-    p_reject_reason: action === "reject" ? (rejection_reason ?? null) : null,
+    // `p_reject_reason` est `string` dans le type généré (convention
+    // Supabase) ; le RPC accepte NULL (cas `approve`, paramètre ignoré).
+    p_reject_reason: (action === "reject"
+      ? (rejection_reason ?? null)
+      : null) as string,
   });
 
   if (rpcError) {

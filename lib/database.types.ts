@@ -303,7 +303,7 @@ export type Database = {
           momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
-          momo_otp_status?: string | null
+          momo_otp_status?: string
           momo_provider?: string | null
           momo_reject_reason?: string | null
           momo_verified?: boolean | null
@@ -355,7 +355,7 @@ export type Database = {
           momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
-          momo_otp_status?: string | null
+          momo_otp_status?: string
           momo_provider?: string | null
           momo_reject_reason?: string | null
           momo_verified?: boolean | null
@@ -378,6 +378,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "candidate_profiles_momo_verified_by_fkey"
+            columns: ["momo_verified_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "candidate_profiles_user_id_fkey"
             columns: ["user_id"]
@@ -2125,16 +2132,12 @@ export type Database = {
         Args: {
           p_action: string
           p_profile_id: string
-          p_reject_reason: string | null
+          p_reject_reason: string
         }
         Returns: undefined
       }
       candidate_update_momo: {
-        Args: {
-          p_account_name: string | null
-          p_number: string
-          p_provider: string
-        }
+        Args: { p_account_name: string; p_number: string; p_provider: string }
         Returns: undefined
       }
       check_email_send_quota: {
