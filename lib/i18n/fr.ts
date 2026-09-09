@@ -624,6 +624,28 @@ export const fr = {
       unavailable: "Position indisponible sur cet appareil.",
       /** T5 : erreur serveur (coordonnées hors bornes -90..90 / -180..180). */
       geoOutOfRange: "Coordonnées géographiques hors bornes.",
+      /** T5.1 : message de refus affiché sous le bouton quand la position
+       *  détectée est HORS de la zone de service (Douala/Yaoundé). Le
+       *  candidat doit continuer avec la saisie manuelle ville + quartier. */
+      outOfZone:
+        "Votre position est en dehors de Douala et Yaoundé. Sélectionnez votre ville et votre quartier manuellement.",
+      /** T5.1 : info affichée quand un fix est accepté DANS la zone — la
+       *  ville est auto-posée à la plus proche, le quartier auto-recherché
+       *  via OSM Nominatim (1 seule requête). */
+      autoFilledFromGps:
+        "Ville et quartier complétés depuis votre position GPS.",
+      /** T5.1 : échec du reverse geocoding (OSM down, timeout) — le fix est
+       *  accepté mais le quartier n'est PAS auto-posé. Le candidat peut le
+       *  saisir lui-même. */
+      autoFilledFailed:
+        "Position enregistrée, mais le quartier n'a pas pu être détecté. Vous pouvez le saisir manuellement.",
+      /** T5.1 : clé Zod de la refine `geoOutOfZone` — coordonnées complètes
+       *  mais hors de la zone de service. */
+      geoOutOfZone:
+        "Coordonnées hors des zones servies (Douala / Yaoundé uniquement).",
+      /** T5.1 : clé Zod de la refine `cityNotServed` — ville non listée. */
+      cityNotServed:
+        "Ville non servie par Easyjob (Douala / Yaoundé uniquement).",
     },
     reverification: {
       modalTitle: "Confirmer la modification",

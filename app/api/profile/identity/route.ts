@@ -51,8 +51,19 @@ export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const parsed = identitySchema.safeParse(body);
   if (!parsed.success) {
+    // T5.1 — codes machine spécifiques : la zone de service (lat/lng hors
+    // Douala/Yaoundé) et la ville inconnue doivent être distinguées des
+    // erreurs de format classiques (le corps `issues` reste inchangé).
+    const issues = parsed.error.issues;
+    const geoOutOfZone = issues.some((i) => i.message === "geoOutOfZone");
+    const cityNotServed = issues.some((i) => i.message === "cityNotServed");
+    const code = geoOutOfZone
+      ? "geo_out_of_zone"
+      : cityNotServed
+        ? "city_not_served"
+        : "invalid_input";
     return NextResponse.json(
-      { error: "Invalid input", issues: parsed.error.flatten() },
+      { error: "Invalid input", code, issues: parsed.error.flatten() },
       { status: 400 },
     );
   }

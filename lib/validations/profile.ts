@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { phoneSchema } from "@/lib/validations/auth";
+import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
+import { isNearCityZone } from "@/lib/validations/geo-schema";
 
 /**
  * Bio candidat — le seuil de complétion (`profile-completion.ts`) exige
@@ -24,22 +26,36 @@ export const birthDateSchema = z
   .refine((v) => v <= maxBirthDate(), { message: "ageInvalid" })
   .refine((v) => v >= "1900-01-01", { message: "birthDateInvalid" });
 
-/** Coordonnées domicile (T5) : bornes géographiques + null (pas de GPS =
- *  validable par ville/quartier seul → fallback matching « même ville »). */
-export const geoSchema = z.object({
-  latitude: z
-    .number()
-    .min(-90, "geoOutOfRange")
-    .max(90, "geoOutOfRange")
-    .nullable()
-    .optional(),
-  longitude: z
-    .number()
-    .min(-180, "geoOutOfRange")
-    .max(180, "geoOutOfRange")
-    .nullable()
-    .optional(),
-});
+/** Coordonnées domicile (T5) : bornes géographiques + zone de service
+ *  (T5.1) — une paire lat/lng complète DOIT être à l'intérieur de la
+ *  zone de service (≤ 20 km du centre de référence le plus proche).
+ *  Absentes / null = valide → fallback « même ville » du matching.
+ *  (La règle de PAIRE — jamais une seule à null — est portée par
+ *  `isCleanGeoCoords` + l'UI qui écrit les deux ensemble.) */
+export const geoSchema = z
+  .object({
+    latitude: z
+      .number()
+      .min(-90, "geoOutOfRange")
+      .max(90, "geoOutOfRange")
+      .nullable()
+      .optional(),
+    longitude: z
+      .number()
+      .min(-180, "geoOutOfRange")
+      .max(180, "geoOutOfRange")
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (v) =>
+      v.latitude === null ||
+      v.latitude === undefined ||
+      v.longitude === null ||
+      v.longitude === undefined ||
+      isNearCityZone(v.latitude, v.longitude),
+    { message: "geoOutOfZone" },
+  );
 export type GeoInput = z.infer<typeof geoSchema>;
 
 /** Garde-bouche client pour les écritures qui ne passent pas par la route
@@ -61,13 +77,21 @@ export function isCleanGeoCoords(
 }
 
 /** Étape identité de l'édition de profil (mêmes champs que l'onboarding)
- *  + coordonnées validées — source de vérité client ET serveur. */
+ *  + city restreinte au catalogue produit (T5.1 — client ET serveur ;
+ *  avant T5.1 seul le bouton picker UI limitait) + coordonnées validées
+ *  (bornes + zone de service) — source de vérité client ET serveur. */
 export const identitySchema = z
   .object({
     first_name: z.string().trim().min(1, "firstNameRequired").max(60),
     last_name: z.string().trim().min(1, "lastNameRequired").max(60),
     date_of_birth: birthDateSchema,
-    city: z.string().trim().min(1, "cityRequired"),
+    city: z
+      .string()
+      .trim()
+      .min(1, "cityRequired")
+      .refine((v) => CAMEROON_CITIES.includes(v), {
+        message: "cityNotServed",
+      }),
     quartier: z.string().trim().max(100).optional().or(z.literal("")),
     bio: bioSchema.optional().or(z.literal("")),
   })

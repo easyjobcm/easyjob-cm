@@ -309,6 +309,8 @@ Le score est visible par les candidats sur la fiche entreprise.
    - **T5 — flux de permission** : le navigateur ne réclame la permission d'accès à la localisation qu'après un geste utilisateur. Le candidat clique sur « Utiliser ma position » → la demande de permission du navigateur s'affiche à ce moment (un indice le rappelle tant que la position n'est pas enregistrée). Le badge « GPS enregistré » (précision ± m quand fournie par l'appareil) confirme le fix ; aucun chiffre lat/lng n'est affiché (principe de confidentialité : l'entreprise ne voit jamais le GPS domicile — US-ONBC, §12).
    - **T5 — coordonnées validées** : les coordonnées lat/lng sont bornées à leurs plages géographiques légales (±90/±180) côté API `identity` et côté onboarding (règle double AGENTS).
    - **T5 — ville** : le catalogue partagé `CAMEROON_CITIES` porte la graphie accentuée « Yaoundé » ; une migration (20260909150000) remplit les anciennes lignes sans accent.
+   - **T5.1 — zone de service** : la position GPS du domicile est **référencée aux centres de service** (Douala 4.04°N / 9.69°E, Yaoundé 3.87°N / 11.51°E) et **rejetée** si elle est à plus de 20 km du centre le plus proche (règle `isNearCityZone`, bornes géographiques + zone, côté **API** `identity` ET **onboarding**) — le MVP ne sert que Douala et Yaoundé. Un fix **dans la zone** **auto-remplit** la ville (centre le plus proche) **et le quartier** (reverse geocoding OpenStreetMap Nominatim, 1 seule requête déclenchée par le geste utilisateur) ; en cas d'échec du reverse geocoding, le fix reste valable et le quartier est laissé à saisir. Les villes saisies manuellement sont **bornées au catalogue** `CAMEROON_CITIES` (règle `cityNotServed`).
+   - **T5.1 — confidentialité GPS** : les coordonnées lat/lng n'existent que côté candidat ; aucune n'est journalisée ni exposée (badge « GPS enregistré » + précision ± m uniquement).
 7. Upload **CNI** (recto/verso) + **selfie tenant la CNI** pour validation admin dans les 24h. La date d'expiration de la CNI est enregistrée et surveillée.
 8. Vérification numéro **Mobile Money** (MTN ou Orange). Le nom enregistré sur le compte MoMo **doit correspondre au nom complet du candidat**. Les comptes au nom d'un tiers ne sont pas acceptés.
 9. Consentement RGPD local.
@@ -877,7 +879,7 @@ photo_url, bio, skills[], sectors[], availability{},
 driving_license_verified, driving_license_expires_at,
 cni_verified, cni_expires_at, cni_selfie_url,
 momo_verified, momo_number, momo_operator, momo_name_match,
-quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement, `address` n'est pas collectée par l'UI candidat)
+quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement ou **auto-rempli par le GPS** depuis T5.1, `address` n'est pas collectée par l'UI candidat) ; T5.1 : les paires lat/lng sont **validées à l'intérieur de la zone de service** (≤ 20 km du centre de Douala ou de Yaoundé) — `latitude: null` / `longitude: null` = fallback « même ville ».
 sandbox_level, average_rating, total_missions,
 profile_completion_pct, premium_until,
 created_at, updated_at

@@ -10,6 +10,8 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { isNearCityZone, nearestCityFor } from "@/lib/validations/geo-schema";
+import { fetchQuartierFromNominatim } from "@/lib/utils/quartier-fetch";
 import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
@@ -90,6 +92,7 @@ export function OnboardingClient({
 }: OnboardingClientProps) {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const tGeo = t.profile.geolocation;
   const supabase = createClient();
 
   const [currentStep, setCurrentStep] = React.useState(
@@ -97,6 +100,13 @@ export function OnboardingClient({
   );
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  // T5.1 — statuts transitoires de la détection GPS (fix refusé hors zone /
+  // auto-remplissage ok / échec Nominatim). Portés par un clic « Utiliser
+  // ma position » ou remis à zéro à chaque step.
+  const [geoOutOfZone, setGeoOutOfZone] = React.useState(false);
+  const [geoAutoFillNote, setGeoAutoFillNote] = React.useState<
+    "ok" | "fail" | null
+  >(null);
 
   // Form data
   const [formData, setFormData] = React.useState({
@@ -121,8 +131,41 @@ export function OnboardingClient({
   };
 
   const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
-    updateFormData("latitude", coords.latitude);
-    updateFormData("longitude", coords.longitude);
+    // T5.1 — fix GPS : on refuse les positions HORS de la zone de service
+    // (Douala/Yaoundé) AVANT d'écrire au formulaire. Si la zone est
+    // respectée, on auto-remplit city (plus proche) + quartier (Nominatim).
+    setGeoOutOfZone(false);
+    setGeoAutoFillNote(null);
+
+    if (!isNearCityZone(coords.latitude, coords.longitude)) {
+      setGeoOutOfZone(true);
+      return;
+    }
+
+    const nearestCity = nearestCityFor(coords.latitude, coords.longitude);
+    const cityField =
+      nearestCity && CAMEROON_CITIES.includes(nearestCity) ? nearestCity : null;
+
+    setFormData((prev) => ({
+      ...prev,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      ...(cityField ? { city: cityField } : {}),
+    }));
+
+    // Nominatim — échec = quartier non auto-posé (le fix reste valide).
+    void fetchQuartierFromNominatim(
+      coords.latitude,
+      coords.longitude,
+      locale,
+    ).then((quartier) => {
+      if (quartier) {
+        setFormData((prev) => ({ ...prev, quartier }));
+        setGeoAutoFillNote("ok");
+      } else {
+        setGeoAutoFillNote("fail");
+      }
+    });
   });
 
   const toggleSkill = (skill: string) => {
@@ -157,12 +200,20 @@ export function OnboardingClient({
       // T5 : l'onboarding écrit candidate_profiles directement (pas de route
       // API) — garde-bouche équivalent au serveur : les coordonnées doivent
       // être absentes, ou complètes + dans les bornes géographiques.
+      // T5.1 : + zone de service (Douala/Yaoundé) — défend les profils
+      // historiques contenant un fix hors zone (avant T5.1, le check n'existait
+      // que côté UI).
       if (!isCleanGeoCoords(formData.latitude, formData.longitude)) {
-        throw new Error(
-          locale === "fr"
-            ? t.profile.geolocation.geoOutOfRange
-            : t.profile.geolocation.geoOutOfRange,
-        );
+        throw new Error(t.profile.geolocation.geoOutOfRange);
+      }
+      const gpsPresent =
+        typeof formData.latitude === "number" &&
+        typeof formData.longitude === "number";
+      if (
+        gpsPresent &&
+        !isNearCityZone(formData.latitude, formData.longitude)
+      ) {
+        throw new Error(t.profile.geolocation.geoOutOfZone);
       }
       const { error: updateError } = await supabase
         .from("candidate_profiles")
@@ -387,19 +438,15 @@ export function OnboardingClient({
             </div>
 
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">
-                {t.profile.geolocation.explain}
-              </p>
+              <p className="text-sm text-muted-foreground">{tGeo.explain}</p>
               {(formData.latitude !== null && formData.longitude !== null) ||
               geoStatus === "success" ? (
                 <div className="mt-3">
-                  <Badge variant="success">
-                    {t.profile.geolocation.recordedBadge}
-                  </Badge>
+                  <Badge variant="success">{tGeo.recordedBadge}</Badge>
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {t.profile.geolocation.firstPermissionHint}
+                  {tGeo.firstPermissionHint}
                 </p>
               )}
               <Button
@@ -410,18 +457,33 @@ export function OnboardingClient({
                 disabled={geoStatus === "loading"}
               >
                 <LocateFixed className="mr-2 h-4 w-4" />
-                {geoStatus === "loading"
-                  ? t.profile.geolocation.locating
-                  : t.profile.geolocation.useMyLocation}
+                {geoStatus === "loading" ? tGeo.locating : tGeo.useMyLocation}
               </Button>
-              {geoStatus === "denied" && (
-                <p className="mt-2 text-sm text-amber-600">
-                  {t.profile.geolocation.denied}
+              {/* T5.1 — fix GPS hors zone (Douala/Yaoundé) : refus affiché,
+                  la position manuelle ville + quartier reste possible. */}
+              {geoOutOfZone && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  {tGeo.outOfZone}
                 </p>
+              )}
+              {/* T5.1 — auto-remplissage après fix accepté (ok / échec
+                  Nominatim). */}
+              {geoAutoFillNote === "ok" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {tGeo.autoFilledFromGps}
+                </p>
+              )}
+              {geoAutoFillNote === "fail" && (
+                <p className="mt-2 text-xs text-amber-600">
+                  {tGeo.autoFilledFailed}
+                </p>
+              )}
+              {geoStatus === "denied" && (
+                <p className="mt-2 text-sm text-amber-600">{tGeo.denied}</p>
               )}
               {geoStatus === "unavailable" && (
                 <p className="mt-2 text-sm text-amber-600">
-                  {t.profile.geolocation.unavailable}
+                  {tGeo.unavailable}
                 </p>
               )}
             </div>

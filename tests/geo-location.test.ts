@@ -14,6 +14,17 @@ import {
   isCleanGeoCoords,
   identitySchema,
 } from "@/lib/validations/profile";
+import {
+  CITY_CENTROIDS,
+  CITY_ZONE_RADIUS_KM,
+  haversineKm,
+  isNearCityZone,
+  nearestCityFor,
+} from "@/lib/validations/geo-schema";
+import {
+  pickQuartierFromAddress,
+  NOMINATIM_REVERSE_URL,
+} from "@/lib/utils/quartier-fetch";
 import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 
 describe("CAMEROON_CITIES (T5 — orthographe canonique)", () => {
@@ -137,5 +148,251 @@ describe("isCleanGeoCoords (garde-bouche écriture directe onboarding)", () => {
 
   it("lng hors bornes -> NON clean", () => {
     expect(isCleanGeoCoords(4.05, 181)).toBe(false);
+  });
+});
+
+/**
+ * T5.1 — localisation : zone de service (Douala/Yaoundé) + auto-remplissage.
+ *
+ * Règle produit : le site ne sert QUE Douala et Yaoundé. Une position GPS
+ * domicile HORS zone (> 20 km du centre de référence le plus proche) est
+ * REJETÉE. Un fix DANS zone est accepté et auto-remplit la ville la plus
+ * proche (+ le quartier via Nominatim hors périmètre de test : c'est de
+ * l'UX de fetch, pas un invariant de zone).
+ *
+ * Distance Haversine : source unique `lib/validations/geo-schema.ts`
+ * (partagée avec le matching domicile→mission).
+ */
+describe("CITY_CENTROIDS / CITY_ZONE_RADIUS_KM (T5.1 — config de zone)", () => {
+  it("les deux villes du catalogue ont un CENTROÏde défini", () => {
+    for (const city of CAMEROON_CITIES) {
+      const c = CITY_CENTROIDS[city];
+      expect(c, `CENTROÏde manquant pour ${city}`).toBeDefined();
+      expect(c.lat).toBeGreaterThanOrEqual(-90);
+      expect(c.lat).toBeLessThanOrEqual(90);
+      expect(c.lng).toBeGreaterThanOrEqual(-180);
+      expect(c.lng).toBeLessThanOrEqual(180);
+    }
+  });
+
+  it("le rayon de zone est positif (bornes géo valides)", () => {
+    expect(CITY_ZONE_RADIUS_KM).toBeGreaterThan(0);
+    expect(CITY_ZONE_RADIUS_KM).toBeLessThanOrEqual(200);
+  });
+});
+
+describe("haversineKm (T5.1 — distance grande échelle)", () => {
+  it("même point -> 0 km", () => {
+    expect(
+      haversineKm(CITY_CENTROIDS.Douala, CITY_CENTROIDS.Douala),
+    ).toBeCloseTo(0, 3);
+  });
+
+  it("centre Douala -> centre Yaoundé ≈ 200 km (bien au-delà de la zone)", () => {
+    const d = haversineKm(CITY_CENTROIDS.Douala, CITY_CENTROIDS.Yaoundé);
+    // La valeur exacte dépend de la géodésie ; on borne large mais stricte sur
+    // « inter-urbain » (pas un accident de ~0 km / ~3000+ km).
+    expect(d).toBeGreaterThan(150);
+    expect(d).toBeLessThan(260);
+  });
+});
+
+describe("nearestCityFor (T5.1 — ville la plus proche)", () => {
+  it("centre exact de Douala -> 'Douala'", () => {
+    expect(
+      nearestCityFor(CITY_CENTROIDS.Douala.lat, CITY_CENTROIDS.Douala.lng),
+    ).toBe("Douala");
+  });
+
+  it("centre exact de Yaoundé -> 'Yaoundé'", () => {
+    expect(
+      nearestCityFor(CITY_CENTROIDS.Yaoundé.lat, CITY_CENTROIDS.Yaoundé.lng),
+    ).toBe("Yaoundé");
+  });
+
+  it("coordonnées manquantes (null) -> null (aucune ville détectable)", () => {
+    expect(nearestCityFor(null, 9.69)).toBeNull();
+    expect(nearestCityFor(4.04, null)).toBeNull();
+    expect(nearestCityFor(undefined, undefined)).toBeNull();
+  });
+
+  it("NaN -> null (pas de ville, pas de crash)", () => {
+    expect(nearestCityFor(Number.NaN, 9.69)).toBeNull();
+  });
+});
+
+describe("isNearCityZone (T5.1 — acceptation / refus de zone)", () => {
+  it("centre de Douala -> dans la zone", () => {
+    expect(
+      isNearCityZone(CITY_CENTROIDS.Douala.lat, CITY_CENTROIDS.Douala.lng),
+    ).toBe(true);
+  });
+
+  it("centre de Yaoundé -> dans la zone", () => {
+    expect(
+      isNearCityZone(CITY_CENTROIDS.Yaoundé.lat, CITY_CENTROIDS.Yaoundé.lng),
+    ).toBe(true);
+  });
+
+  it("point à ~210 km au sud-ouest de Yaoundé (sud Cameroun) -> HORS zone", () => {
+    // (1.96, 11.44) est bien au-delà des 20 km des deux centroïdes
+    // (~210 km du centroïde de Yaoundé, ~300 km du centroïde de Douala).
+    expect(isNearCityZone(1.96, 11.44)).toBe(false);
+  });
+
+  it("Douala ~40 km au nord du centre (bassin péri-urbain extrême) -> HORS zone", () => {
+    // Centre 4.04 + 0.36° lat ≈ 40 km nord → bien au-delà du rayon de 20 km.
+    expect(isNearCityZone(4.4, 9.69)).toBe(false);
+  });
+
+  it("limites : ~19.7 km au sud du centre Douala -> DANS la zone ; ~20.5 km -> HORS", () => {
+    // 1° de latitude ≈ 110.6 km.
+    const at = (kmSouth: number) => ({
+      lat: CITY_CENTROIDS.Douala.lat - kmSouth / 110.6,
+      lng: CITY_CENTROIDS.Douala.lng,
+    });
+    expect(isNearCityZone(at(19.7).lat, at(19.7).lng)).toBe(true);
+    expect(isNearCityZone(at(20.5).lat, at(20.5).lng)).toBe(false);
+  });
+
+  it("coordonnées absentes (null) -> HORS zone (pas un fix valide)", () => {
+    expect(isNearCityZone(null, null)).toBe(false);
+    expect(isNearCityZone(null, 9.69)).toBe(false);
+  });
+});
+
+describe("geoSchema (T5.1 — refine zone de service)", () => {
+  it("paire DANS la zone (centre Douala) -> valide", () => {
+    const r = geoSchema.safeParse({
+      latitude: CITY_CENTROIDS.Douala.lat,
+      longitude: CITY_CENTROIDS.Douala.lng,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("paire HORS zone (sud Cameroun, ~210 km de Yaoundé) -> invalide + message geoOutOfZone", () => {
+    const r = geoSchema.safeParse({ latitude: 1.96, longitude: 11.44 });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.message === "geoOutOfZone")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("null -> valide (fallback même ville) — inchangé T5", () => {
+    expect(
+      geoSchema.safeParse({ latitude: null, longitude: null }).success,
+    ).toBe(true);
+  });
+
+  it("absentes (undefined) -> valide (pas de GPS) — inchangé T5", () => {
+    expect(geoSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("identitySchema (T5.1 — city restreinte au catalogue)", () => {
+  const validIdentity = {
+    first_name: "Jean",
+    last_name: "Kouam",
+    date_of_birth: "1995-05-05",
+    bio: "",
+    quartier: "Bonanjo",
+  };
+
+  it("city 'Douala' -> valide", () => {
+    expect(
+      identitySchema.safeParse({ ...validIdentity, city: "Douala" }).success,
+    ).toBe(true);
+  });
+
+  it("city 'Yaoundé' -> valide", () => {
+    expect(
+      identitySchema.safeParse({ ...validIdentity, city: "Yaoundé" }).success,
+    ).toBe(true);
+  });
+
+  it("city 'Bafoussam' (hors catalogue) -> invalide + cityNotServed", () => {
+    // Bafoussam EST une ville camerounaise, elle est simplement HORS du
+    // périmètre MVP Douala/Yaoundé — c'est exactement le cas de test T5.1.
+    const r = identitySchema.safeParse({ ...validIdentity, city: "Bafoussam" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.message === "cityNotServed")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("city vide -> cityRequired (inchangé T5)", () => {
+    const r = identitySchema.safeParse({ ...validIdentity, city: "  " });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.message === "cityRequired")).toBe(
+        true,
+      );
+    }
+  });
+
+  it("city valide + GPS hors zone -> invalide (les deux règles composées)", () => {
+    const r = identitySchema.safeParse({
+      ...validIdentity,
+      city: "Douala",
+      latitude: 1.96,
+      longitude: 11.44,
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.message === "geoOutOfZone")).toBe(
+        true,
+      );
+    }
+  });
+});
+
+describe("pickQuartierFromAddress (T5.1 — extraction Nominatim, pur)", () => {
+  it("suburb non vide -> retourné", () => {
+    expect(pickQuartierFromAddress({ suburb: "Bonanjo" })).toBe("Bonanjo");
+  });
+
+  it("le premier champ non vide gagne (suburb vide -> neighbourhood)", () => {
+    expect(
+      pickQuartierFromAddress({ suburb: "  ", neighbourhood: "Akwa" }),
+    ).toBe("Akwa");
+  });
+
+  it("aucun champ quartier présent -> null (pas de quartier détectable)", () => {
+    expect(
+      pickQuartierFromAddress({ country: "Cameroon", city: "Douala" }),
+    ).toBeNull();
+  });
+
+  it("address vide / null / undefined -> null", () => {
+    expect(pickQuartierFromAddress({})).toBeNull();
+    expect(pickQuartierFromAddress(null)).toBeNull();
+    expect(pickQuartierFromAddress(undefined)).toBeNull();
+  });
+
+  it("le quartier est borné à 100 caractères et trimmé", () => {
+    const long = "A".repeat(150);
+    const out = pickQuartierFromAddress({ suburb: `  ${long}  ` });
+    expect(out).toHaveLength(100);
+  });
+
+  it("le champ non-string (nombre) est ignoré", () => {
+    expect(
+      pickQuartierFromAddress({
+        suburb: 42,
+        neighbourhood: "Akwa",
+      } as unknown as Record<string, string>),
+    ).toBe("Akwa");
+  });
+});
+
+describe("NOMINATIM_REVERSE_URL (T5.1 — service de reverse-geocoding)", () => {
+  it("pointe vers l'API publique OSM Nominatim (https)", () => {
+    expect(NOMINATIM_REVERSE_URL).toBe(
+      "https://nominatim.openstreetmap.org/reverse",
+    );
   });
 });

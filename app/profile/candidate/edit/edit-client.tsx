@@ -24,6 +24,8 @@ import {
   type ProfileLockGroup,
 } from "@/lib/utils/profile-lock";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { isNearCityZone, nearestCityFor } from "@/lib/validations/geo-schema";
+import { fetchQuartierFromNominatim } from "@/lib/utils/quartier-fetch";
 import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 import { DocumentUploadField } from "@/components/profile/document-upload-field";
 
@@ -71,8 +73,9 @@ export function CandidateProfileEditClient({
 }: CandidateProfileEditClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const tEdit = t.profile.edit;
+  const tGeo = t.profile.geolocation;
 
   const [formData, setFormData] = React.useState({
     first_name: profile.first_name ?? "",
@@ -94,6 +97,20 @@ export function CandidateProfileEditClient({
   // quand la capture via le bouton réussit (l'accuracy n'est pas stockée en
   // DB ; les coordonnées déjà enregistrées affichent le badge sans précision).
   const [geoAccuracyM, setGeoAccuracyM] = React.useState<number | null>(null);
+  // T5.1 — statut de la détection de fix GPS :
+  //   `geoOutOfZone` : le dernier fix était HORS zone (Douala/Yaoundé) → refus
+  //                    affiché, formulaire lat/lng non modifié (on garde
+  //                    l'état précédent si présent).
+  //   `geoAutoFillNote` : note transitoire après un fix accepté —
+  //                    "ok"   : ville auto-posée + quartier auto-recherché
+  //                    "fail" : ville auto-posée, échec Nominatim (le fix
+  //                             reste valide, le candidat saisit le quartier)
+  //   Les deux sont réinitialisés par le prochain bouton « Utiliser ma
+  //   position » ou par un enregistrement réussi.
+  const [geoOutOfZone, setGeoOutOfZone] = React.useState(false);
+  const [geoAutoFillNote, setGeoAutoFillNote] = React.useState<
+    "ok" | "fail" | null
+  >(null);
   const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
   const [previews, setPreviews] = React.useState<
@@ -139,10 +156,12 @@ export function CandidateProfileEditClient({
         ageInvalid: tEdit.ageInvalid,
         birthDateInvalid: tEdit.birthDateInvalid,
         cityRequired: tEdit.cityRequired,
+        cityNotServed: tGeo.cityNotServed,
         bioTooLong: tEdit.bioHint,
-        geoOutOfRange: t.profile.geolocation.geoOutOfRange,
+        geoOutOfRange: tGeo.geoOutOfRange,
+        geoOutOfZone: tGeo.geoOutOfZone,
       }) satisfies Record<string, string>,
-    [tEdit, t.profile.geolocation],
+    [tEdit, tGeo],
   );
 
   const loadPreview = React.useCallback(async (field: DocumentField) => {
@@ -200,10 +219,71 @@ export function CandidateProfileEditClient({
     setSaved(false);
   };
 
+  // Le callback s'exécute UNIQUEMENT sur un fix GPS réussi (le hook
+  // `use-geolocation` ne l'appelle jamais ailleurs). T5.1 : on refuse les
+  // fixes hors zone de service AVANT d'écrire quoi que ce soit au
+  // formulaire. Si la zone est respectée, on auto-remplit la ville (via
+  // `nearestCityFor`) et on tente (en parallèle) le reverse-geocoding
+  // Nominatim pour le quartier — échec = note transitoire, fix accepté.
   const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
-    updateField("latitude", coords.latitude);
-    updateField("longitude", coords.longitude);
-    setGeoAccuracyM(coords.accuracy ?? null);
+    // Réinitialise les états transitoires de la détection précédente : un
+    // nouveau clic remplace les messages de refus / note d'auto-remplissage.
+    setGeoOutOfZone(false);
+    setGeoAutoFillNote(null);
+
+    if (!isNearCityZone(coords.latitude, coords.longitude)) {
+      // T5.1 — fix refusé : le candidat voit le message de zone et saisit
+      // manuellement la ville + le quartier. On n'écrit RIEN au formulaire
+      // (les coordonnées d'avant, éventuellement valides, restent en
+      // place — le garde-bouche serveur `geoOutOfZone` fait office de filet).
+      setGeoOutOfZone(true);
+      setGeoAccuracyM(coords.accuracy ?? null);
+      return;
+    }
+
+    // Fix accepté dans la zone — on écrit ENSEMBLE (1 update atomique)
+    // lat, lng, city. `isDirty` passe à true : le bouton « Sauvegarder »
+    // devient actif, le candidat décide s'il enregistre.
+    const nearestCity = nearestCityFor(coords.latitude, coords.longitude);
+    if (nearestCity && CAMEROON_CITIES.includes(nearestCity)) {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        city: nearestCity,
+      }));
+      setIsDirty(true);
+      setSaved(false);
+      setGeoAccuracyM(coords.accuracy ?? null);
+    } else {
+      // Paranoïa : city dérivée hors catalogue (ne devrait jamais arriver
+      // car `CITY_CENTROIDS` ⊂ `CAMEROON_CITIES`) — on n'écrit que lat/lng
+      // pour ne pas corrompre le formulaire.
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }));
+      setIsDirty(true);
+      setSaved(false);
+      setGeoAccuracyM(coords.accuracy ?? null);
+    }
+
+    // Quartier via Nominatim (1 seule requête, déclenchée sur geste
+    // utilisateur). Échec réseau / timeout / champ address vide → note
+    // transitoire, le fix reste accepté et le candidat saisit le quartier.
+    void fetchQuartierFromNominatim(
+      coords.latitude,
+      coords.longitude,
+      locale,
+    ).then((quartier) => {
+      if (quartier) {
+        setFormData((prev) => ({ ...prev, quartier }));
+        setGeoAutoFillNote("ok");
+      } else {
+        setGeoAutoFillNote("fail");
+      }
+    });
   });
 
   const handleBack = () => {
@@ -285,6 +365,12 @@ export function CandidateProfileEditClient({
 
       setIsDirty(false);
       setSaved(true);
+      // T5.1 — les notes transitoires de détection (refus hors zone /
+      // auto-remplissage) sont portées au prochain clic sur « Utiliser ma
+      // position ». Le bouton reset les dès son appui ; on les vide juste
+      // ici aussi pour que l'état après enregistrement soit « propre ».
+      setGeoOutOfZone(false);
+      setGeoAutoFillNote(null);
     } catch (err) {
       if (!(err instanceof Error && err.message === "field_locked")) {
         setApiError(tEdit.error);
@@ -463,16 +549,14 @@ export function CandidateProfileEditClient({
                 id="geolocation"
                 className="rounded-xl border border-border p-3"
               >
-                <p className="text-sm text-muted-foreground">
-                  {t.profile.geolocation.explain}
-                </p>
+                <p className="text-sm text-muted-foreground">{tGeo.explain}</p>
                 {formData.latitude !== null && formData.longitude !== null ? (
                   <div className="mt-3">
                     <Badge variant="success">
                       <CheckCircle2 className="mr-1 h-3 w-3" />
-                      {t.profile.geolocation.recordedBadge}
+                      {tGeo.recordedBadge}
                       {geoAccuracyM !== null &&
-                        ` · ${t.profile.geolocation.precision.replace(
+                        ` · ${tGeo.precision.replace(
                           "{m}",
                           String(geoAccuracyM),
                         )}`}
@@ -480,7 +564,7 @@ export function CandidateProfileEditClient({
                   </div>
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {t.profile.geolocation.firstPermissionHint}
+                    {tGeo.firstPermissionHint}
                   </p>
                 )}
                 <Button
@@ -491,18 +575,37 @@ export function CandidateProfileEditClient({
                   disabled={geoStatus === "loading"}
                 >
                   <LocateFixed className="mr-2 h-4 w-4" />
-                  {geoStatus === "loading"
-                    ? t.profile.geolocation.locating
-                    : t.profile.geolocation.useMyLocation}
+                  {geoStatus === "loading" ? tGeo.locating : tGeo.useMyLocation}
                 </Button>
-                {geoStatus === "denied" && (
-                  <p className="mt-2 text-sm text-amber-600">
-                    {t.profile.geolocation.denied}
+                {/* T5.1 — fix GPS HORS de la zone de service (Douala/Yaoundé)
+                    : on affiche le message de refus, sans toucher la
+                    position « ville + quartier » déjà saisie — le candidat
+                    peut continuer manuellement. */}
+                {geoOutOfZone && (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {tGeo.outOfZone}
                   </p>
+                )}
+                {/* T5.1 — auto-remplissage (après fix accepté) :
+                    « ok »  = ville + quartier auto-posés
+                    « fail »= ville auto-posée, échec Nominatim — quartier à
+                    saisir manuellement (le fix reste accepté). */}
+                {geoAutoFillNote === "ok" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {tGeo.autoFilledFromGps}
+                  </p>
+                )}
+                {geoAutoFillNote === "fail" && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    {tGeo.autoFilledFailed}
+                  </p>
+                )}
+                {geoStatus === "denied" && (
+                  <p className="mt-2 text-sm text-amber-600">{tGeo.denied}</p>
                 )}
                 {geoStatus === "unavailable" && (
                   <p className="mt-2 text-sm text-amber-600">
-                    {t.profile.geolocation.unavailable}
+                    {tGeo.unavailable}
                   </p>
                 )}
               </div>

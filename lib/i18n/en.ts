@@ -612,6 +612,27 @@ export const en: TranslationKeys = {
       unavailable: "Location unavailable on this device.",
       /** T5: server error (coords out of bounds -90..90 / -180..180). */
       geoOutOfRange: "Geographic coordinates out of range.",
+      /** T5.1: shown under the button when the detected position is OUTSIDE
+       *  the service zone (Douala/Yaoundé). The candidate continues with the
+       *  manual city + neighborhood selection. */
+      outOfZone:
+        "Your position is outside of Douala and Yaoundé. Please select your city and neighborhood manually.",
+      /** T5.1: info shown when an in-zone fix is accepted — city is auto-set
+       *  to the nearest, and the neighborhood is auto-looked-up via OSM
+       *  Nominatim (single request). */
+      autoFilledFromGps:
+        "City and neighborhood were filled from your GPS position.",
+      /** T5.1: reverse-geocode failure (OSM down / timeout) — the fix is
+       *  accepted but the neighborhood is NOT auto-filled. The candidate can
+       *  enter it manually. */
+      autoFilledFailed:
+        "Position saved, but the neighborhood could not be detected. You can fill it in manually.",
+      /** T5.1: Zod refinement key `geoOutOfZone` — in-zone bounds but outside
+       *  the service area. */
+      geoOutOfZone:
+        "Coordinates outside the service area (Douala / Yaoundé only).",
+      /** T5.1: Zod refinement key `cityNotServed` — city not in the catalog. */
+      cityNotServed: "City not served by Easyjob (Douala / Yaoundé only).",
     },
     reverification: {
       modalTitle: "Confirm the change",

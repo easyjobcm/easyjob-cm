@@ -1,6 +1,7 @@
 /**
- * Preuve E2E T5 — localisation candidat : ville accentuée + coordonnées
- * validées + focus de page + badge GPS (SRS §6.2, §8.1).
+ * Preuve E2E T5 / T5.1 — localisation candidat : ville accentuée +
+ * coordonnées validées + ZONE DE SERVICE (Douala/Yaoundé, T5.1) + auto-
+ * remplissage + focus de page + badge GPS (SRS §6.2, §8.1).
  *
  * Méthode (même philosophie que T0-T4) :
  *  1. Session RÉELLE (signInWithPassword via @supabase/ssr).
@@ -10,6 +11,9 @@
  *     B. Catalogue `CAMEROON_CITIES` : accentué, sans doublon.
  *     C. API `PUT /api/profile/identity` : valide (lat ∈ [-90,90],
  *        lng ∈ [-180,180]) → 200. Invalides (lat=91) → 400 `geoOutOfRange`.
+ *     C-T5.1 : hors zone (lat/lng sud Cameroun) → 400 `geo_out_of_zone` ;
+ *              city hors catalogue → 400 `city_not_served` ; centre exact
+ *              Douala → 200 ; liveness Nominatim (tolérante, 1 req).
  *     D. Page `/profile/candidate/edit?focus=location` : cible la section
  *        localisation (l'élément `#location` existe) + le bouton
  *        « Utiliser ma position » est présent.
@@ -435,6 +439,123 @@ async function main() {
       { status: putOnlyLat.status },
     );
 
+    // ── C-T5.1. PUT /identity : zone de service (Douala/Yaoundé) ─────
+    // (C-T1) lat/lng complets mais HORS des 20 km du plus proche
+    // centroïde → 400 `geo_out_of_zone`. La zone est la règle produit
+    // T5.1 (le site ne sert que Douala/Yaoundé). On utilise un point
+    // nettement hors zone : (1.96, 11.44) ≈ sud-ouest Cameroun.
+    const putOutOfZone = await fetch(`${APP_URL}/api/profile/identity`, {
+      method: "PUT",
+      headers: {
+        Cookie: cookieHeader(cookiesA),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...bodyValid, latitude: 1.96, longitude: 11.44 }),
+      cache: "no-store",
+    });
+    let outOfZoneBody: { error?: string; code?: string; issues?: unknown } = {};
+    try {
+      outOfZoneBody = (await putOutOfZone.json()) as typeof outOfZoneBody;
+    } catch {
+      outOfZoneBody = {};
+    }
+    report(
+      "C-T1 : PUT /identity hors zone (lat/lng sud Cameroun) → 400 + code geo_out_of_zone",
+      putOutOfZone.status === 400 && outOfZoneBody.code === "geo_out_of_zone",
+      { status: putOutOfZone.status, code: outOfZoneBody.code },
+    );
+
+    // (C-T2) city « Bafoussam » (ville camerounaise HORS catalogue Douala/
+    // Yaoundé) → 400 `city_not_served`. T5.1 restreint le champ `city` au
+    // catalogue `CAMEROON_CITIES` (avant T5.1 seul le UI picker le bornait).
+    const putBadCity = await fetch(`${APP_URL}/api/profile/identity`, {
+      method: "PUT",
+      headers: {
+        Cookie: cookieHeader(cookiesA),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...bodyValid, city: "Bafoussam" }),
+      cache: "no-store",
+    });
+    let badCityBody: { error?: string; code?: string } = {};
+    try {
+      badCityBody = (await putBadCity.json()) as typeof badCityBody;
+    } catch {
+      badCityBody = {};
+    }
+    report(
+      "C-T2 : PUT /identity city « Bafoussam » (hors catalogue) → 400 + code city_not_served",
+      putBadCity.status === 400 && badCityBody.code === "city_not_served",
+      { status: putBadCity.status, code: badCityBody.code },
+    );
+
+    // (C-T3) PUT /identity avec position valide — le centre exact
+    // Douala (en zone) → 200. Garantit que la zone n'a PAS été trop serrée
+    // et que la refine n'a pas cassé le cas courant.
+    const putInZone = await fetch(`${APP_URL}/api/profile/identity`, {
+      method: "PUT",
+      headers: {
+        Cookie: cookieHeader(cookiesA),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...bodyValid,
+        latitude: 4.04,
+        longitude: 9.69, // centre exact Douala → en zone
+      }),
+      cache: "no-store",
+    });
+    report(
+      "C-T3 : PUT /identity avec centre exact Douala (en zone) → 200",
+      putInZone.status === 200,
+      { status: putInZone.status },
+    );
+
+    // (C-T4) Live Nominatim — 1 seule requête (rate-limit 1 req/s respecté).
+    // TOLERANT : si le script tourne sans Internet, on log l'indisponibilité
+    // et on ne compte PAS un échec (la règle de zone n'est pas concernée).
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(
+        "https://nominatim.openstreetmap.org/reverse?lat=4.05&lon=9.77&format=jsonv2&addressdetails=1&limit=1&accept-language=fr",
+        {
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        },
+      );
+      clearTimeout(timer);
+      if (response.ok) {
+        type Nominatim = { address?: Record<string, string> };
+        const json = (await response.json()) as Nominatim;
+        // Douala : le reverse renvoie au minimum un `city`. On n'insiste pas
+        // sur le champ `suburb` (Nominatim ne le remplit pas systématiquement
+        // sur les agglomérations africaines) — c'est la preuve d'API
+        // fonctionnelle.
+        const hasCity = (json.address?.city ?? "")
+          .toLowerCase()
+          .includes("douala");
+        report(
+          "C-T4 (liveness) : Nominatim reverse-geocoding Douala (4.05, 9.77) → 200 + address.city contient « douala »",
+          hasCity,
+          { city: json.address?.city },
+        );
+      } else {
+        report(
+          "C-T4 (liveness) : Nominatim indisponible (status " +
+            response.status +
+            ") — ignoré (pas un échec de zone)",
+          true,
+          { hint: "Vérifiez votre accès réseau pour la preuve live" },
+        );
+      }
+    } catch {
+      report(
+        "C-T4 (liveness) : Nominatim inatteignable (timeout / DNS) — ignoré (pas un échec de zone)",
+        true,
+      );
+    }
+
     // ── D. Page edit?focus=location : section `#location` visible ──
     const resEdit = await fetch(
       `${APP_URL}/profile/candidate/edit?focus=location`,
@@ -506,7 +627,9 @@ async function main() {
 
   console.log(
     `\n${passCount} ✅ / ${failCount} ❌ assertions — ${
-      failCount === 0 ? "localisation candidat opérationnelle (T5)" : "ÉCHEC"
+      failCount === 0
+        ? "localisation candidat opérationnelle (T5 + zone Douala/Yaoundé T5.1)"
+        : "ÉCHEC"
     }`,
   );
   process.exitCode = failCount === 0 ? 0 : 1;
