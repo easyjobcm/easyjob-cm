@@ -1178,12 +1178,23 @@ metadata{}, ip_address, created_at
    (+ motif au rejet), **notification** `momo_status` au candidat (« Mobile Money
    vérifié » / « … refusé » + motif) et **audit log** (`approve_momo`/`reject_momo`,
    acteur = l'admin réel, jamais `service_role`). La revue est **manuelle ≤ 24 h**.
-   L'UI admin de revue est livrée avec la page liste-candidats (T8) ; l'API est
-   opérationnelle dès T6. La page candidat `/profile/payment` montre le statut :
-   non configuré → formulaire ; « En attente de vérification » (déclaré, pas
-   encore vu) ; refus avec motif affiché (+ bouton Modifier) ; « Vérifié »
-   seulement après l'approbation admin (le numéro y est **masqué**, affiché en
-   clair dans l'interface admin).
+   La page candidat `/profile/payment` montre le statut : non configuré →
+   formulaire ; « En attente de vérification » (déclaré, pas encore vu) ; refus
+   avec motif affiché (+ bouton Modifier) ; « Vérifié » seulement après
+   l'approbation admin (le numéro y est **masqué**, affiché en clair dans
+   l'interface admin).
+
+   **Implémentation T8.2 (UI admin de revue)** : la page `/admin/momo` liste les
+   déclarations MoMo par statut (en attente / vérifié / refusé) avec filtres ;
+   le numéro est affiché **en clair** à l'admin (jamais au candidat). Le
+   panneau de revue (modal) confronte le **nom du compte déclaré** au **nom de
+   la CNI** (`cni_front_url`/`cni_back_url`/`cni_selfie_url`, bucket privé
+   `candidate-documents`) via des **URLs signées** de courte durée
+   (`GET /api/admin/momo/[profileId]/cni-url?field=…`). Rôles : `admin_support`
+   en **lecture seule** (consulter la liste + le CNI, pas de mutation) ;
+   `admin_ops`/`admin_founder` peuvent approuver/refuser (motif de refus
+   obligatoire ≥ 3 car). Toute action passe par `POST /api/admin/momo`
+   (opérationnel depuis T6, infra déjà prouvée).
 
 **Automatisation future (T6.1 — à l'étude, non implémentée)** : un agrégateur
 « get account name » (API B2B opérateur : *MTN MoMo for Business*, *Orange

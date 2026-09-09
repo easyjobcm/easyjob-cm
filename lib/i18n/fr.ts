@@ -71,6 +71,38 @@ export const fr = {
       location: "Lieu",
       salary: "Salaire",
     },
+    momo: {
+      title: "Révue Mobile Money",
+      subtitle:
+        "Confrontez le nom déclaré sur le compte MoMo au nom du CNI. Les comptes au nom d'un tiers ou familiaux sont refusés (motif obligatoire).",
+      pending: "En attente",
+      verified: "Vérifié",
+      rejected: "Refusé",
+      accountName: "Nom du compte déclaré",
+      number: "Numéro",
+      cniName: "Nom d'identité (CNI)",
+      cniVerified: "CNI vérifié",
+      cniStatus: "Statut CNI",
+      cniNotProvided: "CNI non fourni ou non vérifié",
+      rejectionReason: "Motif du refus",
+      verifiedLabel: "Vérifié le",
+      empty: "Aucune déclaration Mobile Money sur ce filtre",
+      emptyVerified: "Aucun compte vérifié",
+      emptyRejected: "Aucun compte refusé",
+      review: "Examiner",
+      approve: "Valider",
+      reject: "Refuser",
+      rejectReasonPlaceholder: "Motif du refus (obligatoire)",
+      rejectReasonRequired:
+        "Un motif de refus est obligatoire (min. 3 caractères).",
+      readOnly:
+        "Accès en lecture seule — seuls admin_ops et admin_founder peuvent valider ou refuser.",
+      actionFailed: "L'action a échoué. Réessayez.",
+      cniLoadFailed:
+        "Impossible de charger le CNI. Ce candidat n'a peut-être pas de document encore.",
+      mtn: "MTN MoMo",
+      orange: "Orange Money",
+    },
   },
 
   // Auth

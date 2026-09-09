@@ -73,6 +73,38 @@ export const en: TranslationKeys = {
       location: "Location",
       salary: "Salary",
     },
+    momo: {
+      title: "Mobile Money review",
+      subtitle:
+        "Match the name declared on the MoMo account against the CNI name. Third-party or family accounts are rejected (mandatory reason).",
+      pending: "Pending",
+      verified: "Verified",
+      rejected: "Rejected",
+      accountName: "Declared account name",
+      number: "Number",
+      cniName: "Identity name (CNI)",
+      cniVerified: "CNI verified",
+      cniStatus: "CNI status",
+      cniNotProvided: "CNI not provided or not verified",
+      rejectionReason: "Rejection reason",
+      verifiedLabel: "Verified on",
+      empty: "No Mobile Money declarations for this filter",
+      emptyVerified: "No verified accounts",
+      emptyRejected: "No rejected accounts",
+      review: "Review",
+      approve: "Approve",
+      reject: "Reject",
+      rejectReasonPlaceholder: "Rejection reason (required)",
+      rejectReasonRequired:
+        "A rejection reason is required (min. 3 characters).",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can approve or reject.",
+      actionFailed: "The action failed. Please try again.",
+      cniLoadFailed:
+        "Could not load the CNI. The candidate may not have uploaded it yet.",
+      mtn: "MTN MoMo",
+      orange: "Orange Money",
+    },
   },
 
   // Auth

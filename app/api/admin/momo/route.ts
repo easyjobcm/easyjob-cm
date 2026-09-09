@@ -76,9 +76,12 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("candidate_profiles")
     .select(
-      `id, first_name, last_name, momo_provider, momo_number,
+      `id, user_id, first_name, last_name, momo_provider, momo_number,
        momo_account_name, momo_verified, momo_name_match,
-       momo_reject_reason, momo_verified_at`,
+       momo_reject_reason, momo_verified_at, momo_verified_by,
+       cni_front_url, cni_back_url, cni_selfie_url,
+       cni_verified, cni_number,
+       verifier:users!momo_verified_by ( phone )`,
     )
     .not("momo_number", "is", null)
     .order("momo_verified_at", { ascending: true, nullsFirst: true })
