@@ -176,3 +176,33 @@ export const momoModerateSchema = z
     path: ["rejection_reason"],
   });
 export type MomoModerateInput = z.infer<typeof momoModerateSchema>;
+
+/**
+ * Validation admin CNI (T8.3) : `approve` / `reject` sur un profil précis.
+ * `reject` exige un motif (3..300 car) ; `approve` peut porter une
+ * date d'expiration optionnelle (`expires_at`, ISO `YYYY-MM-DD`) —
+ * le RPC `moderate_cni` la prend en défaut = date de naissance + 10 ans.
+ * Les pré-requis métier (rôle admin, 3 photos soumises, identité
+ * complète, motif requis) sont vérifiés côté RPC SECURITY DEFINER
+ * `moderate_cni` — le Zod borne seulement la forme de la requête.
+ */
+export const cniModerateSchema = z
+  .object({
+    profile_id: z.string().uuid(),
+    action: z.enum(["approve", "reject"]),
+    rejection_reason: z
+      .string()
+      .trim()
+      .min(3, "cniRejectReasonTooShort")
+      .max(300)
+      .optional(),
+    expires_at: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "cniExpiresAtInvalid")
+      .optional(),
+  })
+  .refine((v) => v.action === "approve" || !!v.rejection_reason, {
+    message: "cniRejectReasonRequired",
+    path: ["rejection_reason"],
+  });
+export type CniModerateInput = z.infer<typeof cniModerateSchema>;

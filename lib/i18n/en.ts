@@ -105,6 +105,41 @@ export const en: TranslationKeys = {
       mtn: "MTN MoMo",
       orange: "Orange Money",
     },
+    cni: {
+      title: "CNI review",
+      subtitle:
+        "Verify identity documents (front / back / selfie) submitted by candidates. Approval triggers deletion of the photos from private storage (SRS §8.4).",
+      pending: "Pending",
+      verified: "Verified",
+      rejected: "Rejected",
+      notProvided: "Not provided",
+      front: "Front",
+      back: "Back",
+      selfie: "Selfie",
+      name: "Identity name",
+      cniNumber: "CNI number",
+      dob: "Date of birth",
+      expiresAt: "Expires on",
+      rejectionReason: "Rejection reason",
+      verifiedLabel: "Verified on",
+      empty: "No CNI for this filter",
+      emptyVerified: "No verified CNI",
+      emptyRejected: "No rejected CNI",
+      emptyNotProvided: "No candidate without a submitted CNI",
+      review: "Review",
+      approve: "Approve",
+      reject: "Reject",
+      rejectReasonPlaceholder: "Rejection reason (required)",
+      rejectReasonRequired:
+        "A rejection reason is required (min. 3 characters).",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can approve or reject.",
+      actionFailed: "The action failed. Please try again.",
+      loadDocFailed: "Could not load the document.",
+      noCni: "This candidate has not submitted a CNI yet.",
+      deletionNote:
+        "Photos will be removed from private storage after verification.",
+    },
   },
 
   // Auth

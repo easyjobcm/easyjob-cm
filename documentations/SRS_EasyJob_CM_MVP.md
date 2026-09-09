@@ -441,7 +441,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Un candidat ne peut postuler qu'une seule fois à la même offre ou sous-offre.
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
 - **Lecture RLS de l'offre** : le candidat ne peut lire ni postuler qu'à une offre au statut `active`. Une offre non active est inexistante pour lui via RLS (HTTP 404 à la lecture) : la postulation d'un candidat exige donc une offre lisible, ce qui garantit qu'une offre jamais approuvée ne peut générer de candidature.
-- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants (`code: "essentials_incomplete"`).
+- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants. **Depuis T8.3** (`code: "profile_not_verified"`) : la décision repose sur le flag de synthèse `users.is_verified` (source de vérité en base, posé par `recompute_user_verification` — §11.5) ; le calcul client des champs manquants reste fourni en liste informationnelle pour guider le candidat, mais ne suffit plus à autoriser — le serveur lit le flag.
 
 ---
 
@@ -1195,6 +1195,40 @@ metadata{}, ip_address, created_at
    `admin_ops`/`admin_founder` peuvent approuver/refuser (motif de refus
    obligatoire ≥ 3 car). Toute action passe par `POST /api/admin/momo`
    (opérationnel depuis T6, infra déjà prouvée).
+
+   **Implémentation T8.3 (revue CNI + `users.is_verified`)** : la page
+   `/admin/cni` liste les candidats ayant soumis une CNI par statut
+   (en attente / vérifiée / refusée) avec les 3 photos (recto/verso/selfie)
+   affichées via les **URLs signées** T8.2. Toute action passe par
+   `POST /api/admin/cni` → RPC `moderate_cni` (SECURITY DEFINER) :
+   approbation → `cni_verified='verified'` + `cni_expires_at` (défaut =
+   date de naissance **+ 10 ans**, CNI camerounaise, overridable par l'admin)
+   + ligne `document_expirations` (type `'cni'`) ; rejet → motif obligatoire
+   ≥ 3 car. Notification `document_status` (« CNI vérifiée » / « CNI refusée »
+   + motif) + audit (`approve_cni`/`reject_cni`, acteur = admin réel).
+   **Suppression des photos** : à l'approbation, les 3 objets sont retirés
+   du bucket privé `candidate-documents` (service role) et les URLs du
+   profil NULLifiées — la certification `cni_verified='verified'` est la
+   source de vérité, les photos ne sont conservées que le temps de la
+   revue (SRS §8.4).
+   **Protection trigger** : un trigger `BEFORE UPDATE` sur
+   `candidate_profiles` (pattern `easyjob.system_update` du T6) restaure
+   `cni_verified`/`cni_rejection_reason`/`cni_expires_at` si le GUC
+   transactionnel n'est pas posé — **un candidat ne peut plus s'auto-marquer
+   `cni_verified='verified'`** via la RLS « update own profile » (avant T8.3,
+   la colonne était librement écritable).
+   **Flag `users.is_verified`** — nouveau flag de synthèse, **source de
+   vérité du gate de postulation** (§6.6). Posé UNIQUEMENT par le RPC
+   `recompute_user_verification` (SECURITY DEFINER, appelé par
+   `moderate_cni` et `apply_momo_verification`) : `is_verified = true` si et
+   seulement si `cni_verified='verified'` **ET** `momo_verified=true` **ET**
+   infos personnelles complètes (prénom, nom, date de naissance) **ET**
+   téléphone présent.
+   La recompute porte sur l'**état de certification** (pas la présence des
+   photos, qui sont supprimées après approbation). Notification
+   `document_status` « Profil vérifié » à la bascule `false → true`.
+   **Protection trigger** `users` : `is_verified` n'est écrit QUE par le
+   recompute (un candidat ne peut ni forcer ni verrouiller le flag).
 
 **Automatisation future (T6.1 — à l'étude, non implémentée)** : un agrégateur
 « get account name » (API B2B opérateur : *MTN MoMo for Business*, *Orange

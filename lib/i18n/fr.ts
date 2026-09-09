@@ -103,6 +103,41 @@ export const fr = {
       mtn: "MTN MoMo",
       orange: "Orange Money",
     },
+    cni: {
+      title: "Révue CNI",
+      subtitle:
+        "Vérifiez les pièces d'identité (recto / verso / selfie) soumises par les candidats. L'approbation déclenche la suppression des photos du stockage privé (SRS §8.4).",
+      pending: "En attente",
+      verified: "Vérifiée",
+      rejected: "Refusée",
+      notProvided: "Non fournie",
+      front: "Recto",
+      back: "Verso",
+      selfie: "Selfie",
+      name: "Nom d'identité",
+      cniNumber: "N° CNI",
+      dob: "Date de naissance",
+      expiresAt: "Expire le",
+      rejectionReason: "Motif du refus",
+      verifiedLabel: "Vérifiée le",
+      empty: "Aucun CNI sur ce filtre",
+      emptyVerified: "Aucune CNI vérifiée",
+      emptyRejected: "Aucune CNI refusée",
+      emptyNotProvided: "Aucun candidat sans CNI fournie",
+      review: "Examiner",
+      approve: "Valider",
+      reject: "Refuser",
+      rejectReasonPlaceholder: "Motif du refus (obligatoire)",
+      rejectReasonRequired:
+        "Un motif de refus est obligatoire (min. 3 caractères).",
+      readOnly:
+        "Accès en lecture seule — seuls admin_ops et admin_founder peuvent valider ou refuser.",
+      actionFailed: "L'action a échoué. Réessayez.",
+      loadDocFailed: "Impossible de charger le document.",
+      noCni: "Ce candidat n'a pas encore soumis de CNI.",
+      deletionNote:
+        "Les photos seront supprimées du stockage privé après validation.",
+    },
   },
 
   // Auth
