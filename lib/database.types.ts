@@ -2093,6 +2093,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_edit_candidate_identity: {
+        Args: {
+          p_date_of_birth: string
+          p_first_name: string
+          p_last_name: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       admin_set_user_active: {
         Args: { p_active: boolean; p_user_id: string }
         Returns: undefined

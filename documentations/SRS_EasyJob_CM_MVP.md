@@ -653,7 +653,33 @@ beaucoup d'utilisateurs, se repérer vite d'un seul écran).
   compétences) sont **supprimés immédiatement et automatiquement** du bucket
   `candidate-documents` (T8.4c), le candidat pouvant ré-envoyer.
 
-**Critères d'acceptation (vue centralisée + suspension) :**
+**Profil candidat admin (T8.4b) — `/admin/candidates/[id]`** : page
+complète d'un candidat (atteinte via le bouton *Voir le profil* de la
+carte T8.4a).
+- **Lecture seule** pour les 3 grades (`GET /api/admin/candidates/[id]`,
+  lecture `service_role` : identité, contact, statuts CNI/MoMo,
+  compétences + statuts, documents + statuts, historique missions,
+  statistiques). Jamais de chemin de fichier renvoyé (photo via l'URL
+  signée T8.4a).
+- **Édition de l'identité** (prénom / nom / date de naissance) réservée à
+  **`admin_founder` UNIQUEMENT** (décision produit « juste modifiable par
+  l'admin founder » — plus strict que le gate ops/founder) :
+  `POST /api/admin/candidates/[id]/identity` → RPC
+  `admin_edit_candidate_identity` (SECURITY DEFINER, en session admin pour
+  que l'audit loggue le vrai admin). Le RPC re-vérifie le grade et refuse
+  soi-même / compte admin / inconnu / prénom-ou-nom vide.
+- **Ré-vérification CNI** : sur un candidat dont
+  `cni_verified='verified'`, tout changement de prénom/nom/date de
+  naissance **remet `cni_verified='pending'`** (+ `cni_rejection_reason`
+  NULL) — le nom déclaré sur la CNI/MoMo ne correspond plus. Le RPC appelle
+  `recompute_user_verification` : `users.is_verified` retombe à `false` et
+  le candidat est de nouveau bloqué au gate de postulation (T8.3) jusqu'à
+  re-vérification. Notification `document_status` + audit
+  `admin_edit_identity` (avant/après logués). Si le CNI n'était **pas**
+  vérifié, l'édition se fait sans reset (simple mise à jour + notification
+  « informations mises à jour »).
+
+**Critères d'acceptation (vue centralisée + suspension + profil) :**
 - `GET /admin/candidates` / `/admin/companies` → 200 pour les 3 grades
   (`admin_support` lecture seule), 403 pour un candidat ; la liste ne renvoie
   **jamais** de chemin de fichier (photo/logo en booléen, URL signée dédiée).
