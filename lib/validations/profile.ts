@@ -113,6 +113,21 @@ export const updateRequestSchema = z.object({
 });
 export type UpdateRequestInput = z.infer<typeof updateRequestSchema>;
 
+/**
+ * T8.5 — action admin sur une demande existante. Le verrou T2/SRS §5.1.1
+ * ne distingue pas « approuver/refuser » : l'ADMIN initie et le CANDIDAT
+ * exécute (fermeture `done` automatique par le serveur). Le seul verbe
+ * d'annulation côté admin est donc `cancelled` (la transition
+ * `pending → pending` n'a aucun sens ; `done` n'est pas re-prévisible
+ * par l'admin — c'est le candidat qui la pose).
+ */
+export const updateRequestActionSchema = z.object({
+  status: z.enum(["cancelled"]),
+});
+export type UpdateRequestActionInput = z.infer<
+  typeof updateRequestActionSchema
+>;
+
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "timeInvalid");
 
 /** Une plage horaire pour un jour de la semaine (0=dimanche .. 6=samedi). */
@@ -176,3 +191,33 @@ export const momoModerateSchema = z
     path: ["rejection_reason"],
   });
 export type MomoModerateInput = z.infer<typeof momoModerateSchema>;
+
+/**
+ * Validation admin CNI (T8.3) : `approve` / `reject` sur un profil précis.
+ * `reject` exige un motif (3..300 car) ; `approve` peut porter une
+ * date d'expiration optionnelle (`expires_at`, ISO `YYYY-MM-DD`) —
+ * le RPC `moderate_cni` la prend en défaut = date de naissance + 10 ans.
+ * Les pré-requis métier (rôle admin, 3 photos soumises, identité
+ * complète, motif requis) sont vérifiés côté RPC SECURITY DEFINER
+ * `moderate_cni` — le Zod borne seulement la forme de la requête.
+ */
+export const cniModerateSchema = z
+  .object({
+    profile_id: z.string().uuid(),
+    action: z.enum(["approve", "reject"]),
+    rejection_reason: z
+      .string()
+      .trim()
+      .min(3, "cniRejectReasonTooShort")
+      .max(300)
+      .optional(),
+    expires_at: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "cniExpiresAtInvalid")
+      .optional(),
+  })
+  .refine((v) => v.action === "approve" || !!v.rejection_reason, {
+    message: "cniRejectReasonRequired",
+    path: ["rejection_reason"],
+  });
+export type CniModerateInput = z.infer<typeof cniModerateSchema>;

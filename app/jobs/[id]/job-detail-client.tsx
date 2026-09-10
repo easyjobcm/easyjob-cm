@@ -133,9 +133,11 @@ export function JobDetailClient({
           code?: string;
           missing?: EssentialKey[];
         };
-        // SRS §6.6 — gate essentiels : le serveur renvoie la liste précise.
+        // SRS §6.6/§11.5 (T8.3) — gate `users.is_verified` : le serveur
+        // renvoie la liste informationnelle des champs à compléter.
         if (
-          body.code === "essentials_incomplete" &&
+          (body.code === "profile_not_verified" ||
+            body.code === "essentials_incomplete") &&
           Array.isArray(body.missing)
         ) {
           setMissingEssentials(body.missing);
@@ -514,7 +516,9 @@ export function JobDetailClient({
         )}
       </div>
 
-      {/* Essentiels manquants — le POST /apply renvoie 403 essentials_incomplete */}
+      {/* Essentiels manquants — le POST /apply renvoie 403 profile_not_verified
+          (T8.3 — `users.is_verified` est la source de vérité, la liste est
+          informationnelle) */}
       <Modal
         isOpen={showBlockedModal}
         onClose={() => setShowBlockedModal(false)}

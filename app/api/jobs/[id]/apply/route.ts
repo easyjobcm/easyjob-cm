@@ -3,6 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkJobDocumentRequirements } from "@/lib/matching/skill-document-requirements";
 import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
 
+// T8.3 — le gate de postulation porte désormais sur `users.is_verified`
+// (SRS §6.6 / §11.5). Ce flag est posé par `recompute_user_verification`
+// en base (SECURITY DEFINER) à chaque verdict admin CNI ou MoMo. Le
+// calcul client `checkEssentialCriteria` n'est plus qu'une source
+// d'UX pour la liste des champs manquants — la décision est servie
+// exclusivement par le flag de la base.
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -53,15 +60,30 @@ export async function POST(
       );
     }
 
-    // SRS §6.6 — essentiels (identité + CNI vérifiée non expirée + Mobile
-    // Money vérifié) : bloquants même si le pourcentage global atteint 60%.
-    // Réponse structurée pour que le frontend puisse lister ce qui manque.
-    const essentials = checkEssentialCriteria(candidateProfile);
-    if (!essentials.ok) {
+    // SRS §6.19 (T8.4a) — compte suspendu : le candidat suspendu par
+    // l'admin (is_active = false) ne peut plus postuler ni travailler.
+    // `users` est RLS « propre profil » : l'admin met à jour is_active
+    // via service_role (voir /api/admin/candidates) ; le candidat lit sa
+    // propre ligne ici.
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("is_verified, is_active")
+      .eq("id", user.id)
+      .single();
+
+    if (userRow?.is_active === false) {
+      return NextResponse.json(
+        { error: "Votre compte est suspendu", code: "account_suspended" },
+        { status: 403 },
+      );
+    }
+
+    if (!userRow?.is_verified) {
+      const essentials = checkEssentialCriteria(candidateProfile);
       return NextResponse.json(
         {
-          error: "Essential profile fields are incomplete",
-          code: "essentials_incomplete",
+          error: "Your profile must be verified before you can apply",
+          code: "profile_not_verified",
           missing: essentials.missing,
         },
         { status: 403 },

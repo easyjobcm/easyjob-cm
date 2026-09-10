@@ -1561,6 +1561,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      candidate_update_cni: {
+        Args: {
+          p_back_url: string | null
+          p_cni_number: string | null
+          p_expires_at: string | null
+          p_front_url: string | null
+          p_profile_id: string
+          p_selfie_url: string | null
+        }
+        Returns: undefined
+      }
       candidate_update_momo: {
         Args: {
           p_account_name: string | null
@@ -1573,6 +1584,22 @@ export type Database = {
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
+      is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      moderate_cni: {
+        Args: {
+          p_action: string
+          p_expires_at: string | null
+          p_profile_id: string
+          p_reject_reason: string | null
+        }
+        Returns: undefined
+      }
+      recompute_skill_verification_status: {
+        Args: { p_skill_id: string }
+        Returns: string
+      }
+      recompute_user_verification: { Args: { p_user_id: string }; Returns: undefined }
+      skill_requires_license: { Args: { p_skill_name: string }; Returns: string }
     }
     Enums: {
       application_status:

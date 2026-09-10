@@ -2093,11 +2093,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_edit_candidate_identity: {
+        Args: {
+          p_date_of_birth: string
+          p_first_name: string
+          p_last_name: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      admin_set_user_active: {
+        Args: { p_active: boolean; p_user_id: string }
+        Returns: undefined
+      }
       apply_momo_verification: {
         Args: {
           p_action: string
           p_profile_id: string
           p_reject_reason: string
+        }
+        Returns: undefined
+      }
+      candidate_update_cni: {
+        Args: {
+          p_back_url: string
+          p_cni_number: string
+          p_expires_at: string
+          p_front_url: string
+          p_profile_id: string
+          p_selfie_url: string
         }
         Returns: undefined
       }
@@ -2123,9 +2147,22 @@ export type Database = {
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      moderate_cni: {
+        Args: {
+          p_action: string
+          p_expires_at: string
+          p_profile_id: string
+          p_reject_reason: string
+        }
+        Returns: undefined
+      }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
         Returns: string
+      }
+      recompute_user_verification: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       skill_requires_license: {
         Args: { p_skill_name: string }

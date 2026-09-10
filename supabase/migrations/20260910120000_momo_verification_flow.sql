@@ -266,5 +266,23 @@ BEGIN
   EXECUTE $ext$
     grant execute on function public.apply_momo_verification(uuid, text, text) to authenticated
   $ext$;
+
+  -- ── 5. enum notification_type : valeur 'momo_status' ─────────────
+  -- Le RPC apply_momo_verification insère notification_type =
+  -- 'momo_status'. La valeur est ABSENTE de la baseline remote
+  -- (20260526130000) — sans cette déclaration, une base reconstruite
+  -- par la CI (db reset = ré-apply migrations depuis la baseline) ne
+  -- générerait plus `momo_status` dans les types (diff types en
+  -- échec) ET le RPC échouerait au premier run prod
+  -- (« invalid input value for enum notification_type »). Postgres ne
+  -- permettant pas « add value if not exists » → bloc d'exception
+  -- plpgsql idempotent (même mécanique que document_status en T3).
+  BEGIN
+    EXECUTE $ext$
+      alter type public.notification_type add value 'momo_status'
+    $ext$;
+  EXCEPTION WHEN duplicate_object THEN
+    NULL; -- valeur déjà présente (base locale / ré-apply) — idempotent
+  END;
 END;
 $momo$;
