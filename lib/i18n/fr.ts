@@ -265,6 +265,59 @@ export const fr = {
         partial: "Partielle",
         full: "Complète",
       },
+      // T8.5 — Section « Mises à jour de profil » du profil candidat.
+      updateRequestsSection: "Mises à jour de profil",
+      noUpdateRequests: "Aucune demande de mise à jour pour ce candidat",
+      requestUpdateButton: "Demander une mise à jour",
+      requestReadOnly:
+        "Lecture seule — seuls admin_ops et admin_founder peuvent demander une mise à jour.",
+    },
+    // T8.5 — Mises à jour de profil initiées par l'admin (SRS §5.1.1).
+    // Le modèle T2 n'a pas d'« approbation/refus » : l'admin initie, le
+    // candidat exécute (fermeture `done` automatique) ; l'admin annule
+    // (`cancelled`) ou purge l'historique clôturé (`DELETE`).
+    updateRequests: {
+      title: "Mises à jour de profil",
+      subtitle:
+        "Demandes de déverrouillage des champs vérifiés (identité / CNI) initiées par l'administration. Le candidat exécute la mise à jour, la demande se clôture automatiquement.",
+      back: "Tableau de bord",
+      pending: "En attente",
+      done: "Exécutée",
+      cancelled: "Annulée",
+      all: "Toutes",
+      empty: "Aucune demande de mise à jour",
+      fieldsLabel: "Champs concernés",
+      reasonLabel: "Motif",
+      noReason: "Aucun motif renseigné",
+      requestedBy: "Demandée par",
+      requestedAt: "Demandée le",
+      completedAt: "Exécutée le",
+      fieldIdentity: "Identité",
+      fieldCniDocuments: "Documents CNI",
+      cancel: "Annuler",
+      cancelConfirm:
+        "Annuler cette demande ? Le candidat ne pourra plus modifier les champs concernés et ils redeveniront verrouillés.",
+      delete: "Supprimer",
+      deleteConfirm:
+        "Supprimer définitivement cette demande ? Cette action est irréversible.",
+      readOnly:
+        "Accès en lecture seule — seuls admin_ops et admin_founder peuvent annuler ou supprimer.",
+      actionFailed: "L'action a échoué. Réessayez.",
+      createdTitle: "Mise à jour de profil requise",
+      createTitle: "Demander une mise à jour",
+      createHint:
+        "Déverrouille temporairement les champs vérifiés du candidat le temps qu'ils soient resoumis puis re-vérifiés.",
+      candidateLabel: "Candidat",
+      searchPlaceholder: "Rechercher un candidat…",
+      noCandidate:
+        "Recherchez un candidat (nom ou e-mail) pour demander une mise à jour.",
+      fieldsLabelHint: "Au moins un groupe à déverrouiller",
+      reasonPlaceholder:
+        "Ex. : changement de nom sur acte à jour, CNI périmée à remplacer…",
+      reasonRequired: "Un motif de 5 caractères minimum est requis.",
+      submit: "Demander la mise à jour",
+      submitting: "Envoi…",
+      created: "Demande envoyée au candidat.",
     },
   },
 

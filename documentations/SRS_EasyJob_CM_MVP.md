@@ -734,6 +734,60 @@ s'affiche désormais sur la section de l'utilisateur (carte centralisée T8.4a
   compte ou d'un compte admin est refusée par le RPC.
 - La recherche et les compteurs de sections se mettent à jour sans rechargement.
 
+**Mises à jour de profil admin (T8.5) — `/admin/update-requests` + section
+du profil candidat** : implémentation de l'UI admin du modèle T2 (SRS §5.1.1)
+— l'**admin initie**, le **candidat exécute** (pas de sémantique
+approuver/refuser). Le verrou T2 (`profile_update_requests`) est déjà en base ;
+T8.5 livre la surface admin qui manque :
+
+- Page `/admin/update-requests` (lecture 3 grades, mutations
+  `admin_ops`/`admin_founder` uniquement — `admin_support` = lecture seule) :
+  liste `GET /api/admin/profile-update-requests` (SWR, tri `created_at` desc,
+  `limit 500`) en 4 sections avec compteurs — *En attente* / *Exécutées* /
+  *Annulées* / *Toutes* — chaque ligne : candidat (nom), groupes de champs
+  (`identity` / `cni_documents`), motif, date + initiateur (e-mail résolu
+  service_role — la session admin ne lit pas les autres lignes `users`),
+  date d'exécution.
+- Actions par ligne : **Annuler** (`PATCH {status:"cancelled"}`) seule pour
+  une demande `pending` ; **Supprimer** (`DELETE`) seule pour une demande
+  clôturée (`done`/`cancelled`). **Jamais de DELETE sur une `pending`**
+  (409 `request_pending` — la supprimer déverrouillerait silencieusement les
+  champs du candidat en cours d'édition : on annule d'abord). La
+  transition `pending → cancelled` est la seule transition admin, idempotente
+  (409 `invalid_transition` sinon) ; la RLS admin est permissive, la route
+  est donc l'unique source de vérité des transitions. Chaque action
+  (`cancel_profile_update_request` / `delete_profile_update_request`) écrit
+  `audit_logs` (acteur admin réel, mutation en session — l'audit est écrit
+  AVANT le `DELETE`) ; l'annulation notifie le candidat
+  (`document_status`, les champs restent verrouillés).
+- **Initiation admin (2 entrées, décision produit)** : le bouton
+  *Demander une mise à jour* ouvre `UpdateRequestModal` (composant partagé)
+  (a) sur la page `/admin/update-requests` (recherche de candidat SWR sur
+  `GET /api/admin/candidates?q=`, sélection d'un groupe de champs + motif ≥ 5)
+  et (b) sur le profil candidat `/admin/candidates/[id]` (nouvelle section
+  *Mises à jour de profil* : liste `?candidate_id=<profile_id>` + modal
+  **épinglé** au candidat affiché). Le `POST` (existant depuis T2) crée la
+  ligne `pending` + audit `request_profile_update` + notification au candidat.
+- La clôture en `done` reste automatique et côté serveur
+  (`completePendingRequests` sur PUT identity / POST documents) — l'admin ne
+  pose jamais le statut `done` ; aucun item de navigation basse (accès via
+  le dashboard + le profil candidat, §6.12).
+
+**Critères d'acceptation (T8.5)** :
+- `GET /api/admin/profile-update-requests` → 200 pour les 3 grades +
+  `?status=` / `?candidate_id=` ; 401 non authentifié ; 403 candidat/
+  entreprise.
+- `POST` → 201-like pour `admin_ops`/`admin_founder` (ligne `pending` +
+  notification + audit) ; 403 `admin_support` ; rejet Zod (motif < 5,
+  `fields` vide).
+- `PATCH` `pending` → `cancelled` (200 + audit `cancel_profile_update_request`
+  + notification) ; idempotent sur déjà `cancelled` (200) ; `done`/`cancelled`
+  → 409 `invalid_transition` ; `DELETE` sur `pending` → 409
+  `request_pending` ; `DELETE` sur `done`/`cancelled` → 200 + ligne purgée +
+  audit conservé ; `admin_support` sur PATCH/DELETE → 403.
+- Le profil candidat `/admin/candidates/[id]` affiche les demandes du candidat
+  (section dédiée) et propose l'initiation épinglée pour `canModerate`.
+
 ---
 
 ### 6.13 Chatbot IA support

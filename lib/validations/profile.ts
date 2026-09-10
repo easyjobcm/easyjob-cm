@@ -113,6 +113,21 @@ export const updateRequestSchema = z.object({
 });
 export type UpdateRequestInput = z.infer<typeof updateRequestSchema>;
 
+/**
+ * T8.5 — action admin sur une demande existante. Le verrou T2/SRS §5.1.1
+ * ne distingue pas « approuver/refuser » : l'ADMIN initie et le CANDIDAT
+ * exécute (fermeture `done` automatique par le serveur). Le seul verbe
+ * d'annulation côté admin est donc `cancelled` (la transition
+ * `pending → pending` n'a aucun sens ; `done` n'est pas re-prévisible
+ * par l'admin — c'est le candidat qui la pose).
+ */
+export const updateRequestActionSchema = z.object({
+  status: z.enum(["cancelled"]),
+});
+export type UpdateRequestActionInput = z.infer<
+  typeof updateRequestActionSchema
+>;
+
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "timeInvalid");
 
 /** Une plage horaire pour un jour de la semaine (0=dimanche .. 6=samedi). */

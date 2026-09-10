@@ -266,6 +266,58 @@ export const en: TranslationKeys = {
         partial: "Partial",
         full: "Full",
       },
+      // T8.5 — "Profile updates" section of the candidate profile.
+      updateRequestsSection: "Profile updates",
+      noUpdateRequests: "No profile update requests for this candidate",
+      requestUpdateButton: "Request an update",
+      requestReadOnly:
+        "Read-only access — only admin_ops and admin_founder can request updates.",
+    },
+    // T8.5 — Profile update requests initiated by the admin (SRS §5.1.1).
+    // The T2 model has no "approve/reject": the admin initiates, the
+    // candidate executes (auto-closes to `done`); the admin may cancel
+    // (`cancelled`) or purge closed history (`DELETE`).
+    updateRequests: {
+      title: "Profile updates",
+      subtitle:
+        "Requests to unlock verified fields (identity / CNI) initiated by the administration. The candidate executes the update; the request closes automatically.",
+      back: "Dashboard",
+      pending: "Pending",
+      done: "Executed",
+      cancelled: "Cancelled",
+      all: "All",
+      empty: "No profile update requests",
+      fieldsLabel: "Affected fields",
+      reasonLabel: "Reason",
+      noReason: "No reason provided",
+      requestedBy: "Requested by",
+      requestedAt: "Requested on",
+      completedAt: "Executed on",
+      fieldIdentity: "Identity",
+      fieldCniDocuments: "CNI documents",
+      cancel: "Cancel",
+      cancelConfirm:
+        "Cancel this request? The candidate will no longer be able to change the affected fields and they will be locked again.",
+      delete: "Delete",
+      deleteConfirm:
+        "Permanently delete this request? This action cannot be undone.",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can cancel or delete.",
+      actionFailed: "The action failed. Please try again.",
+      createdTitle: "Profile update requested",
+      createTitle: "Request an update",
+      createHint:
+        "Temporarily unlocks the candidate’s verified fields until they are resubmitted and re-verified.",
+      candidateLabel: "Candidate",
+      searchPlaceholder: "Search a candidate…",
+      noCandidate: "Search a candidate (name or email) to request an update.",
+      fieldsLabelHint: "At least one group to unlock",
+      reasonPlaceholder:
+        "e.g. name change on an up-to-date deed, expired CNI to replace…",
+      reasonRequired: "A reason of at least 5 characters is required.",
+      submit: "Request the update",
+      submitting: "Sending…",
+      created: "Request sent to the candidate.",
     },
   },
 

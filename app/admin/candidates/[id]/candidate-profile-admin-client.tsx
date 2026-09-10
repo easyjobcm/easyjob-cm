@@ -17,6 +17,8 @@ import {
   FileText,
   Briefcase,
   TrendingUp,
+  FileEdit,
+  Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
+import { UpdateRequestModal } from "@/components/admin/update-request-modal";
 
 /**
  * T8.4b — Profil candidat complet (client).
@@ -39,11 +42,14 @@ import { formatDate } from "@/lib/utils";
  *
  * Les statuts documents (CNI / MoMo / compétences / documents) s'affichent
  * ici — c'est la section utilisateur de la vue centralisée (les pages de
- * revue ne garderont que « En attente », T8.4c). Les labels de statut
- * réutilisent les clés existantes (t.admin.cni / t.admin.momo /
- * t.profile.documents / t.profile.skillDocuments.status) ; seuls les
- * statuts mission + paiement et la chrome de la page sont des clés
- * nouvelles (admin.candidateProfile.*).
+ * revue ne garderont que « En attente », T8.4c).
+ *
+ * T8.5 — section « Mises à jour de profil » (SRS §5.1.1) : liste
+ * `GET /api/admin/profile-update-requests?candidate_id=<profile_id>`
+ * (SWR) + bouton d'initiation ouvrant `UpdateRequestModal` en mode
+ * épinglé (le candidat est déjà connu). Actions annuler/purger visibles
+ * uniquement si `canModerate` (admin_ops/admin_founder ; admin_support =
+ * lecture seule).
  */
 
 type DocStatus = "pending" | "verified" | "rejected" | "expired";
@@ -73,6 +79,7 @@ type PaymentStatus =
 interface CandidateProfilePayload {
   candidate: {
     id: string;
+    profile_id: string;
     email: string | null;
     phone: string | null;
     is_active: boolean;
@@ -139,6 +146,19 @@ interface CandidateProfilePayload {
   }>;
 }
 
+/** T8.5 — Ligne de demande de mise à jour (GET /api/admin/
+ *  profile-update-requests?candidate_id=). */
+interface ProfileUpdateRequestRow {
+  id: string;
+  status: "pending" | "done" | "cancelled";
+  fields: string[];
+  reason: string | null;
+  requested_by: string | null;
+  created_at: string;
+  completed_at: string | null;
+  requester_email: string | null;
+}
+
 function StatusPill({ label, status }: { label: string; status: string }) {
   const tone =
     status === "verified" || status === "completed"
@@ -182,9 +202,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function CandidateProfileAdminClient({
   id,
   canEdit,
+  canModerate,
 }: {
   id: string;
   canEdit: boolean;
+  /** T8.5 — admin_ops/admin_founder : peut demander / annuler / purger
+   *  les mises à jour de profil (admin_support = lecture seule). */
+  canModerate: boolean;
 }) {
   const { t, locale } = useI18n();
   const cp = t.admin.candidateProfile;
@@ -204,6 +228,19 @@ export function CandidateProfileAdminClient({
   );
 
   const c = data?.candidate;
+
+  // T8.5 — Demandes de mise à jour de CE candidat (`candidate_id` = profil).
+  // Clé nulle tant que le profil n'est pas chargé : aucun fetch prématuré.
+  const requestsKey = c
+    ? `/api/admin/profile-update-requests?candidate_id=${c.profile_id}`
+    : null;
+  const { data: requestsData, mutate: mutateRequests } = useSWR(
+    requestsKey,
+    (k: string) => fetch(k).then((r) => (r.ok ? r.json() : null)),
+  );
+  const updateRequests: ProfileUpdateRequestRow[] =
+    requestsData?.requests ?? [];
+  const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
 
   const genderLabel = c?.identity.gender
     ? c.identity.gender === "male"
@@ -515,6 +552,82 @@ export function CandidateProfileAdminClient({
         </CardContent>
       </Card>
 
+      {/* Mises à jour de profil (T8.5) */}
+      <Card className="border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileEdit className="h-4 w-4 text-primary" />
+            {cp.updateRequestsSection}
+            <span className="text-xs font-normal text-muted-foreground">
+              ({updateRequests.length})
+            </span>
+            {canModerate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setUpdateModalOpen(true)}
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                {cp.requestUpdateButton}
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {updateRequests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {cp.noUpdateRequests}
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {updateRequests.map((req) => (
+                <li
+                  key={req.id}
+                  className="flex flex-wrap items-center gap-2 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">
+                      {req.fields
+                        .map((f) =>
+                          f === "identity"
+                            ? t.admin.updateRequests.fieldIdentity
+                            : t.admin.updateRequests.fieldCniDocuments,
+                        )
+                        .join(", ")}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {req.reason ?? t.admin.updateRequests.noReason}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t.admin.updateRequests.requestedAt}{" "}
+                      {formatDate(req.created_at, locale)}
+                      {req.requester_email &&
+                        ` · ${t.admin.updateRequests.requestedBy} ${req.requester_email}`}
+                    </p>
+                    {req.completed_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {t.admin.updateRequests.completedAt}{" "}
+                        {formatDate(req.completed_at, locale)}
+                      </p>
+                    )}
+                  </div>
+                  <StatusPill
+                    label={t.admin.updateRequests[req.status]}
+                    status={req.status}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          {!canModerate && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {cp.requestReadOnly}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Compétences */}
       <Card className="border-border">
         <CardHeader>
@@ -642,6 +755,21 @@ export function CandidateProfileAdminClient({
           )}
         </CardContent>
       </Card>
+
+      {updateModalOpen && c && (
+        <UpdateRequestModal
+          onClose={() => setUpdateModalOpen(false)}
+          canModerate={canModerate}
+          initialCandidate={{
+            id: c.id,
+            email: c.email,
+            profile_id: c.profile_id,
+            first_name: c.identity.first_name,
+            last_name: c.identity.last_name,
+          }}
+          onCreated={() => mutateRequests()}
+        />
+      )}
     </div>
   );
 }

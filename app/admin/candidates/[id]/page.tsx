@@ -51,5 +51,15 @@ export default async function AdminCandidateProfilePage({
   // des autres mutations T8) — la route RPC le re-vérifie en profondeur.
   const canEdit = userData.role === "admin_founder";
 
-  return <CandidateProfileAdminClient id={id} canEdit={canEdit} />;
+  // T8.5 — Mises à jour de profil : demande/annulation/purge réservées à
+  // admin_ops + admin_founder (admin_support = lecture seule des 3 grades).
+  const canModerate = ["admin_ops", "admin_founder"].includes(userData.role);
+
+  return (
+    <CandidateProfileAdminClient
+      id={id}
+      canEdit={canEdit}
+      canModerate={canModerate}
+    />
+  );
 }
