@@ -2093,6 +2093,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_user_active: {
+        Args: { p_active: boolean; p_user_id: string }
+        Returns: undefined
+      }
       apply_momo_verification: {
         Args: {
           p_action: string

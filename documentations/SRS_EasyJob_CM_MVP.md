@@ -601,6 +601,70 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 - Gestion des permissions par membre de l'équipe admin.
 - Confirmation à deux facteurs pour les modifications de montants de transaction.
 
+**Vue centralisée des comptes (T8.4a) — `/admin/candidates` + `/admin/companies`** :
+le menu admin remplace l'ancien « Utilisateurs » par **Candidats** et
+**Entreprises**, deux pages de pilotage centralisé (objectif produit : avec
+beaucoup d'utilisateurs, se repérer vite d'un seul écran).
+
+- **Sections** (une seule visible à la fois, badges compteurs) :
+  - **Candidats** : *En attente* (non `is_verified`, **y compris les rejetés** —
+    ils restent en attente avec le motif affiché et peuvent ré-émettre, flux
+    T8.3), *Validés* (`users.is_verified = true`), *Suspendus*
+    (`users.is_active = false`).
+  - **Entreprises** : *En attente* (`company_profiles.verification_status =
+    'pending'`, rejetées incluses), *Validées* (`'verified'`),
+    *Suspendues* (`is_active = false`).
+- **Recherche libre** (nom / e-mail / téléphone) au-dessus des sections.
+- **Carte par utilisateur** : photo de profil (URL **signée** de courte durée
+  via `GET /api/admin/profiles/[profileId]/photo-url`, jamais de chemin raw),
+  nom complet, e-mail, compte MoMo (opérateur + numéro, en clair à l'admin
+  seulement), téléphone, statut + badge ⭐ vérifié, badges d'état CNI/MoMo,
+  motif de rejet si applicable.
+- **Boutons de la carte** : *Voir le profil* → `/admin/candidates/[id]`
+  (T8.4b), *CNI* → `/admin/cni?userId=`, *MoMo* → `/admin/momo?userId=`,
+  *Documents* → `/admin/skill-documents?userId=` (reprise de contexte par
+  paramètre, T8.4c) ; *Suspendre* / *Réactiver* (grades `admin_ops` /
+  `admin_founder` uniquement — `admin_support` est en lecture seule ;
+  confirmation native avant action).
+- **Suspension** (`users.is_active`, levier baseline — **jamais** de colonne
+  dédiée) : RPC `admin_set_user_active(p_user_id, boolean)` SECURITY DEFINER.
+  Gardes RPC : admin uniquement → grade ops/founder → pas sur soi-même →
+  cible candidat/entreprise uniquement (pas les comptes admin) → inconnu →
+  404 ; idempotent si même état. Écrit `audit_logs`
+  (`suspend_user`/`activate_user`, acteur = admin réel) + **notification**
+  `system` (« Compte suspendu » / « Compte réactivé »).
+- **Gates de suspension** : candidat `is_active = false` →
+  `POST /api/jobs/[id]/apply` et `POST /api/jobs` (candidature / création de
+  mission côté entreprise) retournent **403 `code: "account_suspended"`** —
+  contrôlé **avant** tout autre gate (vérification, profil complet) ; une
+  entreprise suspendue ne peut plus publier d'offre. La réactivation restaure
+  l'ancien comportement (les autres gates redevenant applicables).
+- **Lecture de liste en `service_role`** : `users` et `company_profiles` n'ont
+  aucune policy SELECT admin — les APIs GET utilisent `createAdminClient()`
+  (deux requêtes séparées + merge sur `user_id` : PostgREST refuse l'embed
+  `users → candidate_profiles`, deux FK ; la recherche est faite côté serveur
+  sur le lot). Les mutations passent par le RPC en session admin pour que
+  l'audit loggue l'admin réel.
+- **Décision produit — comptes rejetés « Conserver et ré-émettre »** : les
+  candidats/entreprises **refusés ne sont PAS supprimés** ni de la base ni de
+  l'UI : le compte reste en « En attente », le motif de rejet est affiché sur
+  la carte et le formulaire, et la ré-émission passe par les flux existants
+  (T8.3). **Seuls les fichiers rejetés** (photos CNI, documents de
+  compétences) sont **supprimés immédiatement et automatiquement** du bucket
+  `candidate-documents` (T8.4c), le candidat pouvant ré-envoyer.
+
+**Critères d'acceptation (vue centralisée + suspension) :**
+- `GET /admin/candidates` / `/admin/companies` → 200 pour les 3 grades
+  (`admin_support` lecture seule), 403 pour un candidat ; la liste ne renvoie
+  **jamais** de chemin de fichier (photo/logo en booléen, URL signée dédiée).
+- Un candidat suspendu est bloqué sur l'application d'offre
+  (`403 account_suspended`) ; l'entreprise suspendue sur la publication
+  d'offre ; la réactivation restaure le flux.
+- La suspension/réactivation écrit `audit_logs` (acteur admin réel) + une
+  notification `system` au compte concerné ; la modification de son propre
+  compte ou d'un compte admin est refusée par le RPC.
+- La recherche et les compteurs de sections se mettent à jour sans rechargement.
+
 ---
 
 ### 6.13 Chatbot IA support
@@ -1229,6 +1293,18 @@ metadata{}, ip_address, created_at
    `document_status` « Profil vérifié » à la bascule `false → true`.
    **Protection trigger** `users` : `is_verified` n'est écrit QUE par le
    recompute (un candidat ne peut ni forcer ni verrouiller le flag).
+
+   **Rattachement à la vue centralisée (T8.4a → T8.4c, SRS §6.12)** : les
+   revues CNI / MoMo / documents de compétences sont accessibles depuis la
+   carte de chaque utilisateur de `/admin/candidates` (boutons *CNI*, *MoMo*,
+   *Documents* passants `?userId=`). Décision produit de la refonte T8.4 :
+   ces pages de revue ne conservent que la section **En attente** — l'état
+   de chaque document (vérifié / refusé + motif / expiré) s'affiche désormais
+   sur la section de l'utilisateur dans la vue centralisée. Les **fichiers
+   rejetés** sont supprimés **immédiatement et automatiquement** du bucket
+   `candidate-documents` (service role) : le compte reste « En attente »
+   (pas de suppression de compte) et le candidat ré-émet via le formulaire
+   existant (T8.4c).
 
 **Automatisation future (T6.1 — à l'étude, non implémentée)** : un agrégateur
 « get account name » (API B2B opérateur : *MTN MoMo for Business*, *Orange

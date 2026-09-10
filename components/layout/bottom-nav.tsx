@@ -12,6 +12,7 @@ import {
   User,
   LayoutDashboard,
   Users,
+  Building2,
   Plus,
   Settings,
   FileCheck,
@@ -79,10 +80,16 @@ const adminNavItems: NavItem[] = [
     icon: FileCheck,
   },
   {
-    href: "/admin/users",
-    label: "Utilisateurs",
-    labelEn: "Users",
+    href: "/admin/candidates",
+    label: "Candidats",
+    labelEn: "Candidates",
     icon: Users,
+  },
+  {
+    href: "/admin/companies",
+    label: "Entreprises",
+    labelEn: "Companies",
+    icon: Building2,
   },
   { href: "/admin/jobs", label: "Offres", labelEn: "Jobs", icon: Briefcase },
   {

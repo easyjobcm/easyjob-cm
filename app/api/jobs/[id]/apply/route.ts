@@ -60,16 +60,23 @@ export async function POST(
       );
     }
 
-    // SRS §6.6 / §11.5 (T8.3) — gate unique de postulation :
-    // `users.is_verified` (source de vérité posée en base par
-    // `recompute_user_verification`). La liste `missing` renvoyée est
-    // purement informationnelle (UX du frontend) pour pointer le profil
-    // candidat vers les champs à compléter.
+    // SRS §6.19 (T8.4a) — compte suspendu : le candidat suspendu par
+    // l'admin (is_active = false) ne peut plus postuler ni travailler.
+    // `users` est RLS « propre profil » : l'admin met à jour is_active
+    // via service_role (voir /api/admin/candidates) ; le candidat lit sa
+    // propre ligne ici.
     const { data: userRow } = await supabase
       .from("users")
-      .select("is_verified")
+      .select("is_verified, is_active")
       .eq("id", user.id)
       .single();
+
+    if (userRow?.is_active === false) {
+      return NextResponse.json(
+        { error: "Votre compte est suspendu", code: "account_suspended" },
+        { status: 403 },
+      );
+    }
 
     if (!userRow?.is_verified) {
       const essentials = checkEssentialCriteria(candidateProfile);

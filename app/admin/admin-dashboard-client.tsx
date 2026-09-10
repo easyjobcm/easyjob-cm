@@ -215,7 +215,7 @@ export function AdminDashboardClient({
 
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-3">
-          <Link href="/admin/users">
+          <Link href="/admin/candidates">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <Users className="w-6 h-6 text-primary mb-2" />

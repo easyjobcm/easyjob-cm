@@ -112,6 +112,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // SRS §6.19 (T8.4a) — compte suspendu : une entreprise suspendée par
+    // l'admin (is_active = false) ne peut plus publier d'offre. Lecture
+    // propre ligne (RLS « propre profil » de users).
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("is_active")
+      .eq("id", user.id)
+      .single();
+
+    if (userRow?.is_active === false) {
+      return NextResponse.json(
+        { error: "Votre compte est suspendu", code: "account_suspended" },
+        { status: 403 },
+      );
+    }
+
     // Get company profile
     const { data: company, error: companyError } = await supabase
       .from("company_profiles")
