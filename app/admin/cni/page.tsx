@@ -7,17 +7,35 @@ import { CniAdminClient } from "./cni-admin-client";
  *
  * Garde de rôle : assurée par `app/admin/layout.tsx` (lecture = tous les
  * grades admin ; mutation = admin_ops/admin_founder). Cette page ne fait
- * que charger les profils dont le CNI a été soumis et dériver
- * `canModerate` (ops + founder uniquement) — admin_support a une vue
- * en lecture seule (SRS §8.4).
+ * que charger les profils CNI en attente et dériver `canModerate`
+ * (ops + founder uniquement) — admin_support a une vue en lecture
+ * seule (SRS §8.4).
+ *
+ * T8.4c — vue centralisée : la page ne liste QUE les CNI « En attente »
+ * (`cni_verified='pending'`) — le statut de chaque document (vérifié /
+ * refusé + motif / expiré) s'affiche désormais sur la section de
+ * l'utilisateur (`/admin/candidates/[id]`, T8.4b) et sur la carte de la
+ * vue centralisée (T8.4a).
+ *
+ * `?userId=<uuid>` (depuis la carte T8.4a) : filtre sur ce candidat
+ * uniquement — l'admin arrive depuis `/admin/candidates` et veut voir
+ * uniquement les CNI de CET utilisateur, sans repérer les autres.
  *
  * Les photos sont stockées dans le bucket privé `candidate-documents` ;
  * le client les échange contre des URLs signées à courte durée via
  * l'API T8.2 `/api/admin/momo/[profileId]/cni-url?field=<cni_front_url|
- * cni_back_url|cni_selfie_url>`. À l'approbation, la route
- * `/api/admin/cni` POST supprime les 3 objets (SRS §8.4).
+ * cni_back_url|cni_selfie_url>`. À l'approbation OU au rejet, la route
+ * `/api/admin/cni` POST supprime les 3 objets (T8.4c : purge immédiate
+ * des fichiers rejetés — decision produit).
  */
-export default async function AdminCniPage() {
+
+type CniSearch = { userId?: string | string[] };
+
+export default async function AdminCniPage({
+  searchParams,
+}: {
+  searchParams: Promise<CniSearch>;
+}) {
   const supabase = await createClient();
 
   const {
@@ -33,21 +51,32 @@ export default async function AdminCniPage() {
     .eq("id", user.id)
     .single();
 
-  // Les candidats CNI non soumis ont `cni_front_url IS NULL` : on les
-  // filtre pour que la liste ne contienne que ceux qui ont réellement
-  // soumis des photos. Le chemin du bucket privé n'est JAMAIS envoyé au
-  // client : on ne transmet que la présence (booléen) — le client ira
-  // voir l'API d'URL signée (T8.2) au besoin.
-  const { data: profiles } = await supabase
+  const sp = await searchParams;
+  const targetUserId =
+    typeof sp.userId === "string" && sp.userId.length > 0 ? sp.userId : null;
+
+  // T8.4c : liste « En attente » uniquement (cni_verified = 'pending' —
+  // la DEFAULT de la baseline, mais on filtre explicitement car le RPC
+  // de revue peut la basculer à 'verified'/'rejected').
+  // T8.4c : ?userId= → filtre sur ce candidat uniquement (arrivée depuis
+  // la carte `/admin/candidates/[id]` ou `/admin/candidates`).
+  let query = supabase
     .from("candidate_profiles")
     .select(
       `id, user_id, first_name, last_name, date_of_birth,
        cni_number, cni_verified, cni_expires_at, cni_rejection_reason,
        cni_front_url, cni_back_url, cni_selfie_url`,
     )
+    .eq("cni_verified", "pending")
     .not("cni_front_url", "is", null)
     .order("cni_expires_at", { ascending: true, nullsFirst: true })
     .limit(500);
+
+  if (targetUserId) {
+    query = query.eq("user_id", targetUserId);
+  }
+
+  const { data: profiles } = await query;
 
   const normalized = (profiles ?? []).map((p) => ({
     id: p.id,
@@ -67,6 +96,7 @@ export default async function AdminCniPage() {
   return (
     <CniAdminClient
       profiles={normalized}
+      filterUserId={targetUserId}
       canModerate={
         !!userData && ["admin_ops", "admin_founder"].includes(userData.role)
       }

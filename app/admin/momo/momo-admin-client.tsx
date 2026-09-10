@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Eye, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,13 +35,10 @@ interface MomoProfile {
 interface MomoAdminClientProps {
   profiles: MomoProfile[];
   canModerate: boolean;
+  /** T8.4c — filtre `?userId=` : l'admin arrive depuis la carte du
+   *  candidat, on ne lui affiche que le MoMo de cet utilisateur. */
+  filterUserId?: string | null;
 }
-
-const STATUS_FILTERS: { key: MomoStatus; icon: React.ElementType }[] = [
-  { key: "pending", icon: Clock },
-  { key: "verified", icon: CheckCircle2 },
-  { key: "rejected", icon: XCircle },
-];
 
 function statusOf(p: MomoProfile): MomoStatus {
   if (p.momo_verified) return "verified";
@@ -66,41 +64,27 @@ function declaredName(p: MomoProfile): string {
 export function MomoAdminClient({
   profiles,
   canModerate,
+  filterUserId,
 }: MomoAdminClientProps) {
   const router = useRouter();
   const { t } = useI18n();
-  const [filter, setFilter] = React.useState<MomoStatus>("pending");
   const [selected, setSelected] = React.useState<MomoProfile | null>(null);
 
-  const counts = React.useMemo(
-    () =>
-      STATUS_FILTERS.reduce<Record<MomoStatus, number>>(
-        (acc, s) => {
-          acc[s.key] = profiles.filter((p) => statusOf(p) === s.key).length;
-          return acc;
-        },
-        { pending: 0, verified: 0, rejected: 0 },
-      ),
-    [profiles],
-  );
-
-  const filtered = React.useMemo(
-    () => profiles.filter((p) => statusOf(p) === filter),
-    [profiles, filter],
-  );
-
+  // T8.4c : liste « En attente » uniquement — le filtre SSR garantit
+  // que `profiles` contient déjà uniquement momo_verified=false sans
+  // motif de refus (et uniquement ce candidat si `?userId=` est donné).
   return (
     <div>
       <div className="mx-auto max-w-3xl space-y-4 px-4 pb-8 pt-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href="/admin/candidates"
             className="rounded-full p-2 hover:bg-muted"
-            aria-label={t.admin.momo.title}
+            aria-label={t.admin.candidateProfile.back}
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div>
+          </Link>
+          <div className="min-w-0">
             <h1 className="text-lg font-semibold">{t.admin.momo.title}</h1>
             <p className="text-sm text-muted-foreground">
               {t.admin.momo.subtitle}
@@ -108,82 +92,47 @@ export function MomoAdminClient({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map(({ key, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${
-                filter === key
-                  ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]"
-                  : "border-input text-muted-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.admin.momo[key]}
-              <span
-                className={`ml-0.5 rounded-full px-1.5 text-xs ${
-                  filter === key ? "bg-[#7C3AED]/15 text-[#7C3AED]" : "bg-muted"
-                }`}
-              >
-                {counts[key]}
-              </span>
-            </button>
-          ))}
-        </div>
+        {filterUserId && (
+          <p className="text-xs text-muted-foreground">
+            {t.admin.candidateProfile.filteredByUser}
+          </p>
+        )}
 
         <Card>
           <CardContent className="divide-y divide-border p-0">
-            {filtered.length === 0 && (
+            {profiles.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">
-                {filter === "verified"
-                  ? t.admin.momo.emptyVerified
-                  : filter === "rejected"
-                    ? t.admin.momo.emptyRejected
-                    : t.admin.momo.empty}
+                {t.admin.momo.empty}
               </p>
             )}
-            {filtered.map((p) => {
-              const Icon =
-                STATUS_FILTERS.find((s) => s.key === statusOf(p))?.icon ??
-                Clock;
-              const color =
-                statusOf(p) === "verified"
-                  ? "text-emerald-600"
-                  : statusOf(p) === "rejected"
-                    ? "text-red-600"
-                    : "text-amber-600";
-              return (
-                <div key={p.id} className="space-y-2 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-medium">{declaredName(p)}</p>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {providerLabel(p.momo_provider, t)} · {p.momo_number} ·{" "}
-                        {t.admin.momo.accountName} :{" "}
-                        <span className="font-medium text-foreground">
-                          {p.momo_account_name ?? "—"}
-                        </span>
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-1 text-sm ${color}`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {t.admin.momo[statusOf(p)]}
-                    </span>
+            {profiles.map((p) => (
+              <div key={p.id} className="space-y-2 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{declaredName(p)}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {providerLabel(p.momo_provider, t)} · {p.momo_number} ·{" "}
+                      {t.admin.momo.accountName} :{" "}
+                      <span className="font-medium text-foreground">
+                        {p.momo_account_name ?? "—"}
+                      </span>
+                    </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelected(p)}
-                  >
-                    <Eye className="mr-1 h-4 w-4" />
-                    {t.admin.momo.review}
-                  </Button>
+                  <span className="inline-flex items-center gap-1 text-sm text-amber-600">
+                    <Clock className="h-4 w-4" />
+                    {t.admin.momo.pending}
+                  </span>
                 </div>
-              );
-            })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelected(p)}
+                >
+                  <Eye className="mr-1 h-4 w-4" />
+                  {t.admin.momo.review}
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -214,8 +163,7 @@ function ReviewModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { t } = useI18n();
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
   const [rejectionReason, setRejectionReason] = React.useState("");
   const [showRejectForm, setShowRejectForm] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -229,8 +177,8 @@ function ReviewModal({
       const res = await fetch(
         `/api/admin/momo/${profile.id}/cni-url?field=cni_front_url`,
       );
-      const data = await res.json();
-      if (res.ok) setCniUrl(data.url);
+      const data: { url?: string } = await res.json();
+      if (res.ok) setCniUrl(data.url ?? null);
       else setCniUrl(null);
     } catch {
       setCniUrl(null);

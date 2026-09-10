@@ -679,6 +679,49 @@ carte T8.4a).
   vérifié, l'édition se fait sans reset (simple mise à jour + notification
   « informations mises à jour »).
 
+**Revues « En attente » uniquement (T8.4c) — `/admin/cni`, `/admin/momo`,
+`/admin/skill-documents`** : décision produit de la refonte T8.4 — ces trois
+pages de revue ne conservent que la file **En attente** (les onglets/sections
+Vérifié / Rejeté / Expiré sont supprimés) : l'état de chaque document
+s'affiche désormais sur la section de l'utilisateur (carte centralisée T8.4a
++ profil T8.4b). La recherche libre est conservée sur `/admin/skill-documents`.
+
+- **Filtre `?userId=<uuid>`** (SSR, depuis les boutons *CNI* / *MoMo* /
+  *Documents* de la carte T8.4a) : la page ne liste que les documents de cet
+  utilisateur — la page admin affiche une mention « vue restreinte » ( clé
+  i18n partagée `admin.candidateProfile.filteredByUser` ) et un lien retour
+  vers `/admin/candidates`. Pour `candidate_documents` (clé
+  `candidate_id` = id du profil), l'admin résout d'abord
+  `user_id` → `candidate_id` côté SSR avant le filtre.
+- **Sémantique « En attente »** : CNI = `cni_verified='pending'` + photo
+  recto présente ; MoMo = `momo_verified=false` **ET**
+  `momo_reject_reason IS NULL` (un compte rejeté porte son motif et est
+  tombé de la file) ; documents de compétences = `status='pending'`.
+- **Purge immédiate des FICHIERS rejetés** (décision « Conserver et
+  ré-émettre » — le COMPTE et la LIGNE restent, seul le FICHIER est
+  supprimé) :
+  - CNI : `removeCniPhotos(profile_id)` (API `POST /api/admin/cni`) est
+    désormais appelée **à l'approbation ET au rejet** — les 3 photos
+    recto/verso/selfie sont retirées du bucket privé `candidate-documents`
+    (service role) et les `cni_*_url` NULLifiées si la suppression
+    storage a réussi. À la ré-émission, le RPC `candidate_update_cni`
+    repose les URLs (coalesce) → le candidat re-entre dans la file.
+  - Documents de compétences : au rejet (`POST
+    /api/admin/skill-documents/[id]`), le fichier `storage_path` est
+    supprimé du bucket (service role, garde de préfixe
+    `<user_id>/` — l'admin ne supprime JAMAIS un objet qui n'appartient
+    pas au candidat propriétaire). La LIGNE reste en `status='rejected'`
+    + `rejection_reason` (la preuve de l'état, visible sur le profil T8.4b)
+    et le recalcul `recompute_skill_verification_status` porte le statut de
+    la compétence liée.
+  - MoMo : aucun fichier à purger (le statut est porté par les colonnes du
+    profil).
+- Les purges sont **best effort** (try/catch) : un échec storage (réseau)
+  est loggué et **ne bloque jamais le verdict admin** — le statut est déjà
+  posé et l'audit déjà écrit. Le verdict passe toujours par la session
+  admin (RPC / policy RLS) pour que l'audit loggue l'admin réel ; la purge
+  post-verdict est un housekeeping storage sans valeur audit.
+
 **Critères d'acceptation (vue centralisée + suspension + profil) :**
 - `GET /admin/candidates` / `/admin/companies` → 200 pour les 3 grades
   (`admin_support` lecture seule), 403 pour un candidat ; la liste ne renvoie

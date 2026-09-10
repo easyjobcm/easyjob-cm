@@ -122,7 +122,7 @@ export const en: TranslationKeys = {
       expiresAt: "Expires on",
       rejectionReason: "Rejection reason",
       verifiedLabel: "Verified on",
-      empty: "No CNI for this filter",
+      empty: "No CNI pending",
       emptyVerified: "No verified CNI",
       emptyRejected: "No rejected CNI",
       emptyNotProvided: "No candidate without a submitted CNI",
@@ -198,6 +198,8 @@ export const en: TranslationKeys = {
       title: "Candidate profile",
       back: "All candidates",
       identitySection: "Identity",
+      filteredByUser:
+        "View restricted to the candidate from the “Candidates” card. Click “All candidates” to go back to the full list.",
       suspended: "Account suspended",
       readOnly: "Read-only — identity editing is reserved to admin_founder.",
       notFound: "Profile not found",

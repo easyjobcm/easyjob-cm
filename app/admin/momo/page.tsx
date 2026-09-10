@@ -7,16 +7,36 @@ import { MomoAdminClient } from "./momo-admin-client";
  *
  * Garde de rôle : assurée par `app/admin/layout.tsx` (lecture = tous les
  * grades admin ; mutation = admin_ops/admin_founder). Cette page ne fait
- * que charger les déclarations MoMo et dériver `canModerate` (ops +
- * founder uniquement) — admin_support a une vue en lecture seule.
+ * que charger les déclarations MoMo en attente et dériver `canModerate`
+ * (ops + founder uniquement) — admin_support a une vue en lecture
+ * seule.
+ *
+ * T8.4c — vue centralisée : la page ne liste QUE les comptes MoMo
+ * « En attente » (`momo_verified=false` ET aucun motif de refus — un
+ * compte déjà rejeté porte son motif et retombe sur la section de
+ * l'utilisateur `/admin/candidates/[id]`, T8.4b, et la carte de la vue
+ * centralisée T8.4a). MoMo n'a pas de FICHIER à purger : le « statut »
+ * est porté par les colonnes `momo_verified` / `momo_reject_reason` du
+ * profil.
+ *
+ * `?userId=<uuid>` (depuis la carte T8.4a) : filtre sur ce candidat
+ * uniquement — l'admin arrive depuis `/admin/candidates` et veut voir
+ * uniquement le MoMo de CET utilisateur, sans repérer les autres.
  *
  * Chaque profil retourné porte (T6) le numéro MoMo en clair, le nom du
  * compte déclaré ET les photos CNI (chemins du bucket privé) : c'est ce
- * qui permet à l'admin de confronter le nom déclaré au nom du CNI avant
- * de valider/refuser — les photos sont échangées contre des URLs signées
- * à courte durée par `/api/admin/momo/[profileId]/cni-url`.
+ * qui permet à l'admin de confronté le nom déclaré au nom du CNI avant
+ * de valider/refuser — les photos sont échangées contre des URLs
+ * signées à courte durée par `/api/admin/momo/[profileId]/cni-url`.
  */
-export default async function AdminMomoPage() {
+
+type MomoSearch = { userId?: string | string[] };
+
+export default async function AdminMomoPage({
+  searchParams,
+}: {
+  searchParams: Promise<MomoSearch>;
+}) {
   const supabase = await createClient();
 
   const {
@@ -32,7 +52,15 @@ export default async function AdminMomoPage() {
     .eq("id", user.id)
     .single();
 
-  const { data: profiles } = await supabase
+  const sp = await searchParams;
+  const targetUserId =
+    typeof sp.userId === "string" && sp.userId.length > 0 ? sp.userId : null;
+
+  // T8.4c : liste « En attente » uniquement — `momo_verified=false`
+  // ET `momo_reject_reason IS NULL` (un compte rejeté porte son motif
+  // et ne doit plus occuper la file). Quand `?userId=` est donné : on
+  // ne liste que ce candidat.
+  let query = supabase
     .from("candidate_profiles")
     .select(
       `id, user_id, first_name, last_name, momo_provider, momo_number,
@@ -42,15 +70,23 @@ export default async function AdminMomoPage() {
        cni_verified, cni_number,
        verifier:users!momo_verified_by ( phone )`,
     )
+    .eq("momo_verified", false)
+    .is("momo_reject_reason", null)
     .not("momo_number", "is", null)
     .order("momo_verified_at", { ascending: true, nullsFirst: true })
     .limit(500);
 
+  if (targetUserId) {
+    query = query.eq("user_id", targetUserId);
+  }
+
+  const { data: profiles } = await query;
+
   // Le chemin CNI stocké pointe vers un objet privé ; on ne l'envoie tel
-  // quel au client que comme "présence" (booléen) — le client ira voir
-  // l'API d'URL signée au besoin. On garde les chemins car l'API admin
-  // les lit côté serveur ; le client ne les utilise que pour décider
-  // s'il affiche le bouton "voir le CNI".
+  // quel au client que comme « présence » (booléen) — le client ira
+  // voir l'API d'URL signée au besoin. On garde les chemins car l'API
+  // admin les lit côté serveur ; le client ne les utilise que pour
+  // décider s'il affiche le bouton « voir le CNI ».
   const normalized = (profiles ?? []).map((p) => {
     const verifier = Array.isArray(p.verifier) ? p.verifier[0] : p.verifier;
     return {
@@ -75,6 +111,7 @@ export default async function AdminMomoPage() {
   return (
     <MomoAdminClient
       profiles={normalized}
+      filterUserId={targetUserId}
       canModerate={
         !!userData && ["admin_ops", "admin_founder"].includes(userData.role)
       }

@@ -229,17 +229,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Verification failed" }, { status: 500 });
   }
 
-  // T8.4 (livré avec T8.3 — la revue CNI est le moment où la suppression
-  // a lieu, SRS §8.4) : à l'approbation, on retire les 3 photos du bucket
-  // privé + on NULLifie les URLs du profil. Best effort : si la suppression
-  // storage échoue (réseau), on log + on ne bloque PAS le verdict admin
-  // (l'admin peut relancer la suppression au re-approve, T8.8 settings).
-  if (action === "approve") {
-    try {
-      await removeCniPhotos(profile_id);
-    } catch (err) {
-      console.error("[cni-admin] photo removal failed (verdict kept):", err);
-    }
+  // T8.4c : purge IMMÉDIATE des fichiers CNI du bucket privé —
+  // à l'approbation ET au rejet. Sur approbation, la certification
+  // `cni_verified='verified'` est la source de vérité (SRS §8.4). Sur
+  // rejet, le candidat doit ré-émettre des nouvelles photos — les
+  // fichiers refusés ne servent plus et sont supprimés immédiatement
+  // (decision produit « Conserver et ré-émettre » : le COMPTE reste,
+  // seuls les FICHIERS sont purgés). Les URLs du PROFIL restent
+  // remplies (`cni_front_url` etc.) : c'est le flag `cni_verified`
+  // qui porte l'état (pas la présence des photos) — la recompute
+  // `is_verified` l'utilise, pas les URLs. Best effort : si la
+  // suppression storage échoue (réseau), on log + on ne bloque PAS
+  // le verdict admin.
+  try {
+    await removeCniPhotos(profile_id);
+  } catch (err) {
+    console.error("[cni-admin] photo removal failed (verdict kept):", err);
   }
 
   return NextResponse.json({

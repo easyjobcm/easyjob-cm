@@ -1,15 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  ChevronLeft,
-} from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Eye, ChevronLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -33,6 +27,9 @@ interface DocumentRow {
 interface SkillDocumentsAdminClientProps {
   initialDocuments: DocumentRow[];
   canModerate: boolean;
+  /** T8.4c — filtre `?userId=` : l'admin arrive depuis la carte du
+   *  candidat, on ne lui affiche que les documents de cet utilisateur. */
+  filterUserId?: string | null;
 }
 
 const STATUS_LABEL: Record<
@@ -48,51 +45,45 @@ const STATUS_LABEL: Record<
   rejected: { label: "Refusé", icon: XCircle, className: "text-red-600" },
   expired: {
     label: "Expiré",
-    icon: AlertTriangle,
+    icon: Clock,
     className: "text-orange-600",
   },
 };
 
-const STATUS_TABS = [
-  "pending",
-  "verified",
-  "rejected",
-  "expired",
-  "all",
-] as const;
-
 export function SkillDocumentsAdminClient({
   initialDocuments,
   canModerate,
+  filterUserId,
 }: SkillDocumentsAdminClientProps) {
   const router = useRouter();
-  const [statusFilter, setStatusFilter] =
-    React.useState<(typeof STATUS_TABS)[number]>("pending");
   const [search, setSearch] = React.useState("");
   const [viewing, setViewing] = React.useState<DocumentRow | null>(null);
 
+  // T8.4c : liste « En attente » uniquement — le filtre SSR garantit
+  // que `initialDocuments` contient déjà uniquement status='pending'
+  // (et uniquement ce candidat si `?userId=` est donné).
   const filtered = initialDocuments.filter((doc) => {
-    if (statusFilter !== "all" && doc.status !== statusFilter) return false;
+    if (doc.status !== "pending") return false;
     if (!search.trim()) return true;
     const name =
       `${doc.candidate?.first_name ?? ""} ${doc.candidate?.last_name ?? ""}`.toLowerCase();
     return name.includes(search.trim().toLowerCase());
   });
 
-  // NB (T8.1) : plus de AppShell — le layout admin
+  // NB (T8.1) : plus d'AppShell — le layout admin
   // (`app/admin/layout.tsx`) fournit la nav basse admin et la
   // safe-area-inset. Le `pb` reste suffisant pour la nav haute.
   return (
     <div>
       <div className="mx-auto max-w-3xl space-y-4 px-4 pb-8 pt-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href="/admin/candidates"
             className="rounded-full p-2 hover:bg-muted"
-            aria-label={"Justificatifs professionnels"}
+            aria-label="Tous les candidats"
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
+          </Link>
           <div>
             <h1 className="text-lg font-semibold">
               Justificatifs professionnels
@@ -104,21 +95,12 @@ export function SkillDocumentsAdminClient({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setStatusFilter(tab)}
-              className={`rounded-full border px-3 py-1 text-sm capitalize ${
-                statusFilter === tab
-                  ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]"
-                  : "border-input text-muted-foreground"
-              }`}
-            >
-              {tab === "all" ? "Tous" : (STATUS_LABEL[tab]?.label ?? tab)}
-            </button>
-          ))}
-        </div>
+        {filterUserId && (
+          <p className="text-xs text-muted-foreground">
+            Vue restreinte au candidat de la carte « Candidats ». Pour revenir à
+            la liste globale, cliquez sur « Tous les candidats ».
+          </p>
+        )}
 
         <input
           className="w-full rounded-lg border border-input bg-background p-2 text-sm"
@@ -131,7 +113,7 @@ export function SkillDocumentsAdminClient({
           <CardContent className="divide-y divide-border p-0">
             {filtered.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">
-                Aucun document pour ce filtre.
+                Aucun document en attente.
               </p>
             )}
             {filtered.map((doc) => {

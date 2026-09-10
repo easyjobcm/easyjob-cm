@@ -120,7 +120,7 @@ export const fr = {
       expiresAt: "Expire le",
       rejectionReason: "Motif du refus",
       verifiedLabel: "Vérifiée le",
-      empty: "Aucun CNI sur ce filtre",
+      empty: "Aucun CNI en attente",
       emptyVerified: "Aucune CNI vérifiée",
       emptyRejected: "Aucune CNI refusée",
       emptyNotProvided: "Aucun candidat sans CNI fournie",
@@ -196,6 +196,8 @@ export const fr = {
       title: "Profil candidat",
       back: "Tous les candidats",
       identitySection: "Identité",
+      filteredByUser:
+        "Vue restreinte au candidat de la carte « Candidats ». Pour revenir à la liste globale, cliquez sur « Tous les candidats ».",
       suspended: "Compte suspendu",
       readOnly:
         "Lecture seule — l'édition de l'identité est réservée à admin_founder.",

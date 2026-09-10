@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
-  CheckCircle2,
   Clock,
+  CheckCircle2,
   XCircle,
   Eye,
   AlertTriangle,
@@ -38,13 +39,10 @@ interface CniProfile {
 interface CniAdminClientProps {
   profiles: CniProfile[];
   canModerate: boolean;
+  /** T8.4c — filtre `?userId=` : l'admin arrive depuis la carte du
+   *  candidat, on ne lui affiche que les CNI de cet utilisateur. */
+  filterUserId?: string | null;
 }
-
-const STATUS_FILTERS: { key: CniStatus; icon: React.ElementType }[] = [
-  { key: "pending", icon: Clock },
-  { key: "verified", icon: CheckCircle2 },
-  { key: "rejected", icon: XCircle },
-];
 
 function statusOf(p: CniProfile): CniStatus {
   if (p.cni_verified === "verified") return "verified";
@@ -77,41 +75,30 @@ const FIELD_TO_URL: Record<CniDocField, string> = {
   selfie: "cni_selfie_url",
 };
 
-export function CniAdminClient({ profiles, canModerate }: CniAdminClientProps) {
+export function CniAdminClient({
+  profiles,
+  canModerate,
+  filterUserId,
+}: CniAdminClientProps) {
   const router = useRouter();
   const { t } = useI18n();
-  const [filter, setFilter] = React.useState<CniStatus>("pending");
   const [selected, setSelected] = React.useState<CniProfile | null>(null);
 
-  const counts = React.useMemo(
-    () =>
-      STATUS_FILTERS.reduce<Record<CniStatus, number>>(
-        (acc, s) => {
-          acc[s.key] = profiles.filter((p) => statusOf(p) === s.key).length;
-          return acc;
-        },
-        { pending: 0, verified: 0, rejected: 0 },
-      ),
-    [profiles],
-  );
-
-  const filtered = React.useMemo(
-    () => profiles.filter((p) => statusOf(p) === filter),
-    [profiles, filter],
-  );
-
+  // T8.4c : liste « En attente » uniquement — le filtre SSR garantit
+  // que `profiles` contient déjà uniquement cni_verified='pending' (et
+  // uniquement ce candidat si `?userId=` est donné).
   return (
     <div>
       <div className="mx-auto max-w-3xl space-y-4 px-4 pb-8 pt-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
+          <Link
+            href="/admin/candidates"
             className="rounded-full p-2 hover:bg-muted"
-            aria-label={t.admin.cni.title}
+            aria-label={t.admin.candidateProfile.back}
           >
             <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div>
+          </Link>
+          <div className="min-w-0">
             <h1 className="text-lg font-semibold">{t.admin.cni.title}</h1>
             <p className="text-sm text-muted-foreground">
               {t.admin.cni.subtitle}
@@ -119,51 +106,21 @@ export function CniAdminClient({ profiles, canModerate }: CniAdminClientProps) {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map(({ key, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${
-                filter === key
-                  ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]"
-                  : "border-input text-muted-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.admin.cni[key]}
-              <span
-                className={`ml-0.5 rounded-full px-1.5 text-xs ${
-                  filter === key ? "bg-[#7C3AED]/15 text-[#7C3AED]" : "bg-muted"
-                }`}
-              >
-                {counts[key]}
-              </span>
-            </button>
-          ))}
-        </div>
+        {filterUserId && (
+          <p className="text-xs text-muted-foreground">
+            {t.admin.candidateProfile.filteredByUser}
+          </p>
+        )}
 
         <Card>
           <CardContent className="divide-y divide-border p-0">
-            {filtered.length === 0 && (
+            {profiles.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">
-                {filter === "verified"
-                  ? t.admin.cni.emptyVerified
-                  : filter === "rejected"
-                    ? t.admin.cni.emptyRejected
-                    : t.admin.cni.empty}
+                {t.admin.cni.empty}
               </p>
             )}
-            {filtered.map((p) => {
-              const Icon =
-                STATUS_FILTERS.find((s) => s.key === statusOf(p))?.icon ??
-                Clock;
-              const color =
-                statusOf(p) === "verified"
-                  ? "text-emerald-600"
-                  : statusOf(p) === "rejected"
-                    ? "text-red-600"
-                    : "text-amber-600";
+            {profiles.map((p) => {
+              const color = "text-amber-600";
               return (
                 <div key={p.id} className="space-y-2 p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -179,8 +136,8 @@ export function CniAdminClient({ profiles, canModerate }: CniAdminClientProps) {
                     <span
                       className={`inline-flex items-center gap-1 text-sm ${color}`}
                     >
-                      <Icon className="h-4 w-4" />
-                      {t.admin.cni[statusOf(p)]}
+                      <Clock className="h-4 w-4" />
+                      {t.admin.cni.pending}
                     </span>
                   </div>
                   <Button

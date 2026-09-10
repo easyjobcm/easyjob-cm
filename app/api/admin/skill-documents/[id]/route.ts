@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { skillDocumentModerateSchema } from "@/lib/validations/skill-documents";
 
@@ -43,7 +43,7 @@ export async function POST(
   const { data: document } = await supabase
     .from("candidate_documents")
     .select(
-      `id, status, expires_at, candidate_id,
+      `id, status, expires_at, storage_path, candidate_id,
        candidate_profiles!inner ( user_id ),
        candidate_skill_documents ( candidate_skill_id )`,
     )
@@ -96,6 +96,43 @@ export async function POST(
     );
   }
 
+  // Rôle du candidat propriétaire (résolu pour la purge storage ET la
+  // notification qui suit). Le chemin storage du bucket privé pointe
+  // toujours sous `<user_id>/...` (voir
+  // `app/api/profile/skill-documents/route.ts`) — on garde le préréfixe
+  // pour ne jamais supprimer un objet qui n'appartient pas au propriétaire.
+  const candidateOwner = document.candidate_profiles as unknown as
+    | { user_id: string }
+    | { user_id: string }[];
+  const ownerUserId = Array.isArray(candidateOwner)
+    ? candidateOwner[0]?.user_id
+    : candidateOwner?.user_id;
+
+  // T8.4c : purge IMMÉDIATE du FICHIER storage au REJET (decision produit
+  // « Conserver et ré-émettre » : le COMPTE / la LIGNE restent — le statut
+  // retombe sur `rejected` + motif et s'affiche sur la section utilisateur
+  // T8.4b — mais le FICHIER refusé ne sert plus et est supprimé
+  // immédiatement). Au veto, l'admin a déjà pu consulter le document (URL
+  // signée), sa valeur de preuve n'existe que dans le flag `status`.
+  // Service role OBLIGATOIRE : le bucket `candidate-documents` est privé
+  // (RLS storage) et la session admin n'aurait pas le droit de supprimer
+  // l'objet du candidat. Best effort : si la suppression échoue (réseau),
+  // on log + on ne bloque PAS le verdict admin (les statuts sont déjà posés).
+  if (action === "reject" && document.storage_path && ownerUserId) {
+    try {
+      if (document.storage_path.startsWith(`${ownerUserId}/`)) {
+        await createAdminClient()
+          .storage.from("candidate-documents")
+          .remove([document.storage_path]);
+      }
+    } catch (err) {
+      console.error(
+        "[skill-docs-admin] file removal failed (verdict kept):",
+        err,
+      );
+    }
+  }
+
   // Le suivi d'expiration ne démarre qu'une fois le document réellement vérifié.
   if (action === "approve" && document.expires_at) {
     await supabase.from("document_expirations").insert({
@@ -116,16 +153,9 @@ export async function POST(
     metadata: { before: previousStatus, after: newStatus, rejection_reason },
   });
 
-  const candidateUserId = document.candidate_profiles as unknown as
-    | { user_id: string }
-    | { user_id: string }[];
-  const targetUserId = Array.isArray(candidateUserId)
-    ? candidateUserId[0]?.user_id
-    : candidateUserId?.user_id;
-
-  if (targetUserId) {
+  if (ownerUserId) {
     await supabase.from("notifications").insert({
-      user_id: targetUserId,
+      user_id: ownerUserId,
       notification_type: "document_status",
       title:
         action === "approve" ? "Justificatif validé" : "Justificatif refusé",
