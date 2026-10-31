@@ -318,7 +318,7 @@ export function DashboardClient({
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
                           {app.job?.start_time
-                            ? formatTime(app.job.start_time)
+                            ? formatTime(app.job.start_time, locale)
                             : "--:--"}
                         </div>
                         <div className="flex items-center gap-1">

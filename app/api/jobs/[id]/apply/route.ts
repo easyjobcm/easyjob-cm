@@ -97,7 +97,7 @@ async function applyRefusalResponse(
   const refusal = APPLY_REFUSALS[error.message];
   if (refusal) {
     return NextResponse.json(
-      { error: refusal.error },
+      { error: refusal.error, code: error.message },
       { status: refusal.status },
     );
   }

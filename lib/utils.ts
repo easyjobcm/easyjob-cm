@@ -45,12 +45,39 @@ export function formatDate(date: Date | string, locale: string = "fr"): string {
   }).format(d);
 }
 
-export function formatTime(date: Date | string, locale: string = "fr"): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+/** Affiché quand l'heure est absente ou illisible (jamais une heure inventée). */
+export const TIME_PLACEHOLDER = "--:--";
+
+const SQL_TIME = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/;
+
+/**
+ * Heure d'affichage. Accepte une colonne SQL `time` (« 09:00:00 », « 09:00 »)
+ * ou un instant (Date, horodatage ISO). Une heure SQL est une heure murale
+ * sans date ni fuseau : elle est formatée telle quelle (le calcul en UTC ne
+ * sert qu'à éviter tout décalage), alors qu'un instant suit le fuseau local.
+ */
+export function formatTime(
+  value: Date | string | null | undefined,
+  locale: string = "fr",
+): string {
+  const format = (d: Date, timeZone?: string) =>
+    new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone,
+    }).format(d);
+
+  if (value == null || value === "") return TIME_PLACEHOLDER;
+  if (typeof value === "string") {
+    const sql = SQL_TIME.exec(value.trim());
+    if (sql) {
+      const [hours, minutes] = [Number(sql[1]), Number(sql[2])];
+      if (hours > 23 || minutes > 59) return TIME_PLACEHOLDER;
+      return format(new Date(Date.UTC(1970, 0, 1, hours, minutes)), "UTC");
+    }
+  }
+  const d = typeof value === "string" ? new Date(value) : value;
+  return Number.isNaN(d.getTime()) ? TIME_PLACEHOLDER : format(d);
 }
 
 export function formatRelativeTime(

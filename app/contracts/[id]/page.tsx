@@ -256,12 +256,14 @@ export default function ContractSignPage() {
         : "company_signed";
     }
 
-    const { error } = await supabase
+    // Sans ligne modifiée (RLS), pas d'erreur : on compte les lignes.
+    const { data: updated, error } = await supabase
       .from("contracts")
       .update(updateData)
-      .eq("id", contractId);
+      .eq("id", contractId)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de signer le contrat.",

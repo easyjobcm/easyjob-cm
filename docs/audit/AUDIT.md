@@ -342,9 +342,9 @@ Ces défauts sont hors périmètre et non corrigés. Ils ne viennent pas du lot 
 
 | ID | Constat | Bloquant ? |
 |---|---|---|
-| F-38 (P1) | La page `/jobs/[id]` plante au rendu pour **toute** offre (« This page couldn't load »). `formatTime(job.start_time)` (`lib/utils.ts`) fait `new Date("09:00:00")` sur une colonne `time`, d'où `RangeError: Invalid time value` dans `job-detail-client.tsx`. Le bouton « Postuler » est donc inaccessible dans l'interface ; la route `/api/jobs/[id]/apply` fonctionne. | Oui pour le parcours candidat de bout en bout, mais ce n'est pas une régression du lot. À corriger dans un lot dédié (ou en correctif) avant de compter sur la candidature par l'interface. |
-| F-39 (P2) | Aucun `<Toaster />` n'est monté : les `toast()` (`hooks/use-toast`) ne s'affichent nulle part. Sur `app/company/jobs/[id]`, une sélection ou un rejet refusé par la base (candidature retirée entre-temps) ne donne aucun retour visible ; la liste n'est pas rechargée. | Non (lot 9, UX). |
-| F-40 (P3) | Onboarding : laisser la date de naissance vide envoie `date_of_birth: ""`, refusé par Postgres (22007). Le message affiché est générique : « Une erreur est survenue ». | Non (lot 9). Correctif d'une ligne : envoyer `undefined` comme pour `gender`. |
+| F-38 (P1) | La page `/jobs/[id]` plante au rendu pour **toute** offre (« This page couldn't load »). `formatTime(job.start_time)` (`lib/utils.ts`) fait `new Date("09:00:00")` sur une colonne `time`, d'où `RangeError: Invalid time value` dans `job-detail-client.tsx`. Le bouton « Postuler » est donc inaccessible dans l'interface ; la route `/api/jobs/[id]/apply` fonctionne. | Corrigé localement au lot 2b (§11). |
+| F-39 (P2) | Aucun `<Toaster />` n'est monté : les `toast()` (`hooks/use-toast`) ne s'affichent nulle part. Sur `app/company/jobs/[id]`, une sélection ou un rejet refusé par la base (candidature retirée entre-temps) ne donne aucun retour visible ; la liste n'est pas rechargée. | Corrigé localement au lot 2b (§11). |
+| F-40 (P3) | Onboarding : laisser la date de naissance vide envoie `date_of_birth: ""`, refusé par Postgres (22007). Le message affiché est générique : « Une erreur est survenue ». | Corrigé localement au lot 2b (§11). |
 | — | `/my-jobs` ne liste plus une candidature retirée et affiche « Vous n'avez pas encore postulé » s'il n'y en a pas d'autre. Le refus `profile_incomplete` reste en anglais (`alert`, message existant). Aucun écran n'appelle encore le retrait. | Non (lot 9). |
 
 ### Mécanisme retenu
@@ -497,3 +497,49 @@ Revue, puis PR vers `main-dev` : la CI `test-migrations` applique la migration e
 - exécuter le lot 0 ;
 - vérifier la publication Realtime ;
 - traiter F-38, F-39 et F-40 dans un prochain lot dédié (hors lot 2).
+
+## 11. Suivi — Lot 2b : parcours candidat (F-38, F-39, F-40) (2026-10-31)
+
+**Statut : corrigé et vérifié localement. Non commité, non déployé.**
+
+Branche `fix/lot-02b-candidate-user-flows`, créée depuis `origin/main-dev` (643576f, qui contient le lot 2). Aucun changement de permissions, de seuil de complétude ni de règle MoMo.
+
+| ID | Correction | Statut |
+|---|---|---|
+| F-38 | `formatTime` (`lib/utils.ts`) distingue une heure SQL `time` (`HH:MM`, `HH:MM:SS[.µs]`), formatée telle quelle sans date ni fuseau, d'un instant (`Date`, ISO), qui suit comme avant le fuseau local. Une valeur absente, invalide ou hors bornes (y compris `24:00:00`) affiche `--:--` au lieu de planter ou d'afficher une heure trompeuse. Les trois consommateurs (détail d'offre, `JobCard`, tableau de bord) passent la locale de l'interface (`09:00` en français, `09:00 AM` en anglais). La page rendue de nouveau, deux défauts jusque-là masqués sont apparus. Le bouton « Postuler » était recouvert par la barre d'onglets candidat : il est désormais placé au-dessus. Un candidat bloqué par les essentiels ne voyait qu'un bouton « Compléter » : l'explication existante (`essential.bannerBody`) est maintenant affichée. Un refus est notifié avec le message i18n existant (`profile.completion.required60` pour `profile_incomplete`) au lieu d'un `alert` en anglais. La route `/apply` ajoute le champ `code` à ses refus (ajout sans rupture). | Corrigé localement |
+| F-39 | `hooks/use-toast.ts` ne faisait qu'un `console.info`. Il devient un état partagé, avec les mêmes signatures `toast()` et `useToast()`. Le nouveau rendu `components/ui/toaster.tsx` est monté une seule fois dans `app/layout.tsx`. Les notifications s'affichent en haut de l'écran, zone sûre comprise, sans masquer la barre d'onglets du bas. Une erreur ou un avertissement est annoncé avec `role="alert"` ; les autres messages utilisent `role="status"`. Le type se distingue par l'icône et le titre, pas seulement par la couleur. Le bouton « Fermer » (i18n `common.close`) est utilisable au clavier. Au plus trois notifications sont empilées, et elles se ferment seules (5 s, 8 s pour les erreurs). Les écritures qui déclenchent un toast de succès vérifient désormais qu'une ligne a bien été modifiée (`.select("id")`), sans quoi elles affichent l'erreur. C'est le cas des décisions entreprise, de la suppression d'offre, de la signature de contrat et du pointage ou de la fin de mission. En cas d'échec d'une décision, l'écran entreprise se recharge. | Corrigé localement |
+| F-40 | La date de naissance est facultative à l'étape 1 de l'onboarding : le libellé n'a pas d'astérisque, et elle n'entre pas dans les conditions de fin. Laissée vide, elle est envoyée en `null`, jamais en `""`. Une date saisie est validée par `birthDateSchema` (règles d'âge inchangées). En cas d'erreur, le message existant (`profile.edit.ageInvalid` / `birthDateInvalid`) s'affiche sous le champ (`aria-invalid`, `aria-describedby`) et l'étape est bloquée. Les verrous d'identité du lot 2 ne sont pas touchés. | Corrigé localement |
+
+**F-18 / lot 9.** Ce lot traite la partie « notifications réelles et accessibles » de F-18. Les erreurs des parcours mission, contrat et offres entreprise sont désormais visibles. Restent ouverts dans le lot 9 :
+- les liens `/login` et `/auth/error` ;
+- les textes des toasts existants, codés en dur en français et sans accents (« Candidat selectionne »), à passer dans le dictionnaire i18n ;
+- les autres refus de `/apply`, encore en anglais (`already_applied`, `no_positions`…) ;
+- les promesses non livrées (F-19, F-28) ;
+- le libellé `withdrawn` et l'état vide trompeur de `/my-jobs` ;
+- le contrôle sur des appareils Android et iOS réels.
+
+### Contrôles exécutés
+
+| Contrôle | Résultat |
+|---|---|
+| `vitest run` (nouveaux tests `tests/format-time.test.ts` et `tests/toast.test.ts`) | ✅ 12 fichiers, 216 tests |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .` | ✅ |
+| `pnpm build` (variables locales factices, télémétrie désactivée) | ✅ 69 pages |
+| `proof-business-permissions` (A à H), rejouée car la route `/apply` a changé | ✅ 135/135 |
+| Parcours navigateur, avec de vrais clics (Chrome headless, `playwright-core` local, 375 × 812, pile `easyjob-proof`, `next dev` relié à la pile, fixtures déterministes, script et captures hors dépôt) | ✅ 19/19 |
+
+Parcours vérifiés dans le navigateur :
+- page d'offre rendue avec les horaires SQL (`09:00 - 13:30`), sans défilement horizontal, et liste des offres (`JobCard`) ;
+- clic sur « Postuler » puis double clic sur « Confirmer » : confirmation visible et une seule candidature. Après rechargement, plus de bouton. Une nouvelle tentative par la route est refusée ;
+- profil sous 60 % : notification d'erreur « 60% requis pour postuler » (`role="alert"`), fermée au clavier ;
+- profil à 60 % ou plus mais non vérifié : pas de bouton « Postuler », explication affichée ;
+- écran entreprise ouvert avant un retrait (retrait préparé par la route locale existante) : rejet refusé, notification d'erreur visible, aucun faux succès, écran rechargé. Sélection légitime : notification de succès (`role="status"`) en haut de l'écran ;
+- date de naissance : vide (enregistrée `null`), mineur et 1899 (erreur liée au champ, soumission bloquée), valide (enregistrée). Reprise après rechargement, puis retour à l'étape 1 avec la date conservée ;
+- page d'offre en anglais : `09:00 AM - 01:30 PM`.
+
+### Limites
+
+- Pas de test sur un appareil Android ou iOS réel : seule la largeur 375 px a été simulée.
+- Le tableau de bord redirige les candidats vers `/jobs` : son affichage des heures n'est couvert que par les tests unitaires.
+- `24:00:00`, valeur acceptée par Postgres mais non produite par les formulaires, s'affiche `--:--`.
+- Aucun bouton de retrait n'existe dans l'interface (hors lot).

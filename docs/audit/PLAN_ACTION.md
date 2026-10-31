@@ -75,7 +75,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > 1. Revue, puis PR vers `main-dev`.
 > 2. Lot 0, en lecture seule : rechercher les valeurs déjà falsifiées (H-01, H-02), et vérifier que `candidate_profiles` est absente de la publication Realtime.
 > 3. Prévenir que le seuil de 60 % devient effectif (F-34).
-> 4. F-38, F-39 et F-40 (défauts préexistants) sont réservés à un prochain lot dédié. Le point bloquant est F-38 : la page `/jobs/[id]` plante pour toute offre. Les routes de candidature sont vérifiées, mais le parcours par l'interface reste bloqué.
+> 4. F-38, F-39 et F-40 sont traités par le lot 2b (`fix/lot-02b-candidate-user-flows`, `AUDIT.md` §11). La candidature par l'interface y est vérifiée.
 
 - **Objectif** : les contrôles métier ne peuvent plus être contournés par PostgREST.
 - **IDs** : F-04, F-05, F-06, F-11, F-17.
@@ -194,7 +194,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 ## Lot 9 — Retour utilisateur et textes
 
 - **IDs** : F-18, F-19, F-28.
-- **Périmètre** : remplacer `hooks/use-toast.ts` par un vrai composant (accessible, `aria-live`), corriger `/login` en `/auth/login`, retirer ou marquer « bientôt disponible » les promesses non livrées (paiement 48 h, séquestre, remplacement garanti, IA, essai gratuit), passer les pages touchées par les lots 6 et 7 sur le dictionnaire i18n.
+- **Périmètre** : ~~remplacer `hooks/use-toast.ts` par un vrai composant (accessible, `aria-live`)~~ (fait au lot 2b, `AUDIT.md` §11 ; reste : textes des toasts en i18n), corriger `/login` en `/auth/login`, retirer ou marquer « bientôt disponible » les promesses non livrées (paiement 48 h, séquestre, remplacement garanti, IA, essai gratuit), passer les pages touchées par les lots 6 et 7 sur le dictionnaire i18n.
 - **Exclusions** : refonte visuelle.
 - **Dépendances** : à coordonner avec les lots 6 et 7 pour ne pas réécrire deux fois les mêmes pages. La partie « textes » peut partir tout de suite.
 - **Critères d'acceptation** : chaque erreur des parcours mission, contrat et offres est visible ; une relecture produit valide que chaque promesse correspond à une fonction livrée ; contrôle manuel à 375 px sur Android et iOS.

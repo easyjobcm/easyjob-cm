@@ -149,21 +149,26 @@ export default function CompanyJobDetailPage() {
     if (!user) return;
 
     // Update application status
-    const { error } = await supabase
+    // `.select` : une ligne filtrée par la RLS ne renvoie pas d'erreur, il
+    // faut compter les lignes modifiées pour ne pas annoncer un faux succès.
+    const { data: updated, error } = await supabase
       .from("job_applications")
       .update({
         status: "selected",
         selected_at: new Date().toISOString(),
         selected_by: user.id,
       })
-      .eq("id", selectedApplication.id);
+      .eq("id", selectedApplication.id)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de selectionner le candidat.",
         variant: "destructive",
       });
+      // L'écran peut être obsolète (candidature retirée entre-temps).
+      loadData();
     } else {
       // Update positions filled
       await supabase
@@ -175,6 +180,7 @@ export default function CompanyJobDetailPage() {
 
       toast({
         title: "Candidat selectionne",
+        variant: "success",
         description: "Le candidat a ete notifie de sa selection.",
       });
       loadData();
@@ -191,23 +197,26 @@ export default function CompanyJobDetailPage() {
     setProcessing(true);
     const supabase = createClient();
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("job_applications")
       .update({
         status: "rejected",
         rejection_reason: rejectionReason || null,
       })
-      .eq("id", selectedApplication.id);
+      .eq("id", selectedApplication.id)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de rejeter le candidat.",
         variant: "destructive",
       });
+      loadData();
     } else {
       toast({
         title: "Candidature rejetee",
+        variant: "success",
         description: "Le candidat a ete notifie.",
       });
       loadData();
