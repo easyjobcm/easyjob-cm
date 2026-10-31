@@ -57,4 +57,4 @@ pnpm exec supabase stop --workdir $stack --no-backup
 
 ## État connu des preuves
 
-Voir `docs/audit/AUDIT.md`, §9 : `proof-admin-cni` (9 assertions en échec, antérieures au lot 1) et `proof-essentials-gate` (fixture à corriger) sont des échecs préexistants.
+Voir `docs/audit/AUDIT.md`, §9 et §10. `proof-admin-cni` (9 assertions en échec, antérieures au lot 1) et `proof-essentials-gate` (fixture absente et code `essentials_incomplete` obsolète depuis T8.3) sont des échecs préexistants. `proof-business-permissions` (lot 2) appelle aussi l'application (sections E et H) ; l'option `--skip-route` permet de l'exécuter sans elle.

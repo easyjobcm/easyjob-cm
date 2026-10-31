@@ -7,8 +7,8 @@ import { updateRequestActionSchema } from "@/lib/validations/profile";
  * (SRS §5.1.1) : `PATCH` = annuler / `DELETE` = purge physique.
  *
  * Modèle T2 : l'ADMIN initie (POST ../route.ts, depuis T2), le CANDIDAT
- * exécute et la ligne clot automatiquement en `done` (
- * `completePendingRequests` au serveur, pas par cette route). Le verrou
+ * exécute et la ligne clot automatiquement en `done` (trigger
+ * `trg_protect_verified_candidate_data` en base, pas cette route). Le verrou
  * n'a pas de « approuver/refuser » côté admin — le seul verbe d'annulation
  * est donc `cancelled` (pas de `rejected` : le candidat n'a pas « soumis »,
  * il EXECUTE la demande).

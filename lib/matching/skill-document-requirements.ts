@@ -1,12 +1,23 @@
-import { createClient } from "@/lib/supabase/server";
+/**
+ * Messages des refus documentaires de candidature (SRS §6.14, §5.4).
+ *
+ * La décision est prise en base par la RPC `apply_to_job` (migration
+ * 20261031130000), seule source de vérité : elle lève `document_requirement`
+ * avec en détail le premier document manquant. Ce module ne fait que
+ * traduire ce détail en message pour le candidat.
+ */
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+export type DocumentRequirementState =
+  | "expired"
+  | "pending"
+  | "rejected"
+  | "missing";
 
-interface CandidateIdentityFields {
-  cni_verified: string | null;
-  cni_expires_at: string | null;
-  driving_license_verified: boolean | null;
-  driving_license_expires_at: string | null;
+export interface DocumentRequirementDetail {
+  document_type: string;
+  state: DocumentRequirementState;
+  /** Présent quand l'exigence porte sur une compétence précise. */
+  skill_name?: string;
 }
 
 const SIMPLE_DOC_LABELS: Record<string, string> = {
@@ -18,156 +29,61 @@ const SIMPLE_DOC_LABELS: Record<string, string> = {
   autre: "document",
 };
 
-function isExpired(expiresAt: string | null) {
-  return !!expiresAt && new Date(expiresAt) < new Date();
+const STATE_MESSAGES: Record<
+  Exclude<DocumentRequirementState, "missing">,
+  string
+> = {
+  pending: "Votre justificatif est encore en cours de vérification.",
+  rejected:
+    "Votre justificatif a été refusé. Consultez votre profil pour le remplacer.",
+  expired: "Votre justificatif a expiré. Mettez-le à jour pour postuler.",
+};
+
+function missingMessage(detail: DocumentRequirementDetail): string {
+  if (detail.skill_name) {
+    return `Cette offre exige un diplôme ou certificat valide pour la compétence « ${detail.skill_name} ».`;
+  }
+  if (detail.document_type === "cni") {
+    return "Cette offre exige une CNI vérifiée pour postuler.";
+  }
+  if (detail.document_type === "driving_license") {
+    return "Cette offre exige un permis de conduire valide pour postuler.";
+  }
+  const label = SIMPLE_DOC_LABELS[detail.document_type] ?? detail.document_type;
+  return `Cette offre exige un ${label} valide pour postuler.`;
 }
 
-/**
- * Vérifie côté serveur qu'un candidat remplit les exigences documentaires
- * d'une offre (SRS §6.14, §5.4) — appelée avant toute création de candidature.
- * Le masquage du bouton côté frontend ne suffit jamais : cette fonction est
- * la seule source de vérité pour bloquer/autoriser une candidature.
- */
-export async function checkJobDocumentRequirements(
-  supabase: SupabaseServerClient,
-  candidateId: string,
-  job: { id: string; required_documents: string[] | null },
-  candidateProfile: CandidateIdentityFields,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const requiredDocs = job.required_documents ?? [];
+export function documentRequirementMessage(
+  detail: DocumentRequirementDetail,
+): string {
+  return detail.state === "missing"
+    ? missingMessage(detail)
+    : STATE_MESSAGES[detail.state];
+}
 
-  const { data: requiredSkillDocs } = await supabase
-    .from("job_required_skill_documents")
-    .select("skill_name, document_type")
-    .eq("job_id", job.id);
-
-  if (requiredDocs.length === 0 && !requiredSkillDocs?.length) {
-    return { ok: true };
-  }
-
-  const { data: candidateDocs } = await supabase
-    .from("candidate_documents")
-    .select("document_type, status, expires_at")
-    .eq("candidate_id", candidateId);
-
-  const bestDocState = (
-    docs: { status: string; expires_at: string | null }[],
-  ): "ok" | "expired" | "pending" | "rejected" | "missing" => {
-    if (docs.some((d) => d.status === "verified" && !isExpired(d.expires_at)))
-      return "ok";
-    if (docs.some((d) => d.status === "verified" && isExpired(d.expires_at)))
-      return "expired";
-    if (docs.some((d) => d.status === "pending")) return "pending";
-    if (docs.some((d) => d.status === "rejected")) return "rejected";
-    return "missing";
-  };
-
-  const messageFor = (
-    state: "expired" | "pending" | "rejected" | "missing",
-    missingLabel: string,
-  ) => {
-    switch (state) {
-      case "pending":
-        return "Votre justificatif est encore en cours de vérification.";
-      case "rejected":
-        return "Votre justificatif a été refusé. Consultez votre profil pour le remplacer.";
-      case "expired":
-        return "Votre justificatif a expiré. Mettez-le à jour pour postuler.";
-      default:
-        return missingLabel;
+export function parseDocumentRequirementDetail(
+  raw: string | null | undefined,
+): DocumentRequirementDetail | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<DocumentRequirementDetail>;
+    if (typeof parsed.document_type !== "string") return null;
+    if (
+      parsed.state !== "expired" &&
+      parsed.state !== "pending" &&
+      parsed.state !== "rejected" &&
+      parsed.state !== "missing"
+    ) {
+      return null;
     }
-  };
-
-  for (const docType of requiredDocs) {
-    if (docType === "cni") {
-      if (
-        candidateProfile.cni_verified === "verified" &&
-        !isExpired(candidateProfile.cni_expires_at)
-      ) {
-        continue;
-      }
-      if (isExpired(candidateProfile.cni_expires_at)) {
-        return { ok: false, error: messageFor("expired", "") };
-      }
-      if (candidateProfile.cni_verified === "pending") {
-        return { ok: false, error: messageFor("pending", "") };
-      }
-      if (candidateProfile.cni_verified === "rejected") {
-        return { ok: false, error: messageFor("rejected", "") };
-      }
-      return {
-        ok: false,
-        error: "Cette offre exige une CNI vérifiée pour postuler.",
-      };
-    }
-
-    if (docType === "driving_license") {
-      if (
-        candidateProfile.driving_license_verified &&
-        !isExpired(candidateProfile.driving_license_expires_at)
-      ) {
-        continue;
-      }
-      if (isExpired(candidateProfile.driving_license_expires_at)) {
-        return { ok: false, error: messageFor("expired", "") };
-      }
-      return {
-        ok: false,
-        error: "Cette offre exige un permis de conduire valide pour postuler.",
-      };
-    }
-
-    const label = SIMPLE_DOC_LABELS[docType] ?? docType;
-    const matches = (candidateDocs ?? []).filter(
-      (d) => d.document_type === docType,
-    );
-    const state = bestDocState(matches);
-    if (state === "ok") continue;
     return {
-      ok: false,
-      error: messageFor(
-        state,
-        `Cette offre exige un ${label} valide pour postuler.`,
-      ),
+      document_type: parsed.document_type,
+      state: parsed.state,
+      ...(typeof parsed.skill_name === "string"
+        ? { skill_name: parsed.skill_name }
+        : {}),
     };
+  } catch {
+    return null;
   }
-
-  if (requiredSkillDocs && requiredSkillDocs.length > 0) {
-    const { data: candidateSkills } = await supabase
-      .from("candidate_skills")
-      .select("id, skill_name")
-      .eq("candidate_id", candidateId);
-
-    for (const req of requiredSkillDocs) {
-      const skill = (candidateSkills ?? []).find(
-        (s) => s.skill_name.toLowerCase() === req.skill_name.toLowerCase(),
-      );
-      const missingLabel = `Cette offre exige un diplôme ou certificat valide pour la compétence « ${req.skill_name} ».`;
-
-      if (!skill) {
-        return { ok: false, error: missingLabel };
-      }
-
-      const { data: links } = await supabase
-        .from("candidate_skill_documents")
-        .select("candidate_documents ( document_type, status, expires_at )")
-        .eq("candidate_skill_id", skill.id);
-
-      type LinkedDoc = {
-        document_type: string;
-        status: string;
-        expires_at: string | null;
-      };
-      const docs = (links ?? [])
-        .map((l) => l.candidate_documents as unknown as LinkedDoc | null)
-        .filter((d): d is LinkedDoc => !!d)
-        .filter((d) => d.document_type === req.document_type);
-
-      const state = bestDocState(docs);
-      if (state === "ok") continue;
-      return { ok: false, error: messageFor(state, missingLabel) };
-    }
-  }
-
-  return { ok: true };
 }

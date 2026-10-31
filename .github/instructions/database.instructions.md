@@ -33,6 +33,42 @@ Mécanisme en place (migration `20261031120000_lock_users_privileged_columns.sql
   depuis `public.users`.
 - Preuve : `scripts/proof-account-security.ts` (pile locale uniquement).
 
+## Colonnes et tables porteuses de droits — lot 2
+
+Migration `20261031130000_lock_business_permissions.sql`, même principe
+(privilèges de colonnes + trigger sur `current_user`, jamais le seul GUC
+`easyjob.system_update`) :
+
+- `candidate_profiles` : `authenticated` n'écrit que les colonnes ordinaires
+  listées dans les `GRANT INSERT/UPDATE (…)` de la migration. Niveau,
+  premium, permis, statistiques, vérifications CNI/MoMo : `service_role` ou
+  RPC. Ajouter une colonne écrivable en session = l'ajouter au `GRANT` **et**
+  à la liste du trigger `protect_candidate_profile_columns`.
+- `profile_completion_pct` est calculé par la base
+  (`candidate_profile_completion_pct`, traduction de
+  `computeCandidateCriteria`) : modifier les critères dans **les deux**.
+  Toute nouvelle donnée entrant dans le calcul, y compris venant d'une
+  table liée, doit relancer ce calcul (voir
+  `refresh_candidate_profile_completion` pour `candidate_skills`).
+  `onboarding_status` est dérivé pour les écritures candidat (règles de
+  l'assistant) ; ne jamais l'écrire depuis le client.
+- Données vérifiées (F-35) : sur une CNI vérifiée, l'identité et les
+  photos CNI ne s'écrivent en session qu'avec une demande admin pending
+  (`trg_protect_verified_candidate_data`, qui repasse la CNI en `pending` et
+  clôture la demande dans la même écriture). La déclaration MoMo passe
+  uniquement par `candidate_update_momo`. `users.is_verified` est recalculé
+  automatiquement (`trg_sync_user_verification_from_profile`) : ne jamais
+  l'écrire, ni compter sur un appel manuel de `recompute_user_verification`.
+- `job_applications` : création par `apply_to_job(job_id)`, retrait
+  (`pending → withdrawn`) par `withdraw_job_application(job_id)`. Ces RPC
+  sont la source de référence des règles de candidature ; la route ne fait
+  que traduire leurs codes. L'entreprise n'écrit que `status`
+  (`shortlisted`/`selected`/`rejected`), `selected_at`, `selected_by`
+  (= elle-même) et `rejection_reason`.
+- `subscriptions` : écriture `service_role` uniquement (aucun grade admin en
+  session). `otp_codes` : aucun accès `anon`/`authenticated`.
+- Preuve : `scripts/proof-business-permissions.ts`.
+
 ## Tables interdites dans le code MVP
 
 wallets · withdrawal_requests · payment_batches

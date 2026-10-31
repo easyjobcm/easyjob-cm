@@ -212,6 +212,9 @@ async function createProofUser(
         momo_number: "+237691000111",
         momo_account_name: "T84 Cand",
         profile_photo_url: photoUrl,
+        bio: "Candidat de preuve T8.4a.",
+        latitude: 4.05,
+        longitude: 9.77,
         cni_verified: null,
         momo_verified: false,
         onboarding_step: 4,
@@ -222,6 +225,13 @@ async function createProofUser(
       .select("id")
       .single();
     if (pErr || !profile) throw new Error(`profile insert: ${pErr?.message}`);
+    // Complétude calculée par la base (lot 2) : une compétence porte le
+    // profil à 65 %, seuil de candidature atteint sans dépendre des photos.
+    await serviceClient.from("candidate_skills").insert({
+      candidate_id: profile.id,
+      skill_name: "Accueil",
+      skill_level: 3,
+    });
     profileId = profile.id;
   }
 

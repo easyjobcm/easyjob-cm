@@ -1436,6 +1436,8 @@ export const en: TranslationKeys = {
     unauthorized: "Session expired. Please sign in again.",
     notFound: "Page not found",
     serverError: "Server error. Please try again later.",
+    onboardingIncomplete:
+      "Your profile could not be completed: check your details, your skills (at least 2) and your Mobile Money account.",
   },
 
   // Success messages

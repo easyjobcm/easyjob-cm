@@ -308,3 +308,192 @@ Pile Supabase locale **isolée et jetable** (`project_id` `easyjob-lot1-test`, p
 - `TRUNCATE` reste accordé à `anon`/`authenticated` sur les autres tables (non exposé par PostgREST). À traiter au lot 2.
 - Les fonctions `SECURITY DEFINER` utilisent `search_path = public` et non `''`. C'est acceptable (pas de création d'objets temporaires possible via PostgREST), à harmoniser au lot 2.
 - L'onboarding entreprise (`users.is_verified = true` en session) reçoit maintenant une erreur explicite au lieu d'un no-op silencieux. La page ignore cette erreur (F-14, lot 5).
+
+## 10. Suivi — Lot 2 : colonnes et tables porteuses de droits (2026-10-31)
+
+**Statut : corrigé et vérifié localement, finalisé (F-35 et critère CNI inclus). Non commité, non déployé.** Aucune conclusion sur la production : H-01 et H-02 restent ouvertes.
+
+Branche `fix/lot-02-business-permissions`, créée depuis `origin/main-dev` (faf91fc, merge de la PR #49 qui contient le lot 1). Constats traités : F-04, F-05, F-06, F-11, F-17, puis F-34 et F-35 trouvés pendant le lot.
+
+### Constats vérifiés dans le code courant
+
+Tous ont été confirmés dynamiquement avant correction. Contrôles négatifs de `proof-business-permissions` sur la pile dédiée :
+- sans la migration : 68 échecs sur 75 assertions (sections A à D) ;
+- avec la première version de la migration, sans la finalisation : 21 échecs sur 120 (sections F et G).
+
+- **F-04** : `GRANT ALL` et policy UPDATE sans liste de colonnes. Toutes les colonnes de droits étaient modifiables en session. Les triggers CNI et MoMo ne protégeaient que l'UPDATE : un INSERT pouvait créer un profil déjà `momo_verified = true` ou `cni_verified = 'verified'`.
+- **F-05** : INSERT direct accepté, y compris avec `status = 'selected'`, et UPDATE libre de sa propre candidature. Côté entreprise, la policy UPDATE n'avait ni `WITH CHECK` ni liste de colonnes. L'entreprise pouvait ainsi changer `candidate_id` ou `match_score`, passer une candidature à `withdrawn` ou `pending`, et renseigner `selected_by` avec un autre compte.
+- **F-06** : un utilisateur pouvait s'attribuer un abonnement en session, y compris par `upsert`. Un `admin_support` pouvait aussi en créer et en modifier.
+- **F-11** : `anon` pouvait lire, insérer et modifier `otp_codes`. Chemin indirect : `cleanup_expired_otp()` (`SECURITY DEFINER`, sans `search_path`) était exécutable par `anon`.
+- **F-17** : aucune policy DELETE ; la route répondait `success` sans effet.
+
+### Constats complémentaires (F-34 à F-37)
+
+| ID | Constat | Statut | Bloquant ? |
+|---|---|---|---|
+| F-34 (P1) | `profile_completion_pct` n'était écrit par **aucun** flux applicatif, seulement par les fixtures et le seed. Le gate « ≥ 60 % » de `/apply` lisait donc une colonne restée à 0 : tout vrai candidat était refusé (`profile_incomplete`), sauf écriture hors dépôt. Par ailleurs, le critère CNI (15 points) exigeait les trois photos, que T8.4 supprime après approbation : un candidat vérifié perdait ces points. | **Corrigé localement.** Calcul en base, reprise des profils dont la valeur diffère, et critère CNI satisfait par `cni_verified = 'verified'`, sinon par les trois photos (SQL et TypeScript alignés). | Non. Le seuil de 60 % devient effectif : à annoncer avant le déploiement. |
+| F-35 (P1) | Le verrou de l'identité vérifiée (`evaluateProfileLock`) et la réinitialisation MoMo (`candidate_update_momo`) n'existaient que dans les routes. Un PATCH direct pouvait modifier nom, prénom, date de naissance ou photos CNI d'une CNI vérifiée sans repasser en revue. Il pouvait aussi rétrograder le statut puis modifier librement, ou changer numéro, opérateur ou nom du compte MoMo en gardant `momo_verified`. Enfin, `users.is_verified` (gate de candidature) n'était recalculé que par les RPC admin : il restait `true` après une réinitialisation MoMo ou une re-vérification CNI. | **Corrigé localement** (mécanisme 8). | Non. |
+| F-36 (P3) | `updateReliabilityScore` (`lib/matching/ai-matching.ts`) écrit `average_rating` avec le client de session. La fonction n'est appelée nulle part ; cette écriture serait désormais refusée. | Non traité : code mort à supprimer (lot 10), ou à réécrire côté serveur avec le lot 7. | Non. |
+| F-37 (P3) | `job_applications.selected_by` référence `users` sans `ON DELETE`. Un compte entreprise qui a sélectionné un candidat ne peut donc pas être supprimé. Il en va de même pour `profile_update_requests.requested_by` et un compte admin. Constaté au nettoyage des preuves. | Non traité (lot 7 ou politique de suppression des comptes). La preuve supprime ces lignes avant les comptes. | Non. |
+
+### Défauts préexistants constatés pendant la vérification navigateur
+
+Ces défauts sont hors périmètre et non corrigés. Ils ne viennent pas du lot 2 : le code concerné n'est pas modifié par la branche.
+
+| ID | Constat | Bloquant ? |
+|---|---|---|
+| F-38 (P1) | La page `/jobs/[id]` plante au rendu pour **toute** offre (« This page couldn't load »). `formatTime(job.start_time)` (`lib/utils.ts`) fait `new Date("09:00:00")` sur une colonne `time`, d'où `RangeError: Invalid time value` dans `job-detail-client.tsx`. Le bouton « Postuler » est donc inaccessible dans l'interface ; la route `/api/jobs/[id]/apply` fonctionne. | Oui pour le parcours candidat de bout en bout, mais ce n'est pas une régression du lot. À corriger dans un lot dédié (ou en correctif) avant de compter sur la candidature par l'interface. |
+| F-39 (P2) | Aucun `<Toaster />` n'est monté : les `toast()` (`hooks/use-toast`) ne s'affichent nulle part. Sur `app/company/jobs/[id]`, une sélection ou un rejet refusé par la base (candidature retirée entre-temps) ne donne aucun retour visible ; la liste n'est pas rechargée. | Non (lot 9, UX). |
+| F-40 (P3) | Onboarding : laisser la date de naissance vide envoie `date_of_birth: ""`, refusé par Postgres (22007). Le message affiché est générique : « Une erreur est survenue ». | Non (lot 9). Correctif d'une ligne : envoyer `undefined` comme pour `gender`. |
+| — | `/my-jobs` ne liste plus une candidature retirée et affiche « Vous n'avez pas encore postulé » s'il n'y en a pas d'autre. Le refus `profile_incomplete` reste en anglais (`alert`, message existant). Aucun écran n'appelle encore le retrait. | Non (lot 9). |
+
+### Mécanisme retenu
+
+Migration `supabase/migrations/20261031130000_lock_business_permissions.sql`, même principe qu'au lot 1. Elle n'est ni intégrée ni appliquée à un environnement partagé : elle a été complétée sur place, sans nouvelle migration. Règles de travail : `.github/instructions/database.instructions.md`, section « lot 2 ».
+
+1. **Privilèges de colonnes** (frontière principale, refus 42501) :
+   - `candidate_profiles` : `INSERT` et `UPDATE` limités aux colonnes ordinaires écrites par les flux existants (onboarding, `/api/profile/identity`, `/documents`, `/availability`). `cni_number` et `address` sont exclus. `momo_provider`, `momo_number` et `momo_account_name` le sont aussi : la déclaration MoMo passe uniquement par `candidate_update_momo` (F-35).
+   - `job_applications` : aucune écriture pour le candidat. L'entreprise garde `UPDATE (status, selected_at, selected_by, rejection_reason)`.
+   - `subscriptions` : `SELECT` seul pour `authenticated`, rien pour `anon`.
+   - `otp_codes` : aucun privilège pour `anon` ni `authenticated`.
+   - `TRUNCATE`, `REFERENCES` et `TRIGGER` sont retirés sur ces quatre tables. C'était un résidu du lot 1, traité ici pour ce périmètre seulement.
+2. **Triggers de défense en profondeur**, fondés sur `current_user`, jamais sur `easyjob.system_update` :
+   - `trg_protect_candidate_profile_columns` refuse toute modification hors liste. À la création, il refuse toute valeur protégée différente de son défaut, y compris les valeurs dérivées et la déclaration MoMo.
+   - `trg_protect_job_application_writes` refuse en session : INSERT et DELETE, toute colonne hors décision, toute écriture du candidat sur sa propre candidature, toute décision sur une candidature retirée, tout statut autre que `shortlisted`, `selected` ou `rejected`, et tout `selected_by` différent de l'appelant.
+3. **RLS** : suppression des policies d'écriture devenues sans objet. Il s'agit des policies INSERT et UPDATE du candidat sur `job_applications`, des policies INSERT et UPDATE de `subscriptions` et des trois policies de `otp_codes`. Les policies restantes ont un `WITH CHECK` explicite et visent `TO authenticated`.
+4. **Valeurs dérivées** :
+   - `profile_completion_pct` est toujours recalculé par `sync_candidate_profile_derived` (trigger BEFORE, à chaque écriture du profil, quel que soit l'auteur). Le calcul s'appuie sur `candidate_profile_completion_pct`, traduction SQL de `computeCandidateCriteria` ; toute modification des critères se fait dans les deux.
+   - Critère CNI : `cni_verified = 'verified'`, sinon les trois photos soumises. C'est la même règle que `recompute_user_verification` (« la certification, pas la présence des photos »). Une CNI `rejected` avec photos garde donc les points, comme avant.
+   - Table liée : l'ajout, le retrait ou le déplacement d'une compétence relance le calcul (`refresh_candidate_profile_completion`, `SECURITY DEFINER`, sans paramètre fourni par l'appelant). Le profil n'est réécrit que si la valeur change. Aucune autre table n'entre dans le calcul ; `momo_verified` et `cni_verified` sont des colonnes du profil.
+   - `onboarding_status`, pour une écriture candidat, ne passe à `completed` que si les règles de l'assistant sont réunies : prénom, nom, ville, au moins 2 compétences, opérateur et numéro MoMo, étape > 4. Sinon, il vaut `in_progress` et l'étape revient à 4.
+   - Un profil `completed` ou `rejected` ne change plus par écriture candidat. Les rôles de confiance gardent la valeur qu'ils écrivent.
+   - Aucune progression automatique de niveau n'a été ajoutée.
+5. **Candidature et retrait** par RPC `SECURITY DEFINER` : `search_path = ''`, propriétaire `postgres`, `EXECUTE` accordé à `authenticated` seulement, candidat déduit de `auth.uid()`.
+   - `apply_to_job(job_id)` reprend les règles de la route, dans le même ordre :
+     - profil existant ;
+     - onboarding terminé ;
+     - complétude ≥ 60 % ;
+     - compte actif ;
+     - `users.is_verified` ;
+     - offre existante et `active` (verrou `FOR SHARE`) ;
+     - niveau Sandbox ;
+     - places restantes ;
+     - documents exigés par l'offre, puis justificatifs de compétence (états `expired`, `pending`, `rejected` ou `missing`). L'expiration tombe à minuit UTC, comme `new Date('YYYY-MM-DD')`.
+   - La création passe par `INSERT … ON CONFLICT DO NOTHING` sur la contrainte unique existante : en cas de double soumission concurrente, la seconde reçoit `already_applied`.
+   - **Aucune place n'est consommée** : `positions_filled` ne change qu'à la sélection.
+   - `withdraw_job_application(job_id)` fait passer la candidature de `pending` à `withdrawn` sous `FOR UPDATE`. Un retrait répété renvoie la ligne sans la réécrire. Tout autre statut donne `application_not_withdrawable` ; une candidature absente donne `application_not_found`.
+   - **La recandidature après retrait est refusée** (`already_applied`), selon une règle explicite du SRS §6.6 : « Un candidat ne peut postuler qu'une seule fois à la même offre ».
+6. **Abonnements** : écriture par `service_role` uniquement, sans exception pour les grades admin. Aucun système de paiement n'a été ajouté.
+7. **`otp_codes`** : la table et ses données sont conservées. L'`EXECUTE` de `cleanup_expired_otp` est retiré et son `search_path` vaut `''`. Les OTP de Supabase Auth ne sont pas concernés.
+8. **Données vérifiées (F-35)**. Les règles existantes sont reprises telles quelles ; aucune nouvelle règle métier n'est ajoutée.
+   - **Verrou CNI** (`trg_protect_verified_candidate_data`, écritures candidat). Sur une CNI vérifiée, une modification de l'identité (prénom, nom, date de naissance) ou des photos CNI exige une demande admin `pending` couvrant le groupe (`identity` ou `cni_documents`). Sinon : refus `field_locked` (42501, groupes en DETAIL).
+     - Avec demande, dans la **même écriture** : la CNI repasse `pending`, le motif est effacé et les demandes couvrant le groupe sont clôturées en `done` (verrou `FOR UPDATE` sur les demandes). La clôture était auparavant faite par les routes, avant l'écriture et sans atomicité ; `completePendingRequests` est supprimée.
+     - Sans modification verrouillée, le statut et le motif d'une CNI vérifiée ne changent pas par écriture candidat. Cela ferme le chemin « rétrograder puis modifier librement ».
+     - Une CNI non vérifiée reste librement modifiable (règle existante).
+   - **MoMo** : seule `candidate_update_momo` (existante, inchangée) écrit la déclaration. Elle réinitialise les cinq colonnes de vérification dans le même `UPDATE`. L'écriture directe est refusée par les privilèges et par le trigger.
+     - La règle existante est conservée : la réinitialisation se fait à chaque déclaration, même pour un simple changement du nom de compte, que l'admin confronte au nom CNI.
+     - L'onboarding passe désormais par la route `/api/profile/payment` (Zod serveur et RPC), seulement si la déclaration a changé.
+   - **Synthèse `users.is_verified`** (`trg_sync_user_verification_from_profile`, AFTER UPDATE, tout auteur). Tout changement de `cni_verified`, `momo_verified`, prénom, nom ou date de naissance relance `recompute_user_verification` dans la même transaction.
+     - Le GUC `easyjob.system_update`, remis à `off` par cette fonction, est restauré pour ne pas couper une RPC appelante (`moderate_cni`, `apply_momo_verification`…).
+     - Une notification « Profil vérifié » n'est émise qu'au passage de faux à vrai, une seule fois par transaction (mécanisme existant).
+   - **Corrections d'administration préservées** : `admin_edit_candidate_identity` (`admin_founder`), `moderate_cni`, `apply_momo_verification` et la purge des photos (`service_role`) s'exécutent en propriétaire. Elles écrivent comme avant, avec leur `audit_logs`. La création des demandes de mise à jour reste réservée à `admin_ops` et `admin_founder`.
+
+Côté application :
+- `app/api/jobs/[id]/apply/route.ts` valide l'identifiant avec Zod, appelle les RPC et traduit leurs codes en réponses HTTP inchangées (statuts, messages et `code` existants). `DELETE` renvoie désormais 404 ou 409 au lieu d'un faux succès, et vérifie que la ligne est réellement `withdrawn`.
+- `lib/matching/skill-document-requirements.ts` ne fait plus que traduire le détail `document_requirement` en messages, identiques aux précédents (test unitaire `tests/document-requirement-message.test.ts`).
+- `/api/profile/identity` et `/api/profile/documents` gardent leur contrôle préalable (403 `field_locked` avant toute écriture). Elles ne clôturent plus les demandes elles-mêmes, et traduisent un refus `field_locked` de la base, en cas de course, en 403. `documents` supprime alors le fichier téléversé.
+- L'onboarding candidat n'écrit plus `onboarding_status` ni la déclaration MoMo. Il vérifie le statut persisté avant de quitter l'assistant (message i18n `errors.onboardingIncomplete`) et signale l'échec d'insertion des compétences.
+- `computeCandidateCriteria` applique le même critère CNI que le SQL. `/auth/login` lit `cni_verified` pour son calcul de repli.
+
+### Recalcul à l'application de la migration
+
+Ce qui se produit réellement, d'après la migration et sa relecture sur la pile dédiée :
+
+- Une seule instruction `UPDATE` recalcule `profile_completion_pct` avec les règles finales, **uniquement pour les profils dont la valeur stockée diffère** (`WHERE … IS DISTINCT FROM …`). Les profils déjà corrects ne sont pas réécrits.
+- Pour chaque ligne réécrite :
+  - `updated_at` prend l'heure de la migration (`on_candidate_profiles_updated`) ;
+  - les triggers de protection s'exécutent en propriétaire et ne modifient rien ;
+  - `onboarding_status` n'est pas touché (dérivation réservée aux écritures candidat) ;
+  - aucune colonne surveillée par la synthèse `is_verified` n'est écrite : `users.is_verified` et les notifications ne bougent pas.
+- **Realtime** : d'après les migrations du dépôt, `candidate_profiles` n'est pas dans la publication `supabase_realtime`, qui ne contient que `missions` et `job_applications`. La publication locale le confirme. Aucun événement n'est donc attendu, sauf si la table a été ajoutée hors dépôt. À vérifier en lecture seule avant le déploiement : `select tablename from pg_publication_tables where pubname = 'supabase_realtime';`. L'affirmation de la première version de ce suivi (« émet des événements Realtime ») était erronée.
+- Aucune protection n'est désactivée pendant le recalcul : ni `session_replication_role`, ni `DISABLE TRIGGER`.
+- Les valeurs suspectes existantes ne sont **pas** corrigées :
+  - `is_verified` resté `true` après un changement MoMo ou CNI antérieur ;
+  - `momo_verified` conservé après un changement de numéro ;
+  - identité modifiée sur une CNI vérifiée ;
+  - `sandbox_level`, `premium_until`…
+
+  Leur origine n'est pas prouvée. Le lot 0 doit les rechercher en lecture seule (H-01, H-02). Exemple : profils `momo_verified = true` dont `momo_verified_at` est antérieur au dernier `updated_at`, à croiser avec `audit_logs`.
+- Effet métier : le seuil de 60 % devient réellement appliqué (F-34). Les candidats sous 60 % sont refusés avec le message existant. Le nombre de profils réécrits n'est pas connu sans accès à la production ; il peut se compter en lecture seule après application sur une copie.
+
+### Contrôles exécutés
+
+Pile dédiée `easyjob-proof` (API sur le port 54421), selon la procédure de `docs/testing/local-proofs.md`. Les migrations ont été rejouées par `supabase db reset --workdir`. `next dev -p 3100` a été lancé avec `NEXT_PUBLIC_SUPABASE_URL = http://127.0.0.1:54421`, valeur contrôlée avant le lancement. Les preuves E1 et H, ainsi que le parcours navigateur, relisent en base les écritures faites par l'application.
+
+| Commande | Résultat |
+|---|---|
+| Contrôle négatif : `proof-business-permissions --skip-route` sans la migration | ✅ 68 FAIL / 75 : failles confirmées |
+| Contrôle négatif de la finalisation (sections F et G, migration non finalisée) | ✅ 21 FAIL / 120 : contournements F-35 et perte des points CNI confirmés ; chemins admin (F6, F7) et CNI non vérifiée (F8) déjà corrects |
+| `proof-business-permissions` (A à H, routes incluses) | ✅ 135/135 |
+| Contrôle « grants régressés » sur la pile jetable : `GRANT ALL` rouvert sur `candidate_profiles`, `job_applications` et `subscriptions` | ✅ 120/120 (A à D, F, G) : les triggers tiennent seuls. Pile réinitialisée ensuite. |
+| Preuves directement concernées : account-security 36/36, admin-candidate-profile 11/11, admin-centralization 24/24, admin-momo-review 7/7, admin-t84c-reviews 19/19, admin-update-requests 38/38, profile-documents 12/12, profile-lock 9/9, profile-momo 11/11 | ✅ aucune régression |
+| `proof-admin-cni` | ⚠️ 15/24, mêmes 9 échecs qu'avant le lot (F-33) |
+| `proof-essentials-gate` | ⛔ Échec préexistant (F-33), non rejoué : la fixture manque et la preuve attend `essentials_incomplete`, remplacé par `profile_not_verified` depuis T8.3. Couvert par B3, E7 et le parcours navigateur 3d. |
+| `supabase gen types --schema public` (CLI 2.117.0) depuis la pile dédiée | ✅ identique à `lib/database.types.ts` (les nouvelles fonctions de trigger ne sont pas exposées) |
+| `vitest run` | ✅ 10 fichiers, 194 tests (dont les cas CNI et de seuil de `tests/profile-completion.test.ts`) |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier` sur les fichiers modifiés | ✅ |
+| `pnpm build` sur l'état final (variables locales factices pointant vers `127.0.0.1`, télémétrie désactivée) | ✅ compilation et 69 pages générées ; aucun fichier suivi modifié |
+
+Nouvelles sections de la preuve :
+- **F** : PATCH directs refusés sur identité, photos et statut CNI vérifiés et sur la déclaration MoMo, avec valeurs et `is_verified` inchangés. Elle couvre aussi :
+  - l'atomicité (une écriture refusée ne consomme pas la demande) ;
+  - le déverrouillage par demande `identity` ou `cni_documents`, et le refus d'un groupe non couvert ;
+  - `candidate_update_momo` (réinitialisation et `is_verified` à faux) ;
+  - `apply_momo_verification`, avec audit et `is_verified` à vrai ;
+  - `admin_edit_candidate_identity`, avec audit ;
+  - la CNI non vérifiée, librement modifiable.
+- **G** : complétude, comparée à la base et au TypeScript.
+  - Photos avant approbation, puis approbation par `moderate_cni` et purge des photos : les points restent.
+  - CNI `pending` sans photos : pas de points. CNI `rejected` avec photos : points accordés.
+  - Passage de vérifiée à `pending` : −15 points.
+  - Seuil via `apply_to_job` : refus à 55 %, candidature créée à 60 %.
+  - Table liée : une compétence sans effet ne réécrit pas le profil ; le retrait de toutes les compétences relance le calcul.
+- **H** : routes `/api/profile/identity` (403 puis 200 après une demande créée par la route admin), `/api/profile/payment` et `/api/profile/documents` (téléversement réel dans le stockage local).
+
+### Vérification navigateur
+
+Chrome 64 bits local, piloté en mode headless par `playwright-core` 1.62.1 (déjà présent en cache, rien téléchargé). Fenêtre mobile 390 × 844. Application reliée à la pile dédiée. Script et captures hors dépôt. Résultat : **15 contrôles sur 15**.
+
+Portée de ce résultat : l'onboarding, l'affichage de la complétude et l'écran entreprise sont vérifiés dans l'interface. Pour la candidature et le retrait, ce sont les **routes** qui sont vérifiées, appelées depuis la session du navigateur. Le parcours de candidature **par l'interface reste bloqué par F-38** : ces 15 contrôles ne valident pas ce parcours.
+
+| Parcours | Résultat |
+|---|---|
+| Onboarding : étapes 1 et 2 enregistrées, rechargement, reprise à l'étape 3, compétences, MoMo et fin d'onboarding | ✅ `completed`, MoMo enregistré via la route et non vérifié |
+| Complétude affichée sur `/profile/candidate` | ✅ 45 % (nouveau candidat) et 65 % (CNI vérifiée, photos purgées, critère CNI coché) : égal à la base |
+| Candidature autorisée et refus | ⚠️ La page `/jobs/[id]` plante (F-38, préexistant). L'appel exact du bouton (`POST /api/jobs/[id]/apply`) est exécuté dans la session du navigateur : 200 et ligne `pending` à 65 % ; refus `profile_incomplete` à 50 % et 45 % ; 403 `profile_not_verified` avec la liste `missing` à 60 % sans MoMo vérifié. **L'interface de candidature elle-même n'est pas validée.** |
+| Retrait | ✅ `DELETE` depuis la session du navigateur : 200 et ligne `withdrawn`. Aucun bouton de retrait n'existe dans l'interface. |
+| Entreprise `app/company/jobs/[id]` | ✅ Rejet sur un écran resté ouvert après le retrait : PATCH refusé par la base, ligne toujours `withdrawn`, mais aucun message visible (F-39). Après rechargement, plus d'action sur la candidature retirée. Sélection légitime : `selected`, `selected_by` = l'entreprise. Les noms des candidats s'affichent « ? » (RLS, comportement existant). |
+
+### Non exécuté
+
+- Aucun test sur la production ni sur un environnement distant.
+- Interface du bouton « Postuler » : bloquée par F-38.
+- `proof-essentials-gate` et les preuves sans lien avec les fichiers modifiés (jobs-rls-select, license-gate, profile-location, profile-skills) n'ont pas été rejouées lors de la finalisation. Elles passaient lors de la première validation du lot ; les tables qu'elles touchent n'ont pas changé depuis.
+
+### Risques résiduels et points ouverts
+
+- **H-01 / H-02** : la migration ne corrige pas les falsifications passées éventuelles (`sandbox_level`, `premium_until`, `driving_license_verified`, `reliability_score`, abonnements à prix 0, candidatures `selected` auto-attribuées, `onboarding_status` forcé, identité ou MoMo modifiés après vérification, `is_verified` resté vrai). Les requêtes de comptage en lecture seule restent à faire au lot 0.
+- **Seuil de 60 %** désormais effectif (F-34) : à annoncer.
+- **Identité et MoMo** : une modification d'identité sur demande admin repasse la CNI en revue, mais garde la vérification MoMo, comme avant (aucune règle ne les lie). `is_verified` tombe malgré tout, puisque la CNI n'est plus vérifiée. Règle conservée sans changement à la clôture du lot (2026-10-31).
+- **Changement de numéro de téléphone** (`users.phone`, lot 1) : il ne relance pas `recompute_user_verification`. Comportement inchangé.
+- L'ordre des refus est conservé : un compte suspendu dont le profil est sous 60 % reçoit `profile_incomplete`, pas `account_suspended`.
+- Les autres fonctions `SECURITY DEFINER` gardent `search_path = public`. Seules les nouvelles fonctions et `cleanup_expired_otp` utilisent `''`.
+- `TRUNCATE`, `REFERENCES` et `TRIGGER` restent accordés sur les tables hors périmètre (lot 4).
+- La sélection reste non atomique (places, mission, contrat) : lot 7.
+
+### Avant déploiement
+
+Revue, puis PR vers `main-dev` : la CI `test-migrations` applique la migration et compare les types. Ensuite, en lecture seule et avant la production :
+- exécuter le lot 0 ;
+- vérifier la publication Realtime ;
+- traiter F-38, F-39 et F-40 dans un prochain lot dédié (hors lot 2).

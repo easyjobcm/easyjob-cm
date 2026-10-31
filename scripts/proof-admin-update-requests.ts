@@ -28,9 +28,9 @@
  *     - sur `done` → 200 ; `admin_support` → 403 ; inconnu → 404.
  *
  * Méthode : sessions RÉELLES (@supabase/ssr signInWithPassword), statut
- * `done` posé via service_role (le serveur le pose via
- * `completePendingRequests` — la preuve n'a pas d'API candidat à ce
- * stade), nettoyage complet en fin de course.
+ * `done` posé via service_role (la base le pose dans l'écriture du
+ * candidat, trigger `trg_protect_verified_candidate_data`, prouvé par
+ * proof-business-permissions), nettoyage complet en fin de course.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
@@ -197,8 +197,8 @@ async function mkAcct(
 }
 
 /** Demande T2 « as if the candidate had executed it » : clôturée en done.
- *  Le serveur le fait via `completePendingRequests` (routes candidat) ;
- *  la preuve n'a pas de flux candidat à ce stade → simulation service_role.
+ *  La base le fait dans l'écriture du candidat (trigger
+ *  `trg_protect_verified_candidate_data`) ; simulation service_role ici.
  *  (L'invariant « l'admin ne pose jamais le done » est prouvé ailleurs :
  *  PATCH ne sait que `cancelled`.) */
 async function createDoneRequest(

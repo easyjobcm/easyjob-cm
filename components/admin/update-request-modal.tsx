@@ -9,8 +9,8 @@
  * créant une demande `profile_update_requests` (`status='pending'`, groupe
  * `identity` et/ou `cni_documents`, motif ≥ 5) ; le candidat la reçoit en
  * Tâche + notification puis EXECUTE la mise à jour via sa page edit
- * existante — la demande se clôture automatiquement en `done` côté serveur
- * (`completePendingRequests`).
+ * existante — la demande se clôture automatiquement en `done` côté base
+ * (trigger `trg_protect_verified_candidate_data`).
  *
  * Recherche de candidat : SWR sur `GET /api/admin/candidates?q=` (lecture
  * service_role existante T8.4a). Dans le contexte « profil candidat »,

@@ -1,6 +1,8 @@
 /**
- * Logique serveur du verrou de profil (SRS §5.1) : lit/clôture les demandes
- * de mise à jour admin (`profile_update_requests`). Séparé de `profile-lock.ts`
+ * Logique serveur du verrou de profil (SRS §5.1) : lit les demandes de mise
+ * à jour admin (`profile_update_requests`). Leur clôture en `done` est faite
+ * par la base, dans l'écriture du candidat
+ * (`trg_protect_verified_candidate_data`). Séparé de `profile-lock.ts`
  * (fonctions pures, testables en unité) car ça requiert un client Supabase.
  *
  * RLS source de vérité : le client serveur se connecte avec la session du
@@ -39,35 +41,4 @@ export async function pendingRequestedGroups(
     }
   }
   return [...groups];
-}
-
-/**
- * Clôture les demandes `pending` du candidat qui couvraient au moins un des
- * groupes effectivement (ré)soumis — appelé dès que le candidat exécute la
- * mise à jour demandée. N'achève PAS une ligne qui ne contient aucun de ces
- * groupes (ex. demande "cni_documents" alors que le candidat n'a touché
- * que son identité). Idempotent.
- */
-export async function completePendingRequests(
-  supabase: CandidateClient,
-  candidateId: string,
-  touchedGroups: ProfileLockGroup[],
-): Promise<void> {
-  const groups = touchedGroups.filter((g) => PROFILE_LOCK_GROUPS.includes(g));
-  if (groups.length === 0) return;
-  const now = new Date().toISOString();
-  await Promise.all(
-    groups.map((g) =>
-      // `.contains()` sérialise l'opérateur PostgREST `cs` correctement sur la
-      // colonne text[] `fields` (≠ `.filter("fields","cs",[g])` : `.filter`
-      // attend une chaîne raw PostgREST, pas un array JS). Une ligne est
-      // clôturée si `fields` contient le groupe effectivement (ré)soumis.
-      supabase
-        .from("profile_update_requests")
-        .update({ status: "done", completed_at: now })
-        .eq("candidate_id", candidateId)
-        .eq("status", "pending")
-        .contains("fields", [g]),
-    ),
-  );
 }

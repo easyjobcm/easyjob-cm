@@ -125,6 +125,14 @@ export function OnboardingClient({
     momo_account_name: profile?.momo_account_name || "",
   });
 
+  // Dernière déclaration MoMo enregistrée : un nouvel envoi réinitialise la
+  // vérification, on ne renvoie donc que des valeurs modifiées.
+  const savedMomo = React.useRef({
+    momo_provider: formData.momo_provider,
+    momo_number: formData.momo_number,
+    momo_account_name: formData.momo_account_name.trim() || undefined,
+  });
+
   const updateFormData = <K extends keyof typeof formData>(
     field: K,
     value: (typeof formData)[K],
@@ -198,7 +206,13 @@ export function OnboardingClient({
     setError("");
 
     try {
-      const { skills: _skills, ...profileFields } = formData;
+      const {
+        skills: _skills,
+        momo_provider,
+        momo_number,
+        momo_account_name,
+        ...profileFields
+      } = formData;
       // T5 : l'onboarding écrit candidate_profiles directement (pas de route
       // API) — garde-bouche équivalent au serveur : les coordonnées doivent
       // être absentes, ou complètes + dans les bornes géographiques.
@@ -217,15 +231,21 @@ export function OnboardingClient({
       ) {
         throw new Error(t.profile.geolocation.geoOutOfZone);
       }
-      // T6 : garde-bouche Mobile Money — même schema que la route API
-      // (l'onboarding écrit candidate_profiles directement, sans route).
-      // Numéro absent = champ ignoré ; le nom du compte est optionnel.
-      if (formData.momo_number) {
-        const momoGuard = paymentSchema.safeParse({
-          momo_provider: formData.momo_provider,
-          momo_number: formData.momo_number,
-          momo_account_name: formData.momo_account_name.trim() || undefined,
-        });
+      // T6 : Mobile Money — la déclaration passe par la route
+      // /api/profile/payment (Zod serveur + RPC candidate_update_momo, qui
+      // réinitialise la vérification) : l'écriture directe est refusée par la
+      // base (F-35). Envoyée avant la mise à jour du profil, car la fin
+      // d'onboarding exige un numéro enregistré. Numéro absent = ignoré ; le
+      // nom du compte est optionnel.
+      const momoInput = {
+        momo_provider,
+        momo_number,
+        momo_account_name: momo_account_name.trim() || undefined,
+      };
+      const momoChanged =
+        JSON.stringify(momoInput) !== JSON.stringify(savedMomo.current);
+      if (momo_number && momoChanged) {
+        const momoGuard = paymentSchema.safeParse(momoInput);
         if (!momoGuard.success) {
           const key = momoGuard.error.issues[0]?.message ?? "";
           const momoErrors: Record<string, string> = {
@@ -236,19 +256,28 @@ export function OnboardingClient({
           };
           throw new Error(momoErrors[key] ?? key);
         }
+        const res = await fetch("/api/profile/payment", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(momoGuard.data),
+        });
+        if (!res.ok) throw new Error(t.profile.paymentPage.error);
+        savedMomo.current = momoInput;
       }
-      const { error: updateError } = await supabase
+      // onboarding_status est dérivé en base (trigger
+      // sync_candidate_profile_derived) : l'étape 5 ne vaut « completed »
+      // que si les conditions de l'assistant sont réunies.
+      const { data: saved, error: updateError } = await supabase
         .from("candidate_profiles")
         .update({
           ...profileFields,
           // omit empty string for enum column
           gender: profileFields.gender || undefined,
-          // nom de compte optionnel : null plutôt que chaîne vide.
-          momo_account_name: profileFields.momo_account_name?.trim() || null,
           onboarding_step: nextStep,
-          onboarding_status: nextStep > 4 ? "completed" : "in_progress",
         })
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("onboarding_status")
+        .single();
 
       if (updateError) throw updateError;
 
@@ -273,7 +302,14 @@ export function OnboardingClient({
           skill_level: 3,
         }));
 
-        await supabase.from("candidate_skills").insert(skillsToInsert);
+        const { error: skillsError } = await supabase
+          .from("candidate_skills")
+          .insert(skillsToInsert);
+        if (skillsError) throw skillsError;
+      }
+
+      if (nextStep > 4 && saved.onboarding_status !== "completed") {
+        throw new Error(t.errors.onboardingIncomplete);
       }
 
       if (nextStep > 4) {

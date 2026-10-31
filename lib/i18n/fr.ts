@@ -1456,6 +1456,8 @@ export const fr = {
     unauthorized: "Session expirée. Veuillez vous reconnecter.",
     notFound: "Page non trouvée",
     serverError: "Erreur serveur. Veuillez réessayer plus tard.",
+    onboardingIncomplete:
+      "Votre profil n'a pas pu être finalisé : vérifiez vos informations, vos compétences (au moins 2) et votre compte Mobile Money.",
   },
 
   // Success messages

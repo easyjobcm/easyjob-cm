@@ -6,10 +6,7 @@ import {
   lockedGroupsForCni,
   lockGroupForField,
 } from "@/lib/utils/profile-lock";
-import {
-  completePendingRequests,
-  pendingRequestedGroups,
-} from "@/lib/utils/profile-lock-server";
+import { pendingRequestedGroups } from "@/lib/utils/profile-lock-server";
 
 const BUCKET = "candidate-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -146,9 +143,8 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
-    if (lock.unlockedByRequests.length > 0) {
-      await completePendingRequests(supabase, candidateId, [group]);
-    }
+    // Avec demande : la base clôture la demande et repasse le CNI en
+    // `pending` dans l'écriture du chemin (trg_protect_verified_candidate_data).
   }
 
   const buffer = new Uint8Array(await file.arrayBuffer());
@@ -185,6 +181,17 @@ export async function POST(request: NextRequest) {
   if (updateError) {
     // Nettoyage du fichier orphelin si l'écriture DB échoue.
     await supabase.storage.from(BUCKET).remove([path]);
+    // Demande clôturée entre la lecture et l'écriture : refus de la base.
+    if (updateError.message === "field_locked") {
+      return NextResponse.json(
+        {
+          error: "Field locked",
+          code: "field_locked",
+          lockedGroups: ["cni_documents"],
+        },
+        { status: 403 },
+      );
+    }
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }
 

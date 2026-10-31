@@ -768,8 +768,9 @@ T8.5 livre la surface admin qui manque :
   *Mises à jour de profil* : liste `?candidate_id=<profile_id>` + modal
   **épinglé** au candidat affiché). Le `POST` (existant depuis T2) crée la
   ligne `pending` + audit `request_profile_update` + notification au candidat.
-- La clôture en `done` reste automatique et côté serveur
-  (`completePendingRequests` sur PUT identity / POST documents) — l'admin ne
+- La clôture en `done` reste automatique et côté base (trigger
+  `trg_protect_verified_candidate_data`, dans l'écriture de PUT identity /
+  POST documents) — l'admin ne
   pose jamais le statut `done` ; aucun item de navigation basse (accès via
   le dashboard + le profil candidat, §6.12).
 

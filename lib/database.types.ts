@@ -2114,6 +2114,42 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_to_job: {
+        Args: { p_job_id: string }
+        Returns: {
+          ai_score: number | null
+          candidate_id: string
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          contract_url: string | null
+          created_at: string | null
+          distance_km: number | null
+          has_worked_here_before: boolean
+          id: string
+          is_direct_invite: boolean | null
+          job_id: string
+          match_score: number | null
+          previous_rating: number | null
+          rejection_reason: string | null
+          selected_at: string | null
+          selected_by: string | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      candidate_profile_completion_pct: {
+        Args: {
+          p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
+          p_skill_count: number
+        }
+        Returns: number
+      }
       candidate_update_cni: {
         Args: {
           p_back_url: string
@@ -2167,6 +2203,35 @@ export type Database = {
       skill_requires_license: {
         Args: { p_skill_name: string }
         Returns: string
+      }
+      withdraw_job_application: {
+        Args: { p_job_id: string }
+        Returns: {
+          ai_score: number | null
+          candidate_id: string
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          contract_url: string | null
+          created_at: string | null
+          distance_km: number | null
+          has_worked_here_before: boolean
+          id: string
+          is_direct_invite: boolean | null
+          job_id: string
+          match_score: number | null
+          previous_rating: number | null
+          rejection_reason: string | null
+          selected_at: string | null
+          selected_by: string | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "job_applications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

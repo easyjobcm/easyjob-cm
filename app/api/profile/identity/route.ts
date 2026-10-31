@@ -6,10 +6,7 @@ import {
   evaluateProfileLock,
   lockedGroupsForCni,
 } from "@/lib/utils/profile-lock";
-import {
-  completePendingRequests,
-  pendingRequestedGroups,
-} from "@/lib/utils/profile-lock-server";
+import { pendingRequestedGroups } from "@/lib/utils/profile-lock-server";
 
 /**
  * Le nom/prénom sert à la vérification CNI (SRS §11.5 : le nom du document
@@ -23,6 +20,10 @@ import {
  * (`profile_update_requests` en statut `pending` couvrant le groupe).
  * Sans demande, `403 field_locked`. Avec demande, le champ est déverrouillé,
  * le CNI repasse `pending` et la demande est clôturée en `done`.
+ *
+ * La règle est appliquée par la base (trigger
+ * `trg_protect_verified_candidate_data`, F-35) : la vérification ci-dessous
+ * ne sert qu'à répondre 403 avant toute écriture.
  */
 export async function PUT(request: NextRequest) {
   const supabase = await createClient();
@@ -109,17 +110,9 @@ export async function PUT(request: NextRequest) {
       current.last_name !== parsed.data.last_name ||
       current.date_of_birth !== parsed.data.date_of_birth);
 
-  // Les groupes déverrouillés par des demandes admin pending sont clôturés
-  // en `done` — le candidat exécute la mise à jour demandée (seules les
-  // lignes couvrant un groupe effectivement touché sont clôturées).
-  if (lock.unlockedByRequests.length > 0) {
-    await completePendingRequests(
-      supabase,
-      current.id,
-      lock.unlockedByRequests,
-    );
-  }
-
+  // La base applique la même règle dans l'écriture ci-dessous
+  // (trg_protect_verified_candidate_data) : repasse en `pending` et clôture
+  // en `done` les demandes couvrant le groupe touché, atomiquement.
   const { error: updateError } = await supabase
     .from("candidate_profiles")
     .update({
@@ -141,6 +134,17 @@ export async function PUT(request: NextRequest) {
     })
     .eq("user_id", user.id);
 
+  // Demande clôturée entre la lecture et l'écriture : refus de la base.
+  if (updateError?.message === "field_locked") {
+    return NextResponse.json(
+      {
+        error: "Field locked",
+        code: "field_locked",
+        lockedGroups: ["identity"],
+      },
+      { status: 403 },
+    );
+  }
   if (updateError) {
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }

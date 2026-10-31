@@ -162,3 +162,63 @@ describe("computeCandidateCriteria (pondération profil)", () => {
     expect(computeCompletion(computeCandidateCriteria(profile, 2))).toBe(75);
   });
 });
+
+describe("computeCandidateCriteria — critère CNI (miroir SQL candidate_profile_completion_pct)", () => {
+  const cniDone = (profile: CandidateProfileForCompletion) =>
+    computeCandidateCriteria(profile, 0).find((c) => c.key === "cni")?.done;
+  const photos = {
+    cni_front_url: "f",
+    cni_back_url: "b",
+    cni_selfie_url: "s",
+  };
+
+  it.each([
+    [
+      "photos soumises, avant approbation",
+      { ...photos, cni_verified: "pending" },
+      true,
+    ],
+    ["CNI vérifiée avec photos", { ...photos, cni_verified: "verified" }, true],
+    ["CNI vérifiée, photos purgées (T8.4)", { cni_verified: "verified" }, true],
+    ["CNI pending sans photos", { cni_verified: "pending" }, false],
+    [
+      "CNI refusée avec photos (critère documentaire)",
+      { ...photos, cni_verified: "rejected" },
+      true,
+    ],
+    ["CNI refusée sans photos", { cni_verified: "rejected" }, false],
+    ["deux photos sur trois", { cni_front_url: "f", cni_back_url: "b" }, false],
+  ] as const)("%s → %s", (_label, profile, expected) => {
+    expect(cniDone(profile)).toBe(expected);
+  });
+
+  // Seuil de candidature (60 %), CNI vérifiée sans photos.
+  const base: CandidateProfileForCompletion = {
+    first_name: "Aïcha",
+    last_name: "Mbarga",
+    date_of_birth: "1998-04-12",
+    city: "Douala",
+    cni_verified: "verified",
+  };
+  it("55 % juste sous le seuil", () => {
+    expect(
+      computeCompletion(
+        computeCandidateCriteria({ ...base, momo_verified: true }, 2),
+      ),
+    ).toBe(55);
+  });
+  it("60 % au seuil", () => {
+    expect(
+      computeCompletion(
+        computeCandidateCriteria({ ...base, max_travel_distance_km: 10 }, 2),
+      ),
+    ).toBe(60);
+  });
+  it("vérifiée → pending après purge : −15 points", () => {
+    const verified = computeCompletion(computeCandidateCriteria(base, 2));
+    const pending = computeCompletion(
+      computeCandidateCriteria({ ...base, cni_verified: "pending" }, 2),
+    );
+    expect(verified - pending).toBe(15);
+  });
+});

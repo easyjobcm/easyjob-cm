@@ -118,13 +118,18 @@ export function computeCandidateCriteria(
       done: !!(profile.latitude && profile.longitude),
     },
     {
+      // CNI vérifiée (les photos sont supprimées après approbation, T8.4),
+      // sinon les trois photos soumises. Même règle en SQL :
+      // candidate_profile_completion_pct.
       key: "cni",
       weight: 15,
-      done: !!(
-        profile.cni_front_url &&
-        profile.cni_back_url &&
-        profile.cni_selfie_url
-      ),
+      done:
+        profile.cni_verified === "verified" ||
+        !!(
+          profile.cni_front_url &&
+          profile.cni_back_url &&
+          profile.cni_selfie_url
+        ),
     },
     {
       key: "momo",

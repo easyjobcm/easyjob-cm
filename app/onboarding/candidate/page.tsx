@@ -32,13 +32,13 @@ export default async function CandidateOnboardingPage() {
     .eq("user_id", user.id)
     .single();
 
-  // If profile doesn't exist, create it
+  // If profile doesn't exist, create it (onboarding_status est posé à
+  // in_progress par la base pour une création en session).
   if (!profile) {
     const { data: newProfile } = await supabase
       .from("candidate_profiles")
       .insert({
         user_id: user.id,
-        onboarding_status: "in_progress",
         onboarding_step: 1,
       })
       .select()

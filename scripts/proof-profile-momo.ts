@@ -19,7 +19,7 @@
  *     vérification (verified=false, nom match=false, by/at=null,
  *     motif=null).
  *  B. Guard du trigger : le candidat qui force lui-même
- *     `momo_verified=true` / `momo_reject_reason='x'` est rétabli.
+ *     `momo_verified=true` / `momo_reject_reason='x'` est refusé (42501, lot 2), valeurs inchangées.
  *  E. Revue admin (flux manuel sans preuve OTP) :
  *     - approve avec numéro → 200 + `momo_verified=true` + `verified_by`
  *       = l'admin RÉEL + `verified_at` + notification `momo_status` +
@@ -363,20 +363,23 @@ async function main() {
       profA,
     );
 
-    // ── B. Guard du trigger (protection des 5 colonnes) ───────────
+    // ── B. Guard (protection des 5 colonnes) ─────────────────────
     // Le candidat ne peut ni se marquer `momo_verified=true` ni écrire
-    // `momo_reject_reason` : le trigger BEFORE UPDATE rétablit l'ancienne
-    // valeur si `easyjob.system_update` n'est pas `on`.
+    // `momo_reject_reason`. Depuis le lot 2 (20261031130000), ces colonnes
+    // sont hors du GRANT UPDATE de `authenticated` : l'écriture est refusée
+    // explicitement (42501) avant même trg_protect_momo_verification.
     const { error: directErr } = await clientP
       .from("candidate_profiles")
       .update({ momo_verified: true, momo_reject_reason: "x" })
       .eq("id", candP.profileId as string);
-    if (directErr) throw new Error(`update direct : ${directErr.message}`);
     const profB = await readProfile(candP.profileId as string);
     report(
-      "B1 : candidat qui force lui-même momo_verified=true / momo_reject_reason='x' → RÉTABLI (false / null)",
-      profB?.momo_verified === false && profB?.momo_reject_reason === null,
+      "B1 : candidat qui force lui-même momo_verified=true / momo_reject_reason='x' → REFUSÉ (42501), valeurs inchangées (false / null)",
+      directErr?.code === "42501" &&
+        profB?.momo_verified === false &&
+        profB?.momo_reject_reason === null,
       {
+        error: directErr?.code,
         momo_verified: profB?.momo_verified,
         momo_reject_reason: profB?.momo_reject_reason,
       },

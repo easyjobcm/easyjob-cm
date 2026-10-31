@@ -7,7 +7,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 |---|---|---|---|---|
 | 0 | Vérification production (lecture seule) | H-01, H-02, H-03 | Diagnostic | Petit |
 | 1 | Verrouiller les rôles et les comptes — **corrigé et vérifié localement, non déployé** | F-01, F-02, F-03 | Sécurité | Petit |
-| 2 | Verrouiller les colonnes et tables porteuses de droits | F-04, F-05, F-06, F-11, F-17 | Sécurité | Moyen |
+| 2 | Verrouiller les colonnes et tables porteuses de droits — **corrigé et vérifié localement, non déployé** | F-04, F-05, F-06, F-11, F-17 | Sécurité | Moyen |
 | 3 | Mettre à jour les dépendances vulnérables | F-08, F-24 | Sécurité | Petit |
 | 4 | Tests RLS négatifs en CI et durcissement CI/CD | F-20, F-21 | Qualité | Moyen |
 | 5 | Typer les clients Supabase | F-14 | Refactoring ciblé | Moyen |
@@ -63,6 +63,19 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Après déploiement** : si le lot 0 révèle des comptes élevés illégitimement, corriger leurs rôles (hors de ce lot, avec trace dans `audit_logs`).
 
 ## Lot 2 — Verrouiller les colonnes et tables porteuses de droits (P1)
+
+> **Statut (2026-10-31)** : réalisé et finalisé sur la branche `fix/lot-02-business-permissions` (base `origin/main-dev`, faf91fc), **corrigé localement, non commité, non déployé**. F-34 (complétude, critère CNI) et F-35 (verrou d'identité et MoMo, `is_verified`) sont inclus. Détails, preuves, comportement du recalcul et risques résiduels : `AUDIT.md` §10.
+> Écarts par rapport au périmètre ci-dessous :
+> - Privilèges de colonnes comme frontière principale, comme au lot 1, avec des triggers sur `current_user` en défense en profondeur.
+> - La complétude est calculée en base pour toutes les écritures, par traduction SQL de `computeCandidateCriteria`. Ce n'est pas une RPC appelée par le client.
+> - `otp_codes` est conservée (accès révoqués) : son état distant est inconnu.
+> - Recandidature après retrait refusée (SRS §6.6).
+>
+> **Avant déploiement** :
+> 1. Revue, puis PR vers `main-dev`.
+> 2. Lot 0, en lecture seule : rechercher les valeurs déjà falsifiées (H-01, H-02), et vérifier que `candidate_profiles` est absente de la publication Realtime.
+> 3. Prévenir que le seuil de 60 % devient effectif (F-34).
+> 4. F-38, F-39 et F-40 (défauts préexistants) sont réservés à un prochain lot dédié. Le point bloquant est F-38 : la page `/jobs/[id]` plante pour toute offre. Les routes de candidature sont vérifiées, mais le parcours par l'interface reste bloqué.
 
 - **Objectif** : les contrôles métier ne peuvent plus être contournés par PostgREST.
 - **IDs** : F-04, F-05, F-06, F-11, F-17.

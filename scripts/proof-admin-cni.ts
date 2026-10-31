@@ -212,6 +212,9 @@ async function createProofUser(
         momo_provider: "mtn",
         momo_number: "+237690111222",
         momo_account_name: "Cni T83",
+        bio: "Candidat de preuve T8.3.",
+        latitude: 4.05,
+        longitude: 9.77,
         cni_front_url:
           withFullCni && storagePaths.length > 0 ? storagePaths[0] : null,
         cni_back_url: withFullCni ? storagePaths[1] : null,
@@ -229,6 +232,13 @@ async function createProofUser(
     if (profileErr || !profile) {
       throw new Error(`profile insert: ${profileErr?.message}`);
     }
+    // Complétude calculée par la base (lot 2) : une compétence porte le
+    // profil à 65 %, seuil de candidature atteint sans dépendre des photos.
+    await serviceClient.from("candidate_skills").insert({
+      candidate_id: profile.id,
+      skill_name: "Accueil",
+      skill_level: 3,
+    });
     profileId = profile.id;
   }
   return { authUserId, profileId, storagePaths, email };
