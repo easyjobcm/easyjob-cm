@@ -12,6 +12,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:rls": "npx tsx scripts/run-security-proofs.ts",
     "format": "prettier --write .",
     "prepare": "husky",
     "supabase:start": "npx supabase start",
@@ -59,7 +60,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.22.3",
     "typescript": "^5",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.12"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": [

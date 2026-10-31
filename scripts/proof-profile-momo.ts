@@ -259,6 +259,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires tests/momo.test.ts " +
         "couvrent les 2 schemas Zod T6).",
     );
+    process.exitCode = 1;
     return;
   }
 

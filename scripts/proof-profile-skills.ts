@@ -237,6 +237,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires tests/skill-catalog.test.ts " +
         "couvrent la logique pure du catalogue).",
     );
+    process.exitCode = 1;
     return;
   }
 

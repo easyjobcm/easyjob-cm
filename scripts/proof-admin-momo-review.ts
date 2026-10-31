@@ -276,6 +276,7 @@ async function main() {
         "Preuve E2E T8.2 ignorée (les tests unitaires + la build couvrent " +
         "les ajouts T8.2).",
     );
+    process.exitCode = 1;
     return;
   }
 
@@ -382,7 +383,10 @@ async function main() {
       signed.status === 200 &&
         typeof signed.json.url === "string" &&
         (signed.json.url as string).length > 0,
-      { status: signed.status, url: String(signed.json.url ?? "") },
+      {
+        status: signed.status,
+        url: String(signed.json.url ?? "").replace(/token=[^&]+/, "token=…"),
+      },
     );
 
     const badField = await fetchJson(

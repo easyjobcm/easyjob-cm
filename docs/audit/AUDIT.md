@@ -133,8 +133,8 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-17 | P2 | Annulation de candidature : aucune politique DELETE sur `job_applications`. La route renvoie `success` sans rien supprimer. | `app/api/jobs/[id]/apply/route.ts:200-215` ; politiques baseline | L'utilisateur croit avoir annulé. | Passer en `status = 'withdrawn'` (UPDATE contrôlé) et vérifier le nombre de lignes modifiées. | Après annulation, le statut vaut `withdrawn`. |
 | F-18 | P2 | Le retour utilisateur est factice : `toast()` ne fait que `console.info`. Les pages mission, contrat et offres entreprise, ainsi que l'onboarding, ne montrent jamais les erreurs. Les liens `/login` et `/auth/error` mènent à des 404. | `hooks/use-toast.ts` ; `app/missions/[id]/page.tsx:93` ; `app/contracts/[id]/page.tsx:111` ; `app/company/jobs/[id]/page.tsx:101` | Échecs silencieux sur les parcours critiques et utilisateurs bloqués. | Un vrai composant de notification accessible (`role="status"`), routes corrigées. | Test de composant ; vérification manuelle sur mobile. |
 | F-19 | P2 | Les textes promettent des fonctions **absentes du code** : paiement 100 % en 48 h ou 50/50, « montant bloqué » et remboursements, « remplacement garanti », « l'IA sélectionne pour vous », « essai gratuit 7 jours ». Aucun paiement, séquestre ni IA de sélection n'est implémenté (`lib/matching/ai-matching.ts` est heuristique). | `lib/i18n/fr.ts:1151-1189, 1310, 1353-1371` ; `lib/payments/mobile-money.ts` non importé | Promesses commerciales non tenues, avec un risque de confiance et un risque juridique (droit de la consommation et règles de communication commerciale à faire valider). | Retirer ou marquer « bientôt » ce qui n'existe pas. | Relecture produit : chaque promesse correspond à une fonction livrée. |
-| F-20 | P2 | CI et déploiement : Vitest **n'est pas exécuté en CI**. Le build ne dépend pas de `test-migrations`. `deploy.yml` utilise `supabase` et `vercel` en version `latest`. Aucune sauvegarde ou vérification n'est faite avant `db push` en production. Un « rollback » par tag redéploie l'application sans revenir sur la base. Le `db push` passe par le pooler 6543 (mode transaction), à vérifier. | `.github/workflows/ci.yml`, `deploy.yml` | Régressions non détectées, déploiements non reproductibles, migration destructive sans filet. | Ajouter `pnpm test`, figer les versions des CLI, faire dépendre le build de `test-migrations`, documenter la procédure de restauration (PITR ou sauvegarde) et l'utiliser avant `db push`. | La CI échoue si un test échoue ; versions figées. |
-| F-21 | P2 | Aucun test d'autorisation automatisé. Les scripts `scripts/proof-*.ts` couvrent une partie de la RLS mais restent manuels et hors CI. Aucune preuve n'existe pour `users.role`, `job_applications`, `contracts` et `missions`. | `scripts/`, `tests/`, `ci.yml` | Les failles F-01 à F-07 auraient été détectées par une suite RLS négative. | Suite RLS « accès interdits » exécutée en CI sur la pile Supabase locale, qui existe déjà dans `test-migrations`. | Job CI `rls-tests` vert, et rouge si une politique est relâchée. |
+| F-20 | P2 | **Partie CI corrigée localement (lot 4, §13) ; partie déploiement ouverte.** Constat d'origine : CI et déploiement : Vitest **n'est pas exécuté en CI**. Le build ne dépend pas de `test-migrations`. `deploy.yml` utilise `supabase` et `vercel` en version `latest`. Aucune sauvegarde ou vérification n'est faite avant `db push` en production. Un « rollback » par tag redéploie l'application sans revenir sur la base. Le `db push` passe par le pooler 6543 (mode transaction), à vérifier. | `.github/workflows/ci.yml`, `deploy.yml` | Régressions non détectées, déploiements non reproductibles, migration destructive sans filet. | Ajouter `pnpm test`, figer les versions des CLI, faire dépendre le build de `test-migrations`, documenter la procédure de restauration (PITR ou sauvegarde) et l'utiliser avant `db push`. | La CI échoue si un test échoue ; versions figées. |
+| F-21 | P2 | **Corrigé localement (lot 4, §13), sauf `contracts` et `missions` (lot 7).** Constat d'origine : aucun test d'autorisation automatisé. Les scripts `scripts/proof-*.ts` couvrent une partie de la RLS mais restent manuels et hors CI. Aucune preuve n'existe pour `users.role`, `job_applications`, `contracts` et `missions`. | `scripts/`, `tests/`, `ci.yml` | Les failles F-01 à F-07 auraient été détectées par une suite RLS négative. | Suite RLS « accès interdits » exécutée en CI sur la pile Supabase locale, qui existe déjà dans `test-migrations`. | Job CI `rls-tests` vert, et rouge si une politique est relâchée. |
 | F-22 | P2 | Consignes IA obsolètes : `AGENTS.md` et les instructions Copilot imposent Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, et renvoient à `DESIGN_REFERENCE.md` et `COPILOT_INSTRUCTIONS.md`, qui n'existent pas. | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*` | Les agents génèrent du code incohérent avec le dépôt. | Aligner ces documents sur la stack réelle et sur les règles de sécurité de ce rapport (« jamais d'écriture directe sur une colonne porteuse de droits »). | Relecture : chaque outil cité existe. |
 | F-23 | P2 | Aucune observabilité : ni capture d'erreurs, ni journalisation structurée. Préfixes de log `[v0]` hérités. `error.message` Postgres renvoyé au client. | recherche négative ; `app/api/jobs/route.ts:81, 200` | Les incidents de production restent invisibles et des détails de schéma sont exposés. | Messages d'erreur génériques côté client. Un outil de capture d'erreurs léger, ou au minimum des logs structurés exploitables dans Vercel. | Une erreur serveur provoquée en préproduction est visible avec son contexte. |
 | F-24 | P2 | **Corrigé localement (lot 3, §12) : `zod` 4.6.7.** Constat d'origine : `zod` 4.4.3 : avis haut (épuisement mémoire sur collections volumineuses). Validation utilisée côté serveur. | `pnpm audit` | Déni de service ciblé possible sur les routes qui valident des tableaux. | Passer `zod` à ≥ 4.6.6. | `pnpm audit` sans avis `zod`. |
@@ -202,7 +202,7 @@ Branche `fix/lot-01-account-security`, créée depuis `origin/main-dev` (08af5df
 | F-03c | Le callback OAuth faisait un `upsert` de `users.role` sur un compte existant. | Corrigé : insertion seule (`ignoreDuplicates`). La redirection ouverte (F-13) reste pour le lot 8. |
 | F-03d | `_ensureUserAndProfile` (code mort) réécrivait le rôle par `upsert`. `create-admin.ts` écrivait le rôle dans `user_metadata`. | Fonction supprimée ; `user_metadata.role` retiré du script. |
 | F-32 (P2, nouveau) | Les scripts `scripts/proof-*.ts` chargent `.env.local`, qui vise un projet **distant**. Lancés sans précaution, ils créent et suppriment des comptes sur ce projet. `pnpm seed`, lancé seul, avait le même défaut. `proof-license-gate` passait en plus par `supabase db query --local`, qui vise la pile de **développement** quel que soit l'environnement. | **Corrigé (finalisation du lot 1)** : `scripts/lib/local-supabase.ts` est appliqué aux 15 preuves et au seed (détails ci-dessous). |
-| F-33 (P2, nouveau) | `proof-admin-cni.ts` : 9 assertions sur 24 échouent **avant comme après** ce lot (D1 `documents_not_submitted` puis des échecs en cascade). Le script semble antérieur à la purge immédiate des fichiers rejetés (commit 9524956). `proof-essentials-gate.ts` exige une entreprise déjà présente en base. | Non traité (hors lot). À corriger avant d'intégrer ces scripts en CI (lot 4). |
+| F-33 (P2, nouveau) | `proof-admin-cni.ts` : 9 assertions sur 24 échouent **avant comme après** ce lot (D1 `documents_not_submitted` puis des échecs en cascade). Le script semble antérieur à la purge immédiate des fichiers rejetés (commit 9524956). `proof-essentials-gate.ts` exige une entreprise déjà présente en base. | **Corrigé (lot 4, §13)** : tests obsolètes, aucun défaut applicatif. |
 
 ### Finalisation du lot 1 — garde-fou des scripts de preuve
 
@@ -605,9 +605,108 @@ Parcours vérifiés dans le navigateur :
 | Paquet | Avis | Exposition | Action proposée |
 |---|---|---|---|
 | `@ai-sdk/provider-utils` 4.0.27 (via `ai` 6.0.185 et `@ai-sdk/react`) | GHSA-866g-f22w-33x8 (bas) | Exécution (`/api/chat`). Exige une réponse surdimensionnée du fournisseur LLM, donc un fournisseur compromis ou malveillant. | Monter `ai` à ≥ 6.0.220 et `@ai-sdk/react` en conséquence au lot 8 (chatbot), avec un test du chatbot. |
-| `tinypool` 1.1.1 (via `vitest` 3) | GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr (critiques) | Tests uniquement. Exige une pollution préalable de `Object.prototype` dans le processus de test. | `vitest` 4 (majeure) : décision à prendre au lot 4. |
-| `vitest` / `@vitest/mocker` 3.2.7 | GHSA-82fw-gwwq-j7x9, GHSA-qxg6-89mg-rqv8 (modérés) | Seulement si le serveur de dev Vitest est joignable (`vitest run` n'en ouvre pas). | Idem. |
+| `tinypool` 1.1.1 (via `vitest` 3) | GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr (critiques) | Tests uniquement. Exige une pollution préalable de `Object.prototype` dans le processus de test. | **Corrigé au lot 4** (`vitest` 4.1.12, §13). |
+| `vitest` / `@vitest/mocker` 3.2.7 | GHSA-82fw-gwwq-j7x9, GHSA-qxg6-89mg-rqv8 (modérés) | Seulement si le serveur de dev Vitest est joignable (`vitest run` n'en ouvre pas). | **Corrigé au lot 4** (§13). |
 | `extract-zip` 2.0.1, `basic-ftp` 5.3.1, `zod` 3.25.76 (via `pwa-asset-generator` → `puppeteer`) | GHSA-jmr9-qjv8-65gv, GHSA-7pqw-9j4j-h8q3 (aucune version corrigée publiée) ; GHSA-c475-qrg2-pj4r (correctif en 6.x) ; GHSA-mrhx-c7xc-m3w5 (pas de correctif 3.x) | Script manuel `pnpm pwa:*`, sur des entrées locales de confiance. Absent du build et de l'exécution. | Surveiller `pwa-asset-generator`, ou le retirer s'il n'est plus utilisé (lot 10). |
 | `minimatch` 3.1.5 / 9.0.9 / 10.2.5, `glob` 10.5.0 (via `eslint` et ses plugins) | GHSA-g3hv-75wg-m249, GHSA-3g3m-2fjr-6pw4 (modérés) | Lint local et CI, sur des motifs de confiance. | Correctifs uniquement en majeure (`minimatch` 11, `glob` 14) : attendre les paquets parents. |
 
 Un audit de dépendances vert ne dit rien des failles applicatives (RLS, routes, logique métier) : les lots 4 et suivants restent nécessaires.
+
+---
+
+## 13. Suivi — Lot 4 : tests d'autorisation en CI (F-20, F-21, F-33) (2026-10-31)
+
+**Statut : corrigé et vérifié localement. Non commité, non poussé : la CI distante reste à observer.**
+
+Branche `ci/lot-04-rls-and-deployment`, créée depuis `origin/main-dev` (3464565, qui contient le lot 3). Procédure, fixtures et nettoyage : `docs/testing/local-proofs.md`.
+
+### Suite d'autorisation
+
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute séquentiellement les 16 preuves existantes. Il n'introduit aucun nouveau cadre de test et réutilise `scripts/lib/local-supabase.ts` et `scripts/init-proof-stack.ts`. Avant toute écriture, il refuse une `API_URL` ou une `DB_URL` non locale, ainsi qu'une application injoignable. Il échoue si une preuve échoue.
+
+| Domaine | Preuves | Assertions |
+|---|---|---|
+| Comptes et rôles (F-01 à F-03) | `account-security` | 36 |
+| Droits métier, candidatures, abonnements, verrous (F-04 à F-06, F-11, F-17, F-34, F-35) | `business-permissions` | 135 |
+| Offres et gate de candidature | `jobs-rls-select`, `essentials-gate`, `license-gate` | 4 + 6 + 16 |
+| Profil candidat | `profile-lock`, `profile-location`, `profile-momo`, `profile-skills`, `profile-documents` | 9 + 15 + 11 + 7 + 12 |
+| Opérations admin | `admin-centralization`, `admin-candidate-profile`, `admin-cni`, `admin-momo-review`, `admin-t84c-reviews`, `admin-update-requests` | 24 + 11 + 25 + 7 + 19 + 38 |
+
+Total : 375 assertions, 16/16 preuves réussies, environ 1 min 45 d'exécution.
+
+Corrections apportées aux preuves elles-mêmes :
+- Les 11 preuves qui dépendent de l'application se terminaient en succès (« preuve ignorée ») si elle était injoignable. Elles échouent désormais.
+- `proof-essentials-gate` se terminait avec le code 0 malgré une assertion en échec. Corrigé.
+- `proof-admin-momo-review` affichait le jeton d'une URL signée de stockage. Il est masqué.
+
+### F-33 : preuves préexistantes en échec
+
+- **`proof-admin-cni` (15/24 → 25/25) : test obsolète.** Depuis T8.4c (9524956), un verdict CNI purge les photos et vide les URL, et la RPC refuse d'approuver un dossier sans les trois photos (`cni documents not submitted`). La preuve rejetait puis approuvait le même dossier sans nouvelle soumission. Les 9 échecs découlaient tous de D1. Ajout de D0 : le candidat soumet de nouveau ses trois photos par sa vraie session via `POST /api/profile/documents` (200 ×3, `cni_verified='pending'`, URL posées). Aucune assertion n'a été retirée. D3 (photos purgées après approbation) devient significatif : il passait jusque-là trivialement.
+- **`proof-essentials-gate` (bloquée → 6/6) : test obsolète.** Trois causes :
+  - le code `essentials_incomplete` est remplacé depuis T8.3 par `profile_not_verified` (gate `users.is_verified` dans `apply_to_job`), et la route y joint toujours la liste `missing` ;
+  - la preuve exigeait une entreprise préexistante : elle crée maintenant la sienne ;
+  - la fixture forçait `is_verified = true` pour les deux candidats : il est désormais dérivé de l'état par `recompute_user_verification`, et une assertion le vérifie.
+
+  L'attente sur A est renforcée : 200 et candidature persistée en `pending`, au lieu de « 200, 400 ou 404 », car l'incohérence de lecture des offres est corrigée (`proof-jobs-rls-select`). Le contrôle « aucune candidature » porte désormais sur B seul. La preuve est conservée, et non remplacée par E7 de `business-permissions`, car E7 ne vérifie pas le contenu de `missing`.
+
+Aucun défaut applicatif n'a été découvert, et la logique métier n'a pas été modifiée.
+
+### CI (`.github/workflows/ci.yml`)
+
+- **`lint-and-types` :** ajout de `pnpm test` (Vitest, non interactif).
+- **`test-migrations` :** une seule pile jetable, préparée par `init-proof-stack` (fournisseurs externes coupés). Le job enchaîne les migrations au démarrage, la comparaison des types générés, le build de l'application reliée à la pile, `next start` et `pnpm test:rls`. Les clés de la pile locale sont masquées dans les logs.
+- **CLI Supabase :** `supabase/setup-cli` est remplacé par `pnpm exec supabase`, version 2.117.0 figée par `package.json` : la même version génère les types et sert à `proof-license-gate`.
+- **`build` :** il dépend désormais de `lint-and-types` **et** de `test-migrations`. Il ne peut pas être vert si les tests unitaires, les migrations ou les preuves échouent.
+- **Déclencheurs :** ajout du push sur `main-dev`. Toutes les PR (y compris vers `main-dev`) passent par `pull_request`, sans secret ni jeton en écriture.
+- **Sécurité du workflow :**
+  - permissions réduites à `contents: read` ;
+  - `persist-credentials: false` au checkout ;
+  - `github.head_ref` passé par variable d'environnement au lieu d'être interpolé dans le script.
+- **Outils :** pnpm passe de 10 à 11.1.3, la version qui produit le lockfile. Node reste en 22 (`engines`).
+- **Caches et annulation :** cache du store pnpm conservé, ainsi que l'annulation des exécutions obsolètes.
+- **Audit des dépendances :** aucun contrôle bloquant ajouté. Les alertes restantes sont connues et hors périmètre (§12).
+
+### Outillage de test
+
+`vitest` passe de 3.2.7 à 4.1.12, avec `@vitest/mocker` 4.1.12. Vitest 4 n'utilise plus `tinypool`.
+
+| Avis | Paquet (avant) | Exposition avant | Statut |
+|---|---|---|---|
+| GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr (critiques) | `tinypool` 1.1.1 | Exige une pollution préalable de `Object.prototype` dans le processus de test | **Corrigés** (paquet retiré) |
+| GHSA-82fw-gwwq-j7x9 (modéré) | `vitest`, `@vitest/mocker` 3.2.7 | Serveur WebSocket de Vite/Vitest joignable (mode watch, UI, navigateur). `vitest run`, en local comme en CI, n'en ouvre pas : non exposé | **Corrigé** (≥ 4.1.11) |
+| GHSA-qxg6-89mg-rqv8 (modéré) | `@vitest/mocker` 3.2.7 | Idem | **Corrigé** (≥ 4.1.12) |
+
+Le guide de migration v4 a été consulté (exclusions simplifiées, mocks, pools, API retirées). Aucun point ne concerne la configuration du dépôt (`include: tests/**`, environnement `node`, ni coverage, ni pool, ni workspace) : aucune adaptation, 226/226 tests. Vitest 5 n'était pas nécessaire. `pnpm audit` passe de 12 à 7 entrées, avec 5 corrigées et 0 nouvelle. Les alertes restantes sont celles de §12, hors outillage de test.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Rejeu local des étapes `run:` des trois jobs de `ci.yml`, depuis une pile neuve (Git Bash, `GITHUB_ENV` émulé, port 3100) | ✅ `lint-and-types`, `test-migrations` (16/16 preuves), `build` |
+| `tsc`, `eslint . --max-warnings=0`, `prettier --check .`, `vitest run` | ✅ 226 tests |
+| `pnpm install --frozen-lockfile` | ✅ |
+| Refus préalables de `test:rls` (application injoignable, `API_URL` distante, `DB_URL` distante) | ✅ code 1, aucune écriture |
+| Contrôle négatif 1 : `grant update (role)` seul sur `users` | 36/36, code 0. Le trigger compense : protection effective, résultat attendu |
+| Contrôle négatif 2 : privilège et trigger `trg_protect_user_account_columns` désactivé (reproduit F-01) | ❌ 9 échecs détectés (auto-promotion admin, premium…), code 1 propagé par `test:rls` |
+| Restauration (`db reset` de la pile dédiée), vérification du catalogue, puis rejeu | Privilège absent, trigger actif, 16/16 |
+
+La CI GitHub n'a pas été exécutée : elle est à observer après le push. Points à surveiller :
+- pnpm 11 via `pnpm/action-setup` ;
+- le binaire Supabase installé par pnpm sous Linux ;
+- la durée du job `test-migrations` (environ 5 min en local, timeout de 30 min).
+
+### Restant (F-20 déploiement, hors lot 4 sur décision)
+
+`deploy.yml` et `release.yml` n'ont pas été modifiés. Décisions à prendre :
+1. **Versions des CLI de déploiement :** `supabase/setup-cli` en `latest` et `vercel@latest`. Proposition : `supabase` 2.117.0, comme la CI, et une version Vercel figée. Ces versions sont à choisir.
+2. **pnpm :** `deploy.yml` installe encore pnpm 10, alors que le lockfile est produit par pnpm 11.1.3.
+3. **Sauvegarde avant `db push` :** PITR ou `supabase db dump` (stockage, rétention, accès), avec une étape `db push --dry-run` préalable.
+4. **Restauration :** le rollback par tag redéploie l'application sans revenir sur la base. Il manque une procédure documentée, soit de restauration, soit de migrations compensatoires.
+5. **Connexion du `db push` :** il passe par le pooler 6543 (mode transaction). Un port 5432 ou une connexion directe est à confirmer.
+6. **Protections de branche :** rendre obligatoires les checks `lint-and-types`, `test-migrations` et `build` sur `main-dev` et `main`.
+
+### Limites
+
+- Pas de preuve d'autorisation sur `contracts` et `missions` (lot 7).
+- Les actions GitHub sont référencées par tag majeur (`@v4`), pas par SHA.
+- Les nettoyages préalables de certaines preuves visent les restes de la même preuve sur la pile jetable : ce sont des comptes créés par une exécution antérieure, et non par l'exécution en cours.

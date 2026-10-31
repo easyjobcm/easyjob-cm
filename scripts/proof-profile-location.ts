@@ -220,6 +220,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires tests/geo-location.test.ts " +
         "couvrent bornes Zod + invariants catalogue).",
     );
+    process.exitCode = 1;
     return;
   }
 

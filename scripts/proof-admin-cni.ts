@@ -16,6 +16,8 @@
  *     - admin_ops sans motif → 400 (Zod refine) ;
  *     - admin_ops avec motif « Photos floues » → 200 ; profile
  *       cni_verified='rejected', cni_rejection_reason posé.
+ *  D0. Ré-soumission des photos par le candidat (route
+ *      `/api/profile/documents`) : le rejet les a purgées (T8.4c).
  *  D. API POST `/api/admin/cni` — approbation :
  *     - admin_ops → 200 ;
  *     - profile cni_verified='verified' + cni_expires_at = dob+10y ;
@@ -318,6 +320,7 @@ async function main() {
       `⚠️  Le serveur dev n'est pas accessible sur ${APP_URL}. ` +
         "Preuve E2E T8.3 ignorée.",
     );
+    process.exitCode = 1;
     return;
   }
 
@@ -540,13 +543,49 @@ async function main() {
         error: selfReopen.error?.message,
       },
     );
-    // On restaure l'état 'rejected' pour la suite (D-approve est le même
-    // quel que soit l'état, mais on garde la cohérence du scénario).
+    // On restaure l'état 'rejected' pour la suite.
     await ignore(
       cookiesW.client
         .from("candidate_profiles")
         .update({ cni_verified: "rejected" })
         .eq("id", WprofileId),
+    );
+
+    // ── D0. Ré-soumission par le candidat ───────────────────────
+    // Depuis T8.4c, le rejet purge les photos et vide les URLs ; la RPC
+    // refuse d'approuver un dossier sans les trois photos. Le candidat
+    // ré-émet donc ses photos par la route produit avant la revue.
+    const resubmitStatuses: number[] = [];
+    for (const field of ["cni_front_url", "cni_back_url", "cni_selfie_url"]) {
+      const form = new FormData();
+      form.append("field", field);
+      form.append(
+        "file",
+        new File([Buffer.from(TINY_PNG_BASE64, "base64")], "cni.png", {
+          type: "image/png",
+        }),
+      );
+      const res = await fetch(`${APP_URL}/api/profile/documents`, {
+        method: "POST",
+        headers: { Cookie: cookieHeader(cookiesW.cookies) },
+        body: form,
+        cache: "no-store",
+      });
+      resubmitStatuses.push(res.status);
+    }
+    const resubmitted = await serviceClient
+      .from("candidate_profiles")
+      .select("cni_verified, cni_front_url, cni_back_url, cni_selfie_url")
+      .eq("id", WprofileId)
+      .single();
+    report(
+      "D0 : ré-soumission des 3 photos (POST /api/profile/documents) → 200 ×3, cni_verified='pending', URLs posées",
+      resubmitStatuses.every((s) => s === 200) &&
+        resubmitted.data?.cni_verified === "pending" &&
+        !!resubmitted.data?.cni_front_url &&
+        !!resubmitted.data?.cni_back_url &&
+        !!resubmitted.data?.cni_selfie_url,
+      { statuses: resubmitStatuses, profile: resubmitted.data },
     );
 
     // ── D. POST /api/admin/cni — approbation ────────────────────

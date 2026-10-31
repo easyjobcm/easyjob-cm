@@ -310,6 +310,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires tests/license-requirements.test.ts " +
         "couvrent le mapping/sets en TS ; la migration est appliquée en local).",
     );
+    process.exitCode = 1;
     return;
   }
 

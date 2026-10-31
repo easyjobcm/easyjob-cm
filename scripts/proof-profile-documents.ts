@@ -310,6 +310,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires tests/document-status.test.ts " +
         "couvrent la détection « expiré » au vol).",
     );
+    process.exitCode = 1;
     return;
   }
 

@@ -267,6 +267,7 @@ async function main() {
     console.log(
       `⚠️  Serveur dev injoignable sur ${APP_URL}. Preuve T8.5 ignorée.`,
     );
+    process.exitCode = 1;
     return;
   }
 

@@ -288,6 +288,7 @@ async function main() {
         "Preuve E2E ignorée (les tests unitaires `tests/profile-lock.test.ts` " +
         "couvrent la logique pure).",
     );
+    process.exitCode = 1;
     return;
   }
 

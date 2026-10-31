@@ -349,6 +349,7 @@ async function main() {
       `⚠️  Le serveur dev n'est pas accessible sur ${APP_URL}. ` +
         "Preuve E2E T8.4a ignorée.",
     );
+    process.exitCode = 1;
     return;
   }
 
