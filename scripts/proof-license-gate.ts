@@ -33,6 +33,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { Database } from "@/lib/database.types";
+import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 
 type DB = SupabaseClient<Database>;
 type LicenseCat =
@@ -43,26 +44,17 @@ type LicenseCat =
   | "bus"
   | "tous_types";
 
-if (typeof process.loadEnvFile === "function") {
-  process.loadEnvFile(".env.local");
-}
-
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// Pile locale uniquement (refus de toute cible distante) — voir
+// docs/testing/local-proofs.md.
+const {
+  supabaseUrl: SUPABASE_URL,
+  anonKey: ANON_KEY,
+  serviceKey: SERVICE_KEY,
+  appUrl: APP_URL,
+} = readLocalProofEnv();
+const DB_URL = readLocalDbUrl();
 const PROOF_PASSWORD = "Proof-T31-98!";
 const PROOF_USER_METADATA = { proofT31: true };
-const APP_URL = process.env.NEXT_APP_URL ?? "http://localhost:3000";
-
-if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
-  throw new Error(
-    "Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-  );
-}
 
 const serviceClient: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false },
@@ -281,8 +273,13 @@ function runPsql(sql: string): { ok: boolean; out: string } {
   fs.writeFileSync(tmp, sql, "utf-8");
   const isWin = process.platform === "win32";
   const args = isWin
-    ? ["/d", "/s", "/c", `pnpm exec supabase db query --local -f ${tmp}`]
-    : ["-c", `pnpm exec supabase db query --local -f '${tmp}'`];
+    ? [
+        "/d",
+        "/s",
+        "/c",
+        `pnpm exec supabase db query --db-url ${DB_URL} -f ${tmp}`,
+      ]
+    : ["-c", `pnpm exec supabase db query --db-url '${DB_URL}' -f '${tmp}'`];
   const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
     encoding: "utf-8",
     cwd: process.cwd(),

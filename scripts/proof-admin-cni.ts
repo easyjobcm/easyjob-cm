@@ -48,30 +48,21 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
+import { readLocalProofEnv } from "./lib/local-supabase";
 
 type DB = SupabaseClient<Database>;
 
-if (typeof process.loadEnvFile === "function") {
-  process.loadEnvFile(".env.local");
-}
-
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_PUBLISHABLE_KEY ??
-  "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// Pile locale uniquement (refus de toute cible distante) — voir
+// docs/testing/local-proofs.md.
+const {
+  supabaseUrl: SUPABASE_URL,
+  anonKey: ANON_KEY,
+  serviceKey: SERVICE_KEY,
+  appUrl: APP_URL,
+} = readLocalProofEnv();
 const PROOF_PASSWORD = "Proof-T83-11!";
 const PROOF_METADATA = { proofT83: true };
-const APP_URL = process.env.NEXT_APP_URL ?? "http://localhost:3000";
 const BUCKET = "candidate-documents";
-
-if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
-  throw new Error(
-    "Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-  );
-}
 
 const serviceClient: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false },
@@ -704,24 +695,28 @@ async function main() {
       { status: applyAfter.status, body: applyAfter.json },
     );
 
-    // ── E5. Trigger protection is_verified (direct write) ────────
-    // Le candidat tente de s'auto-marquer is_verified=true via sa
-    // propre RLS users update. Le trigger `trg_protect_user_is_verified`
-    // doit restaurer la valeur d'avant (déjà true ici → reste true).
-    // On flippe en true d'abord (déjà le cas) — on teste la protection
-    // en essayant de passer false, ce qui doit être restauré à true.
+    // ── E5. Protection is_verified (direct write) ─────────────────
+    // Le candidat tente de modifier is_verified via PostgREST. Depuis la
+    // migration 20261031120000 (lot 1 audit), l'écriture est REFUSÉE
+    // explicitement (privilèges de colonnes + trigger, 42501) au lieu
+    // d'être silencieusement annulée : on vérifie le refus ET la valeur
+    // persistée (relue en service_role), qui doit rester true.
     const directFlip = await cookiesW.client
       .from("users")
       .update({ is_verified: false })
       .eq("id", W.authUserId)
+      .select("is_verified");
+    const { data: afterFlip } = await serviceClient
+      .from("users")
       .select("is_verified")
+      .eq("id", W.authUserId)
       .single();
     report(
-      "E6 : candidat self-write is_verified=false → restauré à true (trigger)",
-      directFlip.data?.is_verified === true,
+      "E6 : candidat self-write is_verified=false → refusé, reste true",
+      directFlip.error !== null && afterFlip?.is_verified === true,
       {
-        afterDirectWrite: directFlip.data,
         error: directFlip.error?.message,
+        persisted: afterFlip,
       },
     );
 

@@ -169,6 +169,13 @@ pnpm exec prettier --check . # format
 
 Ne jamais contourner un echec avec `--no-verify`.
 
+## 9. Scripts de preuve (`scripts/proof-*.ts`)
+
+Ils écrivent dans la base. Le code refuse toute cible non locale et ne lit
+jamais `.env.local`. Seule la procédure garantit l'usage de la pile dédiée,
+et non celle de développement :
+[docs/testing/local-proofs.md](docs/testing/local-proofs.md).
+
 ## Notes utiles
 
 - Ne jamais commiter `.env.local`.
