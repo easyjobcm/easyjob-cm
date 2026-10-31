@@ -116,7 +116,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-05 | P1 | `job_applications` : le candidat peut **insérer directement** (politique INSERT sur `candidate_id` seulement) et **mettre à jour** n'importe quelle colonne de sa candidature (`status = 'selected'`, `match_score`…). | baseline:1861, 1896 | Les contrôles de `/api/jobs/[id]/apply` (vérifié, suspendu, niveau, documents, places) ne servent à rien : un appel PostgREST les contourne. | Retirer l'INSERT direct (création via une RPC `SECURITY DEFINER` qui applique les contrôles) ; limiter l'UPDATE candidat au passage `pending → withdrawn`. | Insertion directe refusée ; passage à `selected` par le candidat refusé ; la route `apply` reste fonctionnelle. |
 | F-06 | P1 | `subscriptions` : un utilisateur peut insérer son propre abonnement (`plan`, `price`, `expires_at` libres). | baseline:2167 | Premium entreprise ou candidat sans paiement (`lib/utils/profile-status.ts` et `company-plan.ts` lisent cette table). | `WITH CHECK (is_admin_user(auth.uid()))`, ou création par le serveur seulement. | INSERT en session non admin refusé. |
 | F-07 | P1 | `contracts` et `missions` : les politiques UPDATE des parties ne restreignent pas les colonnes. Le statut du contrat est calculé dans le navigateur et la signature est stockée en data-URL. L'entreprise peut modifier `payment_status`, `platform_fee`, `actual_*_time`, `validated_at` de ses missions. | baseline:2005 (contracts), 1949 (missions) ; `app/contracts/[id]/page.tsx:229-262` | Un candidat peut passer un contrat à `completed` sans signature de l'entreprise, ou modifier `contract_data`. Une entreprise peut modifier les heures ou les statuts de paiement. Le contrat n'a aucune valeur probante (pas d'horodatage serveur, d'IP ni d'empreinte). | RPC `sign_contract` (horodatage, IP et rôle côté serveur, transition contrôlée) et RPC de validation des heures. Retirer l'UPDATE direct ou le limiter par trigger. | Tests de transition : signature unilatérale → `candidate_signed` seulement ; modification de `contract_data` par une partie refusée. |
-| F-08 | P1 | Next.js **16.2.6** : avis critiques publiés (RCE dans l'Image Optimizer pour SVG/AVIF, RCE `use cache`, RCE `next/og`) et hauts (contournement Proxy/middleware avec Turbopack, SSRF, DoS Server Actions). | `pnpm audit` ; `package.json` | Applicabilité non démontrée : l'application n'utilise pas `next/image`, `next/og` ni `use cache`, mais l'endpoint `/_next/image` existe par défaut, et le Proxy est utilisé pour l'authentification. Mise à jour peu coûteuse. | Monter `next` et `eslint-config-next` sur la dernière version 16.x qui corrige tous les avis listés (> 16.4.0 selon l'audit), puis relancer `pnpm audit`. | `pnpm audit --prod` sans avis `next` critique ou haut ; build, lint et tests verts. |
+| F-08 | P1 | **Corrigé localement (lot 3, §12) : `next` 16.4.3.** Constat d'origine, rectifié au §12 : Next.js **16.2.6** : avis critiques publiés (RCE dans l'Image Optimizer pour SVG/AVIF, RCE `use cache`, RCE `next/og`) et hauts (contournement Proxy/middleware avec Turbopack, SSRF, DoS Server Actions). | `pnpm audit` ; `package.json` | Applicabilité non démontrée : l'application n'utilise pas `next/image`, `next/og` ni `use cache`, mais l'endpoint `/_next/image` existe par défaut, et le Proxy est utilisé pour l'authentification. Mise à jour peu coûteuse. | Monter `next` et `eslint-config-next` sur la dernière version 16.x qui corrige tous les avis listés (> 16.4.0 selon l'audit), puis relancer `pnpm audit`. | `pnpm audit --prod` sans avis `next` critique ou haut ; build, lint et tests verts. |
 | F-09 | P1 | Publication d'offre bloquée. (a) L'UI insère l'offre directement (`status: "pending_review"`) en contournant `/api/jobs` POST, qui contrôle la vérification de l'entreprise et le statut `is_active`. (b) Aucune politique ne permet à l'admin de **lire** ou de **modifier** une offre non `active` : le tableau de bord admin et la route `moderate` (session admin) agissent sur 0 ligne et renvoient pourtant un succès. (c) L'entreprise peut aussi passer elle-même son offre à `active` (politique FOR ALL). | `app/company/jobs/new/page.tsx:134-155` ; `app/api/jobs/route.ts:193` ; politiques jobs baseline:1932 et `20260908120000_*:38` ; `app/api/admin/jobs/[id]/moderate/route.ts:46-55` ; `app/admin/dashboard/page.tsx:16-23` | Le parcours honnête bloque : l'offre n'est jamais publiée. Le parcours malveillant contourne la modération. | Un seul chemin de création (route serveur), une RPC `moderate_job` admin avec audit, un trigger qui interdit à l'entreprise de modifier `status` hors brouillon, et un statut unique (`pending_moderation` **ou** `pending_review`). | Test bout en bout : création → visible dans la file admin → approbation → visible par les candidats ; passage direct à `active` par l'entreprise refusé. |
 | F-10 | P1 | Cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
 
@@ -137,7 +137,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-21 | P2 | Aucun test d'autorisation automatisé. Les scripts `scripts/proof-*.ts` couvrent une partie de la RLS mais restent manuels et hors CI. Aucune preuve n'existe pour `users.role`, `job_applications`, `contracts` et `missions`. | `scripts/`, `tests/`, `ci.yml` | Les failles F-01 à F-07 auraient été détectées par une suite RLS négative. | Suite RLS « accès interdits » exécutée en CI sur la pile Supabase locale, qui existe déjà dans `test-migrations`. | Job CI `rls-tests` vert, et rouge si une politique est relâchée. |
 | F-22 | P2 | Consignes IA obsolètes : `AGENTS.md` et les instructions Copilot imposent Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, et renvoient à `DESIGN_REFERENCE.md` et `COPILOT_INSTRUCTIONS.md`, qui n'existent pas. | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*` | Les agents génèrent du code incohérent avec le dépôt. | Aligner ces documents sur la stack réelle et sur les règles de sécurité de ce rapport (« jamais d'écriture directe sur une colonne porteuse de droits »). | Relecture : chaque outil cité existe. |
 | F-23 | P2 | Aucune observabilité : ni capture d'erreurs, ni journalisation structurée. Préfixes de log `[v0]` hérités. `error.message` Postgres renvoyé au client. | recherche négative ; `app/api/jobs/route.ts:81, 200` | Les incidents de production restent invisibles et des détails de schéma sont exposés. | Messages d'erreur génériques côté client. Un outil de capture d'erreurs léger, ou au minimum des logs structurés exploitables dans Vercel. | Une erreur serveur provoquée en préproduction est visible avec son contexte. |
-| F-24 | P2 | `zod` 4.4.3 : avis haut (épuisement mémoire sur collections volumineuses). Validation utilisée côté serveur. | `pnpm audit` | Déni de service ciblé possible sur les routes qui valident des tableaux. | Passer `zod` à ≥ 4.6.6. | `pnpm audit` sans avis `zod`. |
+| F-24 | P2 | **Corrigé localement (lot 3, §12) : `zod` 4.6.7.** Constat d'origine : `zod` 4.4.3 : avis haut (épuisement mémoire sur collections volumineuses). Validation utilisée côté serveur. | `pnpm audit` | Déni de service ciblé possible sur les routes qui valident des tableaux. | Passer `zod` à ≥ 4.6.6. | `pnpm audit` sans avis `zod`. |
 
 ### P3 — Améliorations secondaires
 
@@ -543,3 +543,71 @@ Parcours vérifiés dans le navigateur :
 - Le tableau de bord redirige les candidats vers `/jobs` : son affichage des heures n'est couvert que par les tests unitaires.
 - `24:00:00`, valeur acceptée par Postgres mais non produite par les formulaires, s'affiche `--:--`.
 - Aucun bouton de retrait n'existe dans l'interface (hors lot).
+
+---
+
+## 12. Suivi — Lot 3 : dépendances vulnérables (F-08, F-24) (2026-10-31)
+
+**Statut : corrigé et vérifié localement. Non commité, non déployé.**
+
+Branche `fix/lot-03-dependency-security`, créée depuis `origin/main-dev` (347344a, qui contient le lot 2b). Avis vérifiés dans la base GitHub Advisory (référence liée par le registre) et dans les notes de version des mainteneurs. Versions : voir `package.json` et `pnpm-lock.yaml`.
+
+### Mises à jour
+
+| Paquet | Avant → après | Type | Avis corrigés |
+|---|---|---|---|
+| `next` | 16.2.6 → 16.4.3 | direct, exécution | 20 avis, dont 5 critiques. Les correctifs les plus tardifs datent de 16.4.1 (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r). 16.4.2 et 16.4.3 sont des correctifs LTS (le second concerne `proxy.ts`). |
+| `eslint-config-next` | 16.2.6 → 16.4.3 | direct, dev | Alignement avec `next` |
+| `zod` | ^4.4.3 → ^4.6.7 (résolu 4.6.7) | direct, exécution | GHSA-mrhx-c7xc-m3w5 (CVE-2023-54404), corrigé en 4.6.6 par le commit `a0ebf97` (« check array, set and map size bounds before parsing elements ») |
+| `sharp` 0.34.5 → 0.35.5, `postcss` 8.4.31 → 8.5.23, `nanoid` 3.3.12 → 3.3.20 | via `next` | transitif, build et exécution | GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c, GHSA-wq5f-xc86-pv6w ; quatre avis `postcss` ; deux avis `nanoid` |
+| `source-map-js` 1.2.2, `browserslist` 4.29.5, `baseline-browser-mapping` 2.11.34, `@babel/core` 7.29.7 | `pnpm update` dans les plages déclarées | transitif (`next` → `postcss` / `styled-jsx`), build | GHSA-68fv-2mgg-jv7q, GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g, GHSA-w5vr-8v7q-w6rv, GHSA-4x5r-pxfx-6jf8 |
+| `undici` 7.30.1, `js-yaml` 4.3.2, `esbuild` 0.28.2, `vite` 7.3.7, `postcss` 8.5.32, `ip-address` 10.7.5, `brace-expansion` 1.1.21 / 2.1.7 / 5.0.12 | `pnpm update` dans les plages déclarées | transitif, outillage de dev | Tous les avis de ces paquets |
+
+Aucun override, aucun `audit fix --force`, aucun changement de `package.json` hors des trois lignes ci-dessus. React reste en 19.2.4 (plage de pairs de `next` 16.4.3 : `^19.0.0`).
+
+### Constats de l'audit initial
+
+- **RCE Next.js** : avis confirmés (publiés par `vercel/next.js`). L'audit initial affirmait que l'application n'utilise pas `next/image` : **c'est inexact**. `next/image` est utilisé dans `app/page.tsx`, `app/auth/verify-phone/page.tsx`, `components/ui/logo-spinner.tsx` et `components/ui/splash-screen.tsx`, donc l'Image Optimizer est sollicité.
+  - GHSA-2464-fhr4-w9xw (SVG, `sharp` < 0.35.5, Linux glibc) et GHSA-2xp9-vwfh-vxw4 (AVIF) : applicabilité **possible**. Elle dépend de l'optimiseur réellement exécuté en production, non établi ici.
+  - GHSA-p293-qw3h-jr36 (serveur Windows) : non applicable à un hébergement Vercel (Linux), mais concerne le `next dev` local sous Windows.
+  - GHSA-673q-mjm6-r5xr (`use cache`) et GHSA-vcvr-r3jv-pc5j (`next/og`) : **non applicables**, aucun usage.
+- **Contournement du Proxy** (GHSA-6gpp-xcg3-4w24) : il exige une seule entrée dans `config.i18n.locales`. `next.config.ts` n'a pas de bloc `i18n`, donc l'avis est **non applicable**.
+- **DoS Server Actions** (GHSA-m99w-x7hq-7vfj, GHSA-p3m5-59mp-jv5r) : **précondition remplie**, car `lib/actions/auth.ts` expose des Server Actions.
+- **« > 16.4.0 »** : **confirmé**. La première version corrigeant tous les avis est 16.4.1. La branche 16.2.x (dernière : 16.2.12) ne corrige pas les avis critiques.
+- **« Zod ≥ 4.6.6 »** : **confirmé**. Pour l'applicabilité, l'audit visait les routes qui valident des tableaux. Les schémas serveur ont tous une borne (`days: .max(7)`, `skill_ids: .max(20)`), mais avant 4.6.6 la borne n'était contrôlée qu'après la validation de chaque élément. Mesure : 5 000 éléments invalides produisent 5 001 issues en 4.4.3, contre 1 en 4.6.7. L'exposition était donc **possible** sur `PATCH /api/profile/availability` et `POST /api/profile/skill-documents`, dans la limite de la taille de corps acceptée.
+- Non mentionnés dans l'audit initial : `sharp`, `postcss`, `nanoid` et `@ai-sdk/provider-utils` figuraient aussi dans l'arbre de production.
+- Les notes de la release Zod 4.6.6 signalent des commits malveillants poussés sur `main` puis retirés, jamais publiés sur npm. 4.6.7 est publiée avec une attestation de provenance npm (SLSA v1).
+
+### Contrôles exécutés
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm audit --prod` | 36 avis (5 critiques, 17 hauts) → **1 bas** (`@ai-sdk/provider-utils`, voir plus bas). Comparaison par identifiant : 35 corrigés, 0 nouveau. |
+| `pnpm audit` (complet) | 111 → 12 (2 critiques, 4 hauts, 5 modérés, 1 bas). 102 entrées (avis × version) corrigées, 0 nouvelle. |
+| `pnpm install --frozen-lockfile` | ✅ |
+| `tsc --noEmit`, `eslint`, `prettier --check` | ✅ |
+| `vitest run` (nouveau `tests/server-validation.test.ts` : cas valides et invalides des schémas serveur ; tableau surdimensionné rejeté sur sa borne, avec une seule issue) | ✅ 13 fichiers, 226 tests |
+| `pnpm build` | ✅ 69 pages, Next.js 16.4.3 (Turbopack), aucun avertissement |
+| Parcours navigateur (Chrome headless, `playwright-core` hors dépôt, 375 × 812, pile `easyjob-proof`, `next build` + `next start` reliés à la pile, fixtures sur le modèle du lot 2, script et captures hors dépôt) | ✅ 14/14 |
+
+Parcours vérifiés dans le navigateur :
+- sans session, `/jobs/[id]` et `/admin` redirigent vers `/auth/login?next=…` ;
+- inscription avec un mot de passe sans chiffre : la Server Action refuse via Zod, le message « Ajoutez au moins un chiffre. » s'affiche, et aucun `auth.signUp` n'est appelé ;
+- connexion candidat vers `/jobs`, `/admin` redirigé vers `/` ;
+- offre affichée (titre, `09:00 - 13:30`), « Postuler maintenant » puis « Confirmer » : « Candidature envoyée ! » s'affiche et l'état est conservé après rechargement. Une seconde tentative par la route est refusée (HTTP 400) ;
+- déconnexion depuis le profil vers `/auth/login`, puis page protégée de nouveau refusée ;
+- connexion admin vers `/admin`.
+
+`next dev` n'a pas pu servir de cible : Next 16 refuse un second serveur de développement dans le même répertoire, et celui du port 3000 n'a pas été arrêté. Les preuves RLS n'ont pas été rejouées, car aucune migration ni route n'a changé.
+
+### Alertes restantes
+
+| Paquet | Avis | Exposition | Action proposée |
+|---|---|---|---|
+| `@ai-sdk/provider-utils` 4.0.27 (via `ai` 6.0.185 et `@ai-sdk/react`) | GHSA-866g-f22w-33x8 (bas) | Exécution (`/api/chat`). Exige une réponse surdimensionnée du fournisseur LLM, donc un fournisseur compromis ou malveillant. | Monter `ai` à ≥ 6.0.220 et `@ai-sdk/react` en conséquence au lot 8 (chatbot), avec un test du chatbot. |
+| `tinypool` 1.1.1 (via `vitest` 3) | GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr (critiques) | Tests uniquement. Exige une pollution préalable de `Object.prototype` dans le processus de test. | `vitest` 4 (majeure) : décision à prendre au lot 4. |
+| `vitest` / `@vitest/mocker` 3.2.7 | GHSA-82fw-gwwq-j7x9, GHSA-qxg6-89mg-rqv8 (modérés) | Seulement si le serveur de dev Vitest est joignable (`vitest run` n'en ouvre pas). | Idem. |
+| `extract-zip` 2.0.1, `basic-ftp` 5.3.1, `zod` 3.25.76 (via `pwa-asset-generator` → `puppeteer`) | GHSA-jmr9-qjv8-65gv, GHSA-7pqw-9j4j-h8q3 (aucune version corrigée publiée) ; GHSA-c475-qrg2-pj4r (correctif en 6.x) ; GHSA-mrhx-c7xc-m3w5 (pas de correctif 3.x) | Script manuel `pnpm pwa:*`, sur des entrées locales de confiance. Absent du build et de l'exécution. | Surveiller `pwa-asset-generator`, ou le retirer s'il n'est plus utilisé (lot 10). |
+| `minimatch` 3.1.5 / 9.0.9 / 10.2.5, `glob` 10.5.0 (via `eslint` et ses plugins) | GHSA-g3hv-75wg-m249, GHSA-3g3m-2fjr-6pw4 (modérés) | Lint local et CI, sur des motifs de confiance. | Correctifs uniquement en majeure (`minimatch` 11, `glob` 14) : attendre les paquets parents. |
+
+Un audit de dépendances vert ne dit rien des failles applicatives (RLS, routes, logique métier) : les lots 4 et suivants restent nécessaires.

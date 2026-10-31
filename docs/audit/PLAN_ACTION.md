@@ -8,7 +8,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 0 | Vérification production (lecture seule) | H-01, H-02, H-03 | Diagnostic | Petit |
 | 1 | Verrouiller les rôles et les comptes — **corrigé et vérifié localement, non déployé** | F-01, F-02, F-03 | Sécurité | Petit |
 | 2 | Verrouiller les colonnes et tables porteuses de droits — **corrigé et vérifié localement, non déployé** | F-04, F-05, F-06, F-11, F-17 | Sécurité | Moyen |
-| 3 | Mettre à jour les dépendances vulnérables | F-08, F-24 | Sécurité | Petit |
+| 3 | Mettre à jour les dépendances vulnérables — **corrigé et vérifié localement, non déployé** | F-08, F-24 | Sécurité | Petit |
 | 4 | Tests RLS négatifs en CI et durcissement CI/CD | F-20, F-21 | Qualité | Moyen |
 | 5 | Typer les clients Supabase | F-14 | Refactoring ciblé | Moyen |
 | 6 | Publication et modération des offres | F-09 | Fonctionnel et sécurité | Moyen |
@@ -98,6 +98,9 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Taille** : moyen.
 
 ## Lot 3 — Mettre à jour les dépendances vulnérables
+
+> **Statut (2026-10-31)** : réalisé sur la branche `fix/lot-03-dependency-security` (base `origin/main-dev`, 347344a), **non commité, non déployé**. `next` et `eslint-config-next` passent en 16.4.3, `zod` en 4.6.7, et des transitifs sont mis à jour dans leurs plages. `pnpm audit --prod` ne signale plus qu'un avis bas (`@ai-sdk/provider-utils`, reporté au lot 8). Détails, constats rectifiés et alertes restantes : `AUDIT.md` §12.
+> Reste hors lot : `vitest` 4 (majeure, avis `tinypool` limités aux tests, à décider au lot 4) et la chaîne `pwa-asset-generator` (outil manuel, lot 10).
 
 - **Objectif** : supprimer les avis critiques et hauts des dépendances d'exécution.
 - **IDs** : F-08, F-24.
