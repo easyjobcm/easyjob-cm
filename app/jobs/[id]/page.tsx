@@ -58,16 +58,24 @@ export default async function JobDetailPage({ params }: PageProps) {
       .single();
 
     if (candidateProfile) {
-      // Pré-calcul du gate pour désactiver le bouton et afficher directement
-      // la liste des essentiels manquants (le serveur reste la source de vérité).
+      // T8.3 — le gate est `users.is_verified` (source de vérité en base).
+      // La liste `missing` reste informationnelle pour désactiver le
+      // bouton + pointer les champs à compléter.
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("is_verified")
+        .eq("id", user.id)
+        .single();
+
+      const isVerified = !!userRow?.is_verified;
+
       if (
+        !isVerified &&
         candidateProfile.onboarding_status === "completed" &&
         (candidateProfile.profile_completion_pct ?? 0) >= 60
       ) {
         const essentials = checkEssentialCriteria(candidateProfile);
-        if (!essentials.ok) {
-          missingEssentials = essentials.missing;
-        }
+        missingEssentials = essentials.missing;
       }
       const { data: application } = await supabase
         .from("job_applications")

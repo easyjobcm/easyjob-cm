@@ -180,8 +180,8 @@ export function computeCompletion(criteria: Criterion[]): number {
  * Le formulaire d'onboarding ne couvre que identity/skills/momo (partiel) :
  * une fois `onboarding_status` passé à "completed", les critères restants
  * (photo, CNI, bio, localisation, disponibilité) ne peuvent être complétés
- * que depuis /profile/candidate/edit, /profile/availability ou
- * /profile/payment — jamais en repassant par l'assistant d'onboarding.
+ * que depuis /profile/candidate/edit, /profile/skills, /profile/availability
+ * ou /profile/payment — jamais en repassant par l'assistant d'onboarding.
  */
 const CANDIDATE_CRITERION_ROUTES: Record<string, string> = {
   identity: "/profile/candidate/edit",
@@ -189,7 +189,7 @@ const CANDIDATE_CRITERION_ROUTES: Record<string, string> = {
   bio: "/profile/candidate/edit",
   cni: "/profile/candidate/edit",
   location: "/profile/candidate/edit",
-  skills: "/profile/candidate/edit",
+  skills: "/profile/skills",
   availability: "/profile/availability",
   momo: "/profile/payment",
 };

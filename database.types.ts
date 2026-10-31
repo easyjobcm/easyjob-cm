@@ -127,10 +127,14 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           max_travel_distance_km: number | null
+          momo_account_name: string | null
           momo_name_match: boolean
           momo_number: string | null
           momo_provider: string | null
+          momo_reject_reason: string | null
           momo_verified: boolean | null
+          momo_verified_at: string | null
+          momo_verified_by: string | null
           no_show_count: number | null
           onboarding_status:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -174,10 +178,14 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -221,10 +229,14 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -1541,10 +1553,53 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_momo_verification: {
+        Args: {
+          p_action: string
+          p_profile_id: string
+          p_reject_reason: string | null
+        }
+        Returns: undefined
+      }
+      candidate_update_cni: {
+        Args: {
+          p_back_url: string | null
+          p_cni_number: string | null
+          p_expires_at: string | null
+          p_front_url: string | null
+          p_profile_id: string
+          p_selfie_url: string | null
+        }
+        Returns: undefined
+      }
+      candidate_update_momo: {
+        Args: {
+          p_account_name: string | null
+          p_number: string
+          p_provider: string
+        }
+        Returns: undefined
+      }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
+      is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      moderate_cni: {
+        Args: {
+          p_action: string
+          p_expires_at: string | null
+          p_profile_id: string
+          p_reject_reason: string | null
+        }
+        Returns: undefined
+      }
+      recompute_skill_verification_status: {
+        Args: { p_skill_id: string }
+        Returns: string
+      }
+      recompute_user_verification: { Args: { p_user_id: string }; Returns: undefined }
+      skill_requires_license: { Args: { p_skill_name: string }; Returns: string }
     }
     Enums: {
       application_status:
@@ -1598,6 +1653,7 @@ export type Database = {
         | "payment"
         | "review_request"
         | "system"
+        | "momo_status"
       onboarding_status: "pending" | "in_progress" | "completed" | "rejected"
       payment_method: "mtn_momo" | "orange_money" | "bank_transfer" | "cash"
       payment_status:
@@ -1808,6 +1864,7 @@ export const Constants = {
         "payment",
         "review_request",
         "system",
+        "momo_status",
       ],
       onboarding_status: ["pending", "in_progress", "completed", "rejected"],
       payment_method: ["mtn_momo", "orange_money", "bank_transfer", "cash"],

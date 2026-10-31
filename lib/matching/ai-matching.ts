@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { haversineKm } from "@/lib/validations/geo-schema";
 
 interface MatchingCriteria {
   candidateId: string;
@@ -19,25 +20,8 @@ interface MatchResult {
   reasons: string[];
 }
 
-// Calculate distance between two coordinates using Haversine formula
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// (Le Haversine est centralisé dans `lib/validations/geo-schema.ts` —
+//  source unique, partagée avec la validation de zone T5.1.)
 
 export async function calculateMatchScore(
   criteria: MatchingCriteria,
@@ -122,11 +106,9 @@ export async function calculateMatchScore(
     job.latitude &&
     job.longitude
   ) {
-    const distance = calculateDistance(
-      candidate.latitude,
-      candidate.longitude,
-      job.latitude,
-      job.longitude,
+    const distance = haversineKm(
+      { lat: candidate.latitude, lng: candidate.longitude },
+      { lat: job.latitude, lng: job.longitude },
     );
     const maxDistance = candidate.max_travel_distance_km || 10;
 

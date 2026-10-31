@@ -10,10 +10,18 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { isNearCityZone, nearestCityFor } from "@/lib/validations/geo-schema";
+import { fetchQuartierFromNominatim } from "@/lib/utils/quartier-fetch";
 import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
+import { isCleanGeoCoords, paymentSchema } from "@/lib/validations/profile";
+import {
+  licenseSatisfies,
+  requiredLicenseCategory,
+  type LicenseCategoryT31,
+} from "@/lib/utils/license-requirements";
 import {
   User,
   MapPin,
@@ -48,12 +56,16 @@ interface OnboardingClientProps {
     longitude?: number | null;
     momo_provider?: string;
     momo_number?: string;
+    momo_account_name?: string | null;
   } | null;
   categories: Array<{
     id: string;
     name_fr?: string;
     name_en?: string;
   }>;
+  /** T3.1 — catégories de permis VÉRIFIÉES du candidat (drives the
+   *  "chip de conduite désactivée sans permis" du step 3). */
+  verifiedLicenseCategories: string[];
 }
 
 const STEPS = [
@@ -77,9 +89,11 @@ export function OnboardingClient({
   user,
   profile,
   categories: _categories,
+  verifiedLicenseCategories,
 }: OnboardingClientProps) {
   const router = useRouter();
   const { locale, t } = useI18n();
+  const tGeo = t.profile.geolocation;
   const supabase = createClient();
 
   const [currentStep, setCurrentStep] = React.useState(
@@ -87,6 +101,13 @@ export function OnboardingClient({
   );
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  // T5.1 — statuts transitoires de la détection GPS (fix refusé hors zone /
+  // auto-remplissage ok / échec Nominatim). Portés par un clic « Utiliser
+  // ma position » ou remis à zéro à chaque step.
+  const [geoOutOfZone, setGeoOutOfZone] = React.useState(false);
+  const [geoAutoFillNote, setGeoAutoFillNote] = React.useState<
+    "ok" | "fail" | null
+  >(null);
 
   // Form data
   const [formData, setFormData] = React.useState({
@@ -101,6 +122,7 @@ export function OnboardingClient({
     skills: [] as string[],
     momo_provider: profile?.momo_provider || "",
     momo_number: profile?.momo_number || "",
+    momo_account_name: profile?.momo_account_name || "",
   });
 
   const updateFormData = <K extends keyof typeof formData>(
@@ -111,8 +133,41 @@ export function OnboardingClient({
   };
 
   const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
-    updateFormData("latitude", coords.latitude);
-    updateFormData("longitude", coords.longitude);
+    // T5.1 — fix GPS : on refuse les positions HORS de la zone de service
+    // (Douala/Yaoundé) AVANT d'écrire au formulaire. Si la zone est
+    // respectée, on auto-remplit city (plus proche) + quartier (Nominatim).
+    setGeoOutOfZone(false);
+    setGeoAutoFillNote(null);
+
+    if (!isNearCityZone(coords.latitude, coords.longitude)) {
+      setGeoOutOfZone(true);
+      return;
+    }
+
+    const nearestCity = nearestCityFor(coords.latitude, coords.longitude);
+    const cityField =
+      nearestCity && CAMEROON_CITIES.includes(nearestCity) ? nearestCity : null;
+
+    setFormData((prev) => ({
+      ...prev,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      ...(cityField ? { city: cityField } : {}),
+    }));
+
+    // Nominatim — échec = quartier non auto-posé (le fix reste valide).
+    void fetchQuartierFromNominatim(
+      coords.latitude,
+      coords.longitude,
+      locale,
+    ).then((quartier) => {
+      if (quartier) {
+        setFormData((prev) => ({ ...prev, quartier }));
+        setGeoAutoFillNote("ok");
+      } else {
+        setGeoAutoFillNote("fail");
+      }
+    });
   });
 
   const toggleSkill = (skill: string) => {
@@ -124,18 +179,72 @@ export function OnboardingClient({
     }));
   };
 
+  /** T3.1 : une compétence de conduite est BLOQUÉE au step 3 tant qu'aucun
+   *  permis de la bonne catégorie n'est `verified` (même modèle que le
+   *  trigger SQL : `has_verified_license_for`). `tous_types` est wildcard.
+   *  Le candidat ajoute la compétence APRÈS vérification du permis (voir
+   *  SRS §6.14.1 / §6.2). La compétence reste sélectionnable si le driver
+   *  coche un chip « déjà ajouté » (rare cas : onboarding après un permis). */
+  const skillBlockedByLicense = (skill: string): boolean => {
+    const required = requiredLicenseCategory(skill);
+    if (required === undefined) return false;
+    return !verifiedLicenseCategories.some((cat) =>
+      licenseSatisfies(required, (cat as LicenseCategoryT31 | null) ?? null),
+    );
+  };
+
   const saveProgress = async (nextStep: number) => {
     setLoading(true);
     setError("");
 
     try {
       const { skills: _skills, ...profileFields } = formData;
+      // T5 : l'onboarding écrit candidate_profiles directement (pas de route
+      // API) — garde-bouche équivalent au serveur : les coordonnées doivent
+      // être absentes, ou complètes + dans les bornes géographiques.
+      // T5.1 : + zone de service (Douala/Yaoundé) — défend les profils
+      // historiques contenant un fix hors zone (avant T5.1, le check n'existait
+      // que côté UI).
+      if (!isCleanGeoCoords(formData.latitude, formData.longitude)) {
+        throw new Error(t.profile.geolocation.geoOutOfRange);
+      }
+      const gpsPresent =
+        typeof formData.latitude === "number" &&
+        typeof formData.longitude === "number";
+      if (
+        gpsPresent &&
+        !isNearCityZone(formData.latitude, formData.longitude)
+      ) {
+        throw new Error(t.profile.geolocation.geoOutOfZone);
+      }
+      // T6 : garde-bouche Mobile Money — même schema que la route API
+      // (l'onboarding écrit candidate_profiles directement, sans route).
+      // Numéro absent = champ ignoré ; le nom du compte est optionnel.
+      if (formData.momo_number) {
+        const momoGuard = paymentSchema.safeParse({
+          momo_provider: formData.momo_provider,
+          momo_number: formData.momo_number,
+          momo_account_name: formData.momo_account_name.trim() || undefined,
+        });
+        if (!momoGuard.success) {
+          const key = momoGuard.error.issues[0]?.message ?? "";
+          const momoErrors: Record<string, string> = {
+            momoProviderInvalid: t.profile.paymentPage.momoProviderInvalid,
+            momoAccountNameTooLong:
+              t.profile.paymentPage.momoAccountNameTooLong,
+            phoneInvalid: t.signup.errors.phoneInvalid,
+          };
+          throw new Error(momoErrors[key] ?? key);
+        }
+      }
       const { error: updateError } = await supabase
         .from("candidate_profiles")
         .update({
           ...profileFields,
           // omit empty string for enum column
           gender: profileFields.gender || undefined,
+          // nom de compte optionnel : null plutôt que chaîne vide.
+          momo_account_name: profileFields.momo_account_name?.trim() || null,
           onboarding_step: nextStep,
           onboarding_status: nextStep > 4 ? "completed" : "in_progress",
         })
@@ -353,9 +462,17 @@ export function OnboardingClient({
             </div>
 
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground">
-                {t.profile.geolocation.explain}
-              </p>
+              <p className="text-sm text-muted-foreground">{tGeo.explain}</p>
+              {(formData.latitude !== null && formData.longitude !== null) ||
+              geoStatus === "success" ? (
+                <div className="mt-3">
+                  <Badge variant="success">{tGeo.recordedBadge}</Badge>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {tGeo.firstPermissionHint}
+                </p>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -364,23 +481,41 @@ export function OnboardingClient({
                 disabled={geoStatus === "loading"}
               >
                 <LocateFixed className="mr-2 h-4 w-4" />
-                {geoStatus === "loading"
-                  ? t.profile.geolocation.locating
-                  : t.profile.geolocation.useMyLocation}
+                {geoStatus === "loading" ? tGeo.locating : tGeo.useMyLocation}
               </Button>
-              {geoStatus === "success" && (
-                <p className="mt-2 text-sm text-primary">
-                  {t.profile.geolocation.success}
+              {/* T5.1 — fix GPS hors zone (Douala/Yaoundé) : refus affiché,
+                  la position manuelle ville + quartier reste possible. */}
+              {geoOutOfZone && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  {tGeo.outOfZone}
+                </p>
+              )}
+              {/* T5.1 — auto-remplissage après fix accepté (ok / échec
+                  Nominatim). */}
+              {geoAutoFillNote === "ok" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {tGeo.autoFilledFromGps}
+                </p>
+              )}
+              {geoAutoFillNote === "fail" && (
+                <p className="mt-2 text-xs text-amber-600">
+                  {tGeo.autoFilledFailed}
                 </p>
               )}
               {geoStatus === "denied" && (
-                <p className="mt-2 text-sm text-amber-600">
-                  {t.profile.geolocation.denied}
-                </p>
+                <p className="mt-2 text-sm text-amber-600">{tGeo.denied}</p>
               )}
               {geoStatus === "unavailable" && (
                 <p className="mt-2 text-sm text-amber-600">
-                  {t.profile.geolocation.unavailable}
+                  {tGeo.unavailable}
+                </p>
+              )}
+              {/* Timeout (fix GPS trop lent, code 3) : échec temporaire,
+                  réessayable (le fix à froid prend parfois plus d'10 s à
+                  réseau instable). */}
+              {geoStatus === "timeout" && (
+                <p role="alert" className="mt-2 text-sm text-amber-600">
+                  {tGeo.timeout}
                 </p>
               )}
             </div>
@@ -396,20 +531,34 @@ export function OnboardingClient({
                 : "Select your skills (minimum 2)"}
             </p>
             <div className="flex flex-wrap gap-2">
-              {COMMON_SKILLS.map((skill) => (
-                <button
-                  key={skill}
-                  type="button"
-                  onClick={() => toggleSkill(skill)}
-                  className={`px-3 py-2 rounded-full border text-sm transition-colors ${
-                    formData.skills.includes(skill)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card border-border hover:border-primary/50"
-                  }`}
-                >
-                  {skill}
-                </button>
-              ))}
+              {COMMON_SKILLS.map((skill) => {
+                const selected = formData.skills.includes(skill);
+                const blocked = !selected && skillBlockedByLicense(skill);
+                return (
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => toggleSkill(skill)}
+                    disabled={blocked}
+                    title={
+                      blocked
+                        ? locale === "fr"
+                          ? "Un permis de conduire verifie est requis pour cette competence"
+                          : "A verified driving license is required for this skill"
+                        : undefined
+                    }
+                    className={`px-3 py-2 rounded-full border text-sm transition-colors ${
+                      selected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : blocked
+                          ? "cursor-not-allowed border-input bg-muted/40 text-muted-foreground opacity-60"
+                          : "bg-card border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {skill}
+                  </button>
+                );
+              })}
             </div>
             {formData.skills.length > 0 && (
               <p className="text-sm text-primary">
@@ -419,6 +568,11 @@ export function OnboardingClient({
                   : "skill(s) selected"}
               </p>
             )}
+            <p className="text-xs text-muted-foreground">
+              {locale === "fr"
+                ? "Les competences de conduite necessitent un permis de conduire verifie. Ajoutez-les dans votre profil apres verification."
+                : "Driving skills require a verified driving license. Add them in your profile after verification."}
+            </p>
           </div>
         );
 
@@ -482,8 +636,35 @@ export function OnboardingClient({
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {locale === "fr"
-                  ? "Ce numero sera utilise pour recevoir vos paiements"
-                  : "This number will be used to receive your payments"}
+                  ? "Ce numero sera utilise pour recevoir vos paiements. Il doit etre porte a votre nom (conforme a votre CNI)."
+                  : "This number will be used to receive your payments. It must be registered in your own name (matching your ID card)."}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                {locale === "fr"
+                  ? "Nom du compte Mobile Money"
+                  : "Mobile Money account name"}{" "}
+                <span className="text-muted-foreground">
+                  {locale === "fr" ? "(facultatif)" : "(optional)"}
+                </span>
+              </label>
+              <Input
+                value={formData.momo_account_name}
+                onChange={(e) =>
+                  updateFormData("momo_account_name", e.target.value)
+                }
+                placeholder={
+                  locale === "fr"
+                    ? "Selon l'immatriculation du compte"
+                    : "As registered on the account"
+                }
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {locale === "fr"
+                  ? "Le nom du compte doit correspondre à votre CNI — les comptes familiaux ou au nom d'un tiers ne sont pas acceptés."
+                  : "The account name must match your ID card — family accounts or accounts in someone else's name are not accepted."}
               </p>
             </div>
           </div>

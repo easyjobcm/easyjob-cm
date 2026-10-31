@@ -34,6 +34,293 @@ export const en: TranslationKeys = {
       "The platform connecting candidates and companies for flexible missions in Cameroon.",
   },
 
+  // Administration (T8)
+  admin: {
+    dashboard: {
+      title: "Administration",
+      subtitle: "Platform management",
+    },
+    stats: {
+      users: "Users",
+      candidates: "candidates",
+      companies: "companies",
+      totalJobs: "Total jobs",
+      activeJobs: "active",
+      applications: "Applications",
+      pending: "Pending review",
+    },
+    quickActions: {
+      users: "Candidates",
+      jobs: "Jobs",
+      momo: "Mobile Money",
+      skillProofs: "Skill proofs",
+    },
+    moderation: {
+      pendingJobsTitle: "Jobs to moderate",
+      viewAll: "See all",
+      view: "View",
+      approve: "Approve",
+      reject: "Reject",
+      empty: "No jobs pending moderation",
+      pendingStatus: "Pending",
+      urgent: "Urgent",
+    },
+    jobPreview: {
+      company: "Company",
+      description: "Description",
+      date: "Date",
+      time: "Time",
+      location: "Location",
+      salary: "Salary",
+    },
+    momo: {
+      title: "Mobile Money review",
+      subtitle:
+        "Match the name declared on the MoMo account against the CNI name. Third-party or family accounts are rejected (mandatory reason).",
+      pending: "Pending",
+      verified: "Verified",
+      rejected: "Rejected",
+      accountName: "Declared account name",
+      number: "Number",
+      cniName: "Identity name (CNI)",
+      cniVerified: "CNI verified",
+      cniStatus: "CNI status",
+      cniNotProvided: "CNI not provided or not verified",
+      rejectionReason: "Rejection reason",
+      verifiedLabel: "Verified on",
+      empty: "No Mobile Money declarations for this filter",
+      emptyVerified: "No verified accounts",
+      emptyRejected: "No rejected accounts",
+      review: "Review",
+      approve: "Approve",
+      reject: "Reject",
+      rejectReasonPlaceholder: "Rejection reason (required)",
+      rejectReasonRequired:
+        "A rejection reason is required (min. 3 characters).",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can approve or reject.",
+      actionFailed: "The action failed. Please try again.",
+      cniLoadFailed:
+        "Could not load the CNI. The candidate may not have uploaded it yet.",
+      mtn: "MTN MoMo",
+      orange: "Orange Money",
+    },
+    cni: {
+      title: "CNI review",
+      subtitle:
+        "Verify identity documents (front / back / selfie) submitted by candidates. Approval triggers deletion of the photos from private storage (SRS §8.4).",
+      pending: "Pending",
+      verified: "Verified",
+      rejected: "Rejected",
+      notProvided: "Not provided",
+      front: "Front",
+      back: "Back",
+      selfie: "Selfie",
+      name: "Identity name",
+      cniNumber: "CNI number",
+      dob: "Date of birth",
+      expiresAt: "Expires on",
+      rejectionReason: "Rejection reason",
+      verifiedLabel: "Verified on",
+      empty: "No CNI pending",
+      emptyVerified: "No verified CNI",
+      emptyRejected: "No rejected CNI",
+      emptyNotProvided: "No candidate without a submitted CNI",
+      review: "Review",
+      approve: "Approve",
+      reject: "Reject",
+      rejectReasonPlaceholder: "Rejection reason (required)",
+      rejectReasonRequired:
+        "A rejection reason is required (min. 3 characters).",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can approve or reject.",
+      actionFailed: "The action failed. Please try again.",
+      loadDocFailed: "Could not load the document.",
+      noCni: "This candidate has not submitted a CNI yet.",
+      deletionNote:
+        "Photos will be removed from private storage after verification.",
+    },
+    candidates: {
+      title: "Candidates",
+      subtitle:
+        "Centralized view: identity, Mobile Money, CNI/MoMo status and account state for every candidate. Search by name, e-mail or phone.",
+      searchPlaceholder: "Search (name, e-mail, phone)",
+      sectionPending: "Pending",
+      sectionVerified: "Verified",
+      sectionSuspended: "Suspended",
+      emptyPending: "No candidates pending verification",
+      emptyVerified: "No verified candidates",
+      emptySuspended: "No suspended candidates",
+      noResults: "No candidates match this search",
+      momo: "Mobile Money",
+      noMomo: "Mobile Money not registered",
+      momoLabel: "MoMo number",
+      emailLabel: "E-mail",
+      verifiedBadge: "Verified profile",
+      viewProfile: "View profile",
+      btnCni: "CNI",
+      btnMomo: "MoMo",
+      btnDocuments: "Documents",
+      suspend: "Suspend",
+      activate: "Reactivate",
+      suspendConfirm:
+        "Suspend this candidate? They can no longer apply or work.",
+      activateConfirm: "Reactivate this candidate?",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can suspend or reactivate.",
+    },
+    companies: {
+      title: "Companies",
+      subtitle:
+        "Centralized view: legal name, contact and verification status for every company. Search by name, e-mail or phone.",
+      searchPlaceholder: "Search (name, e-mail, phone)",
+      sectionPending: "Pending",
+      sectionVerified: "Verified",
+      sectionSuspended: "Suspended",
+      emptyPending: "No companies pending verification",
+      emptyVerified: "No verified companies",
+      emptySuspended: "No suspended companies",
+      noResults: "No companies match this search",
+      emailLabel: "Contact e-mail",
+      phoneLabel: "Phone",
+      noContact: "Contact information not provided",
+      verifiedBadge: "Verified company",
+      viewProfile: "View profile",
+      suspend: "Suspend",
+      activate: "Reactivate",
+      suspendConfirm:
+        "Suspend this company? It can no longer post jobs or receive applications.",
+      activateConfirm: "Reactivate this company?",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can suspend or reactivate.",
+    },
+    candidateProfile: {
+      title: "Candidate profile",
+      back: "All candidates",
+      identitySection: "Identity",
+      filteredByUser:
+        "View restricted to the candidate from the “Candidates” card. Click “All candidates” to go back to the full list.",
+      suspended: "Account suspended",
+      readOnly: "Read-only — identity editing is reserved to admin_founder.",
+      notFound: "Profile not found",
+      genderLabel: "Gender",
+      genderMale: "Male",
+      genderFemale: "Female",
+      genderOther: "Other",
+      bioLabel: "Bio",
+      noBio: "No bio provided",
+      locationLabel: "Location",
+      noLocation: "Location not provided",
+      cniSection: "CNI",
+      momoSection: "Mobile Money",
+      momoAccountName: "Account name",
+      noMomoAccountName: "Account name not provided",
+      skillsSection: "Skills",
+      noSkills: "No declared skills",
+      documentsSection: "Documents",
+      noDocuments: "No documents",
+      missionsSection: "Missions",
+      noMissions: "No missions",
+      statsSection: "Statistics",
+      statTotal: "Total missions",
+      statCompleted: "Completed",
+      statNoShows: "No-shows",
+      statReliability: "Reliability",
+      statRating: "Average rating",
+      statSandbox: "Sandbox level",
+      premiumLabel: "Premium",
+      premiumNone: "No Premium subscription",
+      premiumUntil: "until",
+      createdAt: "Registered on",
+      updatedAt: "Updated on",
+      editTitle: "Edit identity",
+      editHint:
+        "Only admin_founder can edit the first name, last name and date of birth.",
+      editResetNotice:
+        "This change resets the CNI to “Pending”: the candidate will need to re-verify their identity.",
+      firstNameLabel: "First name",
+      lastNameLabel: "Last name",
+      dobLabel: "Date of birth",
+      save: "Save",
+      saved: "Identity saved",
+      saveFailed: "Saving failed. Try again.",
+      missionStatuses: {
+        pending: "Pending",
+        confirmed: "Confirmed",
+        in_progress: "In progress",
+        completed: "Completed",
+        cancelled: "Cancelled",
+        no_show: "No-show",
+        en_route: "En route",
+        arrived: "Arrived",
+        validated: "Validated",
+        disputed: "Disputed",
+      },
+      paymentStatuses: {
+        pending: "Pending",
+        processing: "Processing",
+        completed: "Settled",
+        failed: "Failed",
+        refunded: "Refunded",
+        cancelled: "Cancelled",
+        partial: "Partial",
+        full: "Full",
+      },
+      // T8.5 — "Profile updates" section of the candidate profile.
+      updateRequestsSection: "Profile updates",
+      noUpdateRequests: "No profile update requests for this candidate",
+      requestUpdateButton: "Request an update",
+      requestReadOnly:
+        "Read-only access — only admin_ops and admin_founder can request updates.",
+    },
+    // T8.5 — Profile update requests initiated by the admin (SRS §5.1.1).
+    // The T2 model has no "approve/reject": the admin initiates, the
+    // candidate executes (auto-closes to `done`); the admin may cancel
+    // (`cancelled`) or purge closed history (`DELETE`).
+    updateRequests: {
+      title: "Profile updates",
+      subtitle:
+        "Requests to unlock verified fields (identity / CNI) initiated by the administration. The candidate executes the update; the request closes automatically.",
+      back: "Dashboard",
+      pending: "Pending",
+      done: "Executed",
+      cancelled: "Cancelled",
+      all: "All",
+      empty: "No profile update requests",
+      fieldsLabel: "Affected fields",
+      reasonLabel: "Reason",
+      noReason: "No reason provided",
+      requestedBy: "Requested by",
+      requestedAt: "Requested on",
+      completedAt: "Executed on",
+      fieldIdentity: "Identity",
+      fieldCniDocuments: "CNI documents",
+      cancel: "Cancel",
+      cancelConfirm:
+        "Cancel this request? The candidate will no longer be able to change the affected fields and they will be locked again.",
+      delete: "Delete",
+      deleteConfirm:
+        "Permanently delete this request? This action cannot be undone.",
+      readOnly:
+        "Read-only access — only admin_ops and admin_founder can cancel or delete.",
+      actionFailed: "The action failed. Please try again.",
+      createdTitle: "Profile update requested",
+      createTitle: "Request an update",
+      createHint:
+        "Temporarily unlocks the candidate’s verified fields until they are resubmitted and re-verified.",
+      candidateLabel: "Candidate",
+      searchPlaceholder: "Search a candidate…",
+      noCandidate: "Search a candidate (name or email) to request an update.",
+      fieldsLabelHint: "At least one group to unlock",
+      reasonPlaceholder:
+        "e.g. name change on an up-to-date deed, expired CNI to replace…",
+      reasonRequired: "A reason of at least 5 characters is required.",
+      submit: "Request the update",
+      submitting: "Sending…",
+      created: "Request sent to the candidate.",
+    },
+  },
+
   // Auth
   auth: {
     welcome: "Welcome to EasyJob CM",
@@ -414,12 +701,12 @@ export const en: TranslationKeys = {
       title: "Edit my information",
       firstName: "First name",
       lastName: "Last name",
+      birthDate: "Date of birth",
       city: "City",
       quartier: "Neighborhood",
       bio: "About you",
       bioHint:
         "Briefly describe your experience (more than 10 characters to count towards completion).",
-      skills: "Skills",
       addSkills: "Add my skills",
       save: "Save",
       saving: "Saving…",
@@ -427,8 +714,17 @@ export const en: TranslationKeys = {
       error: "Could not save. Please try again.",
       firstNameRequired: "First name is required",
       lastNameRequired: "Last name is required",
+      birthDateRequired: "Date of birth is required",
+      ageInvalid: "You must be at least 18 years old",
+      birthDateInvalid: "Invalid date of birth",
       cityRequired: "Select a city",
       unsavedWarning: "You have unsaved changes. Leave anyway?",
+      lockedIdentityLabel: "Verified information",
+      lockedIdentityBody:
+        "Your identity information is verified and can only be changed after an admin request. Contact the admin if the update is justified.",
+      lockedDocLabel: "Verified document",
+      lockedDocBody:
+        "This document is verified and can only be replaced after an admin request.",
     },
     documents: {
       title: "Documents",
@@ -443,6 +739,7 @@ export const en: TranslationKeys = {
       verified: "Verified",
       rejected: "Rejected",
       expired: "Expired",
+      locked: "Editable on admin request",
       tooLarge: "File too large (5 MB max)",
       uploadFailed: "Upload failed. Please try again.",
     },
@@ -509,7 +806,81 @@ export const en: TranslationKeys = {
       uploadError: "Upload failed. Check the file and try again.",
       tooLarge: "File too large (5 MB max)",
       unsupportedType: "Unsupported format (PDF, JPEG, PNG or WebP only)",
-      selectSkillRequired: "Select at least one skill (not required for a CV)",
+      selectSkillRequired:
+        "Select at least one skill (not required for a CV or a driving license)",
+    },
+    documentsPage: {
+      title: "My documents",
+      subtitle:
+        "All your supporting documents — CV, driving license, degree and certificates — with their verification status.",
+      addTitle: "Add a supporting document",
+      addHint: "Add and certify your documents from the “My skills” page.",
+      addCta: "My skills",
+      empty: "No documents yet.",
+      emptyHint:
+        "Add your CV, driving license or a supporting document from “My skills”.",
+      issuedAt: "Issued on",
+      expiresAt: "Expires on",
+      view: "View",
+      viewError: "Could not load this document. Please try again.",
+      download: "Download",
+      downloadError: "Could not download this document. Please try again.",
+      linkedSkills: "Linked skills",
+      category: "Category: {cat}",
+    },
+    skills: {
+      title: "My skills",
+      subtitle:
+        "Manage your skills, certify them with proof documents, and attach your CV and driving license.",
+      noSkills: "No skills yet. Add some from the catalogue below.",
+      addSection: "Add a skill",
+      searchPlaceholder: "Search a skill…",
+      noSearch: "No skill found in the catalogue.",
+      otherSkills: "Your other skills",
+      catalog: {
+        services: "Front desk & services",
+        vente: "Sales",
+        restauration: "Catering & food service",
+        manutention: "Handling & logistics",
+        transport: "Transport & delivery",
+        artisanat: "Building trades & crafts",
+        nettoyage: "Cleaning & maintenance",
+        securite: "Security",
+        events: "Events",
+        bureautique: "Office & administration",
+        digital: "Digital & IT",
+        beaute: "Beauty",
+        soins: "Care & assistance",
+        langues: "Languages",
+      },
+      confirmTitle: "Certify this skill?",
+      confirmBody:
+        'Would you like to certify "{skill}" now with a proof document?',
+      confirmNow: "Certify now",
+      confirmLater: "Later",
+      deleteSkill: "Delete the skill",
+      deleteSkillConfirm: 'Delete "{skill}" from your profile?',
+      deleteSkillError: "The skill could not be deleted. Please try again.",
+      addError: "The skill could not be added. Please try again.",
+      drivingLicenseTitle: "Driving license",
+      drivingLicenseHint:
+        "A general profile document, useful for driving and delivery missions.",
+      addDrivingLicense: "Add my driving license",
+      licenseCategoryLabel: "License category",
+      licenseCategoryPlaceholder: "Select the category",
+      licenseCategories: {
+        moto: "Motorcycle",
+        voiture: "Car",
+        fourgon: "Van",
+        camion: "Truck",
+        bus: "Bus",
+        tous_types: "All types (international license)",
+      },
+      licenseCategoryBadge: "Category: {cat}",
+      licenseCategoryRequired:
+        "The license category is required to add this document.",
+      licenseRequiredError:
+        '"{skill}" requires a verified driving license. Add and get your license verified before adding this skill.',
     },
     geolocation: {
       title: "Precise location",
@@ -518,18 +889,62 @@ export const en: TranslationKeys = {
       useMyLocation: "Use my location",
       locating: "Locating…",
       success: "Location saved",
+      recordedBadge: "GPS saved",
+      precision: "± {m} m",
+      /** Shown until GPS is saved: browsers only ask for permission on user gesture. */
+      firstPermissionHint:
+        "On your first click, your browser will ask for location permission — allow it.",
       denied:
         "Permission denied. You can continue with your city and neighborhood.",
       unavailable: "Location unavailable on this device.",
+      /** GPS fix too slow (browser code 3): the button stays clickable,
+       *  retry or enter the city manually. */
+      timeout:
+        "Detecting your location took too long. Please retry, or select your city and neighborhood manually.",
+      /** T5: server error (coords out of bounds -90..90 / -180..180). */
+      geoOutOfRange: "Geographic coordinates out of range.",
+      /** T5.1: shown under the button when the detected position is OUTSIDE
+       *  the service zone (Douala/Yaoundé). The candidate continues with the
+       *  manual city + neighborhood selection. */
+      outOfZone:
+        "Your position is outside of Douala and Yaoundé. Please select your city and neighborhood manually.",
+      /** T5.1: info shown when an in-zone fix is accepted — city is auto-set
+       *  to the nearest, and the neighborhood is auto-looked-up via OSM
+       *  Nominatim (single request). */
+      autoFilledFromGps:
+        "City and neighborhood were filled from your GPS position.",
+      /** T5.1: reverse-geocode failure (OSM down / timeout) — the fix is
+       *  accepted but the neighborhood is NOT auto-filled. The candidate can
+       *  enter it manually. */
+      autoFilledFailed:
+        "Position saved, but the neighborhood could not be detected. You can fill it in manually.",
+      /** T5.1: Zod refinement key `geoOutOfZone` — in-zone bounds but outside
+       *  the service area. */
+      geoOutOfZone:
+        "Coordinates outside the service area (Douala / Yaoundé only).",
+      /** T5.1: Zod refinement key `cityNotServed` — city not in the catalog. */
+      cityNotServed: "City not served by Easyjob (Douala / Yaoundé only).",
     },
     reverification: {
       modalTitle: "Confirm the change",
       modalBody:
-        "Changing your name will require a new verification of your ID document. Do you want to continue?",
+        "Changing your identity (name or date of birth) will require a new verification of your ID document. Do you want to continue?",
       confirm: "Confirm the change",
       bannerTitle: "Verification in progress",
       bannerBody:
-        "Your ID document is being re-verified following a change to your name.",
+        "Your ID document is being re-verified following a change to your identity.",
+    },
+    profileUpdateRequests: {
+      title: "Requested profile update",
+      reasonLabel: "Reason for the request",
+      identity: "Your identity information",
+      cni_documents: "Your ID documents",
+      start: "Prepare the update",
+      goToEdit: "Open my information",
+      goToDocuments: "Open my documents",
+      hint: "The admin unlocked these fields for a limited time. Once saved, verification starts over.",
+      done: "Update saved. Your document will be re-reviewed after the next verification.",
+      expiredLabel: "This request was closed",
     },
     myProfile: "My Profile",
     missionsCompleted: "missions completed",
@@ -547,6 +962,11 @@ export const en: TranslationKeys = {
       provider: "Provider",
       number: "Mobile Money number",
       numberPlaceholder: "6XX XXX XXX",
+      accountName: "Mobile Money account name",
+      accountNamePlaceholder: "As registered on the account",
+      accountNameHint:
+        "The account name must match your CNI — accounts registered in someone else's name are not accepted.",
+      accountNameOptional: "(optional)",
       save: "Save",
       saving: "Saving…",
       saved: "Mobile Money updated",
@@ -557,6 +977,19 @@ export const en: TranslationKeys = {
       edit: "Edit",
       revalidateNotice:
         "Changing the number or provider will require a new verification.",
+      // T6 — manual admin verification (OTP proof of ownership was removed
+      // at launch — product decision 2026-09-10) + rejected status.
+      rejected: "Rejected",
+      rejectedReason: "Reason: {reason}",
+      reviewPending:
+        "Admin review can take up to 24 h. The account name is matched against your CNI name.",
+      momoProviderInvalid:
+        "Invalid Mobile Money provider (MTN MoMo or Orange Money).",
+      momoAccountNameTooLong:
+        "Mobile Money account name is too long (100 characters max).",
+      momoRejectReasonTooShort: "The rejection reason is too short.",
+      momoRejectReasonRequired:
+        "A rejection reason is required to reject a verification.",
     },
     security: "Security",
     settingsPage: {

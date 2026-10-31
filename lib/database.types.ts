@@ -157,6 +157,7 @@ export type Database = {
           id: string
           issued_at: string | null
           issuing_organization: string | null
+          license_category: string | null
           reference_number: string | null
           rejection_reason: string | null
           status: string
@@ -174,6 +175,7 @@ export type Database = {
           id?: string
           issued_at?: string | null
           issuing_organization?: string | null
+          license_category?: string | null
           reference_number?: string | null
           rejection_reason?: string | null
           status?: string
@@ -191,6 +193,7 @@ export type Database = {
           id?: string
           issued_at?: string | null
           issuing_organization?: string | null
+          license_category?: string | null
           reference_number?: string | null
           rejection_reason?: string | null
           status?: string
@@ -245,10 +248,14 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           max_travel_distance_km: number | null
+          momo_account_name: string | null
           momo_name_match: boolean
           momo_number: string | null
           momo_provider: string | null
+          momo_reject_reason: string | null
           momo_verified: boolean | null
+          momo_verified_at: string | null
+          momo_verified_by: string | null
           no_show_count: number | null
           onboarding_status:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -292,10 +299,14 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -339,10 +350,14 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           max_travel_distance_km?: number | null
+          momo_account_name?: string | null
           momo_name_match?: boolean
           momo_number?: string | null
           momo_provider?: string | null
+          momo_reject_reason?: string | null
           momo_verified?: boolean | null
+          momo_verified_at?: string | null
+          momo_verified_by?: string | null
           no_show_count?: number | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -360,6 +375,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "candidate_profiles_momo_verified_by_fkey"
+            columns: ["momo_verified_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "candidate_profiles_user_id_fkey"
             columns: ["user_id"]
@@ -1745,6 +1767,57 @@ export type Database = {
           },
         ]
       }
+      profile_update_requests: {
+        Row: {
+          candidate_id: string
+          completed_at: string | null
+          created_at: string
+          fields: string[]
+          id: string
+          reason: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          completed_at?: string | null
+          created_at?: string
+          fields?: string[]
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          completed_at?: string | null
+          created_at?: string
+          fields?: string[]
+          id?: string
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_update_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_update_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           comment: string | null
@@ -2020,6 +2093,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_edit_candidate_identity: {
+        Args: {
+          p_date_of_birth: string
+          p_first_name: string
+          p_last_name: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      admin_set_user_active: {
+        Args: { p_active: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      apply_momo_verification: {
+        Args: {
+          p_action: string
+          p_profile_id: string
+          p_reject_reason: string
+        }
+        Returns: undefined
+      }
+      candidate_update_cni: {
+        Args: {
+          p_back_url: string
+          p_cni_number: string
+          p_expires_at: string
+          p_front_url: string
+          p_profile_id: string
+          p_selfie_url: string
+        }
+        Returns: undefined
+      }
+      candidate_update_momo: {
+        Args: { p_account_name: string; p_number: string; p_provider: string }
+        Returns: undefined
+      }
       check_email_send_quota: {
         Args: { p_email: string; p_ip: string }
         Returns: boolean
@@ -2030,12 +2139,33 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      has_verified_license_for: {
+        Args: { p_candidate_id: string; p_skill_name: string }
+        Returns: boolean
+      }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      moderate_cni: {
+        Args: {
+          p_action: string
+          p_expires_at: string
+          p_profile_id: string
+          p_reject_reason: string
+        }
+        Returns: undefined
+      }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
+        Returns: string
+      }
+      recompute_user_verification: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      skill_requires_license: {
+        Args: { p_skill_name: string }
         Returns: string
       }
     }
@@ -2092,6 +2222,7 @@ export type Database = {
         | "review_request"
         | "system"
         | "document_status"
+        | "momo_status"
       onboarding_status: "pending" | "in_progress" | "completed" | "rejected"
       payment_method: "mtn_momo" | "orange_money" | "bank_transfer" | "cash"
       payment_status:
@@ -2303,6 +2434,7 @@ export const Constants = {
         "review_request",
         "system",
         "document_status",
+        "momo_status",
       ],
       onboarding_status: ["pending", "in_progress", "completed", "rejected"],
       payment_method: ["mtn_momo", "orange_money", "bank_transfer", "cash"],

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { isLocalUrl } from "./lib/local-supabase";
 
 // Load local env file when running as a standalone script (Node 22+).
 if (typeof process.loadEnvFile === "function") {
@@ -14,6 +15,10 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error(
     "Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.",
   );
+}
+// Données fictives : jamais sur un projet distant (.env.local peut le viser).
+if (!isLocalUrl(supabaseUrl)) {
+  throw new Error("Refus : le seed ne cible qu'une pile Supabase locale.");
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
