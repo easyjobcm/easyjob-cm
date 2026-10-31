@@ -135,12 +135,14 @@ export default function CompanyJobsPage() {
     setDeleting(true);
     const supabase = createClient();
 
-    const { error } = await supabase
+    // Sans ligne supprimée (RLS), pas d'erreur : on compte les lignes.
+    const { data: deleted, error } = await supabase
       .from("jobs")
       .delete()
-      .eq("id", deleteJobId);
+      .eq("id", deleteJobId)
+      .select("id");
 
-    if (error) {
+    if (error || !deleted?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de supprimer l'offre.",

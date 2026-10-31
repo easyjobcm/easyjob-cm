@@ -143,7 +143,8 @@ export function JobCard({
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4 shrink-0 text-primary/60" />
               <span>
-                {formatTime(job.start_time)} - {formatTime(job.end_time)}
+                {formatTime(job.start_time, locale)} -{" "}
+                {formatTime(job.end_time, locale)}
               </span>
             </div>
           </div>

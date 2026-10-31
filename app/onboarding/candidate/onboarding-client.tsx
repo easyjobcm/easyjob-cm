@@ -16,7 +16,11 @@ import {
   CAMEROON_CITIES,
   COMMON_SKILLS,
 } from "@/lib/utils/candidate-constants";
-import { isCleanGeoCoords, paymentSchema } from "@/lib/validations/profile";
+import {
+  birthDateSchema,
+  isCleanGeoCoords,
+  paymentSchema,
+} from "@/lib/validations/profile";
 import {
   licenseSatisfies,
   requiredLicenseCategory,
@@ -101,6 +105,7 @@ export function OnboardingClient({
   );
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [dobError, setDobError] = React.useState("");
   // T5.1 — statuts transitoires de la détection GPS (fix refusé hors zone /
   // auto-remplissage ok / échec Nominatim). Portés par un clic « Utiliser
   // ma position » ou remis à zéro à chaque step.
@@ -273,6 +278,8 @@ export function OnboardingClient({
           ...profileFields,
           // omit empty string for enum column
           gender: profileFields.gender || undefined,
+          // Date facultative à l'onboarding : absente = null, jamais "".
+          date_of_birth: profileFields.date_of_birth || null,
           onboarding_step: nextStep,
         })
         .eq("user_id", user.id)
@@ -335,6 +342,18 @@ export function OnboardingClient({
             : "Please fill all fields",
         );
         return;
+      }
+      if (formData.date_of_birth) {
+        const dob = birthDateSchema.safeParse(formData.date_of_birth);
+        if (!dob.success) {
+          const key = dob.error.issues[0]?.message;
+          setDobError(
+            key === "ageInvalid"
+              ? t.profile.edit.ageInvalid
+              : t.profile.edit.birthDateInvalid,
+          );
+          return;
+        }
       }
     }
     if (currentStep === 2) {
@@ -448,11 +467,23 @@ export function OnboardingClient({
               <Input
                 type="date"
                 value={formData.date_of_birth}
-                onChange={(e) =>
-                  updateFormData("date_of_birth", e.target.value)
-                }
+                onChange={(e) => {
+                  updateFormData("date_of_birth", e.target.value);
+                  setDobError("");
+                }}
                 max={MAX_BIRTH_DATE}
+                aria-invalid={dobError ? true : undefined}
+                aria-describedby={dobError ? "onboarding-dob-error" : undefined}
               />
+              {dobError && (
+                <p
+                  id="onboarding-dob-error"
+                  role="alert"
+                  className="mt-1 text-sm text-destructive"
+                >
+                  {dobError}
+                </p>
+              )}
             </div>
           </div>
         );

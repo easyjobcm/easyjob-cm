@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { toast } from "@/hooks/use-toast";
 import type { EssentialKey } from "@/lib/utils/profile-completion";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import {
@@ -144,19 +145,20 @@ export function JobDetailClient({
           setShowConfirmModal(false);
           setShowBlockedModal(true);
         } else {
-          alert(
-            body.error ||
-              (locale === "fr"
-                ? "Une erreur est survenue"
-                : "Something went wrong"),
-          );
+          setShowConfirmModal(false);
+          toast({
+            title: t.common.error,
+            description:
+              body.code === "profile_incomplete"
+                ? t.profile.completion.required60
+                : body.error,
+            variant: "destructive",
+          });
         }
       }
     } catch (error) {
       console.error("Error applying:", error);
-      alert(
-        locale === "fr" ? "Une erreur est survenue" : "Something went wrong",
-      );
+      toast({ title: t.common.error, variant: "destructive" });
     } finally {
       setApplying(false);
     }
@@ -187,7 +189,7 @@ export function JobDetailClient({
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-28">
+    <div className="flex min-h-screen flex-col bg-background pb-[calc(13rem+env(safe-area-inset-bottom))]">
       {/* Header with gradient */}
       <div className="bg-linear-to-br from-primary via-primary to-primary/80 text-primary-foreground">
         <Header
@@ -346,7 +348,8 @@ export function JobDetailClient({
                   <Clock className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="font-medium text-foreground">
-                      {formatTime(job.start_time)} - {formatTime(job.end_time)}
+                      {formatTime(job.start_time, locale)} -{" "}
+                      {formatTime(job.end_time, locale)}
                     </p>
                     <p className="text-sm text-muted-foreground">{duration}h</p>
                   </div>
@@ -470,7 +473,9 @@ export function JobDetailClient({
       </div>
 
       {/* Fixed bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t border-border p-4 safe-area-bottom">
+      {/* Au-dessus de la barre d'onglets candidat (h-16 + zone sûre), toujours
+          affichée sur /jobs/* et qui recouvrait ce bouton. */}
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 bg-background/95 backdrop-blur-xl border-t border-border p-4">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm text-muted-foreground">
@@ -495,15 +500,27 @@ export function JobDetailClient({
             {locale === "fr" ? "Voir mes candidatures" : "View my applications"}
           </Button>
         ) : essentialsBlocked ? (
-          <Button
-            variant="outline"
-            className="w-full border-amber-400 text-amber-600 dark:text-amber-400"
-            size="lg"
-            onClick={() => router.push("/profile/candidate/edit")}
-          >
-            <ShieldAlert className="mr-2 h-4 w-4" />
-            {te.cta}
-          </Button>
+          <>
+            <p
+              id="essentials-blocked-reason"
+              className="mb-2 text-sm text-amber-700 dark:text-amber-300"
+            >
+              {te.bannerBody.replace(
+                "{missing}",
+                essentialsMissingLabels.join(", "),
+              )}
+            </p>
+            <Button
+              variant="outline"
+              className="w-full border-amber-400 text-amber-600 dark:text-amber-400"
+              size="lg"
+              aria-describedby="essentials-blocked-reason"
+              onClick={() => router.push("/profile/candidate/edit")}
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" />
+              {te.cta}
+            </Button>
+          </>
         ) : (
           <Button
             onClick={() => setShowConfirmModal(true)}
@@ -587,7 +604,7 @@ export function JobDetailClient({
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="h-4 w-4" />
-                  {formatTime(job.start_time)}
+                  {formatTime(job.start_time, locale)}
                 </div>
               </div>
             </CardContent>
