@@ -25,9 +25,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/error`);
   }
 
-  // Si la cible est une étape signup, on s'assure que la row public.users
-  // contient le bon rôle. Le profil métier (candidate_profiles / company_profiles)
-  // n'est créé qu'après vérification du téléphone — pas ici.
+  // Si la cible est une étape signup, on crée la row public.users avec le
+  // rôle d'inscription choisi — UNIQUEMENT si elle n'existe pas encore :
+  // un compte existant (admin, premium, autre rôle) garde son rôle.
+  // Le profil métier (candidate_profiles / company_profiles) n'est créé
+  // qu'après vérification du téléphone — pas ici.
   const role = extractRole(next);
   if (role) {
     const {
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
           role,
           locale,
         },
-        { onConflict: "id" },
+        { onConflict: "id", ignoreDuplicates: true },
       );
     }
   }

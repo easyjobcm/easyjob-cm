@@ -30,7 +30,9 @@ async function main() {
 
   const existing = usersPage.users.find((u) => u.email === email);
 
-  const metadata = { app_metadata: { role }, user_metadata: { role } };
+  // Le rôle n'est porté que par app_metadata (écrit par service_role) et
+  // public.users : user_metadata est modifiable par l'utilisateur.
+  const metadata = { app_metadata: { role } };
 
   if (existing) {
     const { error } = await supabase.auth.admin.updateUserById(existing.id, {

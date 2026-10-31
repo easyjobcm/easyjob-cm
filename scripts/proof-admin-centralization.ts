@@ -45,30 +45,21 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
+import { readLocalProofEnv } from "./lib/local-supabase";
 
 type DB = SupabaseClient<Database>;
 
-if (typeof process.loadEnvFile === "function") {
-  process.loadEnvFile(".env.local");
-}
-
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// Pile locale uniquement (refus de toute cible distante) — voir
+// docs/testing/local-proofs.md.
+const {
+  supabaseUrl: SUPABASE_URL,
+  anonKey: ANON_KEY,
+  serviceKey: SERVICE_KEY,
+  appUrl: APP_URL,
+} = readLocalProofEnv();
 const PROOF_PASSWORD = "Proof-T84-11!";
 const PROOF_METADATA = { proofT84a: true };
-const APP_URL = process.env.NEXT_APP_URL ?? "http://localhost:3000";
 const BUCKET = "candidate-documents";
-
-if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
-  throw new Error(
-    "Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-  );
-}
 
 const serviceClient: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false },
