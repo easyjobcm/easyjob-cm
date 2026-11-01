@@ -116,27 +116,29 @@ function queryRows(sql: string): Record<string, unknown>[] {
     `proof-company-permissions-${Date.now()}.sql`,
   );
   fs.writeFileSync(tmp, sql, "utf-8");
+  // Sans --output-format json, la CLI rend un tableau texte (cas de la CI).
+  // Lancée depuis un agent IA, elle encadre le JSON : { boundary, rows }.
+  const command = "pnpm exec supabase db query --output-format json";
   const isWin = process.platform === "win32";
   const args = isWin
-    ? [
-        "/d",
-        "/s",
-        "/c",
-        `pnpm exec supabase db query --db-url ${DB_URL} -f ${tmp}`,
-      ]
-    : ["-c", `pnpm exec supabase db query --db-url '${DB_URL}' -f '${tmp}'`];
+    ? ["/d", "/s", "/c", `${command} --db-url ${DB_URL} -f ${tmp}`]
+    : ["-c", `${command} --db-url '${DB_URL}' -f '${tmp}'`];
   const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
     encoding: "utf-8",
     cwd: process.cwd(),
   });
   fs.rmSync(tmp, { force: true });
   const out = r.stdout ?? "";
-  const start = out.indexOf("{");
-  const end = out.lastIndexOf("}");
+  const starts = [out.indexOf("["), out.indexOf("{")].filter((i) => i >= 0);
+  const start = starts.length > 0 ? Math.min(...starts) : -1;
+  const end = out.lastIndexOf(out[start] === "[" ? "]" : "}");
   if (r.status !== 0 || start < 0 || end < start) {
-    throw new Error(`supabase db query : ${(r.stderr ?? "").slice(0, 300)}`);
+    throw new Error(`supabase db query : ${(r.stderr || out).slice(0, 300)}`);
   }
-  return (JSON.parse(out.slice(start, end + 1)) as { rows: [] }).rows;
+  const parsed = JSON.parse(out.slice(start, end + 1)) as
+    | Record<string, unknown>[]
+    | { rows: Record<string, unknown>[] };
+  return Array.isArray(parsed) ? parsed : parsed.rows;
 }
 
 // ─── Seed / cleanup ──────────────────────────────────────────────
