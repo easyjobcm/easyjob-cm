@@ -29,7 +29,7 @@ export default async function CompanyOnboardingPage() {
     .from("company_profiles")
     .select(
       `company_name, sector, company_size, website, description, rccm, niu,
-       documents_url, city, quartier, address`,
+       documents_url, city, quartier, address, verification_status`,
     )
     .eq("user_id", user.id)
     .maybeSingle();

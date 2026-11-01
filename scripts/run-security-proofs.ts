@@ -30,6 +30,7 @@ const PROOFS = [
   "profile-skills",
   "profile-documents",
   "company-onboarding",
+  "company-permissions",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",

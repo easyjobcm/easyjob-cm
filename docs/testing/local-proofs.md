@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 17 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 18 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -76,6 +76,14 @@ pnpm exec supabase db reset --workdir $stack   # restauration
 
 Relâcher une seule couche ne suffit pas : le trigger compense le privilège de colonne, et la preuve reste verte à juste titre. Après le reset, vérifier que `has_column_privilege('authenticated','public.users','role','UPDATE')` vaut `false` et que le trigger est actif, puis relancer la suite.
 
+Le même contrôle s'applique à `company_profiles` (F-41, lot 5b). Il faut relâcher les privilèges, le trigger et la politique INSERT :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "grant insert, update, delete on public.company_profiles to authenticated; alter table public.company_profiles disable trigger trg_protect_company_profile_columns; create policy neg_insert on public.company_profiles for insert to authenticated with check (user_id = auth.uid());"
+pnpm test:rls company-permissions   # attendu : 32 échecs (dont A1, B, C1), code de sortie 1
+pnpm exec supabase db reset --workdir $stack   # restauration
+```
+
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13 et §15 (onboarding entreprise). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise) et §16 (droits des entreprises). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).

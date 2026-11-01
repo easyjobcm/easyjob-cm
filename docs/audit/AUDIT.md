@@ -855,6 +855,8 @@ Parcours : formulaire (`app/onboarding/company/onboarding-client.tsx`) → Zod p
 
 ### Nouveau constat F-41 (P1) — auto-validation d'une entreprise
 
+> **Corrigé et vérifié localement (lot 5b, §16), non déployé.**
+
 `company_profiles` n'a qu'une politique UPDATE « `user_id = auth.uid()` », sans restriction de colonnes ni trigger de protection. Reproduit sur la pile dédiée avec une **vraie session** entreprise : `update({ verification_status: "verified", niu_verified: true, subscription_plan: "business" })` réussit.
 
 L'entreprise contourne ainsi :
@@ -886,3 +888,99 @@ Hors périmètre du lot 5, car l'onboarding n'écrit pas ces colonnes. À corrig
 
 - CI distante non observée.
 - Tests navigateur exécutés par un script local hors dépôt (Puppeteer et Chrome installé), non intégrés à la CI. `puppeteer-core` vient de `pwa-asset-generator` ; aucune dépendance ajoutée.
+
+---
+
+## 16. Suivi — Lot 5b : droits d'écriture des entreprises (F-41) (2026-11-01)
+
+Branche `fix/lot-05b-company-permissions`, base `origin/main-dev` (759f751, lot 5 intégré par la PR #53). **Corrigé et vérifié localement, non commité, non déployé.** Migration : `supabase/migrations/20261101130000_lock_company_profile_permissions.sql`.
+
+### État avant correction (schéma final des migrations)
+
+- `GRANT ALL` de la baseline à `anon` et `authenticated` sur les 37 colonnes.
+- Politique INSERT sans clause `TO` ; politique UPDATE sans `WITH CHECK` ; aucune politique DELETE (refus silencieux).
+- Un seul trigger (`updated_at`). Aucune fonction de la base n'écrit `company_profiles`.
+- Chemins d'écriture applicatifs : `finalizeSignup` (création, clé service) et `PUT /api/company/onboarding` (session). Aucune route admin, aucun script d'exploitation n'écrit la table ; les preuves l'écrivent en clé service pour leurs fixtures.
+
+### Champs sensibles, d'après leurs usages
+
+| Champ | Usage qui en fait un droit |
+|---|---|
+| `verification_status` | Contrôle « entreprise vérifiée » de `POST /api/jobs` ; sections admin *En attente* / *Validées* |
+| `verification_rejection_reason` | Motif affiché par l'admin |
+| `niu`, `niu_verified` | Identité fiscale vérifiée par `admin_ops` (SRS §11.6) ; `niu` unique |
+| `subscription_plan` | Source de vérité du plan (`lib/utils/company-plan.ts`, `/profile/company`) |
+| `subscription_tier`, `subscription_expires_at`, `trial_ends_at` | Repli du plan, échéance affichée, essai consommé |
+| `trust_score`, `average_rating`, `total_missions_posted`, `late_cancellation_count` | Réputation et pénalités |
+| `user_id`, `id`, `is_active`, `device_fingerprint`, `created_at`, `legal_name`, `contact_*`, `logo_url`, coordonnées | Propriétaire et champs internes, écrits par aucun parcours en session |
+
+Sources de référence : la vérification d'une entreprise est `company_profiles.verification_status` (et non `users.is_verified`, calculé pour les candidats seulement) ; le plan est `subscription_plan`. `users.role` (`company_premium`) est protégé par le lot 1, l'INSERT `subscriptions` réservé aux admins par le lot 2.
+
+### Protections
+
+Mêmes principes qu'aux lots 1 et 2 :
+
+- **Privilèges de colonnes**, frontière principale. `authenticated` ne garde que `UPDATE` sur les 12 colonnes écrites par l'onboarding : `company_name`, `sector`, `company_size`, `website`, `description`, `rccm`, `city`, `quartier`, `address`, `documents_url`, `onboarding_status`, `onboarding_step`. Plus d'INSERT, de DELETE ni de TRUNCATE en session. Toute autre écriture est refusée explicitement (42501).
+- **Trigger de défense en profondeur** `trg_protect_company_profile_columns`, fondé sur `current_user`. Il ne dépend pas de `easyjob.system_update`. Il refuse :
+  - toute création ou suppression en session ;
+  - toute colonne hors liste, y compris les colonnes ajoutées plus tard ;
+  - un `documents_url` hors du dossier `<auth.uid()>/` du bucket `company-documents`.
+- **RLS** : politique INSERT supprimée, politique UPDATE limitée à `authenticated`, avec `WITH CHECK`.
+- **Création et recréation** : le profil n'est créé que par `finalizeSignup` (clé service). L'UPSERT exige l'INSERT et il est donc refusé. La suppression n'existe qu'avec le compte, en cascade exécutée en propriétaire. Une suppression suivie d'une recréation est impossible en session.
+- **Contexte d'exécution** : aucune fonction `SECURITY DEFINER` exposée n'écrit la table ni n'exécute de SQL dynamique, et la fonction du trigger n'est pas exécutable. La preuve le vérifie dans le catalogue. Les écritures de confiance passent par `service_role`.
+
+### Données vérifiées (décision produit du 2026-11-01 : nouvelle revue)
+
+- Si une entreprise **vérifiée** modifie son nom (`company_name`), son RCCM ou son document RCCM, la modification est enregistrée. Dans la même écriture, `verification_status` repasse à `pending` et le motif est effacé. L'entreprise ne peut plus publier jusqu'à une nouvelle validation.
+- Les autres champs (secteur, taille, site, description, adresse) ne déclenchent pas de revue.
+- Le NIU n'est jamais modifiable en session, donc `niu_verified` est conservé.
+- Une entreprise **refusée** qui corrige ses informations reste `rejected` : seul l'admin lève le refus.
+- L'onboarding prévient l'entreprise vérifiée avant l'envoi (`companyOnboarding.verifiedNotice`, FR/EN).
+- Les corrections faites par un chemin de confiance (clé service) ne déclenchent pas de revue.
+
+### Opérations réservées aux chemins de confiance
+
+- Validation, refus et motif ; `niu` et `niu_verified` ; plan, échéances et essai ; statistiques ; changement de propriétaire ; création et suppression du profil.
+- Il n'existe aujourd'hui **ni RPC ni interface admin** pour valider une entreprise : ces opérations passent par la clé service (Studio ou script d'exploitation), sans trace dans `audit_logs`. Aucune RPC n'a été ajoutée : la revue RCCM et la validation tracée sont à concevoir dans un lot dédié.
+- La suspension (`admin_set_user_active`, grades `admin_ops` et `admin_founder`) est inchangée et tracée.
+
+### Valeurs existantes
+
+Non corrigées par la migration. À vérifier séparément, en lecture seule, sur la production (lot 0) :
+
+```sql
+select cp.id, cp.user_id, cp.verification_status, cp.niu_verified,
+       cp.subscription_plan, cp.subscription_tier, cp.subscription_expires_at,
+       cp.trial_ends_at, cp.trust_score, cp.updated_at
+from public.company_profiles cp
+where cp.verification_status = 'verified'
+   or cp.niu_verified
+   or coalesce(cp.subscription_plan, 'free') <> 'free'
+   or coalesce(cp.subscription_tier, 'free') <> 'free'
+   or cp.subscription_expires_at is not null
+   or cp.trust_score is distinct from 5.00
+order by cp.updated_at desc;
+```
+
+Chaque ligne doit correspondre à une validation ou à un abonnement connus de l'équipe : aucune trace n'existe en base pour les distinguer d'une auto-attribution.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Nouvelle preuve `pnpm test:rls company-permissions` | ✅ 46 assertions, vraies sessions ; état relu ligne entière en clé service. Elle couvre l'auto-validation, `niu_verified`, le NIU, le plan, l'essai et les statistiques ; l'écriture partielle ; l'INSERT, l'UPSERT et le DELETE ; le propriétaire ; l'isolation ; un document hors dossier ; l'anonyme ; le catalogue et les RPC exposées ; l'édition et l'onboarding légitimes ; la lecture du RCCM ; la validation de confiance puis `POST /api/jobs` 201 ; `admin_support` refusé, `admin_ops` tracé ; la nouvelle revue. |
+| `POST /api/jobs` après tentative d'auto-validation | ✅ 403. Ce n'est **pas** une correction de F-09 : les autres chemins de création et de modération des offres restent au lot 6. |
+| Contrôle négatif sur la pile dédiée (privilèges rouverts, trigger désactivé, politique INSERT recréée) | ❌ détecté : 32 échecs, code de sortie 1. Restauration par `db reset`, vérification des privilèges et du trigger, puis preuve rejouée verte. |
+| `pnpm test:rls` complet | ✅ 18/18 preuves, dont `company-onboarding` et les preuves admin |
+| Navigateur : Chrome headless, vrais clics, 390×844 tactile | ✅ 11 vérifications : connexion, onboarding complet avec RCCM, reprise, avertissement FR puis EN, nouvelle revue après changement de nom, refus affiché sans redirection ni écriture, pas de défilement horizontal |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .`, `vitest run` (245 tests) | ✅ |
+| `pnpm build` contre la pile dédiée (54421) | ✅ |
+| Types générés depuis la pile dédiée comparés à `lib/database.types.ts` | ✅ identiques, pas de régénération |
+
+### Limites restantes
+
+- **F-09 (lot 6)** : `company/jobs/new` insère encore directement dans `jobs`. Ce chemin ne vérifie pas `verification_status`.
+- **F-16 (lot 7a)** : la politique SELECT « Companies can view candidate summaries » laisse toujours une entreprise lire tous les profils entreprise. Elle n'est pas modifiée ici.
+- Validation et revue des entreprises sans RPC ni trace d'audit (voir ci-dessus).
+- `/company/dashboard` refuse toujours `company_premium`, et les redirections `/login` restent à corriger (constats du §15, hors lot).
+- CI distante non observée. Script navigateur local, hors dépôt.

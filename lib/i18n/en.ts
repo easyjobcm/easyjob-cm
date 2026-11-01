@@ -1432,6 +1432,8 @@ export const en: TranslationKeys = {
     rccmFileHint: "PDF, JPG, PNG or WebP — 5 MB max",
     rccmFileSaved: "A document is already saved. Choose a file to replace it.",
     saveError: "Your information could not be saved.",
+    verifiedNotice:
+      "Your company is verified. Changing the name, the RCCM number or the RCCM document will restart verification: you will not be able to post jobs until it is approved again.",
     errors: {
       companyNameTooShort: "Name too short.",
       companyNameTooLong: "Name too long (100 characters max).",
