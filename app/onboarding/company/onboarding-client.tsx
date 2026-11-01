@@ -78,6 +78,7 @@ type SavedProfile = Pick<
   | "city"
   | "quartier"
   | "address"
+  | "verification_status"
 >;
 
 export function CompanyOnboardingClient({
@@ -250,6 +251,15 @@ export function CompanyOnboardingClient({
 
       {/* Step content */}
       <div className="flex-1 px-6 py-6">
+        {profile?.verification_status === "verified" &&
+          currentStep !== "location" && (
+            <Card className="mb-6 border-warning/30 bg-warning/5">
+              <CardContent className="p-4">
+                <p className="text-sm text-foreground">{tc.verifiedNotice}</p>
+              </CardContent>
+            </Card>
+          )}
+
         {/* Company Info Step */}
         {currentStep === "company" && (
           <div className="space-y-6">

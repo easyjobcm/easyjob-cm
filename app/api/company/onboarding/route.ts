@@ -13,6 +13,9 @@ const FIELDS = Object.keys(companyOnboardingSchema.shape);
  * `company_profiles` (session utilisateur, RLS). Écrit uniquement les champs
  * du formulaire et `onboarding_status` : ni NIU, ni vérification, ni
  * abonnement. Le document RCCM facultatif remplace le précédent.
+ * Les colonnes modifiables et la nouvelle revue d'une entreprise vérifiée
+ * (nom, RCCM ou document modifiés) sont imposées en base :
+ * migration 20261101130000_lock_company_profile_permissions.
  */
 export async function PUT(request: NextRequest) {
   const supabase = await createClient();

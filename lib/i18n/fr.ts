@@ -1453,6 +1453,8 @@ export const fr = {
     rccmFileSaved:
       "Un document est déjà enregistré. Choisissez un fichier pour le remplacer.",
     saveError: "Vos informations n'ont pas pu être enregistrées.",
+    verifiedNotice:
+      "Votre entreprise est vérifiée. Modifier le nom, le RCCM ou le document RCCM relancera la vérification : vous ne pourrez plus publier d'offre jusqu'à la nouvelle validation.",
     errors: {
       companyNameTooShort: "Nom trop court.",
       companyNameTooLong: "Nom trop long (100 caractères maximum).",

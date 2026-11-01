@@ -11,6 +11,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 3 | Mettre à jour les dépendances vulnérables — **corrigé et vérifié localement, non déployé** | F-08, F-24 | Sécurité | Petit |
 | 4 | Tests RLS négatifs en CI et durcissement CI/CD — **partie CI faite localement ; déploiement préparé et vérifié localement (lot 4b), non validé à distance** | F-20, F-21 | Qualité | Moyen |
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
+| 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (3 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
@@ -156,6 +157,21 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Critères d'acceptation** : `tsc` vert avec clients typés ; l'onboarding entreprise enregistre réellement les informations, vérifié en local.
 - **Risques** : nombre d'erreurs inconnu. Si le volume est élevé, découper par répertoire (`app/api`, puis `app/admin`, puis les pages).
 - **Taille** : moyen.
+
+## Lot 5b — Droits d'écriture des entreprises (F-41)
+
+> **Statut (2026-11-01)** : réalisé sur `fix/lot-05b-company-permissions` (base `origin/main-dev`, 759f751), **non commité, non déployé**. Détails : `AUDIT.md` §16.
+> - Privilèges de colonnes sur `company_profiles` : UPDATE limité aux 12 colonnes de l'onboarding, plus d'INSERT ni de DELETE en session.
+> - Trigger fondé sur `current_user`, comme aux lots 1 et 2.
+> - Décision produit : une entreprise vérifiée qui modifie son nom, son RCCM ou son document repasse en revue.
+> - Preuve `company-permissions` ajoutée à `pnpm test:rls`.
+>
+> **Avant déploiement** :
+> 1. Revue, puis PR vers `main-dev`.
+> 2. Lot 0, en lecture seule : requête du §16 sur les validations et les plans existants.
+> 3. Vérifier qu'aucun outil externe n'écrit `company_profiles` avec une clé `anon` ou un JWT utilisateur. Ces écritures sont désormais refusées.
+>
+> Reste ouvert : validation entreprise tracée (RPC ou interface admin, à cadrer), F-09 (lot 6), F-16 (lot 7a).
 
 ## Lot 6 — Publication et modération des offres
 
