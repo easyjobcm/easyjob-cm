@@ -31,14 +31,14 @@ interface CompanyDashboardClientProps {
   };
   jobs: Array<{
     id: string;
-    status: string;
-    urgency?: string;
+    status: string | null;
+    urgency?: string | null;
     title: string;
     start_date: string;
     city: string;
     start_time?: string | null;
     hourly_rate: number;
-    currency?: string;
+    currency?: string | null;
     applications?: Array<{
       count?: number;
     }>;
@@ -66,7 +66,7 @@ export function CompanyDashboardClient({
     return locale === "fr" ? "Bonsoir" : "Good evening";
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     switch (status) {
       case "draft":
         return (

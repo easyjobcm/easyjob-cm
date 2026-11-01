@@ -12,11 +12,13 @@ import {
   User,
   LayoutDashboard,
   Users,
+  Building2,
   Plus,
   Settings,
+  FileCheck,
 } from "lucide-react";
 
-type UserRole =
+export type UserRole =
   | "candidate"
   | "candidate_premium"
   | "company"
@@ -72,10 +74,22 @@ const adminNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    href: "/admin/users",
-    label: "Utilisateurs",
-    labelEn: "Users",
+    href: "/admin/momo",
+    label: "MoMo",
+    labelEn: "MoMo",
+    icon: FileCheck,
+  },
+  {
+    href: "/admin/candidates",
+    label: "Candidats",
+    labelEn: "Candidates",
     icon: Users,
+  },
+  {
+    href: "/admin/companies",
+    label: "Entreprises",
+    labelEn: "Companies",
+    icon: Building2,
   },
   { href: "/admin/jobs", label: "Offres", labelEn: "Jobs", icon: Briefcase },
   {

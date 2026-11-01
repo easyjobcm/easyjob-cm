@@ -15,15 +15,27 @@ import {
   LocateFixed,
   ShieldAlert,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
-import { identitySchema } from "@/lib/validations/profile";
-import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { identitySchema, maxBirthDate } from "@/lib/validations/profile";
 import {
-  CAMEROON_CITIES,
-  COMMON_SKILLS,
-} from "@/lib/utils/candidate-constants";
+  evaluateProfileLock,
+  lockedGroupsForCni,
+  type ProfileLockGroup,
+} from "@/lib/utils/profile-lock";
+import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { isNearCityZone, nearestCityFor } from "@/lib/validations/geo-schema";
+import { fetchQuartierFromNominatim } from "@/lib/utils/quartier-fetch";
+import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 import { DocumentUploadField } from "@/components/profile/document-upload-field";
+
+/** Demande de mise à jour admin en attente (SRS §5.1) — déverrouille des champs. */
+interface PendingUpdateRequest {
+  id: string;
+  fields: ProfileLockGroup[];
+  reason: string;
+  createdAt: string;
+}
 
 type VerificationStatus = "pending" | "verified" | "rejected";
 type DocumentField =
@@ -37,6 +49,7 @@ interface CandidateProfileEditClientProps {
     id: string | null;
     first_name: string | null;
     last_name: string | null;
+    date_of_birth: string | null;
     city: string | null;
     quartier: string | null;
     bio: string | null;
@@ -50,39 +63,106 @@ interface CandidateProfileEditClientProps {
     cni_rejection_reason: string | null;
     cni_expires_at: string | null;
   };
-  initialSkills: string[];
+  /** Demandes admin `pending` (SRS §5.1) qui déverrouillent les champs vérifiés. */
+  pendingUpdateRequests: PendingUpdateRequest[];
 }
 
 export function CandidateProfileEditClient({
   profile,
-  initialSkills,
+  pendingUpdateRequests,
 }: CandidateProfileEditClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
-  const supabase = React.useMemo(() => createClient(), []);
+  const { t, locale } = useI18n();
   const tEdit = t.profile.edit;
+  const tGeo = t.profile.geolocation;
 
   const [formData, setFormData] = React.useState({
     first_name: profile.first_name ?? "",
     last_name: profile.last_name ?? "",
+    date_of_birth: profile.date_of_birth ?? "",
     city: profile.city ?? "",
     quartier: profile.quartier ?? "",
     bio: profile.bio ?? "",
     latitude: profile.latitude,
     longitude: profile.longitude,
   });
-  const [skills, setSkills] = React.useState<string[]>(initialSkills);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [apiError, setApiError] = React.useState("");
+  const [apiLocked, setApiLocked] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
+  // Précision estimée du dernier fix GPS (en mètres) — définie uniquement
+  // quand la capture via le bouton réussit (l'accuracy n'est pas stockée en
+  // DB ; les coordonnées déjà enregistrées affichent le badge sans précision).
+  const [geoAccuracyM, setGeoAccuracyM] = React.useState<number | null>(null);
+  // T5.1 — statut de la détection de fix GPS :
+  //   `geoOutOfZone` : le dernier fix était HORS zone (Douala/Yaoundé) → refus
+  //                    affiché, formulaire lat/lng non modifié (on garde
+  //                    l'état précédent si présent).
+  //   `geoAutoFillNote` : note transitoire après un fix accepté —
+  //                    "ok"   : ville auto-posée + quartier auto-recherché
+  //                    "fail" : ville auto-posée, échec Nominatim (le fix
+  //                             reste valide, le candidat saisit le quartier)
+  //   Les deux sont réinitialisés par le prochain bouton « Utiliser ma
+  //   position » ou par un enregistrement réussi.
+  const [geoOutOfZone, setGeoOutOfZone] = React.useState(false);
+  const [geoAutoFillNote, setGeoAutoFillNote] = React.useState<
+    "ok" | "fail" | null
+  >(null);
   const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
   const [previews, setPreviews] = React.useState<
     Partial<Record<DocumentField, string>>
   >({});
+
+  // Verrou SRS §5.1 — miroir client de la source de vérité côté serveur :
+  // un groupe est verrouillé si le CNI est vérifié ET qu'aucune demande
+  // admin `pending` ne le couvre. Le serveur reste le vrai garde-fou.
+  const requestedGroups = React.useMemo(() => {
+    const s = new Set<ProfileLockGroup>();
+    pendingUpdateRequests.forEach((r) => r.fields.forEach((g) => s.add(g)));
+    return [...s];
+  }, [pendingUpdateRequests]);
+
+  const identityLocked = React.useMemo(
+    () =>
+      evaluateProfileLock(
+        ["first_name"],
+        lockedGroupsForCni(documents.cni_verified),
+        requestedGroups,
+      ).lockedGroups.includes("identity"),
+    [documents.cni_verified, requestedGroups],
+  );
+  const cniDocsLocked = React.useMemo(
+    () =>
+      evaluateProfileLock(
+        ["cni_front_url"],
+        lockedGroupsForCni(documents.cni_verified),
+        requestedGroups,
+      ).lockedGroups.includes("cni_documents"),
+    [documents.cni_verified, requestedGroups],
+  );
+
+  // Les messages Zod du serveur (`identitySchema`) sont des clés i18n,
+  // pas du texte littéral — on les traduit ici avant affichage.
+  const zodMessages: Record<string, string> = React.useMemo(
+    () =>
+      ({
+        firstNameRequired: tEdit.firstNameRequired,
+        lastNameRequired: tEdit.lastNameRequired,
+        birthDateRequired: tEdit.birthDateRequired,
+        ageInvalid: tEdit.ageInvalid,
+        birthDateInvalid: tEdit.birthDateInvalid,
+        cityRequired: tEdit.cityRequired,
+        cityNotServed: tGeo.cityNotServed,
+        bioTooLong: tEdit.bioHint,
+        geoOutOfRange: tGeo.geoOutOfRange,
+        geoOutOfZone: tGeo.geoOutOfZone,
+      }) satisfies Record<string, string>,
+    [tEdit, tGeo],
+  );
 
   const loadPreview = React.useCallback(async (field: DocumentField) => {
     const res = await fetch(`/api/profile/documents?field=${field}`);
@@ -139,18 +219,72 @@ export function CandidateProfileEditClient({
     setSaved(false);
   };
 
+  // Le callback s'exécute UNIQUEMENT sur un fix GPS réussi (le hook
+  // `use-geolocation` ne l'appelle jamais ailleurs). T5.1 : on refuse les
+  // fixes hors zone de service AVANT d'écrire quoi que ce soit au
+  // formulaire. Si la zone est respectée, on auto-remplit la ville (via
+  // `nearestCityFor`) et on tente (en parallèle) le reverse-geocoding
+  // Nominatim pour le quartier — échec = note transitoire, fix accepté.
   const { status: geoStatus, requestLocation } = useGeolocation((coords) => {
-    updateField("latitude", coords.latitude);
-    updateField("longitude", coords.longitude);
-  });
+    // Réinitialise les états transitoires de la détection précédente : un
+    // nouveau clic remplace les messages de refus / note d'auto-remplissage.
+    setGeoOutOfZone(false);
+    setGeoAutoFillNote(null);
 
-  const toggleSkill = (skill: string) => {
-    setSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
-    );
-    setIsDirty(true);
-    setSaved(false);
-  };
+    if (!isNearCityZone(coords.latitude, coords.longitude)) {
+      // T5.1 — fix refusé : le candidat voit le message de zone et saisit
+      // manuellement la ville + le quartier. On n'écrit RIEN au formulaire
+      // (les coordonnées d'avant, éventuellement valides, restent en
+      // place — le garde-bouche serveur `geoOutOfZone` fait office de filet).
+      setGeoOutOfZone(true);
+      setGeoAccuracyM(coords.accuracy ?? null);
+      return;
+    }
+
+    // Fix accepté dans la zone — on écrit ENSEMBLE (1 update atomique)
+    // lat, lng, city. `isDirty` passe à true : le bouton « Sauvegarder »
+    // devient actif, le candidat décide s'il enregistre.
+    const nearestCity = nearestCityFor(coords.latitude, coords.longitude);
+    if (nearestCity && CAMEROON_CITIES.includes(nearestCity)) {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        city: nearestCity,
+      }));
+      setIsDirty(true);
+      setSaved(false);
+      setGeoAccuracyM(coords.accuracy ?? null);
+    } else {
+      // Paranoïa : city dérivée hors catalogue (ne devrait jamais arriver
+      // car `CITY_CENTROIDS` ⊂ `CAMEROON_CITIES`) — on n'écrit que lat/lng
+      // pour ne pas corrompre le formulaire.
+      setFormData((prev) => ({
+        ...prev,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }));
+      setIsDirty(true);
+      setSaved(false);
+      setGeoAccuracyM(coords.accuracy ?? null);
+    }
+
+    // Quartier via Nominatim (1 seule requête, déclenchée sur geste
+    // utilisateur). Échec réseau / timeout / champ address vide → note
+    // transitoire, le fix reste accepté et le candidat saisit le quartier.
+    void fetchQuartierFromNominatim(
+      coords.latitude,
+      coords.longitude,
+      locale,
+    ).then((quartier) => {
+      if (quartier) {
+        setFormData((prev) => ({ ...prev, quartier }));
+        setGeoAutoFillNote("ok");
+      } else {
+        setGeoAutoFillNote("fail");
+      }
+    });
+  });
 
   const handleBack = () => {
     if (isDirty && !window.confirm(tEdit.unsavedWarning)) return;
@@ -167,17 +301,27 @@ export function CandidateProfileEditClient({
       const fieldErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
         const key = issue.path[0];
-        if (typeof key === "string") fieldErrors[key] = issue.message;
+        if (typeof key === "string")
+          fieldErrors[key] = zodMessages[issue.message] ?? issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
 
-    const nameChanged =
+    // Changement d'identité (nom OU date de naissance) sur un CNI vérifié
+    // → modal de confirmation de révérification (SRS §6.2, §5.1).
+    const identityChanged =
       result.data.first_name !== (profile.first_name ?? "") ||
-      result.data.last_name !== (profile.last_name ?? "");
+      result.data.last_name !== (profile.last_name ?? "") ||
+      result.data.date_of_birth !== (profile.date_of_birth ?? "");
 
-    if (nameChanged && documents.cni_verified === "verified") {
+    if (identityChanged && documents.cni_verified === "verified") {
+      if (identityLocked) {
+        // Le verrou serveur renverra 403 si aucune demande admin ne couvre
+        // le groupe : on l'affiche directement plutôt que de lancer la save.
+        setApiLocked(true);
+        return;
+      }
       setShowReverifyModal(true);
       return;
     }
@@ -201,25 +345,15 @@ export function CandidateProfileEditClient({
           longitude: formData.longitude,
         }),
       });
-      if (!res.ok) throw new Error("save failed");
-      const data = (await res.json()) as { requiresReverification?: boolean };
-
-      if (profile.id) {
-        await supabase
-          .from("candidate_skills")
-          .delete()
-          .eq("candidate_id", profile.id);
-
-        if (skills.length > 0) {
-          await supabase.from("candidate_skills").insert(
-            skills.map((skill_name) => ({
-              candidate_id: profile.id as string,
-              skill_name,
-              skill_level: 3,
-            })),
-          );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { code?: string };
+        if (res.status === 403 && data.code === "field_locked") {
+          setApiLocked(true);
+          throw new Error("field_locked");
         }
+        throw new Error("save failed");
       }
+      const data = (await res.json()) as { requiresReverification?: boolean };
 
       if (data.requiresReverification) {
         setDocuments((prev) => ({
@@ -231,8 +365,16 @@ export function CandidateProfileEditClient({
 
       setIsDirty(false);
       setSaved(true);
-    } catch {
-      setApiError(tEdit.error);
+      // T5.1 — les notes transitoires de détection (refus hors zone /
+      // auto-remplissage) sont portées au prochain clic sur « Utiliser ma
+      // position ». Le bouton reset les dès son appui ; on les vide juste
+      // ici aussi pour que l'état après enregistrement soit « propre ».
+      setGeoOutOfZone(false);
+      setGeoAutoFillNote(null);
+    } catch (err) {
+      if (!(err instanceof Error && err.message === "field_locked")) {
+        setApiError(tEdit.error);
+      }
     } finally {
       setSaving(false);
     }
@@ -240,16 +382,20 @@ export function CandidateProfileEditClient({
 
   const bioLength = formData.bio.trim().length;
 
-  // Route depuis ProfileCompletionWidget vers le premier critère manquant
-  // (?focus=photo|cni|bio|identity|location|skills) : on y scrolle une fois monté.
+  // Route depuis ProfileCompletionWidget / menu profil vers le premier
+  // critère manquant (?focus=photo|cni|bio|identity|location).
+  // (?focus=skills) est ignoré : les compétences vivent dans /profile/skills (T3).
+  // T5 : focus=location cible maintenant la SECTION LOCALISATION dédiée
+  // (ville/quartier/GPS) — avant T5 le param était résolu vers l'identité,
+  // un dead link.
   React.useEffect(() => {
     const focus = searchParams.get("focus");
-    if (!focus) return;
+    if (!focus || focus === "skills") return;
     const sectionId =
       focus === "photo" || focus === "cni"
         ? "documents"
-        : focus === "skills"
-          ? "skills"
+        : focus === "location"
+          ? "location"
           : "identity";
     document
       .getElementById(sectionId)
@@ -275,7 +421,23 @@ export function CandidateProfileEditClient({
         </div>
 
         <div className="space-y-5 px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-6">
+          {pendingUpdateRequests.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3">
+              <ShieldAlert className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {t.profile.profileUpdateRequests.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {pendingUpdateRequests[0].reason}
+                </p>
+              </div>
+            </div>
+          )}
           {documents.cni_verified === "pending" &&
+            !pendingUpdateRequests.some((r) =>
+              r.fields.includes("cni_documents"),
+            ) &&
             (documents.cni_front_url ||
               documents.cni_back_url ||
               documents.cni_selfie_url) && (
@@ -293,18 +455,67 @@ export function CandidateProfileEditClient({
             )}
           <Card id="identity">
             <CardContent className="space-y-4 p-4">
+              {identityLocked && (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {tEdit.lockedIdentityLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tEdit.lockedIdentityBody}
+                    </p>
+                  </div>
+                </div>
+              )}
               <Input
                 label={tEdit.firstName}
                 value={formData.first_name}
                 onChange={(e) => updateField("first_name", e.target.value)}
                 error={errors.first_name}
+                disabled={identityLocked}
               />
               <Input
                 label={tEdit.lastName}
                 value={formData.last_name}
                 onChange={(e) => updateField("last_name", e.target.value)}
                 error={errors.last_name}
+                disabled={identityLocked}
               />
+              <Input
+                label={tEdit.birthDate}
+                type="date"
+                value={formData.date_of_birth}
+                onChange={(e) => updateField("date_of_birth", e.target.value)}
+                error={errors.date_of_birth}
+                max={maxBirthDate()}
+                disabled={identityLocked}
+              />
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  {tEdit.bio}
+                </label>
+                <Textarea
+                  value={formData.bio}
+                  onChange={(e) => updateField("bio", e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {tEdit.bioHint} ({bioLength}/500)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Localisation (T5) — cible du menu « Ma localisation »
+              (?focus=location) : ville + quartier + GPS domicile. Hors verrou
+              §5.1 (seuls identité + CNI sont verrouillés). */}
+          <Card id="location">
+            <CardContent className="space-y-4 p-4">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
+                {t.profile.myLocation}
+              </h3>
               <div>
                 <label className="mb-2 block text-sm font-medium text-foreground">
                   {tEdit.city}
@@ -334,10 +545,28 @@ export function CandidateProfileEditClient({
                 value={formData.quartier}
                 onChange={(e) => updateField("quartier", e.target.value)}
               />
-              <div className="rounded-xl border border-border p-3">
-                <p className="text-sm text-muted-foreground">
-                  {t.profile.geolocation.explain}
-                </p>
+              <div
+                id="geolocation"
+                className="rounded-xl border border-border p-3"
+              >
+                <p className="text-sm text-muted-foreground">{tGeo.explain}</p>
+                {formData.latitude !== null && formData.longitude !== null ? (
+                  <div className="mt-3">
+                    <Badge variant="success">
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      {tGeo.recordedBadge}
+                      {geoAccuracyM !== null &&
+                        ` · ${tGeo.precision.replace(
+                          "{m}",
+                          String(geoAccuracyM),
+                        )}`}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {tGeo.firstPermissionHint}
+                  </p>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -346,39 +575,47 @@ export function CandidateProfileEditClient({
                   disabled={geoStatus === "loading"}
                 >
                   <LocateFixed className="mr-2 h-4 w-4" />
-                  {geoStatus === "loading"
-                    ? t.profile.geolocation.locating
-                    : t.profile.geolocation.useMyLocation}
+                  {geoStatus === "loading" ? tGeo.locating : tGeo.useMyLocation}
                 </Button>
-                {(formData.latitude !== null || geoStatus === "success") && (
-                  <p className="mt-2 text-sm text-primary">
-                    {t.profile.geolocation.success}
+                {/* T5.1 — fix GPS HORS de la zone de service (Douala/Yaoundé)
+                    : on affiche le message de refus, sans toucher la
+                    position « ville + quartier » déjà saisie — le candidat
+                    peut continuer manuellement. */}
+                {geoOutOfZone && (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {tGeo.outOfZone}
+                  </p>
+                )}
+                {/* T5.1 — auto-remplissage (après fix accepté) :
+                    « ok »  = ville + quartier auto-posés
+                    « fail »= ville auto-posée, échec Nominatim — quartier à
+                    saisir manuellement (le fix reste accepté). */}
+                {geoAutoFillNote === "ok" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {tGeo.autoFilledFromGps}
+                  </p>
+                )}
+                {geoAutoFillNote === "fail" && (
+                  <p className="mt-2 text-xs text-amber-600">
+                    {tGeo.autoFilledFailed}
                   </p>
                 )}
                 {geoStatus === "denied" && (
-                  <p className="mt-2 text-sm text-amber-600">
-                    {t.profile.geolocation.denied}
-                  </p>
+                  <p className="mt-2 text-sm text-amber-600">{tGeo.denied}</p>
                 )}
                 {geoStatus === "unavailable" && (
                   <p className="mt-2 text-sm text-amber-600">
-                    {t.profile.geolocation.unavailable}
+                    {tGeo.unavailable}
                   </p>
                 )}
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  {tEdit.bio}
-                </label>
-                <Textarea
-                  value={formData.bio}
-                  onChange={(e) => updateField("bio", e.target.value)}
-                  maxLength={500}
-                  rows={4}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {tEdit.bioHint} ({bioLength}/500)
-                </p>
+                {/* Timeout (fix GPS trop lent, code 3 navigateur) : échec
+                    temporaire, le candidat peut réessayer ou saisir
+                    manuellement la ville/le quartier. */}
+                {geoStatus === "timeout" && (
+                  <p role="alert" className="mt-2 text-sm text-amber-600">
+                    {tGeo.timeout}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -395,6 +632,19 @@ export function CandidateProfileEditClient({
                 previewUrl={previews.profile_photo_url}
                 onUploaded={() => refreshDocument("profile_photo_url")}
               />
+              {cniDocsLocked && (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/50 p-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {tEdit.lockedDocLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tEdit.lockedDocBody}
+                    </p>
+                  </div>
+                </div>
+              )}
               <DocumentUploadField
                 field="cni_front_url"
                 label={t.profile.documents.cniFront}
@@ -404,6 +654,7 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_front_url}
                 onUploaded={() => refreshDocument("cni_front_url")}
+                locked={cniDocsLocked}
               />
               <DocumentUploadField
                 field="cni_back_url"
@@ -414,6 +665,7 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_back_url}
                 onUploaded={() => refreshDocument("cni_back_url")}
+                locked={cniDocsLocked}
               />
               <DocumentUploadField
                 field="cni_selfie_url"
@@ -424,31 +676,8 @@ export function CandidateProfileEditClient({
                 expiresAt={documents.cni_expires_at}
                 previewUrl={previews.cni_selfie_url}
                 onUploaded={() => refreshDocument("cni_selfie_url")}
+                locked={cniDocsLocked}
               />
-            </CardContent>
-          </Card>
-
-          <Card id="skills">
-            <CardContent className="p-4">
-              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[1.2px] text-[#7C3AED]">
-                {tEdit.skills}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {COMMON_SKILLS.map((skill) => (
-                  <button
-                    key={skill}
-                    type="button"
-                    onClick={() => toggleSkill(skill)}
-                    className={`rounded-full border px-3 py-2 text-sm transition-colors ${
-                      skills.includes(skill)
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card hover:border-primary/50"
-                    }`}
-                  >
-                    {skill}
-                  </button>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
@@ -456,6 +685,22 @@ export function CandidateProfileEditClient({
             <p role="alert" className="text-sm text-destructive">
               {apiError}
             </p>
+          )}
+          {apiLocked && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+            >
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {tEdit.lockedIdentityLabel}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tEdit.lockedIdentityBody}
+                </p>
+              </div>
+            </div>
           )}
         </div>
 

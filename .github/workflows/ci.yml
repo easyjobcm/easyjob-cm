@@ -4,21 +4,26 @@ on:
   push:
     branches:
       - main
+      - main-dev
       - master
       - develop
+  # pull_request (et non pull_request_target) : le code d'une PR, y compris
+  # depuis un fork, s'exécute sans secret et avec un jeton en lecture seule.
   pull_request:
 
-# Annule les runs précédents sur la même branche/PR (le dernier commit est seul source de vérité).
+# Sur une PR, seul le dernier commit compte : les runs obsolètes sont annulés.
+# Sur un push, chaque commit a son propre groupe et n'est jamais annulé :
+# deploy.yml exige la réussite de la CI sur le commit exact du tag
+# (docs/deployment/production.md).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Principe du moindre privilège : la CI ne fait que lire et publier des checks.
+# Principe du moindre privilège : la CI ne fait que lire le dépôt.
 permissions:
   contents: read
-  pull-requests: read
-  checks: write
 
+# pnpm et Node viennent de package.json (packageManager, engines.node).
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -30,9 +35,12 @@ jobs:
 
     steps:
       - name: Ensure PR to main comes from main-dev
+        # Nom de branche passé par l'environnement, jamais interpolé dans le script.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          if [ "${{ github.head_ref }}" != "main-dev" ]; then
-            echo "Pull requests targeting main must come from main-dev. Current source: ${{ github.head_ref }}"
+          if [ "$HEAD_REF" != "main-dev" ]; then
+            echo "Pull requests targeting main must come from main-dev. Current source: $HEAD_REF"
             exit 1
           fi
 
@@ -43,16 +51,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies
@@ -67,55 +75,112 @@ jobs:
       - name: Format check
         run: pnpm exec prettier --check .
 
+      - name: Unit tests
+        run: pnpm test
+
+  # Migrations, types générés et suite d'autorisation sur UNE pile Supabase
+  # locale jetable, préparée comme en local (scripts/init-proof-stack.ts,
+  # docs/testing/local-proofs.md). Aucun secret : seules les clés de la pile
+  # locale du runner sont utilisées.
   test-migrations:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    env:
+      PROOF_STACK: ${{ github.workspace }}/../easyjob-proof-stack
+      NEXT_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          # Version du générateur de types figée : le lib/database.types.ts commité
-          # est produit par cette même version, le diff du check types est donc stable.
-          # À bump uniquement en réconciliant avec une régénération du types file.
-          version: "2.117.0"
+      # CLI Supabase figée par package.json (2.117.0) : la même version génère
+      # lib/database.types.ts, démarre la pile et sert à proof-license-gate.
+      - name: Prepare dedicated local stack
+        run: pnpm exec tsx scripts/init-proof-stack.ts "$PROOF_STACK"
 
-      - name: Start Supabase local stack
-        run: supabase start
-
-      - name: Reset local database with migrations
-        run: supabase db reset --local --yes --no-seed
+      - name: Start Supabase local stack (applies all migrations)
+        run: >-
+          pnpm exec supabase start --workdir "$PROOF_STACK"
+          -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
 
       - name: Verify generated types are up to date
         run: |
-          supabase gen types typescript --local --schema public > /tmp/database.types.generated.ts
-          diff -u lib/database.types.ts /tmp/database.types.generated.ts
+          pnpm exec supabase gen types typescript --local --workdir "$PROOF_STACK" --schema public > "$RUNNER_TEMP/database.types.generated.ts"
+          diff -u lib/database.types.ts "$RUNNER_TEMP/database.types.generated.ts"
+
+      - name: Export local stack credentials
+        run: |
+          pnpm exec supabase status -o env --workdir "$PROOF_STACK" > "$RUNNER_TEMP/stack.env"
+          while IFS='=' read -r key value; do
+            case "$key" in
+              API_URL|ANON_KEY|SERVICE_ROLE_KEY|DB_URL)
+                value="${value%\"}"; value="${value#\"}"
+                if [ "$key" != "API_URL" ]; then echo "::add-mask::$value"; fi
+                echo "$key=$value" >> "$GITHUB_ENV"
+                ;;
+            esac
+          done < "$RUNNER_TEMP/stack.env"
+          rm "$RUNNER_TEMP/stack.env"
+
+      # Les variables écrites dans GITHUB_ENV ne sont visibles qu'aux étapes suivantes.
+      - name: Configure app for the local stack
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY"
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_APP_URL=$NEXT_APP_URL"
+            echo "MOBILE_MONEY_SANDBOX=true"
+          } >> "$GITHUB_ENV"
+
+      - name: Build app against the local stack
+        run: pnpm build
+
+      - name: Start app
+        run: |
+          nohup pnpm start -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -sf -o /dev/null "$NEXT_APP_URL/auth/login"; then exit 0; fi
+            sleep 1
+          done
+          tail -n 50 "$RUNNER_TEMP/next.log"
+          exit 1
+
+      - name: Authorization proofs (pnpm test:rls)
+        run: pnpm test:rls
+
+      - name: App log on failure
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/next.log" || true
 
       - name: Stop Supabase local stack
         if: always()
-        run: supabase stop
+        run: pnpm exec supabase stop --workdir "$PROOF_STACK" --no-backup || true
 
+  # Validation finale : build avec une configuration factice (aucune clé),
+  # après réussite des contrôles statiques, des tests unitaires, des
+  # migrations et des preuves d'autorisation.
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint-and-types]
+    needs: [lint-and-types, test-migrations]
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci_dummy_anon_key
@@ -123,20 +188,21 @@ jobs:
       SUPABASE_URL: http://127.0.0.1:54321
       SUPABASE_SERVICE_ROLE_KEY: ci_dummy_service_role_key
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies

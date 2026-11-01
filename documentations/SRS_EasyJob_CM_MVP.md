@@ -167,6 +167,19 @@ Voir section 12.
 - Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
 - Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h).
 
+#### 5.1.1 Verrouillage des informations vérifiées — mise à jour initiée par l'admin
+
+Pour éviter qu'un candidat ne contrevienne aux informations personnelles et documents **déjà vérifiés** (intégrité de l'identité vérifiée côté CNI), les données vérifiées sont **verrouillées** pour le candidat :
+
+- **Scope verrouillé** (si `cni_verified = verified`) : identité (`first_name`, `last_name`, `date_of_birth`) + documents CNI (recto/verso/selfie). Hors périmètre : bio, ville, quartier, géolocalisation, compétences, photo de profil, Mobile Money.
+- **Déverrouillage** : uniquement si un administrateur (`admin_ops` / `admin_founder`) a initié une **demande de mise à jour** (`profile_update_requests` en statut `pending` couvrant le groupe `identity` et/ou `cni_documents`).
+- **Canaux d'information** : la demande se matérialise **à la fois** (1) en **notification** (centre `notifications`, type `document_status`) et (2) en **tâche** (page *Tâches*, carte dédiée + modal détaillant le motif de l'admin).
+- **Exécution** : le candidat ouvre la page *Modifier mes informations* ; les champs déverrouillés y sont actifs ; l'admin peut suivre le motif (colonne `reason`) ; la date d'initiation (colonne `created_at`) est tracée.
+- **Révérification obligatoire** : la résoumission d'un champ déverrouillé repasse `cni_verified` à `pending` (même mécanisme que T1 — SRS §6.2/§6.6). Le candidat ne peut pas contourner la révérification en changeant uniquement la DOB ou un nom partiel sans déclencher la ré-évaluation.
+- **Clôture automatique** : la demande `pending` passe `done` dès que le candidat exécute la mise à jour (seules les lignes couvrant un groupe effectivement modifié sont clôturées, jamais celles qui se contentent de rester `pending`).
+- **Garde-fou RLS** : la RLS garantit (1) que le candidat ne peut lire que ses propres demandes `pending`, (2) que seul un admin `admin_ops/admin_founder` peut créer/annuler une demande, (3) que le candidat ne peut la clôturer qu'en `done`. Le serveur reste la source de vérité (masquage client = confort seulement, jamais le seul contrôle).
+- **UI admin d'initiation** : incluse en **T8** (refonte dashboard admin) ; l'endpoint `POST /api/admin/profile-update-requests` est disponible depuis T2.
+
 ### 5.2 Système Sandbox (niveaux candidat)
 
 Les seuils ci-dessous sont les **valeurs initiales configurables** depuis le dashboard `admin_founder`. Ils peuvent être modifiés à tout moment sans redéploiement.
@@ -229,6 +242,7 @@ Une offre doit obligatoirement contenir les éléments suivants :
 - Toute offre détectée comme malveillante (fausse offre, arnaque, demande de frais de dossier) est automatiquement signalée à l'équipe admin et à l'entreprise pour correction. Elle ne sera jamais publiée sans correction validée.
 - Une offre expire automatiquement si elle n'est pas pourvue **2 heures avant** la date de début.
 - Une offre peut être marquée **"urgente"** : visible en premier dans les résultats. Option **gratuite pour les comptes premium**, **payante pour les comptes standard**.
+- **Visibilité RLS** : une offre n'est lisible et postulable par un candidat qu'au statut `active` (après approbation admin). Les statuts `draft`, `pending_review`, `pending_moderation`, `rejected`, `filled`, `expired`, `cancelled` sont masqués aux candidats via la policy de lecture `jobs` (seul l'état `active`, ainsi que les offres de l'entreprise propriétaire, sont exposés). Cette règle est appliquée côté base (RLS), pas seulement côté frontend.
 
 **Gestion des offres multi-jours :**
 - Une offre couvrant plusieurs journées est automatiquement décomposée en **sous-offres journalières** après validation admin.
@@ -292,6 +306,11 @@ Le score est visible par les candidats sur la fiche entreprise.
 4. Expériences passées (saisie libre + structuration IA).
 5. Disponibilités (jours, horaires, mobilité géographique).
 6. **Localisation GPS du domicile** : enregistrement de la position GPS depuis le lieu de résidence. Utilisée comme référence pour calculer les distances par rapport aux offres. Peut être mise à jour depuis le profil.
+   - **T5 — flux de permission** : le navigateur ne réclame la permission d'accès à la localisation qu'après un geste utilisateur. Le candidat clique sur « Utiliser ma position » → la demande de permission du navigateur s'affiche à ce moment (un indice le rappelle tant que la position n'est pas enregistrée). Le badge « GPS enregistré » (précision ± m quand fournie par l'appareil) confirme le fix ; aucun chiffre lat/lng n'est affiché (principe de confidentialité : l'entreprise ne voit jamais le GPS domicile — US-ONBC, §12).
+   - **T5 — coordonnées validées** : les coordonnées lat/lng sont bornées à leurs plages géographiques légales (±90/±180) côté API `identity` et côté onboarding (règle double AGENTS).
+   - **T5 — ville** : le catalogue partagé `CAMEROON_CITIES` porte la graphie accentuée « Yaoundé » ; une migration (20260909150000) remplit les anciennes lignes sans accent.
+   - **T5.1 — zone de service** : la position GPS du domicile est **référencée aux centres de service** (Douala 4.04°N / 9.69°E, Yaoundé 3.87°N / 11.51°E) et **rejetée** si elle est à plus de 20 km du centre le plus proche (règle `isNearCityZone`, bornes géographiques + zone, côté **API** `identity` ET **onboarding**) — le MVP ne sert que Douala et Yaoundé. Un fix **dans la zone** **auto-remplit** la ville (centre le plus proche) **et le quartier** (reverse geocoding OpenStreetMap Nominatim, 1 seule requête déclenchée par le geste utilisateur) ; en cas d'échec du reverse geocoding, le fix reste valable et le quartier est laissé à saisir. Les villes saisies manuellement sont **bornées au catalogue** `CAMEROON_CITIES` (règle `cityNotServed`).
+   - **T5.1 — confidentialité GPS** : les coordonnées lat/lng n'existent que côté candidat ; aucune n'est journalisée ni exposée (badge « GPS enregistré » + précision ± m uniquement).
 7. Upload **CNI** (recto/verso) + **selfie tenant la CNI** pour validation admin dans les 24h. La date d'expiration de la CNI est enregistrée et surveillée.
 8. Vérification numéro **Mobile Money** (MTN ou Orange). Le nom enregistré sur le compte MoMo **doit correspondre au nom complet du candidat**. Les comptes au nom d'un tiers ne sont pas acceptés.
 9. Consentement RGPD local.
@@ -309,12 +328,15 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 Ces trois critères sont évalués **indépendamment** du pourcentage global de complétude : un profil à 100% mais sans CNI vérifiée ne peut pas postuler. La vérification est faite côté serveur à chaque soumission de candidature (masquage côté client insuffisante) — voir §6.6.
 
+**Modifier le profil candidat (post-onboarding) :** le candidat édite ses informations depuis *Profil → Modifier mes informations* : prénom, nom, **date de naissance**, ville, quartier, bio, géolocalisation, photo de profil et CNI. (Depuis T3, les **compétences ne sont plus éditables** sur cette page : elles vivent dans la page dédiée *Mes compétences* — voir §6.14.1. La carte compétences qui y existait faisait un delete-all + insert-all à chaque sauvegarde, ce qui remet `verification_status` à `unverified` et détruisait les liens `candidate_skill_documents` : la suppression de la carte corrige ce bug structurellement.) La **date de naissance** est modifiable (elle fait partie de l'identité complète exigée à la postulation) ; un changement de prénom, nom ou date de naissance sur un CNI déjà `verified` déclenche la **révérification** (modal de confirmation, CNI → `pending`, poste bloqué tant que non re-vérifiée). Les champs vérifiés sont **verrouillés** et ne peuvent être modifiés qu'après une demande de mise à jour initiée par l'admin — voir §5.1.1.
+
 **Critères d'acceptation :**
 - L'IA suggère des compétences à partir d'une description libre en moins de 3 secondes.
 - La vérification CNI/MoMo affiche un statut clair (en attente / validé / rejeté).
 - L'utilisateur peut sauvegarder et reprendre l'onboarding à tout moment.
 - Les champs obligatoires sont indiqués visuellement.
 - Le nom du compte MoMo est contrôlé pour correspondance avec le nom du candidat.
+- Un changement de prénom/nom/date de naissance sur un CNI `verified` déclenche la révérification (modal + `cni_verified = pending`) et, en l'absence de demande admin `pending`, la modification est refusée côté serveur (`403 field_locked`, §5.1.1).
 
 ---
 
@@ -418,7 +440,8 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Le candidat est notifié immédiatement (push + SMS).
 - Un candidat ne peut postuler qu'une seule fois à la même offre ou sous-offre.
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
-- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants (`code: "essentials_incomplete"`).
+- **Lecture RLS de l'offre** : le candidat ne peut lire ni postuler qu'à une offre au statut `active`. Une offre non active est inexistante pour lui via RLS (HTTP 404 à la lecture) : la postulation d'un candidat exige donc une offre lisible, ce qui garantit qu'une offre jamais approuvée ne peut générer de candidature.
+- **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants. **Depuis T8.3** (`code: "profile_not_verified"`) : la décision repose sur le flag de synthèse `users.is_verified` (source de vérité en base, posé par `recompute_user_verification` — §11.5) ; le calcul client des champs manquants reste fourni en liste informationnelle pour guider le candidat, mais ne suffit plus à autoriser — le serveur lit le flag.
 
 ---
 
@@ -578,6 +601,194 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 - Gestion des permissions par membre de l'équipe admin.
 - Confirmation à deux facteurs pour les modifications de montants de transaction.
 
+**Vue centralisée des comptes (T8.4a) — `/admin/candidates` + `/admin/companies`** :
+le menu admin remplace l'ancien « Utilisateurs » par **Candidats** et
+**Entreprises**, deux pages de pilotage centralisé (objectif produit : avec
+beaucoup d'utilisateurs, se repérer vite d'un seul écran).
+
+- **Sections** (une seule visible à la fois, badges compteurs) :
+  - **Candidats** : *En attente* (non `is_verified`, **y compris les rejetés** —
+    ils restent en attente avec le motif affiché et peuvent ré-émettre, flux
+    T8.3), *Validés* (`users.is_verified = true`), *Suspendus*
+    (`users.is_active = false`).
+  - **Entreprises** : *En attente* (`company_profiles.verification_status =
+    'pending'`, rejetées incluses), *Validées* (`'verified'`),
+    *Suspendues* (`is_active = false`).
+- **Recherche libre** (nom / e-mail / téléphone) au-dessus des sections.
+- **Carte par utilisateur** : photo de profil (URL **signée** de courte durée
+  via `GET /api/admin/profiles/[profileId]/photo-url`, jamais de chemin raw),
+  nom complet, e-mail, compte MoMo (opérateur + numéro, en clair à l'admin
+  seulement), téléphone, statut + badge ⭐ vérifié, badges d'état CNI/MoMo,
+  motif de rejet si applicable.
+- **Boutons de la carte** : *Voir le profil* → `/admin/candidates/[id]`
+  (T8.4b), *CNI* → `/admin/cni?userId=`, *MoMo* → `/admin/momo?userId=`,
+  *Documents* → `/admin/skill-documents?userId=` (reprise de contexte par
+  paramètre, T8.4c) ; *Suspendre* / *Réactiver* (grades `admin_ops` /
+  `admin_founder` uniquement — `admin_support` est en lecture seule ;
+  confirmation native avant action).
+- **Suspension** (`users.is_active`, levier baseline — **jamais** de colonne
+  dédiée) : RPC `admin_set_user_active(p_user_id, boolean)` SECURITY DEFINER.
+  Gardes RPC : admin uniquement → grade ops/founder → pas sur soi-même →
+  cible candidat/entreprise uniquement (pas les comptes admin) → inconnu →
+  404 ; idempotent si même état. Écrit `audit_logs`
+  (`suspend_user`/`activate_user`, acteur = admin réel) + **notification**
+  `system` (« Compte suspendu » / « Compte réactivé »).
+- **Gates de suspension** : candidat `is_active = false` →
+  `POST /api/jobs/[id]/apply` et `POST /api/jobs` (candidature / création de
+  mission côté entreprise) retournent **403 `code: "account_suspended"`** —
+  contrôlé **avant** tout autre gate (vérification, profil complet) ; une
+  entreprise suspendue ne peut plus publier d'offre. La réactivation restaure
+  l'ancien comportement (les autres gates redevenant applicables).
+- **Lecture de liste en `service_role`** : `users` et `company_profiles` n'ont
+  aucune policy SELECT admin — les APIs GET utilisent `createAdminClient()`
+  (deux requêtes séparées + merge sur `user_id` : PostgREST refuse l'embed
+  `users → candidate_profiles`, deux FK ; la recherche est faite côté serveur
+  sur le lot). Les mutations passent par le RPC en session admin pour que
+  l'audit loggue l'admin réel.
+- **Décision produit — comptes rejetés « Conserver et ré-émettre »** : les
+  candidats/entreprises **refusés ne sont PAS supprimés** ni de la base ni de
+  l'UI : le compte reste en « En attente », le motif de rejet est affiché sur
+  la carte et le formulaire, et la ré-émission passe par les flux existants
+  (T8.3). **Seuls les fichiers rejetés** (photos CNI, documents de
+  compétences) sont **supprimés immédiatement et automatiquement** du bucket
+  `candidate-documents` (T8.4c), le candidat pouvant ré-envoyer.
+
+**Profil candidat admin (T8.4b) — `/admin/candidates/[id]`** : page
+complète d'un candidat (atteinte via le bouton *Voir le profil* de la
+carte T8.4a).
+- **Lecture seule** pour les 3 grades (`GET /api/admin/candidates/[id]`,
+  lecture `service_role` : identité, contact, statuts CNI/MoMo,
+  compétences + statuts, documents + statuts, historique missions,
+  statistiques). Jamais de chemin de fichier renvoyé (photo via l'URL
+  signée T8.4a).
+- **Édition de l'identité** (prénom / nom / date de naissance) réservée à
+  **`admin_founder` UNIQUEMENT** (décision produit « juste modifiable par
+  l'admin founder » — plus strict que le gate ops/founder) :
+  `POST /api/admin/candidates/[id]/identity` → RPC
+  `admin_edit_candidate_identity` (SECURITY DEFINER, en session admin pour
+  que l'audit loggue le vrai admin). Le RPC re-vérifie le grade et refuse
+  soi-même / compte admin / inconnu / prénom-ou-nom vide.
+- **Ré-vérification CNI** : sur un candidat dont
+  `cni_verified='verified'`, tout changement de prénom/nom/date de
+  naissance **remet `cni_verified='pending'`** (+ `cni_rejection_reason`
+  NULL) — le nom déclaré sur la CNI/MoMo ne correspond plus. Le RPC appelle
+  `recompute_user_verification` : `users.is_verified` retombe à `false` et
+  le candidat est de nouveau bloqué au gate de postulation (T8.3) jusqu'à
+  re-vérification. Notification `document_status` + audit
+  `admin_edit_identity` (avant/après logués). Si le CNI n'était **pas**
+  vérifié, l'édition se fait sans reset (simple mise à jour + notification
+  « informations mises à jour »).
+
+**Revues « En attente » uniquement (T8.4c) — `/admin/cni`, `/admin/momo`,
+`/admin/skill-documents`** : décision produit de la refonte T8.4 — ces trois
+pages de revue ne conservent que la file **En attente** (les onglets/sections
+Vérifié / Rejeté / Expiré sont supprimés) : l'état de chaque document
+s'affiche désormais sur la section de l'utilisateur (carte centralisée T8.4a
++ profil T8.4b). La recherche libre est conservée sur `/admin/skill-documents`.
+
+- **Filtre `?userId=<uuid>`** (SSR, depuis les boutons *CNI* / *MoMo* /
+  *Documents* de la carte T8.4a) : la page ne liste que les documents de cet
+  utilisateur — la page admin affiche une mention « vue restreinte » ( clé
+  i18n partagée `admin.candidateProfile.filteredByUser` ) et un lien retour
+  vers `/admin/candidates`. Pour `candidate_documents` (clé
+  `candidate_id` = id du profil), l'admin résout d'abord
+  `user_id` → `candidate_id` côté SSR avant le filtre.
+- **Sémantique « En attente »** : CNI = `cni_verified='pending'` + photo
+  recto présente ; MoMo = `momo_verified=false` **ET**
+  `momo_reject_reason IS NULL` (un compte rejeté porte son motif et est
+  tombé de la file) ; documents de compétences = `status='pending'`.
+- **Purge immédiate des FICHIERS rejetés** (décision « Conserver et
+  ré-émettre » — le COMPTE et la LIGNE restent, seul le FICHIER est
+  supprimé) :
+  - CNI : `removeCniPhotos(profile_id)` (API `POST /api/admin/cni`) est
+    désormais appelée **à l'approbation ET au rejet** — les 3 photos
+    recto/verso/selfie sont retirées du bucket privé `candidate-documents`
+    (service role) et les `cni_*_url` NULLifiées si la suppression
+    storage a réussi. À la ré-émission, le RPC `candidate_update_cni`
+    repose les URLs (coalesce) → le candidat re-entre dans la file.
+  - Documents de compétences : au rejet (`POST
+    /api/admin/skill-documents/[id]`), le fichier `storage_path` est
+    supprimé du bucket (service role, garde de préfixe
+    `<user_id>/` — l'admin ne supprime JAMAIS un objet qui n'appartient
+    pas au candidat propriétaire). La LIGNE reste en `status='rejected'`
+    + `rejection_reason` (la preuve de l'état, visible sur le profil T8.4b)
+    et le recalcul `recompute_skill_verification_status` porte le statut de
+    la compétence liée.
+  - MoMo : aucun fichier à purger (le statut est porté par les colonnes du
+    profil).
+- Les purges sont **best effort** (try/catch) : un échec storage (réseau)
+  est loggué et **ne bloque jamais le verdict admin** — le statut est déjà
+  posé et l'audit déjà écrit. Le verdict passe toujours par la session
+  admin (RPC / policy RLS) pour que l'audit loggue l'admin réel ; la purge
+  post-verdict est un housekeeping storage sans valeur audit.
+
+**Critères d'acceptation (vue centralisée + suspension + profil) :**
+- `GET /admin/candidates` / `/admin/companies` → 200 pour les 3 grades
+  (`admin_support` lecture seule), 403 pour un candidat ; la liste ne renvoie
+  **jamais** de chemin de fichier (photo/logo en booléen, URL signée dédiée).
+- Un candidat suspendu est bloqué sur l'application d'offre
+  (`403 account_suspended`) ; l'entreprise suspendue sur la publication
+  d'offre ; la réactivation restaure le flux.
+- La suspension/réactivation écrit `audit_logs` (acteur admin réel) + une
+  notification `system` au compte concerné ; la modification de son propre
+  compte ou d'un compte admin est refusée par le RPC.
+- La recherche et les compteurs de sections se mettent à jour sans rechargement.
+
+**Mises à jour de profil admin (T8.5) — `/admin/update-requests` + section
+du profil candidat** : implémentation de l'UI admin du modèle T2 (SRS §5.1.1)
+— l'**admin initie**, le **candidat exécute** (pas de sémantique
+approuver/refuser). Le verrou T2 (`profile_update_requests`) est déjà en base ;
+T8.5 livre la surface admin qui manque :
+
+- Page `/admin/update-requests` (lecture 3 grades, mutations
+  `admin_ops`/`admin_founder` uniquement — `admin_support` = lecture seule) :
+  liste `GET /api/admin/profile-update-requests` (SWR, tri `created_at` desc,
+  `limit 500`) en 4 sections avec compteurs — *En attente* / *Exécutées* /
+  *Annulées* / *Toutes* — chaque ligne : candidat (nom), groupes de champs
+  (`identity` / `cni_documents`), motif, date + initiateur (e-mail résolu
+  service_role — la session admin ne lit pas les autres lignes `users`),
+  date d'exécution.
+- Actions par ligne : **Annuler** (`PATCH {status:"cancelled"}`) seule pour
+  une demande `pending` ; **Supprimer** (`DELETE`) seule pour une demande
+  clôturée (`done`/`cancelled`). **Jamais de DELETE sur une `pending`**
+  (409 `request_pending` — la supprimer déverrouillerait silencieusement les
+  champs du candidat en cours d'édition : on annule d'abord). La
+  transition `pending → cancelled` est la seule transition admin, idempotente
+  (409 `invalid_transition` sinon) ; la RLS admin est permissive, la route
+  est donc l'unique source de vérité des transitions. Chaque action
+  (`cancel_profile_update_request` / `delete_profile_update_request`) écrit
+  `audit_logs` (acteur admin réel, mutation en session — l'audit est écrit
+  AVANT le `DELETE`) ; l'annulation notifie le candidat
+  (`document_status`, les champs restent verrouillés).
+- **Initiation admin (2 entrées, décision produit)** : le bouton
+  *Demander une mise à jour* ouvre `UpdateRequestModal` (composant partagé)
+  (a) sur la page `/admin/update-requests` (recherche de candidat SWR sur
+  `GET /api/admin/candidates?q=`, sélection d'un groupe de champs + motif ≥ 5)
+  et (b) sur le profil candidat `/admin/candidates/[id]` (nouvelle section
+  *Mises à jour de profil* : liste `?candidate_id=<profile_id>` + modal
+  **épinglé** au candidat affiché). Le `POST` (existant depuis T2) crée la
+  ligne `pending` + audit `request_profile_update` + notification au candidat.
+- La clôture en `done` reste automatique et côté base (trigger
+  `trg_protect_verified_candidate_data`, dans l'écriture de PUT identity /
+  POST documents) — l'admin ne
+  pose jamais le statut `done` ; aucun item de navigation basse (accès via
+  le dashboard + le profil candidat, §6.12).
+
+**Critères d'acceptation (T8.5)** :
+- `GET /api/admin/profile-update-requests` → 200 pour les 3 grades +
+  `?status=` / `?candidate_id=` ; 401 non authentifié ; 403 candidat/
+  entreprise.
+- `POST` → 201-like pour `admin_ops`/`admin_founder` (ligne `pending` +
+  notification + audit) ; 403 `admin_support` ; rejet Zod (motif < 5,
+  `fields` vide).
+- `PATCH` `pending` → `cancelled` (200 + audit `cancel_profile_update_request`
+  + notification) ; idempotent sur déjà `cancelled` (200) ; `done`/`cancelled`
+  → 409 `invalid_transition` ; `DELETE` sur `pending` → 409
+  `request_pending` ; `DELETE` sur `done`/`cancelled` → 200 + ligne purgée +
+  audit conservé ; `admin_support` sur PATCH/DELETE → 403.
+- Le profil candidat `/admin/candidates/[id]` affiche les demandes du candidat
+  (section dédiée) et propose l'initiation épinglée pour `canModerate`.
+
 ---
 
 ### 6.13 Chatbot IA support
@@ -617,7 +828,7 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 
 **Ajout d'un document :**
 - Types acceptés : CV, diplôme, certificat professionnel, attestation de formation, attestation de travail/expérience, permis de conduire, autre justificatif professionnel.
-- Champs demandés : type, titre, organisme émetteur (facultatif pour le CV), date d'obtention, date d'expiration (facultative — non exigée pour les documents qui n'expirent normalement pas, comme un diplôme), compétence(s) associée(s) (le CV reste un document général, non rattaché à une compétence), fichier.
+- Champs demandés : type, titre, organisme émetteur (facultatif pour le CV), date d'obtention, date d'expiration (facultative — non exigée pour les documents qui n'expirent normalement pas, comme un diplôme ; **obligatoire pour le permis de conduire** depuis T3.1), **catégorie du permis** (obligatoire pour `permis_conduire`, T3.1 — §6.14.2), compétence(s) associée(s) (le CV reste un document général, non rattaché à une compétence), fichier.
 - Formats acceptés : PDF, JPEG, PNG, WebP — réutilisation du bucket privé `candidate-documents` existant (limite 5 Mio, extension de `allowed_mime_types` pour inclure `application/pdf`).
 - Un même document peut être associé à plusieurs compétences réellement couvertes, sans dupliquer le fichier.
 - Après envoi, le statut passe à "Vérification en attente". Aucune compétence n'est marquée "Vérifiée" avant validation admin — un CV seul ne suffit jamais à vérifier une compétence.
@@ -661,6 +872,95 @@ Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyen
 - Un refus nécessite un motif obligatoire, visible par le candidat.
 - Un document expiré retire uniquement le statut vérifié des compétences concernées et bloque uniquement les offres qui l'exigent.
 - `admin_support` peut consulter un justificatif mais ne peut ni le valider ni le refuser.
+
+### 6.14.1 Page « Mes compétences » (candidat) — T3
+
+**Description :** page dédiée `GET /profile/skills` (menu *Profil → Mes compétences*) consolidant sur une seule vue : (1) la **section CV + permis de conduire** au-dessus de la liste, (2) la **liste des compétences** du candidat avec leur statut de vérification (§6.14) et les actions de justificatif, (3) l'**ajout de compétences depuis un catalogue** structuré et recherché. Elle **absorbe la page** `GET /profile/skill-documents` (T0), qui devient un **redirect serveur 307** vers `/profile/skills` (les deep links et anciens liens restent fonctionnels).
+
+**Section CV / permis (documents « généraux ») :** le CV et le permis de conduire sont gérés comme des documents généraux du profil (`document_type = cv` / `permis_conduire`, **non rattachés à une compétence** — `skill_ids = []`) :
+- deux cartes (CV, permis) affichant le statut du dernier document (`pending` / `rejected` / `verified` / `expired`) et permettant la **suppression** quand le document est `pending` ou `rejected` (RLS T0) ;
+- l'upload utilise le même endpoint et la même validation Zod que §6.14 (`POST /api/profile/skill-documents`), en verrouillant le `document_type` ; la contrainte Zod « au moins une compétence » est exemptée **exclusivement** pour `GENERAL_DOC_TYPES` (`cv`, `permis_conduire`) ;
+- le permis est saisi **avec date d'expiration et catégorie** depuis T3.1 (document général) ; le contrôle d'expiration exigé par les offres le lit depuis `candidate_documents.expires_at` (§6.14) et le verrou des compétences de conduite depuis `license_category` (§6.14.2) — le flag mort `candidate_profiles.driving_license_verified` n'est alimenté par aucune UI et sera corrigé en **T8** (refonte admin).
+
+**Ajout de compétences (catalogue) :**
+- **Catalogue** (`lib/data/skill-catalog.ts`) : 14 groupes thématiques (services, vente, restauration, manutention, transport, artisanat, nettoyage, sécurité, événementiel, bureautique, digital, beauté, soins, langues) couvrant les compétences fréquentes camerounaises (Douala / Yaoundé). Noms des compétences non accentués, **identiques** à l'existant (`COMMON_SKILLS` de l'onboarding) : un candidat existant retrouve ses compétences cochées dans l'UI.
+- **Recherche** : filtre sous-chaîne insensible à la casse sur les noms du catalogue ; sans saisie, la vue affiche les 14 groupes.
+- **Ajout** : insertion unitaire dans `candidate_skills` (une ligne, `skill_level = 3`) — plus de delete-all/insert-all côté candidat (bug de remise à zéro du statut de vérification, §6.2). Un modal « Certifier maintenant / Plus tard » propose immédiatement de joindre un justificatif.
+- **Suppression** : modal de confirmation puis `.delete()` sur la ligne `candidate_skills` (les liens documents sont en cascade, T0) ; `router.refresh()` pour resynchroniser.
+- Les compétences saisies hors catalogue (historiques) restent affichées dans un bloc « Vos autres compétences ».
+
+**Navigation mise à jour :** menu profil *Mes compétences* → `/profile/skills` ; l'entrée *Documents et compétences vérifiées* (`/profile/skill-documents`) est retirée du menu (doublon) ; le CTA de complétion « critère compétences manquant » pointe vers `/profile/skills` ; la page `candidate` (carte compétences) et le lien « Modifier » pointent vers `/profile/skills`.
+
+**Autorisations :** accès candidat / `candidate_premium` uniquement (redirect sinon) ; sans `candidate_profiles` → `/onboarding/candidate`. RLS et écritures inchangées par rapport à T0 (RLS candidat propriétaire sur `candidate_skills` / `candidate_documents` ; recompute RPC + trigger de protection du statut).
+
+**Critères d'acceptation :**
+- `/profile/skill-documents` redirige (307) vers `/profile/skills`.
+- L'ajout d'une compétence ne remet **jamais** à zéro `verification_status` d'une autre compétence (pas de delete-all du côté candidat).
+- Le CV et le permis peuvent être uploadés **sans sélectionner de compétence** ; tout autre type exige au moins une compétence (client **et** serveur).
+- Un candidat retrouve ses compétences de l'onboarding cochées dans le catalogue.
+- Les compétences vérifiées conservent leur badge émeraude après un save de profil (bug T1 corrigé).
+
+### 6.14.2 Catégories de permis + verrou des compétences de conduite — T3.1
+
+**Description :** le permis de conduire est désormais saisi **avec une catégorie** (`candidate_documents.license_category`), et un candidat ne peut déclarer une **compétence de conduite** que s'il détient un permis **vérifié** couvrant la catégorie requise. La règle s'applique dans **tous** les points d'entrée des compétences : la page `/profile/skills` **et** l'onboarding (step 3).
+
+**Catégories** (CHECK DB `candidate_documents_license_category_chk` + Zod `licenseCategorySchema`) : `moto`, `voiture`, `fourgon`, `camion`, `bus`, `tous_types` (wildcard côté document — couvre **toute** exigence).
+
+**Mapping compétences → catégorie requise** (fonction SQL `public.skill_requires_license` **et** miroir TS `lib/utils/license-requirements.ts` — les deux doivent rester synchrones, verrouillé par vitest + preuve E2E) :
+
+| Compétence(s) | Catégorie requise |
+|---|---|
+| Conduite moto · Taxi moto · Livraison moto | `moto` |
+| Conduite voiture · Livraison voiture | `voiture` |
+| Conduite fourgon | `fourgon` (satisfaite par `fourgon` **ou** `camion`) |
+| Conduite camion | `camion` |
+| Conduite bus | `bus` (compétence ajoutée au catalogue en T3.1) |
+| Toute autre compétence | aucune exigence |
+
+**Modèle de satisfaction (sets) :** un permis vérifié satisfait l'exigence si sa catégorie appartient au set requis (`fourgon ← {fourgon, camion}`) **ou** si sa catégorie est `tous_types` (wildcard). Implémenté de façon identique côté SQL (`public.has_verified_license_for`, sets en `VALUES`) et côté TS (`SATISFIES_SETS`).
+
+**Trigger Postgres :** `BEFORE INSERT` sur `candidate_skills` (`trg_enforce_license_for_driving_skill`) — si la compétence requiert un permis que le candidat ne possède pas vérifié, l'insertion est **refusée** avec un message préfixé `EASYJOB_LICENSE_REQUIRED:` (préfixe stable détecté côté client, pas de SQLSTATE). Exonération système via `set_config('easyjob.system_update','on',true)` (même mécanisme que la recompute T0) — service role uniquement.
+
+**UI :**
+- **`/profile/skills`** : le modal « Ajouter mon permis » exige la **catégorie** (select obligatoire) **et** la date d'expiration ; la carte permis affiche un **badge de catégorie** (« Catégorie : Moto ») ; les chips de compétences de conduite sans permis couvrant vérifié sont **désactivées** (verrou visuel + tooltip) et l'insertion est bloquée côté client également (double défense avec le trigger) ; un échec d'insertion préfixé `EASYJOB_LICENSE_REQUIRED:` affiche le message dédié.
+- **Onboarding (step 3)** : les chips de conduite (`Conduite moto`, `Conduite voiture` dans `COMMON_SKILLS`) sont **désactivées** tant que le candidat n'a pas de permis vérifié couvrant la catégorie (liste calculée côté serveur à l'ouverture de la page depuis `candidate_documents`) + hint « Les compétences de conduite nécessitent un permis de conduire vérifié. Ajoutez-les dans votre profil après vérification. ». La règle « minimum 2 compétences » ne compte que les compétences réellement sélectionnables.
+
+**Conséquence assumée :** le permis étant validé *a posteriori* par un administrateur, le candidat qui termine son onboarding sans permis vérifié **ajoute ses compétences de conduite ensuite, dans `/profile/skills`**, après la vérification du permis.
+
+**Critères d'acceptation :**
+- INSERT `candidate_skills` sans permis vérifié → **refusé** (session candidat réelle) avec un message préfixé `EASYJOB_LICENSE_REQUIRED` ; aucune ligne créée.
+- Permis `moto` vérifié → « Conduite moto » OK ; « Conduite voiture » **refusée** (catégories distinctes).
+- Permis `tous_types` vérifié → « Conduite camion » **OK** (wildcard).
+- Permis `camion` vérifié → « Conduite fourgon » **OK** (set de satisfaction).
+- Compétence non-conduite (ex. « Cuisine ») : toujours insérable, quel que soit le permis.
+- Onboarding (HTML rendu) : les chips de conduite sont `disabled` sans permis vérifié couvrant.
+- Bypass système : avec `easyjob.system_update = on` (service role), l'INSERT passe malgré l'absence de permis.
+
+### 6.14.3 Page « Mes documents » (candidat) — T4
+
+**Description :** page dédiée `GET /profile/documents` (menu *Profil → Mes documents*) qui liste **uniquement et exhaustivement** tous les justificatifs `candidate_documents` du candidat (CV, permis, diplôme, certificat, attestations de formation/travail, casier judiciaire, autre). Elle est une vue **lecture seule** de consultation : chaque document expose son **statut effectif** et permet de **Voir** (aperçu) et **Télécharger** le fichier. L'ajout de justificatif reste la responsabilité de la page « Mes compétences » (§6.14.1) et le **remplacement** est géré côté **administrateur** (§6.14.4, T8) — la page n'expose donc ni bouton d'ajout inline ni de suppression côté candidat.
+
+**Périmètre (lecture seule, décidé avec le produit) :**
+- **Liste** : tous les `candidate_documents` du candidat, triés par date de création décroissante. Chaque ligne affiche : type (`document_type`), titre, organisme émetteur, catégorie du permis (si `permis_conduire`, T3.1), dates d'obtention et d'expiration, **compétences associées** (via `candidate_skill_documents`), et le **motif de refus** si `rejected`.
+- **Statut effectif « au vol »** : la base n'a pas de job qui passe `status` de `verified` à `expired` (point ouvert : pas de cron). Comme §6.5 / `lib/matching/skill-document-requirements.ts`, le statut affiché est **dérivé en lecture** : un document `verified` dont `expires_at` est dépassé s'affiche **Expiré** (`lib/utils/document-status.ts` : `effectiveDocStatus`). Un `rejected`/`pending`/`expired` brut s'affiche tel quel. C'est la **même source de vérité** que le matching des offres.
+- **Voir** : ouvre un modal de consultation du fichier via **URL signée de courte durée** (`GET /api/profile/skill-documents/[id]/url`, TTL 60 s, bucket privé `candidate-documents`) — jamais de lien public permanent (confidentialité §6.14). PDF affiché en `<iframe>`, images en `<img>`.
+- **Télécharger** : même URL signée, déclenche le téléchargement du fichier avec un nom lisible dérivé du titre.
+- **Aucune écriture côté candidat** sur cette page : pas de suppression (la RLS `candidate_documents_delete_own_pending_or_rejected` reste la garante du retrait par le candidat, utilisée par la page compétences), pas de remplacement. L'ajout d'`expires_at`/métadonnées passe par le flow d'upload existant.
+
+**Navigation :** menu profil *Mes documents* → `/profile/documents` (remplace l'ancien pointeur vers *Modifier mes informations → focus photo*, qui reste accessible via celle-ci). Accès candidat / `candidate_premium` uniquement ; sans `candidate_profiles` → `/onboarding/candidate`.
+
+**Autorisations / confidentialité :** lecture `candidate_documents_select_own_or_admin` ; URL signée (TTL 60 s) ; le candidat ne voit **que ses** documents ; l'entreprise ne voit jamais de fichier (uniquement un statut, §6.14).
+
+**Remplacement — décision produit (implémenté côté admin en T8) :** lorsqu'un document doit être **remplacé ou mis à jour**, c'est l'administrateur qui le **signale au candidat via une notification et la page « Mes tâches »** (pas un bouton de remplacement côté candidat). La **règle de rétention** : **l'ancien document (ligne `candidate_documents` + fichier Storage) n'est supprimé que si le nouveau document est `verified` par l'admin** ; tant que le nouveau est `pending`/`rejected`, l'ancien reste en place. Cette règle est portée par l'UI/canale admin (T8) et n'implique **aucun** changement de RLS candidat ni d'écriture côté candidat.
+
+**Critères d'acceptation :**
+- `GET /profile/documents` → 200, liste tous les `candidate_documents` du candidat (CV, permis, diplôme, attestations…), triés par création décroissante.
+- Un document `verified` en cours de validité s'affiche **Vérifié** ; un `verified` dont la date d'expiration est dépassée s'affiche **Expiré** (détection au vol, sans écriture DB).
+- « Voir » charge l'aperçu via une URL **signée** (TTL ≈ 60 s) ; PDF en `iframe`, images en `img` ; « Télécharger » télécharge le fichier via la même URL signée.
+- La page n'expose **aucun** bouton d'ajout inline ni de suppression côté candidat (l'ajout est en `/profile/skills` ; le remplacement via notif/admin est en T8).
+- Motif de refus affiché pour un document `rejected` ; compétences associées listées via `candidate_skill_documents`.
+- Candidat sans document → état vide dédié.
+- Non connecté → redirect login ; rôle non-candidat → redirect `/profile`.
 
 ---
 
@@ -766,11 +1066,21 @@ id, user_id, first_name, last_name, date_of_birth, city,
 photo_url, bio, skills[], sectors[], availability{},
 driving_license_verified, driving_license_expires_at,
 cni_verified, cni_expires_at, cni_selfie_url,
-momo_verified, momo_number, momo_operator, momo_name_match,
-home_gps_lat, home_gps_lng,
+momo_verified, momo_number, momo_provider, momo_name_match,
+momo_account_name, momo_reject_reason,
+momo_verified_by, momo_verified_at,   ← T6 : cycle de vie de la vérification MoMo — `momo_provider` ∈ (mtn, orange) ; `momo_account_name` = nom déclaré sur le compte (optionnel, ≤ 100) ; **validation admin MANUELLE** (pas de preuve de possession OTP au lancement — décision produit 2026-09-10) : l'admin `admin_ops`/`admin_founder` approuve ou refuse (motif requis ≥ 3 car) en confrontant le nom déclaré au nom CNI (comptes familiaux / au nom d'un tiers refusés), revue ≤ 24 h ; `momo_reject_reason` = motif de refus ; `momo_verified_by` / `momo_verified_at` écrits exclusivement par l'admin (RPC `apply_momo_verification`). Les 5 colonnes de vérification (`momo_verified`, `momo_name_match`, `momo_verified_by`, `momo_verified_at`, `momo_reject_reason`) sont **protégées par un trigger** (`easyjob.system_update`) : un candidat ne peut se marquer `momo_verified=true` — seules les fonctions SECURITY DEFINER (`candidate_update_momo`, `apply_momo_verification`) les écrivent.
+quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement ou **auto-rempli par le GPS** depuis T5.1, `address` n'est pas collectée par l'UI candidat) ; T5.1 : les paires lat/lng sont **validées à l'intérieur de la zone de service** (≤ 20 km du centre de Douala ou de Yaoundé) — `latitude: null` / `longitude: null` = fallback « même ville ».
 sandbox_level, average_rating, total_missions,
 profile_completion_pct, premium_until,
 created_at, updated_at
+```
+
+**`profile_update_requests`** (T2 — verrou des infos vérifiées, §5.1.1)
+```
+id, candidate_id, fields[] (identity | cni_documents),
+status (pending / done / cancelled),
+reason, requested_by (uuid -> users),
+created_at, updated_at, completed_at
 ```
 
 **`company_profiles`**
@@ -873,6 +1183,8 @@ title, issuing_organization, reference_number,
 issued_at, expires_at, storage_path,
 status (pending/verified/rejected/expired),
 rejection_reason, verified_by, verified_at,
+license_category (moto/voiture/fourgon/camion/bus/tous_types ; T3.1 —
+  nulle sauf pour document_type = permis_conduire),
 created_at, updated_at
 ```
 
@@ -888,7 +1200,8 @@ id, job_id, skill_name, document_type, created_at
 
 **`document_expirations`**
 ```
-id, candidate_id, document_type (cni/driving_license/other),
+id, candidate_id, candidate_document_id (nullable),
+document_type (cni/driving_license/skill_document/other),
 expires_at, notified_30d, notified_7d, notified_expired,
 updated_at
 ```
@@ -1034,7 +1347,101 @@ metadata{}, ip_address, created_at
 - Le nom du compte MoMo doit correspondre au nom complet de la CNI. Comptes familiaux refusés.
 - Option KYC automatisé (Smile Identity) envisagée pour V1.1.
 
-**Statut :** ✅ Décision prise.
+**Implémentation T6 (MoMo) — validation admin MANUELLE (Option D) :**
+1. **Déclaration (candidat)** : le candidat déclare opérateur (`MTN MoMo` /
+   `Orange Money`) + numéro (format téléphone camerounais, 9 chiffres préfixe 6)
+   + nom du compte (optionnel, ≤ 100 chars) via `PUT /api/profile/payment` → RPC
+   `candidate_update_momo` (SECURITY DEFINER). Tout changement de numéro/opérateur
+   **réinitialise le cycle** (vérification remise à zéro : l'admin re-voit).
+   **Pas de preuve de possession par OTP SMS au lancement** — l'étape est jugée
+   superflue et coûteuse (1 SMS par numéro) pour le MVP ; le numéro est la
+   responsabilité du candidat, l'admin arbitre.
+2. **Validation admin** (`POST /api/admin/momo`, rôles `admin_ops`/`admin_founder`,
+   `admin_support` en lecture seule via `GET` + filtre `?verified=true|false`) :
+   l'admin approuve ou refuse en **confrontant le nom du compte déclaré au nom
+   de la CNI** — les comptes familiaux / au nom d'un tiers sont **refusés** avec
+   un motif obligatoire (3..300 car, `momo_reject_reason`). L'opération est
+   transactionnelle (RPC `apply_momo_verification`, SECURITY DEFINER) : écriture
+   protégée de `momo_verified`/`momo_name_match`/`momo_verified_by`/`momo_verified_at`
+   (+ motif au rejet), **notification** `momo_status` au candidat (« Mobile Money
+   vérifié » / « … refusé » + motif) et **audit log** (`approve_momo`/`reject_momo`,
+   acteur = l'admin réel, jamais `service_role`). La revue est **manuelle ≤ 24 h**.
+   La page candidat `/profile/payment` montre le statut : non configuré →
+   formulaire ; « En attente de vérification » (déclaré, pas encore vu) ; refus
+   avec motif affiché (+ bouton Modifier) ; « Vérifié » seulement après
+   l'approbation admin (le numéro y est **masqué**, affiché en clair dans
+   l'interface admin).
+
+   **Implémentation T8.2 (UI admin de revue)** : la page `/admin/momo` liste les
+   déclarations MoMo par statut (en attente / vérifié / refusé) avec filtres ;
+   le numéro est affiché **en clair** à l'admin (jamais au candidat). Le
+   panneau de revue (modal) confronte le **nom du compte déclaré** au **nom de
+   la CNI** (`cni_front_url`/`cni_back_url`/`cni_selfie_url`, bucket privé
+   `candidate-documents`) via des **URLs signées** de courte durée
+   (`GET /api/admin/momo/[profileId]/cni-url?field=…`). Rôles : `admin_support`
+   en **lecture seule** (consulter la liste + le CNI, pas de mutation) ;
+   `admin_ops`/`admin_founder` peuvent approuver/refuser (motif de refus
+   obligatoire ≥ 3 car). Toute action passe par `POST /api/admin/momo`
+   (opérationnel depuis T6, infra déjà prouvée).
+
+   **Implémentation T8.3 (revue CNI + `users.is_verified`)** : la page
+   `/admin/cni` liste les candidats ayant soumis une CNI par statut
+   (en attente / vérifiée / refusée) avec les 3 photos (recto/verso/selfie)
+   affichées via les **URLs signées** T8.2. Toute action passe par
+   `POST /api/admin/cni` → RPC `moderate_cni` (SECURITY DEFINER) :
+   approbation → `cni_verified='verified'` + `cni_expires_at` (défaut =
+   date de naissance **+ 10 ans**, CNI camerounaise, overridable par l'admin)
+   + ligne `document_expirations` (type `'cni'`) ; rejet → motif obligatoire
+   ≥ 3 car. Notification `document_status` (« CNI vérifiée » / « CNI refusée »
+   + motif) + audit (`approve_cni`/`reject_cni`, acteur = admin réel).
+   **Suppression des photos** : à l'approbation, les 3 objets sont retirés
+   du bucket privé `candidate-documents` (service role) et les URLs du
+   profil NULLifiées — la certification `cni_verified='verified'` est la
+   source de vérité, les photos ne sont conservées que le temps de la
+   revue (SRS §8.4).
+   **Protection trigger** : un trigger `BEFORE UPDATE` sur
+   `candidate_profiles` (pattern `easyjob.system_update` du T6) restaure
+   `cni_verified`/`cni_rejection_reason`/`cni_expires_at` si le GUC
+   transactionnel n'est pas posé — **un candidat ne peut plus s'auto-marquer
+   `cni_verified='verified'`** via la RLS « update own profile » (avant T8.3,
+   la colonne était librement écritable).
+   **Flag `users.is_verified`** — nouveau flag de synthèse, **source de
+   vérité du gate de postulation** (§6.6). Posé UNIQUEMENT par le RPC
+   `recompute_user_verification` (SECURITY DEFINER, appelé par
+   `moderate_cni` et `apply_momo_verification`) : `is_verified = true` si et
+   seulement si `cni_verified='verified'` **ET** `momo_verified=true` **ET**
+   infos personnelles complètes (prénom, nom, date de naissance) **ET**
+   téléphone présent.
+   La recompute porte sur l'**état de certification** (pas la présence des
+   photos, qui sont supprimées après approbation). Notification
+   `document_status` « Profil vérifié » à la bascule `false → true`.
+   **Protection trigger** `users` : `is_verified` n'est écrit QUE par le
+   recompute (un candidat ne peut ni forcer ni verrouiller le flag).
+
+   **Rattachement à la vue centralisée (T8.4a → T8.4c, SRS §6.12)** : les
+   revues CNI / MoMo / documents de compétences sont accessibles depuis la
+   carte de chaque utilisateur de `/admin/candidates` (boutons *CNI*, *MoMo*,
+   *Documents* passants `?userId=`). Décision produit de la refonte T8.4 :
+   ces pages de revue ne conservent que la section **En attente** — l'état
+   de chaque document (vérifié / refusé + motif / expiré) s'affiche désormais
+   sur la section de l'utilisateur dans la vue centralisée. Les **fichiers
+   rejetés** sont supprimés **immédiatement et automatiquement** du bucket
+   `candidate-documents` (service role) : le compte reste « En attente »
+   (pas de suppression de compte) et le candidat ré-émet via le formulaire
+   existant (T8.4c).
+
+**Automatisation future (T6.1 — à l'étude, non implémentée)** : un agrégateur
+« get account name » (API B2B opérateur : *MTN MoMo for Business*, *Orange
+Money API Developer* ; ou agrégateur local : *eTrazact*, *Flutterwave*,
+*Hubtel*…) retourne le nom opérateur du numéro pour une auto-confrontation au
+nom déclaré / CNI (auto-approve sur match exact normalisé). Référence produit
+comparable : **Taptap Send** (envoi d'argent Europe → Afrique) qui affiche le
+nom du destinataire avant validation. Coût ≈ 10–200 F CFA par lookup. À
+reprendre comme spike (RFP opérateur + sandbox) une fois le MVP en prod.
+
+**Statut :** ✅ Décision prise — **implémenté (T6)** : déclaration + validation
+admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
+(décision produit 2026-09-10) ; T6.1 à l'étude.
 
 ---
 

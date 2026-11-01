@@ -16,12 +16,12 @@ Ce projet est organise pour que:
 - le developpement quotidien se fasse sur une base Supabase locale;
 - la production utilise le projet Supabase cloud;
 - un nouveau membre puisse demarrer avec un minimum de commandes;
-- la CI valide lint et build a chaque push / pull request.
+- la CI valide le code, les migrations, les autorisations et le build a chaque pull request.
 
 ## Pre-requis
 
-- Node.js 22+
-- pnpm 10+
+- Node.js 22.x (`engines.node`)
+- pnpm 11.1.3 (`packageManager`, version qui produit `pnpm-lock.yaml`)
 - Docker Desktop (pour Supabase local)
 - Git
 
@@ -120,6 +120,12 @@ Configurer aussi les variables Mobile Money si activees:
 - `ORANGE_MONEY_MERCHANT_KEY`
 - `ORANGE_MONEY_BASE_URL`
 
+La mise en production (release, migrations puis Vercel), ses secrets et la
+reprise apres echec sont decrits dans
+[docs/deployment/production.md](docs/deployment/production.md). La version est
+incrementee dans la PR vers `main` :
+[preparer une version](docs/deployment/production.md#préparer-une-version).
+
 ## 6. Onboarding d'un nouveau membre
 
 1. Cloner le repo.
@@ -131,13 +137,25 @@ Configurer aussi les variables Mobile Money si activees:
 
 ## 7. CI GitHub Actions
 
-Le workflow `.github/workflows/ci.yml` execute:
+Le workflow `.github/workflows/ci.yml` s'execute sur chaque pull request et sur
+les pushs vers `main-dev` et `main`. Il n'utilise aucun secret. Sur une PR, un
+nouveau commit annule le run precedent ; un run de push n'est jamais annule, car
+le deploiement exige la reussite de la CI sur le commit exact du tag. Protections
+de branches recommandees :
+[docs/deployment/production.md](docs/deployment/production.md#9-release-et-protections-de-branches).
 
-- `pnpm install --frozen-lockfile`
-- `pnpm lint`
-- `pnpm build`
+| Job | Controles |
+|---|---|
+| `lint-and-types` | `pnpm install --frozen-lockfile`, `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .`, `pnpm test` |
+| `test-migrations` | Pile Supabase locale jetable (`scripts/init-proof-stack.ts`) : migrations, types generes compares a `lib/database.types.ts`, build de l'app reliee a cette pile, puis `pnpm test:rls` |
+| `build` | Build avec une configuration factice. Ne s'execute que si les deux jobs precedents reussissent. |
 
-Cela garantit qu'un merge ne casse pas l'app.
+Tests en local :
+
+```powershell
+pnpm test       # tests unitaires (Vitest)
+pnpm test:rls   # suite d'autorisation, sur la pile dediee (section 9)
+```
 
 ## 8. Hooks Git (Husky)
 
@@ -168,6 +186,15 @@ pnpm exec prettier --check . # format
 ```
 
 Ne jamais contourner un echec avec `--no-verify`.
+
+## 9. Suite d'autorisation (`pnpm test:rls`)
+
+`pnpm test:rls` exécute à la suite les preuves `scripts/proof-*.ts` et échoue
+si une seule échoue (`pnpm test:rls admin-cni` pour une preuve isolée). Elles
+écrivent dans la base. Le code refuse toute cible non locale et ne lit jamais
+`.env.local`. Seule la procédure garantit l'usage de la pile dédiée, et non
+celle de développement :
+[docs/testing/local-proofs.md](docs/testing/local-proofs.md).
 
 ## Notes utiles
 

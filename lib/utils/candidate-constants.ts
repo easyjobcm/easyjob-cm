@@ -1,6 +1,7 @@
-// Listes partagées entre l'onboarding candidat et l'édition de profil,
-// pour éviter deux catalogues divergents de villes/compétences.
-export const CAMEROON_CITIES = ["Douala", "Yaounde"];
+// Listes partagées entre l'onboarding candidat, l'édition de profil et le
+// filtre d'offres — un seul catalogue (orthographe canonique accentuée,
+// alignée sur la grappe de données existante : seed + SRS).
+export const CAMEROON_CITIES = ["Douala", "Yaoundé"];
 
 export const COMMON_SKILLS = [
   "Service client",

@@ -31,42 +31,47 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import type { QueryData } from "@supabase/supabase-js";
+import type { Tables } from "@/lib/database.types";
 
-interface Job {
-  id: string;
-  title: string;
-  description: string;
-  city: string;
-  quartier: string;
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
-  hourly_rate: number;
-  positions_available: number;
-  positions_filled: number;
-  status: string;
-  required_skills: string[];
-}
+type Job = Pick<
+  Tables<"jobs">,
+  | "id"
+  | "title"
+  | "city"
+  | "quartier"
+  | "start_date"
+  | "start_time"
+  | "end_time"
+  | "positions_available"
+  | "positions_filled"
+>;
 
-interface Application {
-  id: string;
-  status: string;
-  match_score: number;
-  distance_km: number;
-  candidate_note: string;
-  created_at: string;
-  candidate: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    profile_photo_url: string;
-    city: string;
-    reliability_score: number;
-    completed_missions: number;
-    skills: { skill_name: string }[];
-  };
-}
+const applicationsQuery = (
+  supabase: ReturnType<typeof createClient>,
+  jobId: string,
+) =>
+  supabase
+    .from("job_applications")
+    .select(
+      `
+        *,
+        candidate:candidate_profiles(
+          id,
+          first_name,
+          last_name,
+          profile_photo_url,
+          city,
+          reliability_score,
+          completed_missions,
+          skills:candidate_skills(skill_name)
+        )
+      `,
+    )
+    .eq("job_id", jobId)
+    .order("match_score", { ascending: false });
+
+type Application = QueryData<ReturnType<typeof applicationsQuery>>[number];
 
 export default function CompanyJobDetailPage() {
   const router = useRouter();
@@ -112,27 +117,9 @@ export default function CompanyJobDetailPage() {
     if (jobData) setJob(jobData);
 
     // Get applications with candidate info
-    const { data: appsData } = await supabase
-      .from("job_applications")
-      .select(
-        `
-        *,
-        candidate:candidate_profiles(
-          id,
-          first_name,
-          last_name,
-          profile_photo_url,
-          city,
-          reliability_score,
-          completed_missions,
-          skills:candidate_skills(skill_name)
-        )
-      `,
-      )
-      .eq("job_id", jobId)
-      .order("match_score", { ascending: false });
+    const { data: appsData } = await applicationsQuery(supabase, jobId);
 
-    if (appsData) setApplications(appsData as Application[]);
+    if (appsData) setApplications(appsData);
 
     setLoading(false);
   }
@@ -149,21 +136,26 @@ export default function CompanyJobDetailPage() {
     if (!user) return;
 
     // Update application status
-    const { error } = await supabase
+    // `.select` : une ligne filtrée par la RLS ne renvoie pas d'erreur, il
+    // faut compter les lignes modifiées pour ne pas annoncer un faux succès.
+    const { data: updated, error } = await supabase
       .from("job_applications")
       .update({
         status: "selected",
         selected_at: new Date().toISOString(),
         selected_by: user.id,
       })
-      .eq("id", selectedApplication.id);
+      .eq("id", selectedApplication.id)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de selectionner le candidat.",
         variant: "destructive",
       });
+      // L'écran peut être obsolète (candidature retirée entre-temps).
+      loadData();
     } else {
       // Update positions filled
       await supabase
@@ -175,6 +167,7 @@ export default function CompanyJobDetailPage() {
 
       toast({
         title: "Candidat selectionne",
+        variant: "success",
         description: "Le candidat a ete notifie de sa selection.",
       });
       loadData();
@@ -191,23 +184,26 @@ export default function CompanyJobDetailPage() {
     setProcessing(true);
     const supabase = createClient();
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("job_applications")
       .update({
         status: "rejected",
         rejection_reason: rejectionReason || null,
       })
-      .eq("id", selectedApplication.id);
+      .eq("id", selectedApplication.id)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de rejeter le candidat.",
         variant: "destructive",
       });
+      loadData();
     } else {
       toast({
         title: "Candidature rejetee",
+        variant: "success",
         description: "Le candidat a ete notifie.",
       });
       loadData();
@@ -231,7 +227,7 @@ export default function CompanyJobDetailPage() {
     return time?.slice(0, 5) || "";
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     switch (status) {
       case "pending":
         return (
@@ -431,12 +427,6 @@ export default function CompanyJobDetailPage() {
                               )}
                             </div>
                           )}
-
-                        {app.candidate_note && (
-                          <p className="text-sm text-muted-foreground mt-2 italic">
-                            &quot;{app.candidate_note}&quot;
-                          </p>
-                        )}
 
                         {app.status === "pending" && (
                           <div className="flex items-center gap-2 mt-3">

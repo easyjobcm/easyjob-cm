@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isProfileLockGroup } from "@/lib/utils/profile-lock";
 import { CandidateProfileEditClient } from "./edit-client";
 
 export default async function CandidateProfileEditPage() {
@@ -30,16 +31,21 @@ export default async function CandidateProfileEditPage() {
   const { data: candidateProfile } = await supabase
     .from("candidate_profiles")
     .select(
-      "id, first_name, last_name, city, quartier, bio, latitude, longitude, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_rejection_reason, cni_expires_at",
+      "id, first_name, last_name, date_of_birth, city, quartier, bio, latitude, longitude, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_rejection_reason, cni_expires_at",
     )
     .eq("user_id", user.id)
     .single();
 
-  const { data: candidateSkills } = candidateProfile
+  // Demandes de mise à jour admin en attente pour ce candidat (SRS §5.1) :
+  // elles déverrouillent les champs vérifiés côté serveur ET s'affichent en
+  // tâche sur /tasks ; la page edit les affiche aussi (état des champs).
+  const { data: pendingRequests } = candidateProfile
     ? await supabase
-        .from("candidate_skills")
-        .select("id, skill_name")
+        .from("profile_update_requests")
+        .select("id, fields, reason, completed_at, created_at")
         .eq("candidate_id", candidateProfile.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
     : { data: [] };
 
   return (
@@ -49,6 +55,7 @@ export default async function CandidateProfileEditPage() {
           id: null,
           first_name: "",
           last_name: "",
+          date_of_birth: null,
           city: "",
           quartier: "",
           bio: "",
@@ -63,7 +70,14 @@ export default async function CandidateProfileEditPage() {
           cni_expires_at: null,
         }
       }
-      initialSkills={(candidateSkills ?? []).map((s) => s.skill_name)}
+      pendingUpdateRequests={(pendingRequests ?? []).map((r) => ({
+        id: r.id,
+        fields: Array.isArray(r.fields)
+          ? r.fields.filter(isProfileLockGroup)
+          : [],
+        reason: r.reason ?? "",
+        createdAt: r.created_at ?? "",
+      }))}
     />
   );
 }

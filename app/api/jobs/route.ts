@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Constants } from "@/lib/database.types";
 
 const JobCreateSchema = z.object({
   title: z.string().trim().min(1),
@@ -12,15 +13,15 @@ const JobCreateSchema = z.object({
   end_time: z.string().min(1),
   hourly_rate: z.number().positive(),
   category_id: z.string().uuid().optional(),
-  job_type: z.string().optional().default("shift"),
+  job_type: z.enum(Constants.public.Enums.job_type).optional().default("shift"),
   quartier: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   end_date: z.string().optional(),
   is_recurring: z.boolean().optional().default(false),
-  recurring_days: z.unknown().optional(),
+  recurring_days: z.array(z.number().int()).optional(),
   estimated_hours: z.number().optional(),
-  required_skills: z.unknown().optional(),
+  required_skills: z.array(z.string().trim().min(1)).optional(),
   min_experience_months: z.number().int().min(0).optional().default(0),
   dress_code: z.string().optional(),
   special_instructions: z.string().optional(),
@@ -110,6 +111,22 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // SRS §6.19 (T8.4a) — compte suspendu : une entreprise suspendée par
+    // l'admin (is_active = false) ne peut plus publier d'offre. Lecture
+    // propre ligne (RLS « propre profil » de users).
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("is_active")
+      .eq("id", user.id)
+      .single();
+
+    if (userRow?.is_active === false) {
+      return NextResponse.json(
+        { error: "Votre compte est suspendu", code: "account_suspended" },
+        { status: 403 },
+      );
     }
 
     // Get company profile

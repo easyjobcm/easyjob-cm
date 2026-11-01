@@ -7,14 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/ui/loading";
-import { ChevronLeft, CheckCircle2, Clock } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { paymentSchema } from "@/lib/validations/profile";
+
+type MomoProvider = "mtn" | "orange";
 
 interface PaymentClientProps {
   momoProvider: string | null;
   momoNumber: string | null;
+  momoAccountName: string | null;
   momoVerified: boolean;
+  momoRejectReason: string | null;
 }
 
 function maskNumber(number: string | null): string {
@@ -26,21 +30,34 @@ function maskNumber(number: string | null): string {
 export function PaymentClient({
   momoProvider,
   momoNumber,
+  momoAccountName,
   momoVerified,
+  momoRejectReason,
 }: PaymentClientProps) {
   const router = useRouter();
   const { t } = useI18n();
   const tp = t.profile.paymentPage;
 
   const [editing, setEditing] = React.useState(!momoNumber);
-  const [provider, setProvider] = React.useState(momoProvider ?? "mtn");
+  const [provider, setProvider] = React.useState<MomoProvider>(
+    momoProvider === "mtn" || momoProvider === "orange" ? momoProvider : "mtn",
+  );
   const [number, setNumber] = React.useState("");
-  const [verified, setVerified] = React.useState(momoVerified);
+  const [accountName, setAccountName] = React.useState("");
+  const [error, setError] = React.useState("");
   const [currentNumber, setCurrentNumber] = React.useState(momoNumber);
   const [currentProvider, setCurrentProvider] = React.useState(momoProvider);
-  const [error, setError] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+
+  const saveErrorMessages = React.useMemo<Record<string, string>>(
+    () => ({
+      momoProviderInvalid: tp.momoProviderInvalid,
+      momoAccountNameTooLong: tp.momoAccountNameTooLong,
+      phoneInvalid: t.signup.errors.phoneInvalid,
+    }),
+    [tp, t],
+  );
 
   const handleSave = async () => {
     if (saving) return;
@@ -49,9 +66,11 @@ export function PaymentClient({
     const result = paymentSchema.safeParse({
       momo_provider: provider,
       momo_number: number,
+      momo_account_name: accountName.trim() || undefined,
     });
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? tp.error);
+      const key = result.error.issues[0]?.message ?? "";
+      setError(saveErrorMessages[key] ?? key ?? tp.error);
       return;
     }
 
@@ -66,7 +85,8 @@ export function PaymentClient({
 
       setCurrentNumber(result.data.momo_number);
       setCurrentProvider(result.data.momo_provider);
-      setVerified(false);
+      // RPC `candidate_update_momo` : la vérification est remise à zéro
+      // (l'admin re-vérifie le numéro/opérateur modifié).
       setEditing(false);
       setSaved(true);
     } catch {
@@ -75,6 +95,21 @@ export function PaymentClient({
       setSaving(false);
     }
   };
+
+  const handleEdit = () => {
+    setNumber(currentNumber ?? "");
+    setAccountName(momoAccountName ?? "");
+    setProvider(currentProvider === "orange" ? "orange" : "mtn");
+    setEditing(true);
+    setError("");
+  };
+
+  // ── Vues ────────────────────────────────────────────────────────────
+  // verified → carte « Vérifié » (+ Modifier) ; sinon numéro déclaré →
+  // carte en attente admin (status pending / refusé + motif) ; sinon
+  // formulaire de déclaration.
+
+  const showPendingCard = !editing && !!currentNumber;
 
   return (
     <AppShell>
@@ -97,7 +132,7 @@ export function PaymentClient({
         </div>
 
         <div className="space-y-4 px-4 pb-10 pt-6">
-          {!editing && currentNumber ? (
+          {momoVerified && !editing ? (
             <Card>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
@@ -109,22 +144,71 @@ export function PaymentClient({
                       {maskNumber(currentNumber)}
                     </p>
                   </div>
-                  {verified ? (
-                    <span className="flex items-center gap-1 text-xs font-medium text-green-600">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {tp.verified}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
-                      <Clock className="h-3.5 w-3.5" />
-                      {tp.pending}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {tp.verified}
+                  </span>
                 </div>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setEditing(true)}
+                  onClick={handleEdit}
+                >
+                  {tp.edit}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : showPendingCard ? (
+            <Card>
+              <CardContent className="space-y-4 p-4">
+                <div>
+                  <p className="font-medium text-foreground">
+                    {currentProvider === "mtn" ? "MTN MoMo" : "Orange Money"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentNumber}
+                  </p>
+                  {momoAccountName && (
+                    <p className="text-sm text-muted-foreground">
+                      {momoAccountName}
+                    </p>
+                  )}
+                  {saved && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {tp.revalidateNotice}
+                    </p>
+                  )}
+                </div>
+
+                {momoRejectReason ? (
+                  <p
+                    role="alert"
+                    className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400"
+                  >
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {tp.rejected}
+                      <span className="mt-1 block text-xs">
+                        {tp.rejectedReason.replace(
+                          "{reason}",
+                          momoRejectReason,
+                        )}
+                      </span>
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{tp.pending}</p>
+                )}
+
+                {error && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleEdit}
                 >
                   {tp.edit}
                 </Button>
@@ -180,6 +264,13 @@ export function PaymentClient({
                   onChange={(e) => setNumber(e.target.value)}
                   placeholder={tp.numberPlaceholder}
                 />
+                <Input
+                  label={`${tp.accountName} ${tp.accountNameOptional}`}
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder={tp.accountNamePlaceholder}
+                  hint={tp.accountNameHint}
+                />
                 {currentNumber && (
                   <p className="text-xs text-muted-foreground">
                     {tp.revalidateNotice}
@@ -221,6 +312,15 @@ export function PaymentClient({
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardContent className="flex items-start gap-2 p-4">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
+                {tp.reviewPending}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppShell>

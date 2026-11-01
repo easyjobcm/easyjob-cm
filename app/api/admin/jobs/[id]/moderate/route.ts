@@ -50,7 +50,7 @@ export async function POST(
       .update({
         status: newStatus,
         moderated_at: new Date().toISOString(),
-        moderated_by: user.id,
+        moderation_by: user.id,
       })
       .eq("id", id);
 

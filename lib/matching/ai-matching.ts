@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { haversineKm } from "@/lib/validations/geo-schema";
 
 interface MatchingCriteria {
   candidateId: string;
@@ -19,25 +20,8 @@ interface MatchResult {
   reasons: string[];
 }
 
-// Calculate distance between two coordinates using Haversine formula
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// (Le Haversine est centralisé dans `lib/validations/geo-schema.ts` —
+//  source unique, partagée avec la validation de zone T5.1.)
 
 export async function calculateMatchScore(
   criteria: MatchingCriteria,
@@ -51,7 +35,7 @@ export async function calculateMatchScore(
       `
       *,
       skills:candidate_skills(skill_name, skill_level),
-      availability:candidate_availability(day_of_week, start_time, end_time)
+      availability:candidate_availability(day_of_week, start_time, end_time, is_available)
     `,
     )
     .eq("id", criteria.candidateId)
@@ -122,11 +106,9 @@ export async function calculateMatchScore(
     job.latitude &&
     job.longitude
   ) {
-    const distance = calculateDistance(
-      candidate.latitude,
-      candidate.longitude,
-      job.latitude,
-      job.longitude,
+    const distance = haversineKm(
+      { lat: candidate.latitude, lng: candidate.longitude },
+      { lat: job.latitude, lng: job.longitude },
     );
     const maxDistance = candidate.max_travel_distance_km || 10;
 
@@ -164,8 +146,7 @@ export async function calculateMatchScore(
     const dayOfWeek = jobDate.getDay();
 
     const availableForDay = candidate.availability.find(
-      (a: { day_of_week: number; is_available: boolean }) =>
-        a.day_of_week === dayOfWeek && a.is_available !== false,
+      (a) => a.day_of_week === dayOfWeek && a.is_available !== false,
     );
 
     if (availableForDay) {
@@ -297,20 +278,21 @@ export async function updateReliabilityScore(
   const supabase = await createClient();
 
   // Récupère toutes les évaluations du candidat
-  const { data: reviews } = await supabase
+  const { data: reviews, error } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("overall_rating")
     .eq("reviewed_id", candidateId)
     .eq("reviewer_type", "company");
 
+  if (error) throw error;
   if (!reviews || reviews.length === 0) return;
 
   const avg =
-    reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
-    reviews.length;
+    reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviews.length;
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("candidate_profiles")
     .update({ average_rating: Math.round(avg * 10) / 10 })
     .eq("id", candidateId);
+  if (updateError) throw updateError;
 }

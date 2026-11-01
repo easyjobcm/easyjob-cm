@@ -5,55 +5,10 @@ import {
   skillDocumentUploadSchema,
   type SkillDocumentType,
 } from "@/lib/validations/skill-documents";
+import { detectDocumentMime, EXT_BY_MIME } from "@/lib/utils/file-type";
 
 const BUCKET = "candidate-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-
-/**
- * Détecte le vrai type MIME depuis les octets du fichier (magic bytes) —
- * jamais confiance dans l'extension ou le Content-Type déclaré par le client.
- */
-function detectDocumentMime(bytes: Uint8Array): string | null {
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
-  if (
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47
-  ) {
-    return "image/png";
-  }
-  if (
-    bytes[0] === 0x52 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x46 &&
-    bytes[8] === 0x57 &&
-    bytes[9] === 0x45 &&
-    bytes[10] === 0x42 &&
-    bytes[11] === 0x50
-  ) {
-    return "image/webp";
-  }
-  if (
-    bytes[0] === 0x25 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x44 &&
-    bytes[3] === 0x46
-  ) {
-    return "application/pdf";
-  }
-  return null;
-}
-
-const EXT_BY_MIME: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "application/pdf": "pdf",
-};
 
 async function getAuthorizedCandidate() {
   const supabase = await createClient();
@@ -150,6 +105,7 @@ export async function POST(request: NextRequest) {
     expires_at: formData.get("expires_at") ?? "",
     skill_ids: skillIds,
     confirm_accurate: formData.get("confirm_accurate") === "true",
+    license_category: formData.get("license_category") ?? "",
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -201,6 +157,13 @@ export async function POST(request: NextRequest) {
       issuing_organization: input.issuing_organization || null,
       issued_at: input.issued_at || null,
       expires_at: input.expires_at || null,
+      // T3.1 : la catégorie de permis n'a de sens que pour un document
+      // `permis_conduire`. On ne l'écrit jamais pour les autres types
+      // (le CHECK le permet — null est toujours valide).
+      license_category:
+        input.document_type === "permis_conduire" && input.license_category
+          ? input.license_category
+          : null,
       storage_path: path,
     })
     .select("id")

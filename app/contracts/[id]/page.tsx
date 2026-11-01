@@ -25,6 +25,7 @@ import {
   Pen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { TablesUpdate } from "@/lib/database.types";
 
 interface Contract {
   id: string;
@@ -240,7 +241,7 @@ export default function ContractSignPage() {
     const signatureDataUrl = canvas.toDataURL("image/png");
 
     // Update contract based on user role
-    const updateData: Record<string, unknown> = {};
+    const updateData: TablesUpdate<"contracts"> = {};
 
     if (userRole === "candidate") {
       updateData.candidate_signature_url = signatureDataUrl;
@@ -256,12 +257,14 @@ export default function ContractSignPage() {
         : "company_signed";
     }
 
-    const { error } = await supabase
+    // Sans ligne modifiée (RLS), pas d'erreur : on compte les lignes.
+    const { data: updated, error } = await supabase
       .from("contracts")
       .update(updateData)
-      .eq("id", contractId);
+      .eq("id", contractId)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de signer le contrat.",

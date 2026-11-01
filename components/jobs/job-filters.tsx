@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+// Même catalogue que l'onboarding/édition profil (T5) — le doublon local
+// divergeait (orthographe), l'import direct l'évite.
+import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
 
 interface Category {
   id: string;
@@ -25,8 +28,6 @@ interface JobFiltersProps {
   onCategoryChange: (value: string) => void;
   categories: Category[];
 }
-
-const CAMEROON_CITIES = ["Douala", "Yaounde"];
 
 export function JobFilters({
   search,

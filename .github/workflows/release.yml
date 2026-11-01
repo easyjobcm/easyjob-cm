@@ -1,126 +1,124 @@
 name: Release
 
-# Chaîne de déploiement complète :
-#   merge main-dev → main  →  release.yml crée tag + GitHub Release
-#                           →  deploy.yml se déclenche sur le tag
-#                           →  supabase db push  PUIS  vercel deploy
-#
-# Type de bump SemVer déterminé :
-#   - sur push direct  →  patch (défaut)
-#   - workflow_dispatch →  choisir patch / minor / major
+# Après une CI réussie sur un push vers main, tague le commit testé avec la
+# version de son package.json (vX.Y.Z), sans écrire sur main. Le push du tag
+# déclenche deploy.yml. Préparation de version, jetons et reprise :
+# docs/deployment/production.md §9.
 
 on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-    inputs:
-      bump:
-        description: "Type de bump SemVer"
-        required: true
-        default: "patch"
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-      prerelease:
-        description: "Marquer comme pre-release"
-        required: false
-        default: false
-        type: boolean
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
-# Sérialise les releases : impossible que deux push rapides créent deux releases
-# avec un conflit sur la version (npm version échouerait au 2ème).
+# Une release à la fois ; les suivantes attendent au lieu de s'annuler.
 concurrency:
   group: release
   cancel-in-progress: false
+  queue: max
 
-# Nécessite un secret GH_PAT (Personal Access Token classique) avec les scopes :
-#   repo      — pour pousser le commit de version et le tag
-#   workflow  — pour que le tag puisse déclencher deploy.yml
-# Créer sur github.com → Settings → Developer settings → Personal access tokens (classic)
-# Puis ajouter en secret repo sous le nom GH_PAT.
-
-# Le PAT fournit les permissions nécessaires pour push/tag/release.
-# Le GITHUB_TOKEN n'est pas utilisé.
 permissions:
   contents: read
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Évite la boucle infinie : le bot pousse "chore(release):" sur main,
-    # ce qui déclencherait à nouveau ce workflow sans cette garde.
-    if: |
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'push' &&
-       github.actor != 'github-actions[bot]' &&
-       !startsWith(github.event.head_commit.message, 'chore(release):'))
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    permissions:
+      contents: write
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
 
     steps:
-      - name: Checkout main
+      # GH_PAT : un tag poussé avec GITHUB_TOKEN ne déclencherait pas deploy.yml.
+      # Aucun code du dépôt n'est exécuté dans ce job.
+      - name: Checkout tested commit
         uses: actions/checkout@v4
         with:
-          ref: main
-          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.GH_PAT }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Determine bump type
-        id: bump_type
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "bump=${{ inputs.bump }}" >> $GITHUB_OUTPUT
-            echo "prerelease=${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
-          else
-            # Push direct sur main : patch par défaut.
-            # Pour minor/major, utiliser le workflow_dispatch manuel.
-            echo "bump=patch" >> $GITHUB_OUTPUT
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Bump version in package.json
+      - name: Read release version
         id: version
         run: |
-          NEW_VERSION=$(npm version ${{ steps.bump_type.outputs.bump }} --no-git-tag-version)
-          pnpm install --lockfile-only
-          echo "tag=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          version=$(jq -r '.version // empty' package.json)
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version '$version' de package.json invalide : X.Y.Z attendu, sans préversion."
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Commit $SHA, version v$version"
 
-      - name: Commit, tag and push
+      - name: Ensure commit is on main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git add package.json pnpm-lock.yaml
-          git commit -m "chore(release): ${{ steps.version.outputs.tag }}"
-          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
-          git push origin main
-          git push origin "${{ steps.version.outputs.tag }}"
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$SHA...main" --jq .status)
+          case "$status" in
+            ahead|identical) ;;
+            *)
+              echo "::error::Le commit $SHA n'appartient pas à l'historique de main (statut : $status)."
+              exit 1
+              ;;
+          esac
+
+      # Idempotent : un tag déjà posé sur ce commit est réutilisé ; posé sur un
+      # autre commit, il bloque la release. Jamais de force-push ni de suppression.
+      - name: Create tag on tested commit
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # Commit désigné par le tag distant (déréférencé s'il est annoté).
+          # Échoue si le dépôt distant ne répond pas, plutôt que de conclure à
+          # l'absence du tag.
+          read_target() {
+            # Le motif ^{} est requis : sans lui, ls-remote omet le commit d'un tag annoté.
+            refs=$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}") || {
+              echo "::error::Lecture des tags distants impossible."
+              exit 1
+            }
+            target=$(awk -v ref="refs/tags/$TAG" '$2 == ref "^{}" { peeled = $1 } $2 == ref { direct = $1 } END { print peeled ? peeled : direct }' <<< "$refs")
+          }
+
+          read_target
+          if [ -z "$target" ]; then
+            tags=$(git ls-remote --tags --refs origin 'refs/tags/v*')
+            latest=$(awk '{ sub("^refs/tags/", "", $2); print $2 }' <<< "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+            if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$latest" "$TAG" | sort -V | tail -n 1)" != "$TAG" ]; then
+              echo "::error::$TAG n'est pas supérieure à la dernière release $latest."
+              exit 1
+            fi
+            git tag "$TAG" "$SHA"
+            if ! git push origin "refs/tags/$TAG"; then
+              echo "Push refusé, relecture du tag distant."
+            fi
+            read_target
+          fi
+
+          if [ -z "$target" ]; then
+            echo "::error::Tag $TAG absent après le push : vérifier GH_PAT (droits, expiration) et les règles de tags."
+            exit 1
+          fi
+          if [ "$target" != "$SHA" ]; then
+            echo "::error::Le tag $TAG désigne déjà $target et non $SHA. Aucune modification faite : incrémentez la version dans une nouvelle PR."
+            exit 1
+          fi
+          echo "Tag $TAG -> $SHA"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          prerelease: ${{ steps.bump_type.outputs.prerelease }}
-          target_commitish: main
-          token: ${{ secrets.GH_PAT }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG déjà présente."
+            exit 0
+          fi
+          if ! gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes; then
+            gh release view "$TAG" > /dev/null
+            echo "Release $TAG créée par une exécution concurrente."
+          fi

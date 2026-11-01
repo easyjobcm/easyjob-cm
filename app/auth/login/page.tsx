@@ -89,7 +89,7 @@ export default function LoginPage() {
         const { data: candidateProfile } = await supabase
           .from("candidate_profiles")
           .select(
-            "id, profile_completion_pct, first_name, last_name, date_of_birth, city, profile_photo_url, bio, max_travel_distance_km, latitude, longitude, cni_front_url, cni_back_url, cni_selfie_url, momo_verified",
+            "id, profile_completion_pct, first_name, last_name, date_of_birth, city, profile_photo_url, bio, max_travel_distance_km, latitude, longitude, cni_front_url, cni_back_url, cni_selfie_url, cni_verified, momo_verified",
           )
           .eq("user_id", data.user.id)
           .single();

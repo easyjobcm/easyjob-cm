@@ -2,46 +2,41 @@
  * Preuve E2E T1 — gate des champs essentiels à la postulation (SRS §6.6).
  *
  * Méthode (même philosophie que la preuve RLS de T0) :
- *   1. Seeder en service role deux candidats à 100% de complétude :
- *      A = essentiels complets, B = CNI pending + Momo non vérifié +
- *      identité partielle (le 100 % isole le gate des essentiels du seuil).
+ *   1. Seeder en service role une entreprise, une offre et deux candidats
+ *      à forte complétude : A = essentiels complets, B = CNI pending + MoMo
+ *      non vérifié + identité partielle (la complétude isole le gate des
+ *      essentiels du seuil de 60 %). `users.is_verified` n'est pas posé par
+ *      la fixture : il est dérivé de l'état par recompute_user_verification.
  *   2. Se connecter en session RÉELLE : signInWithPassword(email) via
  *      @supabase/ssr createServerClient (la même fonction que l'app).
  *      L'app s'authentifie par e-mail + mot de passe (phone logins désactivés).
- *   3. POST /api/jobs/[id]/apply sur le serveur Next.js de dev (localhost:3000)
+ *   3. POST /api/jobs/[id]/apply sur l'application locale (NEXT_APP_URL)
  *      avec le cookie de session. L'app lit la base en RLS, comme en prod.
  *   4. Attendus : A -> 200 (candidature créée) ;
- *                 B -> 403 { code: "essentials_incomplete",
+ *                 B -> 403 { code: "profile_not_verified",
  *                            missing: ["identity","cni","momo"] } sans candidature.
+ *      Depuis T8.3, le gate porte sur `users.is_verified` (RPC apply_to_job)
+ *      et la route y joint la liste des essentiels manquants.
  *   5. Nettoyage complet des lignes de preuve.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
+import { readLocalProofEnv } from "./lib/local-supabase";
 
 type DB = SupabaseClient<Database>;
 type CandidateProfileInsert =
   Database["public"]["Tables"]["candidate_profiles"]["Insert"];
 
-if (typeof process.loadEnvFile === "function") {
-  process.loadEnvFile(".env.local");
-}
-
-const NEXT_APP_URL = "http://localhost:3000";
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-  "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+// Pile locale uniquement (refus de toute cible distante) — voir
+// docs/testing/local-proofs.md.
+const {
+  supabaseUrl: SUPABASE_URL,
+  anonKey: ANON_KEY,
+  serviceKey: SERVICE_KEY,
+  appUrl: NEXT_APP_URL,
+} = readLocalProofEnv();
 const PROOF_PASSWORD = "Proof-T1-42!";
-
-if (!SUPABASE_URL || !ANON_KEY || !SERVICE_KEY) {
-  throw new Error(
-    "Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-  );
-}
 
 const serviceClient: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false },
@@ -126,6 +121,7 @@ interface ProofCandidate {
 
 async function createTestCandidate(
   email: string,
+  phone: string,
   withEssentials: boolean,
 ): Promise<ProofCandidate> {
   const { data: created, error } = await serviceClient.auth.admin.createUser({
@@ -144,7 +140,7 @@ async function createTestCandidate(
     id: authUserId,
     email,
     role: "candidate",
-    is_verified: true,
+    phone,
     phone_verified: true,
     is_active: true,
     locale: "fr",
@@ -224,7 +220,52 @@ async function createTestCandidate(
     ]);
   if (skillsErr) throw new Error(`skills insert: ${skillsErr.message}`);
 
+  const { error: recomputeErr } = await serviceClient.rpc(
+    "recompute_user_verification",
+    { p_user_id: authUserId },
+  );
+  if (recomputeErr) throw new Error(`recompute: ${recomputeErr.message}`);
+
   return { authUserId, email, profileId: profile.id };
+}
+
+async function createTestCompany(
+  email: string,
+): Promise<{ authUserId: string; companyId: string }> {
+  const { data: created, error } = await serviceClient.auth.admin.createUser({
+    email,
+    password: PROOF_PASSWORD,
+    email_confirm: true,
+    user_metadata: { proofT1: true },
+    app_metadata: { role: "company", phone_verified: true },
+  });
+  if (error || !created.user) {
+    throw new Error(`company user creation failed: ${error?.message}`);
+  }
+  const authUserId = created.user.id;
+  const { error: rowsErr } = await serviceClient.from("users").insert({
+    id: authUserId,
+    email,
+    role: "company",
+    phone_verified: true,
+    is_active: true,
+    locale: "fr",
+  });
+  if (rowsErr) throw new Error(`company users insert: ${rowsErr.message}`);
+  const { data: company, error: companyErr } = await serviceClient
+    .from("company_profiles")
+    .insert({
+      user_id: authUserId,
+      company_name: "Entreprise de preuve T1",
+      city: "Douala",
+      onboarding_status: "completed",
+    })
+    .select("id")
+    .single();
+  if (companyErr || !company) {
+    throw new Error(`company insert: ${companyErr?.message}`);
+  }
+  return { authUserId, companyId: company.id };
 }
 
 function cookieHeader(entries: CookieEntry[]): string {
@@ -280,6 +321,15 @@ async function cleanPreviousProofs() {
       .in("candidate_id", profileIds);
     await serviceClient.from("candidate_profiles").delete().in("user_id", ids);
   }
+  const { data: companies } = await serviceClient
+    .from("company_profiles")
+    .select("id")
+    .in("user_id", ids);
+  const companyIds = (companies ?? []).map((c) => c.id);
+  if (companyIds.length > 0) {
+    await serviceClient.from("jobs").delete().in("company_id", companyIds);
+    await serviceClient.from("company_profiles").delete().in("id", companyIds);
+  }
   await serviceClient.from("users").delete().in("id", ids);
   for (const id of ids) {
     await serviceClient.auth.admin.deleteUser(id).catch(() => {});
@@ -295,12 +345,9 @@ async function main() {
 
   await cleanPreviousProofs();
 
-  const { data: company } = await serviceClient
-    .from("company_profiles")
-    .select("id")
-    .limit(1)
-    .single();
-  if (!company?.id) throw new Error("pas de company_profiles en base");
+  const company = await createTestCompany(
+    `t1-proof-co+${Date.now()}@proof.easyjob.cm`,
+  );
 
   const { data: category } = await serviceClient
     .from("job_categories")
@@ -311,7 +358,7 @@ async function main() {
   const jobId = crypto.randomUUID();
   const { error: jobErr } = await serviceClient.from("jobs").insert({
     id: jobId,
-    company_id: company.id,
+    company_id: company.companyId,
     category_id: category?.id ?? null,
     title: "Poste de preuve T1 — gate essentiels",
     description:
@@ -339,8 +386,25 @@ async function main() {
   const emailA = `t1-proof-a+${Date.now()}@proof.easyjob.cm`;
   const emailB = `t1-proof-b+${Date.now()}@proof.easyjob.cm`;
 
-  const candA = await createTestCandidate(emailA, true);
-  const candB = await createTestCandidate(emailB, false);
+  const phoneSuffix = String(Date.now()).slice(-7);
+  const candA = await createTestCandidate(emailA, `+2376${phoneSuffix}1`, true);
+  const candB = await createTestCandidate(
+    emailB,
+    `+2376${phoneSuffix}2`,
+    false,
+  );
+  const { data: verified } = await serviceClient
+    .from("users")
+    .select("id, is_verified")
+    .in("id", [candA.authUserId, candB.authUserId]);
+  const isVerified = (id: string) =>
+    verified?.find((u) => u.id === id)?.is_verified;
+  report(
+    "Fixture : is_verified dérivé de l'état (A vérifié, B non vérifié)",
+    isVerified(candA.authUserId) === true &&
+      isVerified(candB.authUserId) === false,
+    verified,
+  );
   console.log(
     `Candidats : A=${candA.email} (essentiels complets) / B=${candB.email} (3 essentiels manquants)\n`,
   );
@@ -355,29 +419,28 @@ async function main() {
 
   try {
     // ── Cas A — essentiels complets, 100 % ──────────────────────
-    // Le gate essentiels ne doit PAS bloquer A. L'assertion T1 est que la
-    // requête ne reçoit PAS le refus 403 essentials_incomplete. L'étape
-    // suivante (fetch de l'offre) peut ensuite échouer par RLS jobs
-    // (politique de SELECT jobs = 'published' alors que l'app utilise
-    // 'active' — incohérence préexistante, hors périmètre T1) ; en prod,
-    // l'offre est lisible et la candidature aboutirait (200). On isole donc
-    // le gate du reste du flux.
+    // Le gate essentiels ne doit PAS bloquer A, et la candidature aboutit
+    // (l'incohérence de lecture des offres actives a été corrigée, voir
+    // proof-jobs-rls-select).
     const resA = await postApply(cookiesA, jobId);
     const aBlockedByEssentials =
-      resA.status === 403 && resA.body.code === "essentials_incomplete";
+      resA.status === 403 && resA.body.code === "profile_not_verified";
     report(
-      "A : passe le gate essentiels (pas de 403 essentials_incomplete)",
+      "A : passe le gate essentiels (pas de 403 profile_not_verified)",
       !aBlockedByEssentials,
       { status: resA.status, body: resA.body },
     );
+    const { data: aApps } = await serviceClient
+      .from("job_applications")
+      .select("id, status")
+      .eq("job_id", jobId)
+      .eq("candidate_id", candA.profileId);
     report(
-      "A : le refus (le cas échéant) survient APRÈS le gate (job-fetch RLS)",
-      !aBlockedByEssentials &&
-        (resA.status === 200 || resA.status === 404 || resA.status === 400),
-      {
-        note: "200 = offre lisible + candidature ; 404/400 = RLS jobs préexistant",
-        status: resA.status,
-      },
+      "A : candidature créée (200) et persistée en 'pending'",
+      resA.status === 200 &&
+        (aApps ?? []).length === 1 &&
+        aApps?.[0]?.status === "pending",
+      { status: resA.status, jobApps: aApps ?? [] },
     );
 
     // ── Cas B — 100 % mais essentiels incomplets ────────────────
@@ -386,11 +449,11 @@ async function main() {
     const missingB = resB.body.missing as unknown;
     const bOk =
       resB.status === 403 &&
-      resB.body.code === "essentials_incomplete" &&
+      resB.body.code === "profile_not_verified" &&
       Array.isArray(missingB) &&
       JSON.stringify([...(missingB as string[])].sort()) ===
         JSON.stringify(["cni", "identity", "momo"]);
-    report("B : bloqué 403 essentials_incomplete malgré 100 %", bOk, {
+    report("B : bloqué 403 profile_not_verified + essentiels manquants", bOk, {
       status: resB.status,
       body: resB.body,
     });
@@ -404,7 +467,8 @@ async function main() {
     const { data: bApps } = await serviceClient
       .from("job_applications")
       .select("id, candidate_id")
-      .eq("job_id", jobId);
+      .eq("job_id", jobId)
+      .eq("candidate_id", candB.profileId);
     report("B : aucune job_applications créée", (bApps ?? []).length === 0, {
       jobApps: bApps ?? [],
     });
@@ -421,6 +485,10 @@ async function main() {
     await serviceClient.from("job_applications").delete().eq("job_id", jobId);
     await serviceClient.from("jobs").delete().eq("id", jobId);
     await serviceClient
+      .from("company_profiles")
+      .delete()
+      .eq("id", company.companyId);
+    await serviceClient
       .from("candidate_skills")
       .delete()
       .in("candidate_id", [candA.profileId, candB.profileId]);
@@ -431,8 +499,8 @@ async function main() {
     await serviceClient
       .from("users")
       .delete()
-      .in("id", [candA.authUserId, candB.authUserId]);
-    for (const id of [candA.authUserId, candB.authUserId]) {
+      .in("id", [candA.authUserId, candB.authUserId, company.authUserId]);
+    for (const id of [candA.authUserId, candB.authUserId, company.authUserId]) {
       const res = await serviceClient.auth.admin.deleteUser(id);
       if (res.error) console.warn("cleanup auth:", res.error.message);
     }
@@ -442,7 +510,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("Preuve E2E échouée :", err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    if (failCount > 0) process.exitCode = 1;
+  })
+  .catch((err) => {
+    console.error("Preuve E2E échouée :", err);
+    process.exit(1);
+  });

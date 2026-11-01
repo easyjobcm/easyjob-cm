@@ -11,9 +11,14 @@ import {
   resendEmailSchema,
 } from "@/lib/validations/auth";
 import { getClientIp } from "@/lib/utils/request";
+import { finalizeSignup } from "@/lib/auth/finalize-signup";
 import type { Database } from "@/lib/database.types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
+
+// Les arguments de fonction générés sont toujours non nullables, alors que
+// check_*_send_quota traitent explicitement p_ip NULL (IP inconnue).
+const quotaIp = (ip: string | null) => ip as string;
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -42,74 +47,6 @@ function mapAuthError(message: string | undefined): string {
   if (m.includes("phone") || m.includes("mobile")) return "phoneInvalid";
   if (m.includes("otp") || m.includes("token")) return "otpWrong";
   return "generic";
-}
-
-/**
- * Crée (ou met à jour) la row `public.users` + le profil métier associé
- * en utilisant la service-role key pour contourner RLS lors d'un signup.
- * Idempotent : si un trigger DB l'a déjà inséré, l'upsert ne casse rien.
- *
- * Actuellement non appelée : la création du profil est différée à
- * verifyPhoneOtpAction → finalizeSignup pour éviter les profils orphelins.
- * Conservée pour un usage admin/backfill futur.
- */
-async function _ensureUserAndProfile(opts: {
-  userId: string;
-  email: string;
-  role: UserRole;
-  locale: "fr" | "en";
-  company?: { companyName: string; niu: string };
-}): Promise<ActionResult> {
-  const admin = createAdminClient();
-
-  const { error: userErr } = await admin.from("users").upsert(
-    {
-      id: opts.userId,
-      email: opts.email,
-      role: opts.role,
-      locale: opts.locale,
-    },
-    { onConflict: "id" },
-  );
-  if (userErr) {
-    console.error("[signup] users upsert failed:", userErr);
-    return { ok: false, errorCode: "generic" };
-  }
-
-  if (opts.role === "candidate") {
-    const { error } = await admin
-      .from("candidate_profiles")
-      .upsert({ user_id: opts.userId }, { onConflict: "user_id" });
-    if (error) {
-      console.error("[signup] candidate_profiles upsert failed:", error);
-      return { ok: false, errorCode: "generic" };
-    }
-  } else if (opts.role === "company" && opts.company) {
-    // Vérif unicité NIU
-    const { data: dup } = await admin
-      .from("company_profiles")
-      .select("user_id")
-      .eq("niu", opts.company.niu)
-      .neq("user_id", opts.userId)
-      .maybeSingle();
-    if (dup) return { ok: false, errorCode: "niuAlreadyUsed" };
-
-    const { error } = await admin.from("company_profiles").upsert(
-      {
-        user_id: opts.userId,
-        company_name: opts.company.companyName,
-        niu: opts.company.niu,
-        contact_email: opts.email,
-      },
-      { onConflict: "user_id" },
-    );
-    if (error) {
-      console.error("[signup] company_profiles upsert failed:", error);
-      return { ok: false, errorCode: "generic" };
-    }
-  }
-
-  return { ok: true };
 }
 
 /* ─────────────────────────── candidate ─────────────────────────── */
@@ -269,7 +206,7 @@ export async function resendEmailOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_email_send_quota", {
     p_email: email,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[signup] email quota exceeded", { email, ip });
@@ -306,7 +243,7 @@ export async function sendPasswordResetOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_email_send_quota", {
     p_email: parsed.data.email,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[forgot] email quota exceeded", { ip });
@@ -405,7 +342,7 @@ export async function sendPhoneOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_sms_send_quota", {
     p_phone: e164,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[signup] SMS quota exceeded", { phone: e164, ip });
@@ -470,7 +407,7 @@ export async function verifyPhoneOtpAction(input: {
       return { ok: false, errorCode: "generic" };
     }
     console.log("[signup] DEV bypass — phone confirmed for", e164);
-    return finalizeSignup(user, e164);
+    return finalizeSignup(createAdminClient(), user, e164);
   }
 
   console.log("[signup] verifyPhoneOtp attempt", {
@@ -493,99 +430,11 @@ export async function verifyPhoneOtpAction(input: {
         "[signup] verifyPhoneOtp: phone confirmed server-side despite SDK error — proceeding",
         { phone: e164, sdkError: error.message },
       );
-      return finalizeSignup(user, e164);
+      return finalizeSignup(createAdminClient(), user, e164);
     }
     console.error("[signup] verifyPhoneOtp failed:", error);
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 
-  return finalizeSignup(user, e164);
-}
-
-/**
- * Marque le téléphone comme vérifié et crée le profil métier
- * (candidate_profiles ou company_profiles) UNIQUEMENT à ce stade,
- * pour éviter d'avoir des profils orphelins en cas d'abandon avant OTP.
- */
-async function finalizeSignup(
-  user: {
-    id: string;
-    email?: string | null;
-    user_metadata?: Record<string, unknown>;
-  },
-  e164: string,
-): Promise<ActionResult<{ role: UserRole }>> {
-  const admin = createAdminClient();
-
-  const meta = user.user_metadata ?? {};
-  const metaRole = typeof meta.role === "string" ? meta.role : "candidate";
-  const metaLocale = typeof meta.locale === "string" ? meta.locale : "fr";
-
-  // Upsert public.users — le trigger handle_new_user n'est pas garanti
-  // d'être attaché à auth.users (notamment en local), donc on le fait ici.
-  const { error: userErr } = await admin.from("users").upsert(
-    {
-      id: user.id,
-      email: user.email ?? "",
-      phone: e164,
-      phone_verified: true,
-      role: metaRole as UserRole,
-      locale: metaLocale as "fr" | "en",
-    },
-    { onConflict: "id" },
-  );
-  if (userErr) {
-    console.error("[signup] users upsert failed:", userErr);
-    return { ok: false, errorCode: "generic" };
-  }
-
-  // Stocker phone_verified + role dans app_metadata pour que le middleware
-  // puisse le lire depuis le JWT sans requête DB supplémentaire.
-  const { error: metaErr } = await admin.auth.admin.updateUserById(user.id, {
-    app_metadata: { phone_verified: true, role: metaRole },
-  });
-  if (metaErr) {
-    // Non-fatal : le fallback DB du middleware prend le relais.
-    console.error("[signup] app_metadata update failed:", metaErr);
-  }
-
-  const { data: row } = await admin
-    .from("users")
-    .select("role, email")
-    .eq("id", user.id)
-    .single();
-  const role = (row?.role ?? "candidate") as UserRole;
-
-  if (role === "candidate") {
-    const { error } = await admin
-      .from("candidate_profiles")
-      .upsert({ user_id: user.id }, { onConflict: "user_id" });
-    if (error) {
-      console.error("[signup] candidate_profiles upsert failed:", error);
-      return { ok: false, errorCode: "generic" };
-    }
-  } else if (role === "company") {
-    const companyName =
-      typeof meta.company_name === "string" ? meta.company_name : "";
-    const niu = typeof meta.niu === "string" ? meta.niu : "";
-    if (!companyName || !niu) {
-      console.error("[signup] company metadata missing", { companyName, niu });
-      return { ok: false, errorCode: "generic" };
-    }
-    const { error } = await admin.from("company_profiles").upsert(
-      {
-        user_id: user.id,
-        company_name: companyName,
-        niu,
-        contact_email: row?.email ?? user.email ?? "",
-      },
-      { onConflict: "user_id" },
-    );
-    if (error) {
-      console.error("[signup] company_profiles upsert failed:", error);
-      return { ok: false, errorCode: "generic" };
-    }
-  }
-
-  return { ok: true, data: { role } };
+  return finalizeSignup(createAdminClient(), user, e164);
 }

@@ -118,13 +118,18 @@ export function computeCandidateCriteria(
       done: !!(profile.latitude && profile.longitude),
     },
     {
+      // CNI vérifiée (les photos sont supprimées après approbation, T8.4),
+      // sinon les trois photos soumises. Même règle en SQL :
+      // candidate_profile_completion_pct.
       key: "cni",
       weight: 15,
-      done: !!(
-        profile.cni_front_url &&
-        profile.cni_back_url &&
-        profile.cni_selfie_url
-      ),
+      done:
+        profile.cni_verified === "verified" ||
+        !!(
+          profile.cni_front_url &&
+          profile.cni_back_url &&
+          profile.cni_selfie_url
+        ),
     },
     {
       key: "momo",
@@ -180,8 +185,8 @@ export function computeCompletion(criteria: Criterion[]): number {
  * Le formulaire d'onboarding ne couvre que identity/skills/momo (partiel) :
  * une fois `onboarding_status` passé à "completed", les critères restants
  * (photo, CNI, bio, localisation, disponibilité) ne peuvent être complétés
- * que depuis /profile/candidate/edit, /profile/availability ou
- * /profile/payment — jamais en repassant par l'assistant d'onboarding.
+ * que depuis /profile/candidate/edit, /profile/skills, /profile/availability
+ * ou /profile/payment — jamais en repassant par l'assistant d'onboarding.
  */
 const CANDIDATE_CRITERION_ROUTES: Record<string, string> = {
   identity: "/profile/candidate/edit",
@@ -189,7 +194,7 @@ const CANDIDATE_CRITERION_ROUTES: Record<string, string> = {
   bio: "/profile/candidate/edit",
   cni: "/profile/candidate/edit",
   location: "/profile/candidate/edit",
-  skills: "/profile/candidate/edit",
+  skills: "/profile/skills",
   availability: "/profile/availability",
   momo: "/profile/payment",
 };

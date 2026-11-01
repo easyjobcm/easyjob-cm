@@ -197,7 +197,8 @@ export default function MissionDetailPage() {
     });
 
     // Update mission status
-    const { error } = await supabase
+    // Sans ligne modifiée (RLS), pas d'erreur : on compte les lignes.
+    const { data: updated, error } = await supabase
       .from("missions")
       .update({
         status: "in_progress",
@@ -206,9 +207,10 @@ export default function MissionDetailPage() {
         arrival_longitude: userLocation.lng,
         arrival_distance_meters: distance,
       })
-      .eq("id", missionId);
+      .eq("id", missionId)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de pointer",
@@ -248,15 +250,16 @@ export default function MissionDetailPage() {
     });
 
     // Update mission status
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("missions")
       .update({
         status: "completed",
         actual_end_time: new Date().toISOString(),
       })
-      .eq("id", missionId);
+      .eq("id", missionId)
+      .select("id");
 
-    if (error) {
+    if (error || !updated?.length) {
       toast({
         title: "Erreur",
         description: "Impossible de terminer la mission",
