@@ -118,6 +118,12 @@ public = false
 file_size_limit = "5MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "application/pdf"]
 
+# Justificatifs entreprise (RCCM) — même modèle, policies par migration.
+[storage.buckets.company-documents]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "application/pdf"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

@@ -26,11 +26,11 @@ export function validateCameroonPhone(phone: string): boolean {
 
 export function formatCurrency(
   amount: number,
-  currency: string = "XAF",
+  currency?: string | null,
 ): string {
   return new Intl.NumberFormat("fr-CM", {
     style: "currency",
-    currency,
+    currency: currency ?? "XAF",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);

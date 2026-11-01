@@ -40,8 +40,8 @@ interface AdminDashboardClientProps {
     start_time: string;
     end_time: string;
     hourly_rate: number;
-    currency?: string;
-    urgency?: string;
+    currency?: string | null;
+    urgency?: string | null;
     company?: {
       company_name?: string;
     };

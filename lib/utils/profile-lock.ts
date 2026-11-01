@@ -14,6 +14,10 @@
 export const PROFILE_LOCK_GROUPS = ["identity", "cni_documents"] as const;
 export type ProfileLockGroup = (typeof PROFILE_LOCK_GROUPS)[number];
 
+export function isProfileLockGroup(value: string): value is ProfileLockGroup {
+  return (PROFILE_LOCK_GROUPS as readonly string[]).includes(value);
+}
+
 /**
  * Un groupe n'est verrouillé QUE si la donnée est vérifiée :
  * `identity` si `cni_verified === "verified"`, `cni_documents` idem.

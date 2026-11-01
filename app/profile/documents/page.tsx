@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { licenseCategorySchema } from "@/lib/validations/skill-documents";
 import { DocumentsPageClient } from "./documents-client";
 
 /**
@@ -60,5 +61,13 @@ export default async function DocumentsPage() {
     .eq("candidate_id", candidateProfile.id)
     .order("created_at", { ascending: false });
 
-  return <DocumentsPageClient initialDocuments={documents ?? []} />;
+  return (
+    <DocumentsPageClient
+      initialDocuments={(documents ?? []).map((doc) => ({
+        ...doc,
+        license_category:
+          licenseCategorySchema.safeParse(doc.license_category).data ?? null,
+      }))}
+    />
+  );
 }

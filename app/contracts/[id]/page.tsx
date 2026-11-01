@@ -25,6 +25,7 @@ import {
   Pen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import type { TablesUpdate } from "@/lib/database.types";
 
 interface Contract {
   id: string;
@@ -240,7 +241,7 @@ export default function ContractSignPage() {
     const signatureDataUrl = canvas.toDataURL("image/png");
 
     // Update contract based on user role
-    const updateData: Record<string, unknown> = {};
+    const updateData: TablesUpdate<"contracts"> = {};
 
     if (userRole === "candidate") {
       updateData.candidate_signature_url = signatureDataUrl;

@@ -127,7 +127,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-11 | P2 | `otp_codes` (table héritée, inutilisée par l'app) : SELECT `USING (true)`, INSERT et UPDATE `true`, `GRANT ALL` à `anon`. | baseline:1845, 1849, 2030, 2330 | Lecture et réécriture des codes stockés par n'importe quel appelant. | Supprimer la table si elle est vide et inutile, sinon révoquer `anon` et `authenticated`. | `GET /rest/v1/otp_codes` refusé. |
 | F-12 | P2 | Le code OTP SMS et le numéro sont **journalisés en clair** (`console.log … token`). | `lib/actions/auth.ts:476-479` | Toute personne qui a accès aux logs Vercel peut valider le téléphone d'un tiers pendant la validité du code. Données personnelles dans les logs. | Supprimer le log ou masquer le numéro et le code. | Recherche : aucun `token` journalisé. |
 | F-13 | P2 | Callback OAuth : `next` n'est pas validé (`${origin}${next}`). Une valeur `next=@domaine-tiers` produit une redirection ouverte. Si `next` contient `/signup/company`, l'`upsert` **écrase le rôle** d'un compte existant. | `app/auth/callback/route.ts:13-52` | Hameçonnage après connexion. Un candidat peut se changer en entreprise, ou un admin être rétrogradé, en se reconnectant par OAuth avec ce paramètre. | N'accepter que des chemins relatifs commençant par `/` et pas par `//` ni `/\`. N'upserter le rôle que si la ligne n'existe pas. Créer la page `/auth/error`, qui n'existe pas. | Tests unitaires du filtre `next` ; un utilisateur existant garde son rôle. |
-| F-14 | P2 | Clients Supabase **non typés**, donc des erreurs de schéma passent `tsc`. Exemple : l'onboarding entreprise écrit dans une table inexistante `companies` et tente `users.is_verified = true` (neutralisé par trigger), erreurs ignorées. | `lib/supabase/client.ts`, `server.ts` ; `app/onboarding/company/page.tsx:112-134` | Les informations d'onboarding entreprise sont perdues sans message. D'autres décalages de schéma sont probables mais non mesurés. | `createBrowserClient<Database>` et `createServerClient<Database>`, puis corriger les erreurs révélées. | `tsc` vert avec clients typés. |
+| F-14 | P2 | **Corrigé et vérifié localement (lot 5, §15).** Constat d'origine : clients Supabase **non typés**, donc des erreurs de schéma passent `tsc`. Exemple : l'onboarding entreprise écrit dans une table inexistante `companies` et tente `users.is_verified = true` (neutralisé par trigger), erreurs ignorées. | `lib/supabase/client.ts`, `server.ts` ; `app/onboarding/company/page.tsx:112-134` | Les informations d'onboarding entreprise sont perdues sans message. D'autres décalages de schéma sont probables mais non mesurés. | `createBrowserClient<Database>` et `createServerClient<Database>`, puis corriger les erreurs révélées. | `tsc` vert avec clients typés. |
 | F-15 | P2 | `/api/chat` : public (le middleware laisse passer `/api/*`), sans authentification, quota, limite de taille ni validation Zod. Appelle un LLM payant. Le prompt système promet des **retraits Mobile Money avec 2 % de frais et un paiement sous 48 h**, alors que le MVP l'interdit. | `app/api/chat/route.ts` ; `lib/supabase/middleware.ts:5` | Abus de coût, et informations fausses données aux utilisateurs. La variable de la passerelle IA n'est pas documentée dans `.env.example`. | Authentification, quota par utilisateur et par IP, limite de messages et de taille, prompt aligné sur les règles réelles. Ou retirer le chatbot du MVP. | Requête anonyme → 401 ; requête trop grosse → 413. |
 | F-16 | P2 | Politique « Companies can view candidate summaries » posée sur **`company_profiles`** : toute entreprise lit tous les profils d'entreprise (NIU, email de contact…). À l'inverse, aucune politique ne permet à une entreprise de voir le nom ou la photo de ses candidats : la liste des candidatures s'affiche sans identité. | baseline:1963 ; `app/company/jobs/[id]/page.tsx:115-131` | Fuite de données entre concurrents, et fonction de sélection inutilisable. | Remplacer par une vue ou une RPC qui expose les colonnes autorisées des candidats ayant postulé aux offres de l'entreprise (jamais téléphone, email, CNI, MoMo). Supprimer la politique erronée. | Une entreprise A ne lit pas l'entreprise B ; elle voit prénom, initiale et photo de ses candidats seulement. |
 | F-17 | P2 | Annulation de candidature : aucune politique DELETE sur `job_applications`. La route renvoie `success` sans rien supprimer. | `app/api/jobs/[id]/apply/route.ts:200-215` ; politiques baseline | L'utilisateur croit avoir annulé. | Passer en `status = 'withdrawn'` (UPDATE contrôlé) et vérifier le nombre de lignes modifiées. | Après annulation, le statut vaut `withdrawn`. |
@@ -780,3 +780,109 @@ Détail des contrôles et points à confirmer à distance : production.md §10.
 - Base visée par les previews Vercel : à identifier (production.md §8).
 - Point de contrôle sauvegarde et restauration avant les premiers utilisateurs (production.md §7).
 - Actions GitHub toujours référencées par tag majeur, et non par SHA.
+
+---
+
+## 15. Suivi — Lot 5 : clients Supabase typés (F-14) (2026-11-01)
+
+**Statut : corrigé et vérifié localement. Non commité, non poussé : la CI distante reste à observer.**
+
+Branche `refactor/lot-05-supabase-types`, créée depuis `origin/main-dev` (de4ea66, qui contient le lot 4b). Les preuves ont tourné sur la pile dédiée `easyjob-proof` (API 54421, procédure `docs/testing/local-proofs.md`), avec l'application construite contre cette pile. La pile de développement n'a pas été touchée.
+
+### Clients et source des types
+
+- **Clients typés `Database` :**
+  - `createClient` navigateur (`lib/supabase/client.ts`) ;
+  - `createClient` et `createAdminClient` serveur (`lib/supabase/server.ts`) ;
+  - client du proxy (`lib/supabase/middleware.ts`).
+
+  Aucun autre client n'est créé dans l'application.
+- **Source unique :** `lib/database.types.ts`, généré par `supabase gen types` (CLI 2.117.0). Il est identique au schéma issu des migrations, y compris après la nouvelle migration, qui ne touche que le stockage. La CI le compare toujours (`test-migrations`). Il n'a été ni régénéré ni retouché à la main.
+- **`database.types.ts` (racine) supprimé :** version ancienne (1 902 lignes contre 2 538), importée nulle part.
+- `lib/types.ts` reste la couche de types métier. Il s'appuie déjà sur les `Tables`/`Enums` générés.
+
+### Incohérences révélées et corrigées
+
+Le typage a fait apparaître 40 erreurs dans 19 fichiers. Les défauts réels :
+
+| Fichier | Défaut | Correction |
+|---|---|---|
+| `app/onboarding/company/page.tsx` | Écriture dans `companies` (table inexistante), tentative `users.is_verified = true`, erreurs ignorées. Le tableau de bord renvoyait vers l'onboarding tant que `onboarding_status` ≠ `completed` : boucle sans issue. | Voir « Onboarding entreprise » ci-dessous. |
+| `app/api/admin/jobs/[id]/moderate/route.ts` | Colonne `moderated_by` inexistante (`moderation_by`) : la route échouait toujours. | Nom de colonne corrigé. Le blocage RLS de l'admin (F-09b) reste au lot 6. |
+| `app/company/jobs/new/page.tsx` | `job_type` `one_time`/`temporary` et `urgency` `high`, hors énumérations : toute création d'offre par l'interface échouait. `jobs.city`, obligatoire, était alimenté par une ville nullable. | Valeurs de l'énumération. Sans ville, renvoi vers l'onboarding. **Effet :** l'insertion directe fonctionne désormais. Elle contourne toujours le contrôle « entreprise vérifiée » de `POST /api/jobs` (F-09a, lot 6). Aucune capacité nouvelle pour un attaquant, qui peut déjà écrire directement. |
+| `app/api/jobs/route.ts` | `job_type` acceptait n'importe quelle chaîne ; `recurring_days` et `required_skills` étaient en `unknown`. | Zod fondé sur les `Constants` générés et sur des tableaux typés. |
+| `lib/matching/ai-matching.ts` | `reviews.rating` n'existe pas (`overall_rating`) : la moyenne n'était jamais recalculée (fonction sans appelant). `is_available` était testé mais jamais sélectionné : un jour indisponible comptait comme disponible. | Colonne corrigée et erreurs propagées. `is_available` ajouté à la projection. |
+| `app/company/jobs/[id]/page.tsx` | Affichage de `candidate_note`, colonne inexistante. | Bloc mort retiré ; type dérivé de la requête (`QueryData`). |
+| `lib/utils.ts` | `formatCurrency(x, null)` : la valeur par défaut ne s'applique pas à `null`, et `Intl` lève `RangeError`. La devise est nullable en base. | Repli sur XAF pour `null`. |
+| `app/my-jobs`, `app/jobs/[id]`, `app/company/*`, `app/admin/dashboard` | Interfaces locales ignorant la nullabilité (`status`, `positions_*`, `currency`, `created_at`…). Une date nulle s'affichait « 1970 ». | Types dérivés de `Tables` ou des requêtes. Valeurs nulles traitées, avec les défauts SQL pour `positions_*`. |
+| `app/admin/momo`, `app/profile/{documents,skills,candidate/edit}`, `app/tasks` | Chaînes en base élargies par assertion implicite en unions (`mtn`/`orange`, catégories de permis, groupes verrouillables). | Restriction par les schémas et listes existants (`paymentSchema`, `licenseCategorySchema`, `isProfileLockGroup`). |
+
+**Assertions supprimées :** cinq `as unknown as` sur des résultats Supabase (`app/my-jobs`, `app/tasks`, `app/api/admin/skill-documents/[id]`). La relation `candidate_documents → candidate_profiles` est plusieurs-vers-un : elle renvoie un objet, non nul avec `!inner`.
+
+**Assertions conservées, sur une limite démontrée du générateur :** les arguments de fonction générés sont toujours non nullables, alors que ces fonctions traitent explicitement `NULL` :
+- `check_email_send_quota` et `check_sms_send_quota` (`p_ip IS NULL`) ;
+- `moderate_cni` (`coalesce(p_expires_at, …)`, motif nul à l'approbation).
+
+Chaque cas passe par une conversion unique et commentée (`lib/actions/auth.ts`, `app/api/admin/cni/route.ts`).
+
+### Onboarding entreprise
+
+Parcours : formulaire (`app/onboarding/company/onboarding-client.tsx`) → Zod partagé (`lib/validations/company.ts`) → `PUT /api/company/onboarding` → `company_profiles` de l'entreprise connectée (session, RLS) → rechargement.
+
+- **Page serveur :** session et rôle (`company`, `company_premium`) vérifiés, profil chargé pour la reprise.
+- **Correspondance des champs** (décisions du 2026-11-01) :
+
+  | Formulaire | Colonne |
+  |---|---|
+  | Nom | `company_name` (règles de l'inscription) |
+  | Type d'activité | `sector` |
+  | Taille : TPE, PME, ETI, Grande entreprise | `company_size` (énumération, sans tranche chiffrée) |
+  | Site web, description (facultatifs) | `website` (http(s) uniquement), `description` ; vide = `null` |
+  | RCCM | `rccm` |
+  | Document RCCM (PDF/JPG/PNG/WebP, 5 Mo) | `documents_url`, bucket privé `company-documents` |
+  | Ville, quartier, adresse | `city` (`CAMEROON_CITIES`, comme les candidats), `quartier`, `address` |
+  | NIU | affiché en lecture seule, jamais écrit |
+  | Étape « Paiement » | retirée : aucune colonne ne la porte (à concevoir avec F-19) |
+
+- **Pas d'auto-validation :** ni `users.is_verified`, ni `verification_status`, `niu`, `niu_verified` ou l'abonnement ne sont écrits. Seul `onboarding_status = completed` est posé, ce qui n'est pas une validation administrative.
+- **Reprise :**
+  - les valeurs enregistrées sont pré-remplies ;
+  - sans nouveau fichier, le document est conservé ;
+  - un nouveau fichier remplace l'ancien, supprimé après l'enregistrement.
+- **Échecs :** le message FR/EN s'affiche au-dessus du bouton, sans redirection. Le succès n'est annoncé qu'après relecture de la ligne mise à jour. Un fichier déjà envoyé est supprimé si l'écriture échoue.
+- **Migration `20261101120000_company_documents_storage.sql` :** bucket privé sur le modèle de `candidate-documents`, un dossier par `auth.uid()`, lecture admin pour la revue. Aucune migration existante modifiée. Aucune interface admin ne consulte encore ces documents.
+- `detectDocumentMime`, qui contrôle les octets réels du fichier, devient un utilitaire partagé (`lib/utils/file-type.ts`), réutilisé par les justificatifs candidat.
+
+### Nouveau constat F-41 (P1) — auto-validation d'une entreprise
+
+`company_profiles` n'a qu'une politique UPDATE « `user_id = auth.uid()` », sans restriction de colonnes ni trigger de protection. Reproduit sur la pile dédiée avec une **vraie session** entreprise : `update({ verification_status: "verified", niu_verified: true, subscription_plan: "business" })` réussit.
+
+L'entreprise contourne ainsi :
+- la revue admin ;
+- le contrôle « entreprise vérifiée » de `POST /api/jobs` ;
+- son plan d'abonnement.
+
+Hors périmètre du lot 5, car l'onboarding n'écrit pas ces colonnes. À corriger comme au lot 2 (privilèges de colonnes et trigger), avec une preuve négative.
+
+### Autres points relevés, non corrigés
+
+- `/company/dashboard` refuse le rôle `company_premium`.
+- Neuf redirections visent `/login`, qui n'existe pas (la page est `/auth/login`). La nouvelle page utilise `/auth/login`.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm install --frozen-lockfile` | ✅ lockfile inchangé |
+| Types générés depuis la pile dédiée, comparés à `lib/database.types.ts` (avant et après la migration) | ✅ identiques |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .` | ✅ |
+| `vitest run` | ✅ 245 tests, dont 19 nouveaux (schéma d'onboarding, `detectDocumentMime`, `formatCurrency`, `isProfileLockGroup`) |
+| `pnpm build` contre la pile dédiée, cible vérifiée (`NEXT_PUBLIC_SUPABASE_URL` = 54421, aucune URL distante dans le bundle) | ✅ |
+| `pnpm test:rls` | ✅ 17/17 preuves. Nouvelle preuve `company-onboarding`, 19 assertions : enregistrement, persistance, reprise, refus, absence d'auto-validation, isolation entre entreprises en base et en stockage, 401/403/404 sans fichier orphelin. |
+| Contrôle négatif : politique d'insertion du bucket relâchée sur la pile dédiée | ❌ détecté (E2), puis `db reset` et politique vérifiée |
+| Navigateur : Chrome headless, vrais clics, fenêtre 390×844 tactile | ✅ 28 vérifications : onboarding FR complet ; refus de `javascript:` ; persistance ; reprise après rechargement ; échec réel affiché, sans redirection et visible sans défilement ; textes EN ; pas de défilement horizontal ; connexion candidat, candidature confirmée puis persistée. |
+
+### Limites
+
+- CI distante non observée.
+- Tests navigateur exécutés par un script local hors dépôt (Puppeteer et Chrome installé), non intégrés à la CI. `puppeteer-core` vient de `pwa-asset-generator` ; aucune dépendance ajoutée.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import type { Enums, Tables } from "@/lib/database.types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,24 +40,43 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-interface Job {
-  id: string;
-  title: string;
-  description: string;
-  city: string;
-  start_date: string;
-  start_time: string;
-  end_time: string;
-  hourly_rate: number;
-  positions_available: number;
-  positions_filled: number;
-  status: string;
-  urgency: string;
-  created_at: string;
+type Job = Pick<
+  Tables<"jobs">,
+  | "id"
+  | "title"
+  | "description"
+  | "city"
+  | "start_date"
+  | "start_time"
+  | "end_time"
+  | "hourly_rate"
+  | "positions_available"
+  | "positions_filled"
+  | "status"
+  | "urgency"
+  | "created_at"
+> & {
   _count?: {
     applications: number;
   };
-}
+};
+
+type JobStatus = Enums<"job_status">;
+const ACTIVE_STATUSES: JobStatus[] = [
+  "published",
+  "pending_review",
+  "pending_moderation",
+];
+const CLOSED_STATUSES: JobStatus[] = [
+  "filled",
+  "expired",
+  "cancelled",
+  "rejected",
+];
+const isActiveJob = (status: JobStatus | null) =>
+  status !== null && ACTIVE_STATUSES.includes(status);
+const isClosedJob = (status: JobStatus | null) =>
+  status !== null && CLOSED_STATUSES.includes(status);
 
 export default function CompanyJobsPage() {
   const router = useRouter();
@@ -172,7 +192,7 @@ export default function CompanyJobsPage() {
     return time?.slice(0, 5) || "";
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: JobStatus | null) => {
     switch (status) {
       case "published":
         return <Badge className="bg-green-100 text-green-700">Publiee</Badge>;
@@ -198,15 +218,11 @@ export default function CompanyJobsPage() {
 
   const filteredJobs = jobs.filter((job) => {
     if (activeTab === "active") {
-      return ["published", "pending_review", "pending_moderation"].includes(
-        job.status,
-      );
+      return isActiveJob(job.status);
     } else if (activeTab === "draft") {
       return job.status === "draft";
     } else {
-      return ["filled", "expired", "cancelled", "rejected"].includes(
-        job.status,
-      );
+      return isClosedJob(job.status);
     }
   });
 
@@ -250,31 +266,13 @@ export default function CompanyJobsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="active">
-              Actives (
-              {
-                jobs.filter((j) =>
-                  [
-                    "published",
-                    "pending_review",
-                    "pending_moderation",
-                  ].includes(j.status),
-                ).length
-              }
-              )
+              Actives ({jobs.filter((j) => isActiveJob(j.status)).length})
             </TabsTrigger>
             <TabsTrigger value="draft">
               Brouillons ({jobs.filter((j) => j.status === "draft").length})
             </TabsTrigger>
             <TabsTrigger value="closed">
-              Terminees (
-              {
-                jobs.filter((j) =>
-                  ["filled", "expired", "cancelled", "rejected"].includes(
-                    j.status,
-                  ),
-                ).length
-              }
-              )
+              Terminees ({jobs.filter((j) => isClosedJob(j.status)).length})
             </TabsTrigger>
           </TabsList>
 
@@ -317,8 +315,7 @@ export default function CompanyJobsPage() {
                             {job.title}
                           </h3>
                           {getStatusBadge(job.status)}
-                          {job.urgency === "high" ||
-                          job.urgency === "urgent" ||
+                          {job.urgency === "urgent" ||
                           job.urgency === "critical" ? (
                             <Badge variant="destructive" className="text-xs">
                               Urgent

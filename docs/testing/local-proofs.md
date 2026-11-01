@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 16 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 17 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -78,4 +78,4 @@ Relâcher une seule couche ne suffit pas : le trigger compense le privilège de 
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10 et §13. Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13 et §15 (onboarding entreprise). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).

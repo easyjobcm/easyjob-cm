@@ -26,35 +26,10 @@ import useSWR from "swr";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatDateShort } from "@/lib/utils/profile-status";
 import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
-import type { ProfileLockGroup } from "@/lib/utils/profile-lock";
-
-interface Mission {
-  id: string;
-  status: string;
-  scheduled_date: string;
-  scheduled_start_time: string;
-  scheduled_end_time: string;
-  arrival_validated: boolean;
-  departure_validated: boolean;
-  job: {
-    id: string;
-    title: string;
-    city: string;
-    address: string;
-    hourly_rate: number;
-    company: {
-      company_name: string;
-    };
-  };
-}
-
-/** Demande de mise à jour de profil initiée par l'admin (SRS §5.1). */
-interface ProfileUpdateRequest {
-  id: string;
-  fields: ProfileLockGroup[];
-  reason: string | null;
-  created_at: string | null;
-}
+import {
+  isProfileLockGroup,
+  type ProfileLockGroup,
+} from "@/lib/utils/profile-lock";
 
 const fetcher = async () => {
   const supabase = createClient();
@@ -112,20 +87,21 @@ const fetcher = async () => {
   ]);
 
   return {
-    missions: (missionsRes.data as unknown as Mission[] | null) ?? [],
-    updateRequests:
-      (requestsRes.data as unknown as ProfileUpdateRequest[] | null) ?? [],
+    missions: missionsRes.data ?? [],
+    updateRequests: (requestsRes.data ?? []).map((r) => ({
+      ...r,
+      fields: r.fields.filter(isProfileLockGroup),
+    })),
   };
 };
+
+type Mission = Awaited<ReturnType<typeof fetcher>>["missions"][number];
 
 export default function TasksPage() {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tr = t.profile.profileUpdateRequests;
-  const { data, isLoading } = useSWR<{
-    missions: Mission[];
-    updateRequests: ProfileUpdateRequest[];
-  } | null>("/api/tasks", fetcher);
+  const { data, isLoading } = useSWR("/api/tasks", fetcher);
   const missions = data?.missions ?? [];
   const updateRequests = data?.updateRequests ?? [];
   const [openRequestId, setOpenRequestId] = React.useState<string | null>(null);

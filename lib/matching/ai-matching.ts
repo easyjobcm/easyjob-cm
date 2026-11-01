@@ -35,7 +35,7 @@ export async function calculateMatchScore(
       `
       *,
       skills:candidate_skills(skill_name, skill_level),
-      availability:candidate_availability(day_of_week, start_time, end_time)
+      availability:candidate_availability(day_of_week, start_time, end_time, is_available)
     `,
     )
     .eq("id", criteria.candidateId)
@@ -146,8 +146,7 @@ export async function calculateMatchScore(
     const dayOfWeek = jobDate.getDay();
 
     const availableForDay = candidate.availability.find(
-      (a: { day_of_week: number; is_available: boolean }) =>
-        a.day_of_week === dayOfWeek && a.is_available !== false,
+      (a) => a.day_of_week === dayOfWeek && a.is_available !== false,
     );
 
     if (availableForDay) {
@@ -279,20 +278,21 @@ export async function updateReliabilityScore(
   const supabase = await createClient();
 
   // Récupère toutes les évaluations du candidat
-  const { data: reviews } = await supabase
+  const { data: reviews, error } = await supabase
     .from("reviews")
-    .select("rating")
+    .select("overall_rating")
     .eq("reviewed_id", candidateId)
     .eq("reviewer_type", "company");
 
+  if (error) throw error;
   if (!reviews || reviews.length === 0) return;
 
   const avg =
-    reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) /
-    reviews.length;
+    reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviews.length;
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("candidate_profiles")
     .update({ average_rating: Math.round(avg * 10) / 10 })
     .eq("id", candidateId);
+  if (updateError) throw updateError;
 }

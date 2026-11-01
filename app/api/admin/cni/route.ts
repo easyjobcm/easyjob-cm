@@ -209,12 +209,14 @@ export async function POST(request: NextRequest) {
   const { error: rpcError } = await supabase.rpc("moderate_cni", {
     p_profile_id: profile_id,
     p_action: action,
+    // Arguments générés non nullables ; moderate_cni accepte NULL pour
+    // le motif (approbation) et l'expiration (rejet).
     p_reject_reason: (action === "reject"
       ? (rejection_reason ?? null)
       : null) as string,
-    p_expires_at: (action === "approve" ? (expires_at ?? null) : null) as
-      | string
-      | null,
+    p_expires_at: (action === "approve"
+      ? (expires_at ?? null)
+      : null) as string,
   });
 
   if (rpcError) {

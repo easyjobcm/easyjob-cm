@@ -29,6 +29,7 @@ const PROOFS = [
   "profile-momo",
   "profile-skills",
   "profile-documents",
+  "company-onboarding",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",

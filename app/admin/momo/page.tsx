@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { paymentSchema } from "@/lib/validations/profile";
 import { MomoAdminClient } from "./momo-admin-client";
 
 /**
@@ -89,12 +90,15 @@ export default async function AdminMomoPage({
   // décider s'il affiche le bouton « voir le CNI ».
   const normalized = (profiles ?? []).map((p) => {
     const verifier = Array.isArray(p.verifier) ? p.verifier[0] : p.verifier;
+    const provider = paymentSchema.shape.momo_provider.safeParse(
+      p.momo_provider,
+    );
     return {
       id: p.id,
       user_id: p.user_id,
       first_name: p.first_name,
       last_name: p.last_name,
-      momo_provider: p.momo_provider,
+      momo_provider: provider.success ? provider.data : null,
       momo_number: p.momo_number,
       momo_account_name: p.momo_account_name,
       momo_verified: p.momo_verified,

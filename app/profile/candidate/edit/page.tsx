@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { isProfileLockGroup } from "@/lib/utils/profile-lock";
 import { CandidateProfileEditClient } from "./edit-client";
 
 export default async function CandidateProfileEditPage() {
@@ -71,7 +72,9 @@ export default async function CandidateProfileEditPage() {
       }
       pendingUpdateRequests={(pendingRequests ?? []).map((r) => ({
         id: r.id,
-        fields: Array.isArray(r.fields) ? [...r.fields] : [],
+        fields: Array.isArray(r.fields)
+          ? r.fields.filter(isProfileLockGroup)
+          : [],
         reason: r.reason ?? "",
         createdAt: r.created_at ?? "",
       }))}

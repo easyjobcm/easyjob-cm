@@ -38,30 +38,30 @@ interface JobDetailClientProps {
     latitude?: number | null;
     longitude?: number | null;
     description: string;
-    currency?: string;
+    currency?: string | null;
     hourly_rate: number;
     start_date: string;
     end_date?: string | null;
     start_time: string;
     end_time: string;
-    urgency?: string;
-    positions_available: number;
-    positions_filled: number;
+    urgency?: string | null;
+    positions_available: number | null;
+    positions_filled: number | null;
     company?: {
       company_name?: string;
       logo_url?: string | null;
-      sector?: string;
-      description?: string;
+      sector?: string | null;
+      description?: string | null;
       [key: string]: string | null | undefined;
     };
     category?: {
       name_fr?: string;
       name_en?: string;
-    };
-    required_skills?: string[];
-    min_experience_months?: number;
-    dress_code?: string;
-    special_instructions?: string;
+    } | null;
+    required_skills?: string[] | null;
+    min_experience_months?: number | null;
+    dress_code?: string | null;
+    special_instructions?: string | null;
   };
   userApplication: {
     id: string;
@@ -277,7 +277,8 @@ export function JobDetailClient({
                     {locale === "fr" ? "Postulez maintenant !" : "Apply now!"}
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {job.positions_available - job.positions_filled}{" "}
+                    {(job.positions_available ?? 1) -
+                      (job.positions_filled ?? 0)}{" "}
                     {locale === "fr"
                       ? "place(s) disponible(s)"
                       : "position(s) available"}
