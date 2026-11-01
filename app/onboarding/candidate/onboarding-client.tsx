@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { Constants, type Tables } from "@/lib/database.types";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { isNearCityZone, nearestCityFor } from "@/lib/validations/geo-schema";
 import { fetchQuartierFromNominatim } from "@/lib/utils/quartier-fetch";
@@ -47,21 +48,22 @@ interface OnboardingClientProps {
   user: {
     id: string;
   };
-  profile: {
-    id: string;
-    onboarding_step?: number;
-    first_name?: string;
-    last_name?: string;
-    gender?: string;
-    date_of_birth?: string;
-    city?: string;
-    quartier?: string;
-    latitude?: number | null;
-    longitude?: number | null;
-    momo_provider?: string;
-    momo_number?: string;
-    momo_account_name?: string | null;
-  } | null;
+  profile: Pick<
+    Tables<"candidate_profiles">,
+    | "id"
+    | "onboarding_step"
+    | "first_name"
+    | "last_name"
+    | "gender"
+    | "date_of_birth"
+    | "city"
+    | "quartier"
+    | "latitude"
+    | "longitude"
+    | "momo_provider"
+    | "momo_number"
+    | "momo_account_name"
+  > | null;
   categories: Array<{
     id: string;
     name_fr?: string;
@@ -276,8 +278,10 @@ export function OnboardingClient({
         .from("candidate_profiles")
         .update({
           ...profileFields,
-          // omit empty string for enum column
-          gender: profileFields.gender || undefined,
+          // Valeur hors énumération (dont "") : colonne laissée inchangée.
+          gender: Constants.public.Enums.gender_type.find(
+            (g) => g === profileFields.gender,
+          ),
           // Date facultative à l'onboarding : absente = null, jamais "".
           date_of_birth: profileFields.date_of_birth || null,
           onboarding_step: nextStep,

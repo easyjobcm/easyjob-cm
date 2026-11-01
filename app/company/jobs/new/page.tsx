@@ -126,7 +126,7 @@ export default function NewJobPage() {
         .eq("user_id", user.id)
         .single();
 
-      if (!companyProfile) {
+      if (!companyProfile?.city) {
         router.push("/onboarding/company");
         return;
       }
@@ -135,7 +135,7 @@ export default function NewJobPage() {
         company_id: companyProfile.id,
         title: formData.title,
         category_id: null, // Will be set based on category selection
-        job_type: formData.type === "shift" ? "one_time" : "temporary",
+        job_type: formData.type,
         description: formData.description,
         start_date:
           formData.type === "shift" ? formData.date : formData.startDate,
@@ -150,7 +150,7 @@ export default function NewJobPage() {
         city: companyProfile.city,
         address: companyProfile.address || "",
         required_skills: formData.requirements,
-        urgency: formData.urgent ? "high" : "normal",
+        urgency: formData.urgent ? "urgent" : "normal",
         status: "pending_review", // Needs moderation before publishing
       });
 

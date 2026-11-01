@@ -1439,6 +1439,43 @@ export const fr = {
   },
 
   // Days
+  companyOnboarding: {
+    sizeLabel: "Taille de l'entreprise",
+    sizes: {
+      tpe: "TPE",
+      pme: "PME",
+      eti: "ETI",
+      ge: "Grande entreprise",
+    },
+    niuLabel: "NIU (numéro d'identifiant unique)",
+    niuHint: "Saisi à l'inscription. Pour le modifier, contactez le support.",
+    rccmFileHint: "PDF, JPG, PNG ou WebP — 5 Mo maximum",
+    rccmFileSaved:
+      "Un document est déjà enregistré. Choisissez un fichier pour le remplacer.",
+    saveError: "Vos informations n'ont pas pu être enregistrées.",
+    errors: {
+      companyNameTooShort: "Nom trop court.",
+      companyNameTooLong: "Nom trop long (100 caractères maximum).",
+      sectorRequired: "Choisissez un type d'activité.",
+      companySizeRequired: "Choisissez la taille de l'entreprise.",
+      websiteInvalid: "Site web invalide : il doit commencer par https://",
+      descriptionTooLong: "Description trop longue (1000 caractères maximum).",
+      rccmRequired: "Le numéro RCCM est obligatoire.",
+      rccmTooLong: "Numéro RCCM trop long (50 caractères maximum).",
+      cityRequired: "Choisissez une ville.",
+      quartierRequired: "Le quartier est obligatoire.",
+      quartierTooLong: "Quartier trop long (100 caractères maximum).",
+      addressRequired: "L'adresse est obligatoire.",
+      addressTooLong: "Adresse trop longue (200 caractères maximum).",
+      file_too_large: "Fichier trop volumineux (5 Mo maximum).",
+      file_type: "Format non accepté : PDF, JPG, PNG ou WebP.",
+      upload_failed: "Le document n'a pas pu être envoyé.",
+      profile_not_found: "Profil entreprise introuvable. Contactez le support.",
+      account_suspended: "Votre compte est suspendu.",
+      unauthorized: "Session expirée. Veuillez vous reconnecter.",
+    },
+  },
+
   days: {
     monday: "Lun",
     tuesday: "Mar",

@@ -101,12 +101,7 @@ export async function POST(
   // toujours sous `<user_id>/...` (voir
   // `app/api/profile/skill-documents/route.ts`) — on garde le préréfixe
   // pour ne jamais supprimer un objet qui n'appartient pas au propriétaire.
-  const candidateOwner = document.candidate_profiles as unknown as
-    | { user_id: string }
-    | { user_id: string }[];
-  const ownerUserId = Array.isArray(candidateOwner)
-    ? candidateOwner[0]?.user_id
-    : candidateOwner?.user_id;
+  const ownerUserId = document.candidate_profiles.user_id;
 
   // T8.4c : purge IMMÉDIATE du FICHIER storage au REJET (decision produit
   // « Conserver et ré-émettre » : le COMPTE / la LIGNE restent — le statut

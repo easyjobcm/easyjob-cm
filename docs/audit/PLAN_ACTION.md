@@ -10,7 +10,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 2 | Verrouiller les colonnes et tables porteuses de droits — **corrigé et vérifié localement, non déployé** | F-04, F-05, F-06, F-11, F-17 | Sécurité | Moyen |
 | 3 | Mettre à jour les dépendances vulnérables — **corrigé et vérifié localement, non déployé** | F-08, F-24 | Sécurité | Petit |
 | 4 | Tests RLS négatifs en CI et durcissement CI/CD — **partie CI faite localement ; déploiement préparé et vérifié localement (lot 4b), non validé à distance** | F-20, F-21 | Qualité | Moyen |
-| 5 | Typer les clients Supabase | F-14 | Refactoring ciblé | Moyen |
+| 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 6 | Publication et modération des offres | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (3 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
@@ -138,6 +138,14 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Taille** : moyen.
 
 ## Lot 5 — Typer les clients Supabase
+
+> **Statut (2026-11-01)** : réalisé sur `refactor/lot-05-supabase-types` (base `origin/main-dev`, de4ea66), **non commité**.
+> - Clients typés ; 40 erreurs révélées corrigées, dont la modération, la création d'offre et le matching.
+> - Onboarding entreprise réparé (`PUT /api/company/onboarding`, bucket `company-documents`).
+> - `database.types.ts` racine supprimé.
+> - Nouveau constat F-41 (auto-validation entreprise), à traiter dans un lot dédié.
+>
+> Détails : `AUDIT.md` §15.
 
 - **Objectif** : que `tsc` détecte les tables et colonnes inexistantes.
 - **IDs** : F-14 (et révélation probable d'autres défauts).

@@ -24,41 +24,6 @@ import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
 
 type TabType = "applied" | "booked" | "completed";
 
-interface Application {
-  id: string;
-  status: string;
-  created_at: string;
-  job: {
-    id: string;
-    title: string;
-    city: string;
-    hourly_rate: number;
-    start_date: string;
-    start_time: string;
-    end_time: string;
-    company: {
-      company_name: string;
-    };
-  };
-}
-
-interface Mission {
-  id: string;
-  status: string;
-  scheduled_date: string;
-  scheduled_start_time: string;
-  scheduled_end_time: string;
-  job: {
-    id: string;
-    title: string;
-    city: string;
-    hourly_rate: number;
-    company: {
-      company_name: string;
-    };
-  };
-}
-
 const fetcher = async (_url: string) => {
   const supabase = createClient();
   const {
@@ -131,6 +96,10 @@ const fetcher = async (_url: string) => {
   };
 };
 
+type MyJobsData = Awaited<ReturnType<typeof fetcher>>;
+type Application = MyJobsData["applications"][number];
+type Mission = MyJobsData["missions"][number];
+
 export default function MyJobsPage() {
   const { locale } = useTranslation();
   const [activeTab, setActiveTab] = React.useState<TabType>("applied");
@@ -144,18 +113,21 @@ export default function MyJobsPage() {
     { id: "completed", label: "Terminees", labelEn: "Completed" },
   ];
 
-  const applications = (data?.applications || []) as unknown as Application[];
-  const missions = (data?.missions || []) as unknown as Mission[];
+  const applications: Application[] = data?.applications ?? [];
+  const missions: Mission[] = data?.missions ?? [];
 
-  const pendingApplications = applications.filter((a) =>
-    ["pending", "shortlisted"].includes(a.status),
+  const pendingApplications = applications.filter(
+    (a) => a.status === "pending" || a.status === "shortlisted",
   );
-  const bookedMissions = missions.filter((m) =>
-    ["pending", "confirmed", "in_progress"].includes(m.status),
+  const bookedMissions = missions.filter(
+    (m) =>
+      m.status === "pending" ||
+      m.status === "confirmed" ||
+      m.status === "in_progress",
   );
   const completedMissions = missions.filter((m) => m.status === "completed");
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | null) => {
     const statusMap: Record<
       string,
       {
@@ -192,8 +164,8 @@ export default function MyJobsPage() {
         variant: "success",
       },
     };
-    const config = statusMap[status] || {
-      label: status,
+    const config = (status !== null && statusMap[status]) || {
+      label: status ?? "—",
       variant: "default" as const,
     };
     return <Badge variant={config.variant}>{config.label}</Badge>;
@@ -265,10 +237,12 @@ export default function MyJobsPage() {
             <span className="font-semibold text-primary">
               {formatCurrency(application.job?.hourly_rate || 0)}/h
             </span>
-            <span className="text-xs text-muted-foreground">
-              {locale === "fr" ? "Postule le" : "Applied on"}{" "}
-              {formatDate(application.created_at, locale)}
-            </span>
+            {application.created_at && (
+              <span className="text-xs text-muted-foreground">
+                {locale === "fr" ? "Postule le" : "Applied on"}{" "}
+                {formatDate(application.created_at, locale)}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

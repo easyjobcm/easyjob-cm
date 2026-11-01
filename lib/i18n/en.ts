@@ -1419,6 +1419,42 @@ export const en: TranslationKeys = {
   },
 
   // Days
+  companyOnboarding: {
+    sizeLabel: "Company size",
+    sizes: {
+      tpe: "Micro",
+      pme: "SME",
+      eti: "Mid-size",
+      ge: "Large company",
+    },
+    niuLabel: "NIU (unique identification number)",
+    niuHint: "Entered at sign-up. To change it, contact support.",
+    rccmFileHint: "PDF, JPG, PNG or WebP — 5 MB max",
+    rccmFileSaved: "A document is already saved. Choose a file to replace it.",
+    saveError: "Your information could not be saved.",
+    errors: {
+      companyNameTooShort: "Name too short.",
+      companyNameTooLong: "Name too long (100 characters max).",
+      sectorRequired: "Choose a business type.",
+      companySizeRequired: "Choose the company size.",
+      websiteInvalid: "Invalid website: it must start with https://",
+      descriptionTooLong: "Description too long (1000 characters max).",
+      rccmRequired: "The RCCM number is required.",
+      rccmTooLong: "RCCM number too long (50 characters max).",
+      cityRequired: "Choose a city.",
+      quartierRequired: "The area is required.",
+      quartierTooLong: "Area too long (100 characters max).",
+      addressRequired: "The address is required.",
+      addressTooLong: "Address too long (200 characters max).",
+      file_too_large: "File too large (5 MB max).",
+      file_type: "Format not accepted: PDF, JPG, PNG or WebP.",
+      upload_failed: "The document could not be uploaded.",
+      profile_not_found: "Company profile not found. Contact support.",
+      account_suspended: "Your account is suspended.",
+      unauthorized: "Session expired. Please sign in again.",
+    },
+  },
+
   days: {
     monday: "Mon",
     tuesday: "Tue",

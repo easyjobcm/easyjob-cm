@@ -16,6 +16,10 @@ import type { Database } from "@/lib/database.types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 
+// Les arguments de fonction générés sont toujours non nullables, alors que
+// check_*_send_quota traitent explicitement p_ip NULL (IP inconnue).
+const quotaIp = (ip: string | null) => ip as string;
+
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
   | { ok: false; errorCode: string };
@@ -202,7 +206,7 @@ export async function resendEmailOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_email_send_quota", {
     p_email: email,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[signup] email quota exceeded", { email, ip });
@@ -239,7 +243,7 @@ export async function sendPasswordResetOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_email_send_quota", {
     p_email: parsed.data.email,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[forgot] email quota exceeded", { ip });
@@ -338,7 +342,7 @@ export async function sendPhoneOtpAction(input: {
   const ip = await getClientIp();
   const { data: allowed } = await admin.rpc("check_sms_send_quota", {
     p_phone: e164,
-    p_ip: ip,
+    p_ip: quotaIp(ip),
   });
   if (allowed === false) {
     console.warn("[signup] SMS quota exceeded", { phone: e164, ip });
