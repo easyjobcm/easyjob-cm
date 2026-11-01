@@ -133,7 +133,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-17 | P2 | Annulation de candidature : aucune politique DELETE sur `job_applications`. La route renvoie `success` sans rien supprimer. | `app/api/jobs/[id]/apply/route.ts:200-215` ; politiques baseline | L'utilisateur croit avoir annulé. | Passer en `status = 'withdrawn'` (UPDATE contrôlé) et vérifier le nombre de lignes modifiées. | Après annulation, le statut vaut `withdrawn`. |
 | F-18 | P2 | Le retour utilisateur est factice : `toast()` ne fait que `console.info`. Les pages mission, contrat et offres entreprise, ainsi que l'onboarding, ne montrent jamais les erreurs. Les liens `/login` et `/auth/error` mènent à des 404. | `hooks/use-toast.ts` ; `app/missions/[id]/page.tsx:93` ; `app/contracts/[id]/page.tsx:111` ; `app/company/jobs/[id]/page.tsx:101` | Échecs silencieux sur les parcours critiques et utilisateurs bloqués. | Un vrai composant de notification accessible (`role="status"`), routes corrigées. | Test de composant ; vérification manuelle sur mobile. |
 | F-19 | P2 | Les textes promettent des fonctions **absentes du code** : paiement 100 % en 48 h ou 50/50, « montant bloqué » et remboursements, « remplacement garanti », « l'IA sélectionne pour vous », « essai gratuit 7 jours ». Aucun paiement, séquestre ni IA de sélection n'est implémenté (`lib/matching/ai-matching.ts` est heuristique). | `lib/i18n/fr.ts:1151-1189, 1310, 1353-1371` ; `lib/payments/mobile-money.ts` non importé | Promesses commerciales non tenues, avec un risque de confiance et un risque juridique (droit de la consommation et règles de communication commerciale à faire valider). | Retirer ou marquer « bientôt » ce qui n'existe pas. | Relecture produit : chaque promesse correspond à une fonction livrée. |
-| F-20 | P2 | **Partie CI corrigée localement (lot 4, §13) ; partie déploiement ouverte.** Constat d'origine : CI et déploiement : Vitest **n'est pas exécuté en CI**. Le build ne dépend pas de `test-migrations`. `deploy.yml` utilise `supabase` et `vercel` en version `latest`. Aucune sauvegarde ou vérification n'est faite avant `db push` en production. Un « rollback » par tag redéploie l'application sans revenir sur la base. Le `db push` passe par le pooler 6543 (mode transaction), à vérifier. | `.github/workflows/ci.yml`, `deploy.yml` | Régressions non détectées, déploiements non reproductibles, migration destructive sans filet. | Ajouter `pnpm test`, figer les versions des CLI, faire dépendre le build de `test-migrations`, documenter la procédure de restauration (PITR ou sauvegarde) et l'utiliser avant `db push`. | La CI échoue si un test échoue ; versions figées. |
+| F-20 | P2 | **Partie CI corrigée localement (lot 4, §13). Partie déploiement : configuration préparée et vérifiée localement (lot 4b, §14), non validée à distance ; sauvegarde reportée au point de contrôle avant les premiers utilisateurs.** Constat d'origine : CI et déploiement : Vitest **n'est pas exécuté en CI**. Le build ne dépend pas de `test-migrations`. `deploy.yml` utilise `supabase` et `vercel` en version `latest`. Aucune sauvegarde ou vérification n'est faite avant `db push` en production. Un « rollback » par tag redéploie l'application sans revenir sur la base. Le `db push` passe par le pooler 6543 (mode transaction), à vérifier. | `.github/workflows/ci.yml`, `deploy.yml` | Régressions non détectées, déploiements non reproductibles, migration destructive sans filet. | Ajouter `pnpm test`, figer les versions des CLI, faire dépendre le build de `test-migrations`, documenter la procédure de restauration (PITR ou sauvegarde) et l'utiliser avant `db push`. | La CI échoue si un test échoue ; versions figées. |
 | F-21 | P2 | **Corrigé localement (lot 4, §13), sauf `contracts` et `missions` (lot 7).** Constat d'origine : aucun test d'autorisation automatisé. Les scripts `scripts/proof-*.ts` couvrent une partie de la RLS mais restent manuels et hors CI. Aucune preuve n'existe pour `users.role`, `job_applications`, `contracts` et `missions`. | `scripts/`, `tests/`, `ci.yml` | Les failles F-01 à F-07 auraient été détectées par une suite RLS négative. | Suite RLS « accès interdits » exécutée en CI sur la pile Supabase locale, qui existe déjà dans `test-migrations`. | Job CI `rls-tests` vert, et rouge si une politique est relâchée. |
 | F-22 | P2 | Consignes IA obsolètes : `AGENTS.md` et les instructions Copilot imposent Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, et renvoient à `DESIGN_REFERENCE.md` et `COPILOT_INSTRUCTIONS.md`, qui n'existent pas. | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*` | Les agents génèrent du code incohérent avec le dépôt. | Aligner ces documents sur la stack réelle et sur les règles de sécurité de ce rapport (« jamais d'écriture directe sur une colonne porteuse de droits »). | Relecture : chaque outil cité existe. |
 | F-23 | P2 | Aucune observabilité : ni capture d'erreurs, ni journalisation structurée. Préfixes de log `[v0]` hérités. `error.message` Postgres renvoyé au client. | recherche négative ; `app/api/jobs/route.ts:81, 200` | Les incidents de production restent invisibles et des détails de schéma sont exposés. | Messages d'erreur génériques côté client. Un outil de capture d'erreurs léger, ou au minimum des logs structurés exploitables dans Vercel. | Une erreur serveur provoquée en préproduction est visible avec son contexte. |
@@ -710,3 +710,73 @@ La CI GitHub n'a pas été exécutée : elle est à observer après le push. Poi
 - Pas de preuve d'autorisation sur `contracts` et `missions` (lot 7).
 - Les actions GitHub sont référencées par tag majeur (`@v4`), pas par SHA.
 - Les nettoyages préalables de certaines preuves visent les restes de la même preuve sur la pile jetable : ce sont des comptes créés par une exécution antérieure, et non par l'exécution en cours.
+
+---
+
+## 14. Suivi — Lot 4b : fiabilité du déploiement (F-20) (2026-10-31)
+
+**Statut : configuration préparée et validée localement (workflows, filtres, `vercel.json`). Non commitée, non poussée, aucun déploiement : le comportement à distance n'est pas confirmé.**
+
+Branche `ci/lot-04b-deployment-reliability`, créée depuis `origin/main-dev` (b6891f3, qui contient le lot 4). Procédure, secrets et reprise : `docs/deployment/production.md`.
+
+### Réponses aux décisions ouvertes du §13
+
+| # | Point | Décision |
+|---|---|---|
+| 1 | Versions des CLI | Supabase 2.117.0 via `pnpm exec`, comme en CI (plus de `setup-cli@latest`). Vercel figée en 64.5.0 (justification : production.md §2). |
+| 2 | pnpm | `packageManager: pnpm@11.1.3` et `engines.node` dans `package.json`, seule source pour CI, release et deploy. |
+| 3 | Sauvegarde avant `db push` | Non ajoutée : Supabase Free, aucune donnée. Reportée au point de contrôle avant les premiers utilisateurs (production.md §7). Le dry-run est ajouté, sans être présenté comme une garantie. |
+| 4 | Restauration | Procédures documentées pour quatre cas : échec avant, pendant et après les migrations, retour à une version précédente (production.md §5). Aucun rollback SQL automatique. |
+| 5 | Connexion | `supabase link` puis `db push --linked` : connexion directe si IPv6, sinon pooler en mode session (5432). Le mode transaction (6543) n'est plus utilisé. Le secret `SUPABASE_DB_HOST` n'est plus lu. |
+| 6 | Protections de branche | Recommandation fondée sur les déclencheurs et les noms de jobs réels (production.md §9). Rien n'est activé à distance. |
+
+### Changements
+
+- **`deploy.yml` :**
+  - nouveau job `resolve-release` : tag vers SHA unique, refus d'un tag déplacé ou hors de `main`, attente de la CI (push) réussie sur ce SHA ;
+  - les jobs de déploiement extraient ce SHA ;
+  - concurrence `queue: max`, sans annulation ;
+  - `persist-credentials: false` ;
+  - secrets passés par l'environnement, jamais interpolés dans les scripts.
+- **`ci.yml` :** les runs de push ne sont plus annulés (groupe par SHA). Seuls les runs de PR le sont encore. pnpm et Node sont lus depuis `package.json`.
+- **`release.yml` (option A, 2026-11-01) :**
+  - il ne pousse plus de commit de version sur `main`. Déclenché par `workflow_run` après une CI réussie (push, `main`), il lit la version `X.Y.Z` dans le `package.json` du commit testé ;
+  - il pose le tag `vX.Y.Z` sur ce SHA, par un `git push` sans force avec `GH_PAT`. La reprise est idempotente, et un tag présent sur un autre commit fait échouer la release ;
+  - la GitHub Release est créée avec `GITHUB_TOKEN`, et seulement sur un tag vérifié ;
+  - entrées `bump`/`prerelease`, garde anti-boucle, pnpm et Node supprimés : le job n'exécute aucun code du dépôt.
+
+### Constats
+
+- `db push --dry-run` ne lit pas le SQL des migrations. Il détecte les erreurs de connexion et les divergences d'historique, mais pas les erreurs d'exécution.
+- La CLI applique chaque fichier en un lot, sans transaction globale. Les fichiers avec `begin;`/`commit;` explicites (`20260526120000_srs_v11_enum_hardening.sql`) ou des instructions `CONCURRENTLY` perdent l'atomicité.
+- Redéployer un ancien tag après de nouvelles migrations échoue au dry-run (`ErrMissingLocal`), avant Vercel. C'est le comportement voulu.
+- Avant ce lot, la CI d'un commit tagué pouvait être annulée par le push suivant, et rien ne la vérifiait avant le déploiement.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Analyse YAML des trois workflows, références `needs`/`outputs`, absence de `latest`, de version dupliquée et de secret ou d'entrée interpolés dans `run:` | ✅ |
+| `bash -n` sur toutes les étapes `run:` de `deploy.yml` | ✅ |
+| Simulation de `resolve-release` avec un faux `gh` : tag annoté, tag léger, entrée non-tag, tag déplacé, commit hors de `main`, tag absent, CI en échec, CI en cours puis réussie | ✅ 2 acceptations, 6 refus attendus |
+| Options `link`, `db push` (CLI 2.117.0 locale) ; `pull`, `build --prod`, `deploy --prebuilt --prod` (CLI Vercel 64.5.0 installée hors dépôt) | ✅ |
+| `pnpm install --frozen-lockfile` (pnpm 11.1.3), `prettier --check` | ✅ |
+| Absence de secret dans le diff | ✅ noms de secrets uniquement |
+
+Complément du 2026-11-01 (finalisation, outils officiels hors du dépôt) :
+- **actionlint 1.7.12 avec shellcheck 0.11.0 :** aucun problème, sauf `unexpected key "queue"`. Ce message est un faux positif d'un validateur en retard (actionlint#657) : `queue: max` est documenté par GitHub depuis le 2026-05-07, et l'option est conservée. Les avertissements shellcheck de `release.yml` (`$GITHUB_OUTPUT` sans guillemets) sont corrigés.
+- **Filtres `--jq` :** testés avec gojq 0.12.19, la version embarquée par `gh` 2.103.3.
+- **`resolve-release` :** rejoué de bout en bout avec un faux `gh` qui renvoie du JSON réaliste. Résultat : 2 acceptations et 13 refus attendus.
+- **Sélection du run CI :** elle ne dépend plus de l'ordre, non documenté, de l'API. Elle filtre sur `branch=main`, retient le run le plus récent et échoue après 10 minutes sans run.
+- **`vercel.json` :** conforme au schéma officiel.
+- **`release.yml` (option A) :** testé avec un vrai `git` contre un dépôt nu local : création, reprise, conflit, courses forcées et réelles, version invalide ou inférieure, push refusé, dépôt injoignable. Le tag reste sur le SHA de l'événement alors que `main` a avancé. Défaut trouvé et corrigé : sans motif `^{}` explicite, `git ls-remote` ne renvoyait pas le commit d'un tag annoté, et la reprise était refusée à tort.
+
+Détail des contrôles et points à confirmer à distance : production.md §10.
+
+### Restant
+
+- **Intégration Git de Vercel (confirmée, `main` en production) :** `vercel.json` désactive le déploiement Git automatique de `main` seulement. Rien ne garantit que la règle s'applique dès le premier merge : une commande d'Ignored Build Step temporaire, limitée à `main`, est à poser avant ce merge (production.md §1). Le comportement réel reste à confirmer à distance.
+- **Release (option A appliquée) :** `main` peut exiger une PR sans contournement. Avant le premier merge, il faut intégrer `main` (0.1.10) dans `main-dev`, puis préparer une version supérieure (production.md §9). La chaîne `workflow_run` → tag → `deploy.yml` reste à confirmer à distance.
+- Base visée par les previews Vercel : à identifier (production.md §8).
+- Point de contrôle sauvegarde et restauration avant les premiers utilisateurs (production.md §7).
+- Actions GitHub toujours référencées par tag majeur, et non par SHA.

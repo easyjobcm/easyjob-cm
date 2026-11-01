@@ -11,19 +11,21 @@ on:
   # depuis un fork, s'exécute sans secret et avec un jeton en lecture seule.
   pull_request:
 
-# Annule les runs précédents sur la même branche/PR (le dernier commit est seul source de vérité).
+# Sur une PR, seul le dernier commit compte : les runs obsolètes sont annulés.
+# Sur un push, chaque commit a son propre groupe et n'est jamais annulé :
+# deploy.yml exige la réussite de la CI sur le commit exact du tag
+# (docs/deployment/production.md).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Principe du moindre privilège : la CI ne fait que lire le dépôt.
 permissions:
   contents: read
 
+# pnpm et Node viennent de package.json (packageManager, engines.node).
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  # Version de pnpm qui produit pnpm-lock.yaml (voir README).
-  PNPM_VERSION: "11.1.3"
 
 jobs:
   enforce-main-pr-source:
@@ -54,13 +56,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies
@@ -98,13 +98,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies
@@ -200,13 +198,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies

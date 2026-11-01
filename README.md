@@ -20,8 +20,8 @@ Ce projet est organise pour que:
 
 ## Pre-requis
 
-- Node.js 22+
-- pnpm 11.1.3 (version qui produit `pnpm-lock.yaml`)
+- Node.js 22.x (`engines.node`)
+- pnpm 11.1.3 (`packageManager`, version qui produit `pnpm-lock.yaml`)
 - Docker Desktop (pour Supabase local)
 - Git
 
@@ -120,6 +120,12 @@ Configurer aussi les variables Mobile Money si activees:
 - `ORANGE_MONEY_MERCHANT_KEY`
 - `ORANGE_MONEY_BASE_URL`
 
+La mise en production (release, migrations puis Vercel), ses secrets et la
+reprise apres echec sont decrits dans
+[docs/deployment/production.md](docs/deployment/production.md). La version est
+incrementee dans la PR vers `main` :
+[preparer une version](docs/deployment/production.md#préparer-une-version).
+
 ## 6. Onboarding d'un nouveau membre
 
 1. Cloner le repo.
@@ -132,7 +138,11 @@ Configurer aussi les variables Mobile Money si activees:
 ## 7. CI GitHub Actions
 
 Le workflow `.github/workflows/ci.yml` s'execute sur chaque pull request et sur
-les pushs vers `main-dev` et `main`. Il n'utilise aucun secret.
+les pushs vers `main-dev` et `main`. Il n'utilise aucun secret. Sur une PR, un
+nouveau commit annule le run precedent ; un run de push n'est jamais annule, car
+le deploiement exige la reussite de la CI sur le commit exact du tag. Protections
+de branches recommandees :
+[docs/deployment/production.md](docs/deployment/production.md#9-release-et-protections-de-branches).
 
 | Job | Controles |
 |---|---|

@@ -9,7 +9,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 1 | Verrouiller les rôles et les comptes — **corrigé et vérifié localement, non déployé** | F-01, F-02, F-03 | Sécurité | Petit |
 | 2 | Verrouiller les colonnes et tables porteuses de droits — **corrigé et vérifié localement, non déployé** | F-04, F-05, F-06, F-11, F-17 | Sécurité | Moyen |
 | 3 | Mettre à jour les dépendances vulnérables — **corrigé et vérifié localement, non déployé** | F-08, F-24 | Sécurité | Petit |
-| 4 | Tests RLS négatifs en CI et durcissement CI/CD — **partie CI faite localement, déploiement en attente de décisions** | F-20, F-21 | Qualité | Moyen |
+| 4 | Tests RLS négatifs en CI et durcissement CI/CD — **partie CI faite localement ; déploiement préparé et vérifié localement (lot 4b), non validé à distance** | F-20, F-21 | Qualité | Moyen |
 | 5 | Typer les clients Supabase | F-14 | Refactoring ciblé | Moyen |
 | 6 | Publication et modération des offres | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (3 sous-lots) |
@@ -121,7 +121,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - Vitest passe en 4.1.12 (avis `tinypool` et `@vitest/mocker` corrigés).
 > - Le contrôle négatif F-01 a été détecté.
 >
-> **Non fait, sur décision** : `deploy.yml` (versions de CLI, pnpm, sauvegarde avant `db push`, `--dry-run`, restauration, port du pooler) et les protections de branche. Détails et questions : `AUDIT.md` §13.
+> **Lot 4b (2026-10-31)** : `deploy.yml` préparé et vérifié localement sur `ci/lot-04b-deployment-reliability` (versions figées, SHA unique, CI exigée, dry-run, pooler en mode session, file d'attente). Reprise et protections recommandées : `docs/deployment/production.md`. `vercel.json` réserve la production à `deploy.yml` (previews conservées). `release.yml` ne pousse plus sur `main` : il tague le commit mergé avec la version préparée dans la PR (option A). Sauvegarde reportée au point de contrôle avant les premiers utilisateurs. Détails : `AUDIT.md` §14.
 
 - **Objectif** : qu'une politique relâchée fasse échouer la CI, et que les déploiements soient reproductibles.
 - **IDs** : F-20, F-21.

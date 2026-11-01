@@ -1,11 +1,7 @@
-# Required GitHub secrets:
-# SUPABASE_ACCESS_TOKEN -> dashboard.supabase.com -> Account -> Access Tokens
-# SUPABASE_PROJECT_ID   -> Settings -> General -> Reference ID
-# SUPABASE_DB_PASSWORD  -> Settings -> Database -> Database password
-# SUPABASE_DB_HOST      -> Settings -> Database -> Connection string -> Host
-# VERCEL_TOKEN          -> vercel.com -> Account Settings -> Tokens
-# VERCEL_ORG_ID         -> vercel whoami --token=TON_TOKEN
-# VERCEL_PROJECT_ID     -> vercel.com -> projet -> Settings -> General
+# Déploiement production : migrations Supabase PUIS application Vercel, pour le
+# commit exact d'un tag de release dont la CI a réussi.
+# Secrets, connexion, reprise après échec et rollback :
+# docs/deployment/production.md
 
 name: Deploy Production
 
@@ -16,57 +12,164 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Tag à déployer (ex: v0.2.1) pour un rollback ciblé"
+        description: "Tag de release à déployer (ex: v0.2.1). Ne restaure pas la base."
         required: true
         type: string
 
-# Ce workflow est déclenché par release.yml qui crée automatiquement un tag
-# SemVer à chaque merge de main-dev → main. Chaîne : merge PR → tag → deploy.
-# Pour un rollback : lancer ce workflow manuellement avec le tag d'une version stable.
-
-# Sérialise les déploiements production : impossible de pousser 2 tags en parallèle
-# et de créer une race condition entre migrations et build Vercel.
+# Un seul déploiement production à la fois. Une exécution en cours n'est jamais
+# annulée par une nouvelle (migration en cours) ; les suivantes attendent leur
+# tour au lieu de s'annuler entre elles.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
+  queue: max
 
-# Principe du moindre privilège : le workflow lit le code, c'est tout.
-# Les credentials externes (Supabase, Vercel) viennent des secrets.
 permissions:
   contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  # Mis à jour pour la compatibilité Next.js 16 + Turbopack.
-  VERCEL_CLI_VERSION: "latest"
+  # Version stable figée, choisie dans docs/deployment/production.md.
+  VERCEL_CLI_VERSION: "64.5.0"
 
 jobs:
+  # Résout le tag en un SHA unique, réutilisé par tous les jobs suivants, puis
+  # attend la réussite de la CI (push) sur ce même commit.
+  resolve-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      tag: ${{ steps.commit.outputs.tag }}
+
+    steps:
+      - name: Resolve tag to commit
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.ref || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' n'est pas un tag de release vX.Y.Z."
+            exit 1
+          fi
+
+          # Un tag annoté désigne un objet tag, qui désigne à son tour le commit.
+          object=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq '"\(.object.type) \(.object.sha)"')
+          read -r type sha <<< "$object"
+          if [ "$type" = "tag" ]; then
+            object=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '"\(.object.type) \(.object.sha)"')
+            read -r type sha <<< "$object"
+          fi
+          if [ "$type" != "commit" ]; then
+            echo "::error::Le tag $TAG ne désigne pas un commit."
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "push" ] && [ "$sha" != "$EVENT_SHA" ]; then
+            echo "::error::Le tag $TAG a été déplacé ($EVENT_SHA -> $sha). Déploiement refusé."
+            exit 1
+          fi
+
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq .status)
+          case "$status" in
+            ahead|identical) ;;
+            *)
+              echo "::error::Le commit $sha n'appartient pas à l'historique de main (statut : $status)."
+              exit 1
+              ;;
+          esac
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Tag $TAG -> $sha"
+
+      - name: Wait for CI success on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        # L'API ne documente pas l'ordre des runs : le plus récent est choisi
+        # explicitement. Un nouveau run (relance comprise) prime sur les anciens.
+        run: |
+          deadline=$((SECONDS + 50 * 60))
+          missing_deadline=$((SECONDS + 10 * 60))
+          while :; do
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push&branch=main&per_page=100" \
+              --jq '.workflow_runs | sort_by(.created_at, .id) | last // empty | "\(.status) \(.conclusion) \(.html_url)"')
+            read -r status conclusion url <<< "$run"
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                echo "CI réussie : $url"
+                exit 0
+              fi
+              echo "::error::CI terminée avec le statut '$conclusion' : $url"
+              exit 1
+            fi
+            if [ -z "$run" ] && [ "$SECONDS" -ge "$missing_deadline" ]; then
+              echo "::error::Aucun run CI (push sur main) pour $SHA après 10 minutes."
+              exit 1
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::CI non terminée sur $SHA après 50 minutes. Dernier état : $run."
+              exit 1
+            fi
+            echo "CI : ${status:-introuvable}, nouvelle vérification dans 30 s"
+            sleep 30
+          done
+
+  # Échoue avant toute écriture si le projet est en pause, si les identifiants
+  # sont refusés ou si l'historique distant diverge du dépôt.
   deploy-database:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Large : un timeout couperait une migration en cours d'application.
+    timeout-minutes: 30
+    needs: resolve-release
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ needs.resolve-release.outputs.sha }}
+          persist-credentials: false
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          version: latest
+          node-version-file: package.json
+          cache: "pnpm"
+
+      # CLI Supabase figée par package.json, comme en CI.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      # Enregistre l'URL du pooler en mode session (5432) : les runners GitHub
+      # n'ont pas d'IPv6 pour la connexion directe.
+      - name: Link production project
+        run: pnpm exec supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      # Liste les migrations en attente sans exécuter leur SQL.
+      - name: Pending migrations (dry run)
+        run: pnpm exec supabase db push --linked --dry-run
 
       - name: Apply production migrations
-        run: |
-          supabase db push \
-            --db-url "postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@${{ secrets.SUPABASE_DB_HOST }}:6543/postgres"
+        run: pnpm exec supabase db push --linked --yes
 
   deploy-vercel:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: deploy-database
-    # VERCEL_TOKEN dans env : la CLI Vercel le lit automatiquement, plus besoin de --token.
+    needs: [resolve-release, deploy-database]
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -76,49 +179,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ needs.resolve-release.outputs.sha }}
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Install Vercel CLI
-        run: npm install --global vercel@${{ env.VERCEL_CLI_VERSION }}
+        run: npm install --global "vercel@$VERCEL_CLI_VERSION"
 
       - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
 
       - name: Build Vercel artifact
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token "$VERCEL_TOKEN"
 
       - name: Deploy to Vercel production
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
 
   notify:
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [deploy-database, deploy-vercel]
+    needs: [resolve-release, deploy-database, deploy-vercel]
     if: always()
 
     steps:
       - name: Show deployment summary
+        env:
+          TAG: ${{ needs.resolve-release.outputs.tag }}
+          SHA: ${{ needs.resolve-release.outputs.sha }}
+          RESOLVE: ${{ needs.resolve-release.result }}
+          DATABASE: ${{ needs.deploy-database.result }}
+          VERCEL: ${{ needs.deploy-vercel.result }}
         run: |
-          echo "deploy-database: ${{ needs.deploy-database.result }}"
-          echo "deploy-vercel: ${{ needs.deploy-vercel.result }}"
+          echo "release: ${TAG:-?} (${SHA:-?})"
+          echo "resolve-release: $RESOLVE"
+          echo "deploy-database: $DATABASE"
+          echo "deploy-vercel: $VERCEL"
 
-          if [ "${{ needs.deploy-database.result }}" = "success" ] && [ "${{ needs.deploy-vercel.result }}" = "success" ]; then
+          if [ "$RESOLVE" = "success" ] && [ "$DATABASE" = "success" ] && [ "$VERCEL" = "success" ]; then
             echo "Production deployment succeeded."
           else
-            echo "Production deployment failed."
+            echo "Production deployment failed. Reprise : docs/deployment/production.md"
             exit 1
           fi
