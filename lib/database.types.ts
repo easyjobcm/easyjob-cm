@@ -2175,6 +2175,73 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      create_job: {
+        Args: { p_job: Json }
+        Returns: {
+          address: string
+          benefits: string[]
+          break_duration_minutes: number
+          category_id: string | null
+          city: string
+          company_id: string
+          created_at: string | null
+          currency: string | null
+          description: string
+          dress_code: string | null
+          effective_hours: number | null
+          end_date: string | null
+          end_time: string
+          estimated_hours: number | null
+          expires_at: string | null
+          hourly_rate: number
+          id: string
+          is_recurring: boolean | null
+          is_sandbox: boolean | null
+          job_type: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold: string | null
+          latitude: number | null
+          location_map_url: string | null
+          location_photo_url: string | null
+          location_reference: string | null
+          longitude: number | null
+          min_experience_months: number | null
+          moderated_at: string | null
+          moderation_by: string | null
+          moderation_notes: string | null
+          parent_job_id: string | null
+          positions_available: number | null
+          positions_filled: number | null
+          provided_equipment: string[]
+          published_at: string | null
+          quartier: string | null
+          recurring_days: number[] | null
+          rejection_reason: string | null
+          required_candidates_count: number
+          required_documents: string[] | null
+          required_equipment: string[] | null
+          required_skills: string[] | null
+          salary_locked: boolean | null
+          salary_per_person_per_day: number | null
+          sandbox_level_required: number
+          selection_deadline: string | null
+          special_instructions: string | null
+          start_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["job_status"] | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      delete_job: { Args: { p_job_id: string }; Returns: string }
       has_verified_license_for: {
         Args: { p_candidate_id: string; p_skill_name: string }
         Returns: boolean
@@ -2183,6 +2250,75 @@ export type Database = {
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
+      job_apply_content: {
+        Args: {
+          p_job: Database["public"]["Tables"]["jobs"]["Row"]
+          p_payload: Json
+        }
+        Returns: {
+          address: string
+          benefits: string[]
+          break_duration_minutes: number
+          category_id: string | null
+          city: string
+          company_id: string
+          created_at: string | null
+          currency: string | null
+          description: string
+          dress_code: string | null
+          effective_hours: number | null
+          end_date: string | null
+          end_time: string
+          estimated_hours: number | null
+          expires_at: string | null
+          hourly_rate: number
+          id: string
+          is_recurring: boolean | null
+          is_sandbox: boolean | null
+          job_type: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold: string | null
+          latitude: number | null
+          location_map_url: string | null
+          location_photo_url: string | null
+          location_reference: string | null
+          longitude: number | null
+          min_experience_months: number | null
+          moderated_at: string | null
+          moderation_by: string | null
+          moderation_notes: string | null
+          parent_job_id: string | null
+          positions_available: number | null
+          positions_filled: number | null
+          provided_equipment: string[]
+          published_at: string | null
+          quartier: string | null
+          recurring_days: number[] | null
+          rejection_reason: string | null
+          required_candidates_count: number
+          required_documents: string[] | null
+          required_equipment: string[] | null
+          required_skills: string[] | null
+          salary_locked: boolean | null
+          salary_per_person_per_day: number | null
+          sandbox_level_required: number
+          selection_deadline: string | null
+          special_instructions: string | null
+          start_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["job_status"] | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       moderate_cni: {
         Args: {
           p_action: string
@@ -2191,6 +2327,77 @@ export type Database = {
           p_reject_reason: string
         }
         Returns: undefined
+      }
+      moderate_job: {
+        Args: {
+          p_action: string
+          p_job_id: string
+          p_reason?: string
+          p_seen_updated_at?: string
+        }
+        Returns: {
+          address: string
+          benefits: string[]
+          break_duration_minutes: number
+          category_id: string | null
+          city: string
+          company_id: string
+          created_at: string | null
+          currency: string | null
+          description: string
+          dress_code: string | null
+          effective_hours: number | null
+          end_date: string | null
+          end_time: string
+          estimated_hours: number | null
+          expires_at: string | null
+          hourly_rate: number
+          id: string
+          is_recurring: boolean | null
+          is_sandbox: boolean | null
+          job_type: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold: string | null
+          latitude: number | null
+          location_map_url: string | null
+          location_photo_url: string | null
+          location_reference: string | null
+          longitude: number | null
+          min_experience_months: number | null
+          moderated_at: string | null
+          moderation_by: string | null
+          moderation_notes: string | null
+          parent_job_id: string | null
+          positions_available: number | null
+          positions_filled: number | null
+          provided_equipment: string[]
+          published_at: string | null
+          quartier: string | null
+          recurring_days: number[] | null
+          rejection_reason: string | null
+          required_candidates_count: number
+          required_documents: string[] | null
+          required_equipment: string[] | null
+          required_skills: string[] | null
+          salary_locked: boolean | null
+          salary_per_person_per_day: number | null
+          sandbox_level_required: number
+          selection_deadline: string | null
+          special_instructions: string | null
+          start_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["job_status"] | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
@@ -2203,6 +2410,72 @@ export type Database = {
       skill_requires_license: {
         Args: { p_skill_name: string }
         Returns: string
+      }
+      update_job: {
+        Args: { p_job: Json; p_job_id: string }
+        Returns: {
+          address: string
+          benefits: string[]
+          break_duration_minutes: number
+          category_id: string | null
+          city: string
+          company_id: string
+          created_at: string | null
+          currency: string | null
+          description: string
+          dress_code: string | null
+          effective_hours: number | null
+          end_date: string | null
+          end_time: string
+          estimated_hours: number | null
+          expires_at: string | null
+          hourly_rate: number
+          id: string
+          is_recurring: boolean | null
+          is_sandbox: boolean | null
+          job_type: Database["public"]["Enums"]["job_type"] | null
+          late_cancellation_threshold: string | null
+          latitude: number | null
+          location_map_url: string | null
+          location_photo_url: string | null
+          location_reference: string | null
+          longitude: number | null
+          min_experience_months: number | null
+          moderated_at: string | null
+          moderation_by: string | null
+          moderation_notes: string | null
+          parent_job_id: string | null
+          positions_available: number | null
+          positions_filled: number | null
+          provided_equipment: string[]
+          published_at: string | null
+          quartier: string | null
+          recurring_days: number[] | null
+          rejection_reason: string | null
+          required_candidates_count: number
+          required_documents: string[] | null
+          required_equipment: string[] | null
+          required_skills: string[] | null
+          salary_locked: boolean | null
+          salary_per_person_per_day: number | null
+          sandbox_level_required: number
+          selection_deadline: string | null
+          special_instructions: string | null
+          start_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["job_status"] | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["urgency_level"] | null
+          urgency_fee: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "jobs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       withdraw_job_application: {
         Args: { p_job_id: string }

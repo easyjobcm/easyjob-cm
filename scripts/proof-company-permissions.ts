@@ -543,7 +543,8 @@ async function main() {
           where n.nspname = 'public' and p.prosecdef
             and (has_function_privilege('authenticated', p.oid, 'EXECUTE')
                  or has_function_privilege('anon', p.oid, 'EXECUTE'))
-            and (p.prosrc ilike '%company_profiles%'
+            -- Écriture seulement : les RPC d'offres (lot 6) lisent la table.
+            and (p.prosrc ~* '(insert\\s+into|update|delete\\s+from)\\s+(public\\.)?company_profiles'
                  or p.prosrc ~* 'execute\\s')) as exposed_writers,
         has_function_privilege('authenticated',
           'public.protect_company_profile_columns()', 'EXECUTE') as trigger_fn_exec,

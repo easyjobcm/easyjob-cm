@@ -57,7 +57,7 @@ export default async function CompanyProfilePage() {
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyProfile.id)
-      .in("status", ["published", "active", "pending_moderation"]);
+      .in("status", ["active", "pending_review"]);
     activeJobsCount = count ?? 0;
   }
 

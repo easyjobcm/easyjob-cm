@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 18 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 19 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -84,6 +84,18 @@ pnpm test:rls company-permissions   # attendu : 32 échecs (dont A1, B, C1), cod
 pnpm exec supabase db reset --workdir $stack   # restauration
 ```
 
+Pour `jobs` (F-09, lot 6), rouvrir l'écriture, désactiver le trigger et recréer une politique d'écriture du propriétaire reproduit la publication directe :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "grant insert, update on public.jobs to authenticated; alter table public.jobs disable trigger trg_protect_job_writes; create policy neg_owner_write on public.jobs for all to authenticated using (company_id in (select id from public.company_profiles where user_id = auth.uid())) with check (company_id in (select id from public.company_profiles where user_id = auth.uid()));"
+pnpm test:rls job-moderation   # attendu : 18 échecs (dont B2, publication directe), code de sortie 1
+pnpm exec supabase db reset --workdir $stack   # restauration
+```
+
+Pour la suppression : `grant delete on public.jobs to authenticated; alter table public.jobs disable trigger trg_protect_job_writes; create policy neg_owner_delete on public.jobs for delete to authenticated using (company_id in (select id from public.company_profiles where user_id = auth.uid()));`, puis `pnpm test:rls job-moderation` (attendu : 4 échecs, dont I1). Si `db reset` échoue ensuite, recréer la pile : `supabase stop --workdir $stack --no-backup`, puis l'étape 1.
+
+`job-moderation` crée aussi, le temps d'une assertion, un trigger qui fait échouer l'écriture dans `audit_logs` pour une seule offre, afin de prouver l'absence d'effet partiel, et deux triggers de ralentissement (`pg_sleep`) pour forcer l'ordre entre une sélection et une suppression. Ils ne visent que les lignes de la preuve et sont retirés en fin de preuve, même en cas d'échec.
+
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise) et §16 (droits des entreprises). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises) et §17 (offres et modération). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).

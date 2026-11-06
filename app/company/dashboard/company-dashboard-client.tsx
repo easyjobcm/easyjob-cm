@@ -80,7 +80,7 @@ export function CompanyDashboardClient({
             {locale === "fr" ? "En attente" : "Pending"}
           </Badge>
         );
-      case "published":
+      case "active":
         return (
           <Badge variant="success">
             {locale === "fr" ? "Publie" : "Published"}

@@ -72,7 +72,7 @@ export default async function CompanyDashboardPage() {
     .from("jobs")
     .select("*", { count: "exact", head: true })
     .eq("company_id", profile.id)
-    .eq("status", "published");
+    .eq("status", "active");
 
   // Get total applications for all company jobs
   const { data: companyJobs } = await supabase

@@ -137,7 +137,7 @@ export async function POST(_request: NextRequest) {
         company:company_profiles(company_name)
       `,
       )
-      .eq("status", "published")
+      .eq("status", "active")
       .gte("start_date", new Date().toISOString().split("T")[0])
       .order("start_date", { ascending: true })
       .limit(50);

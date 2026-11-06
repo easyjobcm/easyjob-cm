@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { AdminDashboardClient } from "../admin-dashboard-client";
 
 /**
@@ -11,18 +11,34 @@ import { AdminDashboardClient } from "../admin-dashboard-client";
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
-  // Offres en attente de modération
-  const { data: pendingJobs } = await supabase
+  // Offres en attente de modération (policy « Admins can view all jobs »).
+  const { data: jobRows } = await supabase
     .from("jobs")
     .select(
-      `
-      *,
-      company:company_profiles(id, company_name, logo_url)
-    `,
+      `id, company_id, title, description, city, start_date, start_time,
+       end_time, hourly_rate, currency, urgency, updated_at`,
     )
     .eq("status", "pending_review")
     .order("created_at", { ascending: true })
     .limit(20);
+
+  // company_profiles n'a pas de policy SELECT admin : nom seul, lu par la
+  // clé service (même principe que /api/admin/companies), et uniquement pour
+  // les offres que la session a pu lire sous RLS.
+  const companyIds = [...new Set((jobRows ?? []).map((j) => j.company_id))];
+  const { data: companies } = companyIds.length
+    ? await createAdminClient()
+        .from("company_profiles")
+        .select("id, company_name")
+        .in("id", companyIds)
+    : { data: [] };
+  const companyNames = new Map(
+    (companies ?? []).map((c) => [c.id, c.company_name]),
+  );
+  const pendingJobs = (jobRows ?? []).map(({ company_id, ...job }) => ({
+    ...job,
+    company: { company_name: companyNames.get(company_id) },
+  }));
 
   // Statistiques globales
   const { count: totalUsers } = await supabase
@@ -51,7 +67,7 @@ export default async function AdminDashboardPage() {
   const { count: activeJobs } = await supabase
     .from("jobs")
     .select("*", { count: "exact", head: true })
-    .eq("status", "published");
+    .eq("status", "active");
 
   const { count: totalApplications } = await supabase
     .from("job_applications")
@@ -59,7 +75,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardClient
-      pendingJobs={pendingJobs || []}
+      pendingJobs={pendingJobs}
       stats={{
         totalUsers: totalUsers || 0,
         totalCandidates: totalCandidates || 0,

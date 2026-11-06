@@ -157,14 +157,8 @@ export default function CompanyJobDetailPage() {
       // L'écran peut être obsolète (candidature retirée entre-temps).
       loadData();
     } else {
-      // Update positions filled
-      await supabase
-        .from("jobs")
-        .update({
-          positions_filled: (job?.positions_filled || 0) + 1,
-        })
-        .eq("id", jobId);
-
+      // positions_filled est tenu à jour en base par le trigger
+      // trg_sync_job_positions_filled.
       toast({
         title: "Candidat selectionne",
         variant: "success",

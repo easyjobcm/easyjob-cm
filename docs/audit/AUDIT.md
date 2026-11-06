@@ -117,7 +117,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-06 | P1 | `subscriptions` : un utilisateur peut insérer son propre abonnement (`plan`, `price`, `expires_at` libres). | baseline:2167 | Premium entreprise ou candidat sans paiement (`lib/utils/profile-status.ts` et `company-plan.ts` lisent cette table). | `WITH CHECK (is_admin_user(auth.uid()))`, ou création par le serveur seulement. | INSERT en session non admin refusé. |
 | F-07 | P1 | `contracts` et `missions` : les politiques UPDATE des parties ne restreignent pas les colonnes. Le statut du contrat est calculé dans le navigateur et la signature est stockée en data-URL. L'entreprise peut modifier `payment_status`, `platform_fee`, `actual_*_time`, `validated_at` de ses missions. | baseline:2005 (contracts), 1949 (missions) ; `app/contracts/[id]/page.tsx:229-262` | Un candidat peut passer un contrat à `completed` sans signature de l'entreprise, ou modifier `contract_data`. Une entreprise peut modifier les heures ou les statuts de paiement. Le contrat n'a aucune valeur probante (pas d'horodatage serveur, d'IP ni d'empreinte). | RPC `sign_contract` (horodatage, IP et rôle côté serveur, transition contrôlée) et RPC de validation des heures. Retirer l'UPDATE direct ou le limiter par trigger. | Tests de transition : signature unilatérale → `candidate_signed` seulement ; modification de `contract_data` par une partie refusée. |
 | F-08 | P1 | **Corrigé localement (lot 3, §12) : `next` 16.4.3.** Constat d'origine, rectifié au §12 : Next.js **16.2.6** : avis critiques publiés (RCE dans l'Image Optimizer pour SVG/AVIF, RCE `use cache`, RCE `next/og`) et hauts (contournement Proxy/middleware avec Turbopack, SSRF, DoS Server Actions). | `pnpm audit` ; `package.json` | Applicabilité non démontrée : l'application n'utilise pas `next/image`, `next/og` ni `use cache`, mais l'endpoint `/_next/image` existe par défaut, et le Proxy est utilisé pour l'authentification. Mise à jour peu coûteuse. | Monter `next` et `eslint-config-next` sur la dernière version 16.x qui corrige tous les avis listés (> 16.4.0 selon l'audit), puis relancer `pnpm audit`. | `pnpm audit --prod` sans avis `next` critique ou haut ; build, lint et tests verts. |
-| F-09 | P1 | Publication d'offre bloquée. (a) L'UI insère l'offre directement (`status: "pending_review"`) en contournant `/api/jobs` POST, qui contrôle la vérification de l'entreprise et le statut `is_active`. (b) Aucune politique ne permet à l'admin de **lire** ou de **modifier** une offre non `active` : le tableau de bord admin et la route `moderate` (session admin) agissent sur 0 ligne et renvoient pourtant un succès. (c) L'entreprise peut aussi passer elle-même son offre à `active` (politique FOR ALL). | `app/company/jobs/new/page.tsx:134-155` ; `app/api/jobs/route.ts:193` ; politiques jobs baseline:1932 et `20260908120000_*:38` ; `app/api/admin/jobs/[id]/moderate/route.ts:46-55` ; `app/admin/dashboard/page.tsx:16-23` | Le parcours honnête bloque : l'offre n'est jamais publiée. Le parcours malveillant contourne la modération. | Un seul chemin de création (route serveur), une RPC `moderate_job` admin avec audit, un trigger qui interdit à l'entreprise de modifier `status` hors brouillon, et un statut unique (`pending_moderation` **ou** `pending_review`). | Test bout en bout : création → visible dans la file admin → approbation → visible par les candidats ; passage direct à `active` par l'entreprise refusé. |
+| F-09 | P1 | **Corrigé et vérifié localement (lot 6, §17).** Constat d'origine : publication d'offre bloquée. (a) L'UI insère l'offre directement (`status: "pending_review"`) en contournant `/api/jobs` POST, qui contrôle la vérification de l'entreprise et le statut `is_active`. (b) Aucune politique ne permet à l'admin de **lire** ou de **modifier** une offre non `active` : le tableau de bord admin et la route `moderate` (session admin) agissent sur 0 ligne et renvoient pourtant un succès. (c) L'entreprise peut aussi passer elle-même son offre à `active` (politique FOR ALL). | `app/company/jobs/new/page.tsx:134-155` ; `app/api/jobs/route.ts:193` ; politiques jobs baseline:1932 et `20260908120000_*:38` ; `app/api/admin/jobs/[id]/moderate/route.ts:46-55` ; `app/admin/dashboard/page.tsx:16-23` | Le parcours honnête bloque : l'offre n'est jamais publiée. Le parcours malveillant contourne la modération. | Un seul chemin de création (route serveur), une RPC `moderate_job` admin avec audit, un trigger qui interdit à l'entreprise de modifier `status` hors brouillon, et un statut unique (`pending_moderation` **ou** `pending_review`). | Test bout en bout : création → visible dans la file admin → approbation → visible par les candidats ; passage direct à `active` par l'entreprise refusé. |
 | F-10 | P1 | Cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
 
 ### P2 — Fiabilité, sécurité secondaire, maintenance
@@ -979,8 +979,102 @@ Chaque ligne doit correspondre à une validation ou à un abonnement connus de l
 
 ### Limites restantes
 
-- **F-09 (lot 6)** : `company/jobs/new` insère encore directement dans `jobs`. Ce chemin ne vérifie pas `verification_status`.
+- **F-09 (lot 6)** : traité au §17.
 - **F-16 (lot 7a)** : la politique SELECT « Companies can view candidate summaries » laisse toujours une entreprise lire tous les profils entreprise. Elle n'est pas modifiée ici.
 - Validation et revue des entreprises sans RPC ni trace d'audit (voir ci-dessus).
 - `/company/dashboard` refuse toujours `company_premium`, et les redirections `/login` restent à corriger (constats du §15, hors lot).
+- CI distante non observée. Script navigateur local, hors dépôt.
+
+## 17. Suivi — Lot 6 : création, modération et publication des offres (F-09) (2026-11-01)
+
+Branche `fix/lot-06-job-moderation`, base `origin/main-dev` (737d02c, lot 5b intégré par la PR #54). **Corrigé et vérifié localement, non commité, non déployé.** Migration : `supabase/migrations/20261101140000_job_moderation.sql`.
+
+### État avant correction
+
+- Deux chemins de création : `company/jobs/new` (INSERT direct, sans contrôle de vérification) et `POST /api/jobs` (contrôles dans la route seulement, statut `pending_moderation`).
+- Politique `FOR ALL` de l'entreprise sur ses offres et `GRANT ALL` de la baseline : publication directe (`status = 'active'`), champs de modération, compteurs et propriétaire modifiables en session.
+- Aucune politique admin sur `jobs` : file de modération vide, route `moderate` en succès sur 0 ligne, sans audit ni notification.
+- Deux valeurs d'attente (`pending_review`, `pending_moderation`) et de publication (`active`, `published`) mélangées dans les requêtes. Une offre approuvée n'apparaissait dans aucun onglet de l'entreprise.
+- Lien « Modifier » vers une page inexistante.
+
+### Chemins d'écriture retenus
+
+| Opération | Chemin | Règles appliquées en base |
+|---|---|---|
+| Création | `JobForm` → `POST /api/jobs` → RPC `create_job` | Session, rôle `company`/`company_premium`, compte et profil actifs, `verification_status = 'verified'`, contenu validé, propriétaire déduit de `auth.uid()`, statut `pending_review` imposé |
+| Correction | `JobForm` (`/company/jobs/[id]/edit`) → `PATCH /api/jobs/[id]` → RPC `update_job` | Mêmes contrôles, offre de l'entreprise verrouillée `FOR UPDATE`, transition selon le tableau ci-dessous |
+| Modération | file admin → `POST /api/admin/jobs/[id]/moderate` → RPC `moderate_job` | Grade `admin_ops`/`admin_founder` actif, action et motif validés, statut courant vérifié sous verrou ; champs de modération, notification et `audit_logs` dans la même transaction |
+| Suppression | `/company/jobs` → `DELETE /api/jobs/[id]` → RPC `delete_job` | Mêmes contrôles de compte ; offre de l'entreprise ; refus `job_has_commitments` (409) si l'offre ou une sous-offre a une candidature `selected` ou `no_show`, une mission, un contrat ou une pénalité d'annulation |
+| Compteur `positions_filled` | trigger `trg_sync_job_positions_filled` sur `job_applications` | Incrément ou décrément lors d'une sélection ou de son annulation |
+
+La validation Zod (`lib/validations/job.ts`) est partagée par le formulaire et les routes. `job_apply_content` applique les mêmes règles en SQL pour un appel direct aux RPC. Aucune limite de nombre d'offres n'est appliquée : `getPlanLimits` et le SRS v1.2 donnent des offres illimitées à tous les plans.
+
+### Transitions
+
+| Acteur | De | Vers | Condition |
+|---|---|---|---|
+| Entreprise | — | `pending_review` | Création |
+| Entreprise | `draft`, `pending_review` | `pending_review` | Modification |
+| Entreprise | `rejected` | `pending_review` | Correction ; motif et champs de modération effacés, l'historique reste dans `audit_logs` |
+| Entreprise | `active` | `pending_review` | Plan Pro ou Business (`directEdit`) et aucun candidat sélectionné ; sinon `job_locked_plan` ou `job_has_selected_candidates` |
+| Entreprise | `filled`, `expired`, `cancelled` | — | Refus `job_not_editable` |
+| `admin_ops`, `admin_founder` | `pending_review` | `active` | Entreprise toujours vérifiée et active ; `published_at` posé |
+| `admin_ops`, `admin_founder` | `pending_review` | `rejected` | Motif de 3 à 500 caractères |
+
+`pending_review` et `active` sont les valeurs canoniques de l'attente et de la publication ; seuls leurs synonymes `pending_moderation` et `published` sont interdits. `draft`, `rejected`, `filled`, `expired` et `cancelled` restent des statuts valides. Aucun parcours de ce lot n'écrit `filled`, `expired` ni `cancelled` : ils relèvent du cycle de vie de l'offre (lot 7).
+
+**Modification d'une offre active — sources** :
+- Pro et Business ont la « modification directe des offres actives » : SRS §6.11 (tableau des plans entreprise), repris par `getPlanLimits().directEdit` et les textes `editOn`/`editOff` du profil entreprise (« Modification limitée — contactez le support » pour Free et Starter).
+- Le retour en modération après modification n'est écrit ni dans le SRS ni dans le code. C'est la réponse du produit, le 2026-11-01, à la question posée pendant ce lot ; il n'en existe pas d'autre trace.
+- **Écart avec le SRS §5.4** : toute entreprise peut modifier ou supprimer une offre jusqu'à 12 h avant le début si le nombre de candidats requis n'est pas atteint ; le service client n'est requis qu'au-delà, sauf pour les comptes premium. Le verrouillage Free/Starter appliqué ici suit l'interface (`editOff`), plus stricte que ce texte. La règle des 12 h n'est appliquée nulle part. À arbitrer par le produit.
+
+La matrice des grades suit le SRS §6.12 et `moderate_cni` : `admin_support` lit la file sans décider.
+
+**Suppression** : la règle « jusqu'à 12 h avant, si le nombre requis n'est pas atteint » (§5.4) n'est pas appliquée. Seul l'engagement bloque. Une offre engagée n'est pas annulée automatiquement : l'annulation (pénalités, notification des candidats) relève du lot 7. Ordre des verrous : `delete_job` verrouille les candidatures puis l'offre, comme la sélection (candidature, puis offre via le trigger de compteur). Une sélection concurrente est soit vue par le contrôle, soit bloquée jusqu'à la suppression, puis sans effet.
+
+### Protections
+
+- **Privilèges** : ni INSERT, ni UPDATE, ni DELETE pour `anon` et `authenticated`.
+- **Trigger** `trg_protect_job_writes`, fondé sur `current_user` : toute écriture ou suppression en session est refusée (42501), même si un privilège était rouvert. Les cascades déclenchées par `delete_job` s'exécutent en propriétaire.
+- **RLS** : politique `FOR ALL` supprimée, aucune politique d'écriture ; nouvelle `Admins can view all jobs` (trois grades) ; lecture publique inchangée (`active`, ou ses propres offres).
+- **Contrainte** `jobs_status_canonical_chk` : synonymes `pending_moderation` et `published` interdits ; les lignes existantes sont reprises par la migration.
+- **Concurrence** : une seconde décision reçoit `job_not_pending` (409) ; une décision prise sur une version modifiée entre-temps reçoit `job_changed` (409). Ni seconde notification ni seconde trace. L'écran admin bloque aussi le double clic.
+- **Atomicité** : publication, notification et audit sont écrits par une seule fonction ; une erreur annule l'ensemble.
+- **Noms d'entreprise dans la file admin** : `company_profiles` n'a pas de politique admin. Le nom seul est lu en clé service, pour les offres que la session a pu lire, comme `/api/admin/companies`. Aucune écriture ne passe par la clé service.
+- Une note d'approbation ne va que dans `audit_logs` : une offre active est lisible par tous.
+
+### Écrans
+
+- `components/company/job-form.tsx` : formulaire existant rendu réutilisable en création et en correction ; validation Zod avant envoi ; explication d'erreur visible (alerte et toast) ; succès seulement si la base renvoie `pending_review`.
+- `/company/jobs` : statuts traduits FR/EN, motif de refus, offre refusée dans « Actives », « Modifier » seulement si la règle le permet, explication du verrouillage.
+- File admin : refus avec motif obligatoire, toasts de résultat, rafraîchissement après conflit. Le champ motif perdait la saisie : `Modal` reprend le focus quand `onClose` change d'identité. Corrigé par un `onClose` stable dans cet écran.
+- Statuts alignés sur `active` et `pending_review` : tableaux de bord entreprise et admin, compteur du profil entreprise, suggestions de `/api/matching`.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Nouvelle preuve `pnpm test:rls job-moderation` | ✅ 62 assertions, vraies sessions, état relu en clé service. Création autorisée et refusée (non vérifiée, suspendue, candidat, admin, anonyme), champs forgés, données invalides ; INSERT, UPDATE, UPSERT, publication, modération et compteurs directs ; catalogue ; lectures croisées ; grades ; motif ; version périmée ; audit et notification ; répétition ; double clic et décisions concurrentes ; refus puis correction ; Free verrouillé, Pro remis en modération, candidat sélectionné ; sélection et compteur ; entreprise inéligible ; panne provoquée dans la transaction ; suppression (section I, ci-dessous) |
+| Suppression (section I) | ✅ DELETE direct refusé ; autre entreprise et anonyme refusés ; offre sans engagement supprimée par la route et par la RPC, candidature en attente effacée ; candidat sélectionné, mission, contrat → 409, offre et données liées conservées ; 4 courses libres sélection/suppression cohérentes ; deux ordres forcés par un ralentissement temporaire (suppression d'abord → offre supprimée, sélection sans effet ; sélection d'abord → 409, sélection conservée), sans verrou mortel |
+| Contrôle négatif (INSERT/UPDATE rouverts, trigger désactivé, politique d'écriture recréée) | ❌ détecté : 18 échecs, dont B2 (publication directe), code de sortie 1. Restauration par `db reset`, catalogue revérifié, preuve rejouée verte |
+| Contrôle négatif suppression (DELETE rouvert, trigger désactivé, politique DELETE recréée) | ❌ détecté : 4 échecs, dont I1 (suppression directe), code de sortie 1. Le `db reset` a laissé la pile sans base ; pile recréée (arrêt sans sauvegarde, démarrage), protections revérifiées |
+| `pnpm test:rls` complet | ✅ 19/19 preuves. Le contrôle E2 de `company-permissions` vise désormais l'écriture de `company_profiles` par une fonction exposée, et non sa simple lecture par les RPC d'offres |
+| Navigateur : Chrome headless, vrais clics, 390×844 tactile, application reliée à la pile dédiée | ✅ 21 vérifications : création, statut en attente, offre introuvable pour le candidat, file admin et approbation, badge et notification de l'entreprise, candidature, refus motivé, motif affiché, correction préremplie et nouvelle soumission, verrouillage expliqué, entreprise non vérifiée, écrans FR et EN, pas de défilement horizontal, double clic sur « Approuver » |
+| Navigateur, suppression (mêmes conditions) | ✅ 5 vérifications : offre engagée → refus expliqué (FR, EN), offre et sélection conservées ; offre sans engagement supprimée avec confirmation (FR) ; pas de défilement horizontal |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .`, `vitest run` (251 tests) | ✅ |
+| `pnpm build` contre la pile dédiée (54421) | ✅ |
+| Types générés depuis la pile dédiée | Régénérés (nouvelles RPC), identiques au schéma final |
+
+La vérification des entreprises des fixtures est posée en clé service. Elle ne valide pas un parcours de vérification d'entreprise, qui n'existe pas encore.
+
+### Limites restantes
+
+- Validation administrative des entreprises : toujours sans RPC, interface ni trace (§16).
+- **F-16 (lot 7a)** : lecture de tous les profils entreprise par une entreprise, inchangée.
+- Sélection → mission → contrat (lot 7) : la sélection reste un UPDATE de `job_applications` sans contrôle des places ; seul le compteur est tenu par la base. Une offre engagée ne peut plus être supprimée, mais elle ne peut pas non plus être annulée : le cycle d'annulation reste à cadrer. Toute future création de mission ou de contrat devra verrouiller l'offre comme `delete_job`.
+- Écart avec le SRS §5.4 (règle des 12 h, verrouillage Free/Starter) : à arbitrer, voir « Transitions ».
+- Non implémentés : paiement bloqué avant soumission (SRS §6.4), décomposition multi-jours, délai de modération (§11.10), demande de correction distincte du refus.
+- Catégorie, heures par semaine et avantages du formulaire ne sont pas enregistrés (préexistant) : ils sont à ressaisir lors d'une correction.
+- `moderation_by` d'une offre active reste lisible en lecture directe (identifiant de l'admin). Une restriction de colonnes est à étudier avec les autres projections publiques.
+- Écran de connexion : sous automatisation, le premier clic sur « Se connecter » juste après la saisie est perdu ; le parcours s'est connecté avec la touche Entrée. Préexistant, hors lot.
 - CI distante non observée. Script navigateur local, hors dépôt.

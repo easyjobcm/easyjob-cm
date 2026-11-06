@@ -1,33 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { Constants } from "@/lib/database.types";
-
-const JobCreateSchema = z.object({
-  title: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  address: z.string().trim().min(1),
-  city: z.string().trim().min(1),
-  start_date: z.string().min(1),
-  start_time: z.string().min(1),
-  end_time: z.string().min(1),
-  hourly_rate: z.number().positive(),
-  category_id: z.string().uuid().optional(),
-  job_type: z.enum(Constants.public.Enums.job_type).optional().default("shift"),
-  quartier: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  end_date: z.string().optional(),
-  is_recurring: z.boolean().optional().default(false),
-  recurring_days: z.array(z.number().int()).optional(),
-  estimated_hours: z.number().optional(),
-  required_skills: z.array(z.string().trim().min(1)).optional(),
-  min_experience_months: z.number().int().min(0).optional().default(0),
-  dress_code: z.string().optional(),
-  special_instructions: z.string().optional(),
-  positions_available: z.number().int().positive().optional().default(1),
-  urgency: z.enum(["normal", "urgent"]).optional().default("normal"),
-});
+import { jobInputSchema } from "@/lib/validations/job";
+import { jobWriteErrorResponse } from "./job-write-response";
+import { JOB_PUBLISHED_STATUS } from "@/lib/utils/job-status";
 
 // Get all published jobs with filtering
 export async function GET(request: NextRequest) {
@@ -56,7 +31,7 @@ export async function GET(request: NextRequest) {
       `,
         { count: "exact" },
       )
-      .eq("status", "active")
+      .eq("status", JOB_PUBLISHED_STATUS)
       .gte("start_date", new Date().toISOString().split("T")[0])
       .order("urgency", { ascending: false })
       .order("published_at", { ascending: false });
@@ -110,98 +85,35 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // SRS §6.19 (T8.4a) — compte suspendu : une entreprise suspendée par
-    // l'admin (is_active = false) ne peut plus publier d'offre. Lecture
-    // propre ligne (RLS « propre profil » de users).
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("is_active")
-      .eq("id", user.id)
-      .single();
-
-    if (userRow?.is_active === false) {
       return NextResponse.json(
-        { error: "Votre compte est suspendu", code: "account_suspended" },
-        { status: 403 },
+        { error: "Unauthorized", code: "not_authenticated" },
+        { status: 401 },
       );
     }
 
-    // Get company profile
-    const { data: company, error: companyError } = await supabase
-      .from("company_profiles")
-      .select("id, verification_status")
-      .eq("user_id", user.id)
-      .single();
-
-    if (companyError || !company) {
-      return NextResponse.json(
-        { error: "Company profile not found" },
-        { status: 403 },
-      );
-    }
-
-    // Check if company is verified
-    if (company.verification_status !== "verified") {
-      return NextResponse.json(
-        {
-          error: "Company must be verified to post jobs",
-        },
-        { status: 403 },
-      );
-    }
-
-    const body = await request.json();
-    const parsed = JobCreateSchema.safeParse(body);
+    const parsed = jobInputSchema.safeParse(
+      await request.json().catch(() => null),
+    );
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Données invalides", details: parsed.error.flatten() },
+        {
+          error: "Données invalides",
+          code: "invalid_job_data",
+          details: parsed.error.flatten(),
+        },
         { status: 400 },
       );
     }
-    const d = parsed.data;
 
-    // Create job
-    const { data: job, error: jobError } = await supabase
-      .from("jobs")
-      .insert({
-        company_id: company.id,
-        title: d.title,
-        description: d.description,
-        category_id: d.category_id,
-        job_type: d.job_type,
-        address: d.address,
-        city: d.city,
-        quartier: d.quartier,
-        latitude: d.latitude,
-        longitude: d.longitude,
-        start_date: d.start_date,
-        end_date: d.end_date,
-        start_time: d.start_time,
-        end_time: d.end_time,
-        is_recurring: d.is_recurring,
-        recurring_days: d.recurring_days,
-        hourly_rate: d.hourly_rate,
-        estimated_hours: d.estimated_hours,
-        required_skills: d.required_skills,
-        min_experience_months: d.min_experience_months,
-        dress_code: d.dress_code,
-        special_instructions: d.special_instructions,
-        positions_available: d.positions_available,
-        urgency: d.urgency,
-        status: "pending_moderation", // All jobs start as pending
-      })
-      .select("id, title, status")
-      .single();
+    const { data: job, error } = await supabase.rpc("create_job", {
+      p_job: parsed.data,
+    });
+    if (error) return jobWriteErrorResponse(error);
 
-    if (jobError) {
-      console.error("Error creating job:", jobError);
-      return NextResponse.json({ error: jobError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ job }, { status: 201 });
+    return NextResponse.json(
+      { job: { id: job.id, title: job.title, status: job.status } },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Error in create job API:", error);
     return NextResponse.json(

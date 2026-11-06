@@ -12,7 +12,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 4 | Tests RLS négatifs en CI et durcissement CI/CD — **partie CI faite localement ; déploiement préparé et vérifié localement (lot 4b), non validé à distance** | F-20, F-21 | Qualité | Moyen |
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
-| 6 | Publication et modération des offres | F-09 | Fonctionnel et sécurité | Moyen |
+| 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (3 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
@@ -174,6 +174,22 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > Reste ouvert : validation entreprise tracée (RPC ou interface admin, à cadrer), F-09 (lot 6), F-16 (lot 7a).
 
 ## Lot 6 — Publication et modération des offres
+
+> **Statut (2026-11-01)** : réalisé sur `fix/lot-06-job-moderation` (base `origin/main-dev`, 737d02c, lot 5b intégré par la PR #54), **non commité, non déployé**. Détails : `AUDIT.md` §17.
+> - Création, correction, modération et suppression par RPC (`create_job`, `update_job`, `moderate_job`, `delete_job`) ; plus aucune écriture directe en session sur `jobs`.
+> - Valeurs canoniques : `pending_review` pour l'attente et `active` pour la publication ; leurs synonymes `pending_moderation` et `published` sont interdits par contrainte. Les autres statuts (`draft`, `rejected`, `filled`, `expired`, `cancelled`) restent valides avec leur sens.
+> - Offre active modifiable seulement en plan Pro ou Business, avec nouvelle modération. Sources et écart avec le SRS : `AUDIT.md` §17.
+> - Suppression refusée si l'offre a un candidat sélectionné, une mission, un contrat ou une pénalité d'annulation ; aucune annulation automatique (lot 7).
+> - Preuve `job-moderation` ajoutée à `pnpm test:rls`.
+>
+> **Avant déploiement** : revue puis PR vers `main-dev` ; lot 0, en lecture seule, compter les offres `pending_moderation` et `published` reprises par la migration ; vérifier qu'aucun outil externe n'écrit ni ne supprime de lignes `jobs` avec une clé `anon` ou un JWT utilisateur.
+>
+> Reste ouvert :
+> - validation administrative des entreprises, sans RPC, interface ni trace ;
+> - F-16 (lot 7a) : une entreprise lit tous les profils entreprise ;
+> - sélection → mission → contrat, annulation d'une offre engagée (lot 7) ;
+> - champs du formulaire non enregistrés (catégorie, heures par semaine, avantages), à ressaisir lors d'une correction ;
+> - arbitrage produit sur l'écart entre le verrouillage Free/Starter et la règle des 12 h du SRS §5.4.
 
 - **Objectif** : un chemin unique et sûr, création → modération → publication, qui fonctionne réellement.
 - **IDs** : F-09.

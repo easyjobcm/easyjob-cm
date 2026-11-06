@@ -64,6 +64,28 @@ export const en: TranslationKeys = {
       empty: "No jobs pending moderation",
       pendingStatus: "Pending",
       urgent: "Urgent",
+      reasonLabel: "Rejection reason",
+      reasonPlaceholder: "Tell the company what to correct",
+      confirmReject: "Confirm rejection",
+      approvedToast: "Job approved: candidates can now see it.",
+      rejectedToast: "Job rejected: the company has been notified.",
+      errorTitle: "Decision not saved",
+      errors: {
+        forbidden: "Only ops and founder admins can moderate jobs.",
+        reason_required:
+          "A rejection reason is required (at least 3 characters).",
+        reason_too_long: "Reason too long (500 characters maximum).",
+        job_not_pending:
+          "This job has already been moderated. The list was refreshed.",
+        job_changed:
+          "The company edited the job in the meantime. Review it before deciding.",
+        company_not_eligible:
+          "Company suspended or not verified: the job cannot be published.",
+        job_not_found: "Job not found.",
+        not_authenticated: "Session expired. Please sign in again.",
+        invalid_action: "Invalid action.",
+        moderation_failed: "The decision could not be saved. Please try again.",
+      },
     },
     jobPreview: {
       company: "Company",
@@ -1454,6 +1476,102 @@ export const en: TranslationKeys = {
       profile_not_found: "Company profile not found. Contact support.",
       account_suspended: "Your account is suspended.",
       unauthorized: "Session expired. Please sign in again.",
+    },
+  },
+
+  companyJobs: {
+    title: "My jobs",
+    total: "{count} job(s) in total",
+    newJob: "New job",
+    createJob: "Create a job",
+    tabs: {
+      active: "Active ({count})",
+      draft: "Drafts ({count})",
+      closed: "Closed ({count})",
+    },
+    empty: {
+      activeTitle: "No active jobs",
+      activeDesc: "Post a new job to find candidates",
+      draftTitle: "No drafts",
+      draftDesc: "Your job drafts will appear here",
+      closedTitle: "No closed jobs",
+      closedDesc: "Closed jobs will appear here",
+    },
+    status: {
+      active: "Published",
+      pending_review: "In moderation",
+      draft: "Draft",
+      filled: "Filled",
+      expired: "Expired",
+      rejected: "Rejected",
+      cancelled: "Cancelled",
+    },
+    urgent: "Urgent",
+    applications: "application(s)",
+    positions: "/{count} position(s)",
+    rejectionReason: "Rejection reason: {reason}",
+    lockedPlan:
+      "Published job: direct editing is available on Pro and Business plans. Contact support.",
+    actions: {
+      viewApplications: "View applications",
+      edit: "Edit",
+      delete: "Delete",
+    },
+    deleteDialog: {
+      title: "Delete this job?",
+      description:
+        "This action cannot be undone. All related applications will also be deleted.",
+      cancel: "Cancel",
+      confirm: "Delete",
+      deleting: "Deleting...",
+    },
+    toasts: {
+      createdTitle: "Job created",
+      createdDesc: "Your job has been submitted for moderation.",
+      updatedTitle: "Job updated",
+      updatedDesc:
+        "Your job has been submitted again. It will be visible once approved.",
+      deletedTitle: "Job deleted",
+      deletedDesc: "The job was deleted successfully.",
+      deleteErrorTitle: "Error",
+      deleteErrorDesc: "The job could not be deleted.",
+    },
+    form: {
+      editTitle: "Edit job",
+      submitEdit: "Submit again",
+      editNotice:
+        "After editing, the job goes back to moderation: candidates cannot see it until it is approved again.",
+      errorTitle: "Job not saved",
+    },
+    errors: {
+      titleRequired: "The title is required.",
+      titleTooLong: "Title too long (120 characters maximum).",
+      descriptionRequired: "The description is required.",
+      descriptionTooLong: "Description too long (5000 characters maximum).",
+      addressRequired: "Missing address: complete your company address.",
+      addressTooLong: "Address too long (200 characters maximum).",
+      cityRequired: "Missing city: complete your company profile.",
+      startDatePast: "The start date cannot be in the past.",
+      endDateBeforeStart: "The end date must be after the start date.",
+      hourlyRateInvalid: "The hourly rate must be positive.",
+      positionsInvalid:
+        "Invalid number of positions (at least 1, and not fewer than the candidates already selected).",
+      invalid_job_data: "Some job details are invalid.",
+      not_authenticated: "Session expired. Please sign in again.",
+      not_a_company: "Only companies can post jobs.",
+      account_suspended: "Your account is suspended.",
+      company_not_found: "Company profile not found. Finish your sign-up.",
+      company_not_verified:
+        "Your company is not verified yet: you can post jobs once EasyJob has approved your documents.",
+      job_not_found: "Job not found.",
+      job_locked_plan:
+        "Published job: direct editing is available on Pro and Business plans. Contact support.",
+      job_has_selected_candidates:
+        "Candidates have already been selected: contact support to edit this job.",
+      job_not_editable: "This job can no longer be edited.",
+      job_has_commitments:
+        "This job cannot be deleted: candidates have been selected or a mission is under way. Contact support.",
+      generic: "The job could not be saved. Please try again.",
     },
   },
 

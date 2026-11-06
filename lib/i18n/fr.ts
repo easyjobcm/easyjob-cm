@@ -62,6 +62,30 @@ export const fr = {
       empty: "Aucune offre en attente de modération",
       pendingStatus: "En attente",
       urgent: "Urgent",
+      reasonLabel: "Motif du refus",
+      reasonPlaceholder: "Expliquez à l'entreprise ce qu'elle doit corriger",
+      confirmReject: "Confirmer le refus",
+      approvedToast: "Offre approuvée : elle est visible par les candidats.",
+      rejectedToast: "Offre refusée : l'entreprise a été notifiée.",
+      errorTitle: "Décision non enregistrée",
+      errors: {
+        forbidden:
+          "Seuls les grades ops et fondateur peuvent modérer une offre.",
+        reason_required:
+          "Le motif du refus est obligatoire (3 caractères minimum).",
+        reason_too_long: "Motif trop long (500 caractères maximum).",
+        job_not_pending:
+          "Cette offre a déjà été modérée. La liste a été actualisée.",
+        job_changed:
+          "L'entreprise a modifié l'offre entre-temps. Relisez-la avant de décider.",
+        company_not_eligible:
+          "Entreprise suspendue ou non vérifiée : l'offre ne peut pas être publiée.",
+        job_not_found: "Offre introuvable.",
+        not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+        invalid_action: "Action invalide.",
+        moderation_failed:
+          "La décision n'a pas pu être enregistrée. Réessayez.",
+      },
     },
     jobPreview: {
       company: "Entreprise",
@@ -1475,6 +1499,105 @@ export const fr = {
       profile_not_found: "Profil entreprise introuvable. Contactez le support.",
       account_suspended: "Votre compte est suspendu.",
       unauthorized: "Session expirée. Veuillez vous reconnecter.",
+    },
+  },
+
+  companyJobs: {
+    title: "Mes offres",
+    total: "{count} offre(s) au total",
+    newJob: "Nouvelle offre",
+    createJob: "Créer une offre",
+    tabs: {
+      active: "Actives ({count})",
+      draft: "Brouillons ({count})",
+      closed: "Terminées ({count})",
+    },
+    empty: {
+      activeTitle: "Aucune offre active",
+      activeDesc: "Publiez une nouvelle offre pour trouver des candidats",
+      draftTitle: "Aucun brouillon",
+      draftDesc: "Vos brouillons d'offres apparaîtront ici",
+      closedTitle: "Aucune offre terminée",
+      closedDesc: "Les offres terminées apparaîtront ici",
+    },
+    status: {
+      active: "Publiée",
+      pending_review: "En modération",
+      draft: "Brouillon",
+      filled: "Pourvue",
+      expired: "Expirée",
+      rejected: "Refusée",
+      cancelled: "Annulée",
+    },
+    urgent: "Urgent",
+    applications: "candidature(s)",
+    positions: "/{count} poste(s)",
+    rejectionReason: "Motif du refus : {reason}",
+    lockedPlan:
+      "Offre publiée : la modification directe est réservée aux plans Pro et Business. Contactez le support.",
+    actions: {
+      viewApplications: "Voir les candidatures",
+      edit: "Modifier",
+      delete: "Supprimer",
+    },
+    deleteDialog: {
+      title: "Supprimer cette offre ?",
+      description:
+        "Cette action est irréversible. Toutes les candidatures associées seront également supprimées.",
+      cancel: "Annuler",
+      confirm: "Supprimer",
+      deleting: "Suppression...",
+    },
+    toasts: {
+      createdTitle: "Offre créée",
+      createdDesc: "Votre offre a été soumise pour modération.",
+      updatedTitle: "Offre modifiée",
+      updatedDesc:
+        "Votre offre a été soumise à nouveau. Elle sera visible après validation.",
+      deletedTitle: "Offre supprimée",
+      deletedDesc: "L'offre a été supprimée avec succès.",
+      deleteErrorTitle: "Erreur",
+      deleteErrorDesc: "Impossible de supprimer l'offre.",
+    },
+    form: {
+      editTitle: "Modifier l'offre",
+      submitEdit: "Soumettre à nouveau",
+      editNotice:
+        "Après modification, l'offre repasse en modération : elle n'est plus visible par les candidats jusqu'à la nouvelle validation.",
+      errorTitle: "Offre non enregistrée",
+    },
+    errors: {
+      titleRequired: "Le titre est obligatoire.",
+      titleTooLong: "Titre trop long (120 caractères maximum).",
+      descriptionRequired: "La description est obligatoire.",
+      descriptionTooLong: "Description trop longue (5000 caractères maximum).",
+      addressRequired:
+        "Adresse manquante : complétez l'adresse de votre entreprise.",
+      addressTooLong: "Adresse trop longue (200 caractères maximum).",
+      cityRequired:
+        "Ville manquante : complétez le profil de votre entreprise.",
+      startDatePast: "La date de début ne peut pas être passée.",
+      endDateBeforeStart: "La date de fin doit suivre la date de début.",
+      hourlyRateInvalid: "Le taux horaire doit être positif.",
+      positionsInvalid:
+        "Nombre de postes invalide (au moins 1, et pas moins que les candidats déjà sélectionnés).",
+      invalid_job_data: "Certaines informations de l'offre sont invalides.",
+      not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+      not_a_company: "Seules les entreprises peuvent publier des offres.",
+      account_suspended: "Votre compte est suspendu.",
+      company_not_found:
+        "Profil entreprise introuvable. Terminez votre inscription.",
+      company_not_verified:
+        "Votre entreprise n'est pas encore vérifiée : vous pourrez publier des offres après la validation de votre dossier par EasyJob.",
+      job_not_found: "Offre introuvable.",
+      job_locked_plan:
+        "Offre publiée : la modification directe est réservée aux plans Pro et Business. Contactez le support.",
+      job_has_selected_candidates:
+        "Des candidats sont déjà sélectionnés : contactez le support pour modifier cette offre.",
+      job_not_editable: "Cette offre ne peut plus être modifiée.",
+      job_has_commitments:
+        "Suppression impossible : des candidats sont sélectionnés ou une mission est engagée sur cette offre. Contactez le support.",
+      generic: "L'offre n'a pas pu être enregistrée. Réessayez.",
     },
   },
 

@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums, Tables } from "@/lib/database.types";
+import { useI18n } from "@/lib/i18n";
+import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
+import { getPlanLimits } from "@/lib/utils/profile-status";
+import { canEditJob, type JobStatus } from "@/lib/utils/job-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,45 +59,46 @@ type Job = Pick<
   | "status"
   | "urgency"
   | "created_at"
+  | "rejection_reason"
 > & {
   _count?: {
     applications: number;
   };
 };
 
-type JobStatus = Enums<"job_status">;
-const ACTIVE_STATUSES: JobStatus[] = [
-  "published",
-  "pending_review",
-  "pending_moderation",
-];
-const CLOSED_STATUSES: JobStatus[] = [
-  "filled",
-  "expired",
-  "cancelled",
-  "rejected",
-];
-const isActiveJob = (status: JobStatus | null) =>
-  status !== null && ACTIVE_STATUSES.includes(status);
-const isClosedJob = (status: JobStatus | null) =>
-  status !== null && CLOSED_STATUSES.includes(status);
+// Une offre refusée reste dans « Actives » : elle attend une correction.
+const ACTIVE_STATUSES: JobStatus[] = ["active", "pending_review", "rejected"];
+const CLOSED_STATUSES: JobStatus[] = ["filled", "expired", "cancelled"];
+const isActiveJob = (status: Enums<"job_status"> | null) =>
+  ACTIVE_STATUSES.includes(status as JobStatus);
+const isClosedJob = (status: Enums<"job_status"> | null) =>
+  CLOSED_STATUSES.includes(status as JobStatus);
 
 export default function CompanyJobsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { t, locale } = useI18n();
+  const tj = t.companyJobs;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [directEdit, setDirectEdit] = useState(false);
   const [activeTab, setActiveTab] = useState("active");
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    // Show success toast if job was just created
     if (searchParams.get("created") === "true") {
       toast({
-        title: "Offre creee",
-        description: "Votre offre a ete soumise pour moderation.",
+        title: tj.toasts.createdTitle,
+        description: tj.toasts.createdDesc,
+        variant: "success",
+      });
+    } else if (searchParams.get("updated") === "true") {
+      toast({
+        title: tj.toasts.updatedTitle,
+        description: tj.toasts.updatedDesc,
+        variant: "success",
       });
     }
     loadJobs();
@@ -114,7 +119,7 @@ export default function CompanyJobsPage() {
     // Get company profile
     const { data: company } = await supabase
       .from("company_profiles")
-      .select("id")
+      .select("id, subscription_plan")
       .eq("user_id", user.id)
       .single();
 
@@ -122,6 +127,9 @@ export default function CompanyJobsPage() {
       router.push("/onboarding/company");
       return;
     }
+    setDirectEdit(
+      getPlanLimits(normalizeCompanyPlan(company.subscription_plan)).directEdit,
+    );
 
     // Get jobs with application counts
     const { data: jobsData } = await supabase
@@ -153,25 +161,28 @@ export default function CompanyJobsPage() {
     if (!deleteJobId) return;
 
     setDeleting(true);
-    const supabase = createClient();
+    const res = await fetch(`/api/jobs/${deleteJobId}`, {
+      method: "DELETE",
+    }).catch(() => null);
+    const body = ((await res?.json().catch(() => null)) ?? {}) as {
+      code?: string;
+      deleted?: string;
+    };
 
-    // Sans ligne supprimée (RLS), pas d'erreur : on compte les lignes.
-    const { data: deleted, error } = await supabase
-      .from("jobs")
-      .delete()
-      .eq("id", deleteJobId)
-      .select("id");
-
-    if (error || !deleted?.length) {
+    if (!res?.ok || body.deleted !== deleteJobId) {
+      const code = body.code;
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer l'offre.",
+        title: tj.toasts.deleteErrorTitle,
+        description:
+          code && code in tj.errors
+            ? tj.errors[code as keyof typeof tj.errors]
+            : tj.toasts.deleteErrorDesc,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Offre supprimee",
-        description: "L'offre a ete supprimee avec succes.",
+        title: tj.toasts.deletedTitle,
+        description: tj.toasts.deletedDesc,
       });
       loadJobs();
     }
@@ -181,38 +192,39 @@ export default function CompanyJobsPage() {
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    return new Date(date).toLocaleDateString(
+      locale === "fr" ? "fr-FR" : "en-GB",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      },
+    );
   };
 
   const formatTime = (time: string) => {
     return time?.slice(0, 5) || "";
   };
 
-  const getStatusBadge = (status: JobStatus | null) => {
+  const getStatusBadge = (status: Enums<"job_status"> | null) => {
+    const label =
+      status && status in tj.status
+        ? tj.status[status as keyof typeof tj.status]
+        : status;
     switch (status) {
-      case "published":
-        return <Badge className="bg-green-100 text-green-700">Publiee</Badge>;
+      case "active":
+        return <Badge className="bg-green-100 text-green-700">{label}</Badge>;
       case "pending_review":
-      case "pending_moderation":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-700">En moderation</Badge>
-        );
-      case "draft":
-        return <Badge variant="secondary">Brouillon</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700">{label}</Badge>;
       case "filled":
-        return <Badge className="bg-blue-100 text-blue-700">Pourvue</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700">{label}</Badge>;
       case "expired":
-        return <Badge className="bg-gray-100 text-gray-700">Expiree</Badge>;
+        return <Badge className="bg-gray-100 text-gray-700">{label}</Badge>;
       case "rejected":
-        return <Badge className="bg-red-100 text-red-700">Rejetee</Badge>;
       case "cancelled":
-        return <Badge className="bg-red-100 text-red-700">Annulee</Badge>;
+        return <Badge className="bg-red-100 text-red-700">{label}</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{label}</Badge>;
     }
   };
 
@@ -241,21 +253,24 @@ export default function CompanyJobsPage() {
     );
   }
 
+  const count = (predicate: (job: Job) => boolean) =>
+    String(jobs.filter(predicate).length);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-card border-b p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">Mes Offres</h1>
+            <h1 className="text-xl font-bold">{tj.title}</h1>
             <p className="text-sm text-muted-foreground">
-              {jobs.length} offre(s) au total
+              {tj.total.replace("{count}", String(jobs.length))}
             </p>
           </div>
           <Button asChild>
             <Link href="/company/jobs/new">
               <Plus className="h-4 w-4 mr-2" />
-              Nouvelle offre
+              {tj.newJob}
             </Link>
           </Button>
         </div>
@@ -266,13 +281,22 @@ export default function CompanyJobsPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="active">
-              Actives ({jobs.filter((j) => isActiveJob(j.status)).length})
+              {tj.tabs.active.replace(
+                "{count}",
+                count((j) => isActiveJob(j.status)),
+              )}
             </TabsTrigger>
             <TabsTrigger value="draft">
-              Brouillons ({jobs.filter((j) => j.status === "draft").length})
+              {tj.tabs.draft.replace(
+                "{count}",
+                count((j) => j.status === "draft"),
+              )}
             </TabsTrigger>
             <TabsTrigger value="closed">
-              Terminees ({jobs.filter((j) => isClosedJob(j.status)).length})
+              {tj.tabs.closed.replace(
+                "{count}",
+                count((j) => isClosedJob(j.status)),
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -282,23 +306,20 @@ export default function CompanyJobsPage() {
                 <CardContent className="p-8 text-center">
                   <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="font-semibold mb-2">
-                    {activeTab === "active" && "Aucune offre active"}
-                    {activeTab === "draft" && "Aucun brouillon"}
-                    {activeTab === "closed" && "Aucune offre terminee"}
+                    {activeTab === "active" && tj.empty.activeTitle}
+                    {activeTab === "draft" && tj.empty.draftTitle}
+                    {activeTab === "closed" && tj.empty.closedTitle}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    {activeTab === "active" &&
-                      "Publiez une nouvelle offre pour trouver des candidats"}
-                    {activeTab === "draft" &&
-                      "Vos brouillons d'offres apparaitront ici"}
-                    {activeTab === "closed" &&
-                      "Les offres terminees apparaitront ici"}
+                    {activeTab === "active" && tj.empty.activeDesc}
+                    {activeTab === "draft" && tj.empty.draftDesc}
+                    {activeTab === "closed" && tj.empty.closedDesc}
                   </p>
                   {activeTab === "active" && (
                     <Button asChild>
                       <Link href="/company/jobs/new">
                         <Plus className="h-4 w-4 mr-2" />
-                        Creer une offre
+                        {tj.createJob}
                       </Link>
                     </Button>
                   )}
@@ -318,10 +339,24 @@ export default function CompanyJobsPage() {
                           {job.urgency === "urgent" ||
                           job.urgency === "critical" ? (
                             <Badge variant="destructive" className="text-xs">
-                              Urgent
+                              {tj.urgent}
                             </Badge>
                           ) : null}
                         </div>
+
+                        {job.status === "rejected" && job.rejection_reason && (
+                          <p className="mt-1 text-sm text-red-700 break-words">
+                            {tj.rejectionReason.replace(
+                              "{reason}",
+                              job.rejection_reason,
+                            )}
+                          </p>
+                        )}
+                        {job.status === "active" && !directEdit && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {tj.lockedPlan}
+                          </p>
+                        )}
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
                           <span className="flex items-center gap-1">
@@ -339,14 +374,14 @@ export default function CompanyJobsPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 mt-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
                           <div className="flex items-center gap-1.5 text-sm">
                             <Users className="h-4 w-4 text-violet-600" />
                             <span className="font-medium">
                               {job._count?.applications || 0}
                             </span>
                             <span className="text-muted-foreground">
-                              candidature(s)
+                              {tj.applications}
                             </span>
                           </div>
                           <div className="text-sm">
@@ -354,7 +389,10 @@ export default function CompanyJobsPage() {
                               {job.positions_filled}
                             </span>
                             <span className="text-muted-foreground">
-                              /{job.positions_available} poste(s)
+                              {tj.positions.replace(
+                                "{count}",
+                                String(job.positions_available),
+                              )}
                             </span>
                           </div>
                           <div className="text-sm font-medium text-violet-600">
@@ -377,21 +415,23 @@ export default function CompanyJobsPage() {
                           <DropdownMenuItem asChild>
                             <Link href={`/company/jobs/${job.id}`}>
                               <Eye className="h-4 w-4 mr-2" />
-                              Voir les candidatures
+                              {tj.actions.viewApplications}
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/company/jobs/${job.id}/edit`}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Modifier
-                            </Link>
-                          </DropdownMenuItem>
+                          {canEditJob(job, directEdit) && (
+                            <DropdownMenuItem asChild>
+                              <Link href={`/company/jobs/${job.id}/edit`}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                {tj.actions.edit}
+                              </Link>
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="text-red-600"
                             onClick={() => setDeleteJobId(job.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
+                            {tj.actions.delete}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -411,20 +451,19 @@ export default function CompanyJobsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette offre ?</AlertDialogTitle>
+            <AlertDialogTitle>{tj.deleteDialog.title}</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irreversible. Toutes les candidatures associees
-              seront egalement supprimees.
+              {tj.deleteDialog.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{tj.deleteDialog.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteJob}
               className="bg-red-600 hover:bg-red-700"
               disabled={deleting}
             >
-              {deleting ? "Suppression..." : "Supprimer"}
+              {deleting ? tj.deleteDialog.deleting : tj.deleteDialog.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -29,6 +29,7 @@ import packageJson from "@/package.json";
 import { motion } from "framer-motion";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useToast } from "@/hooks/use-toast";
 
 interface AdminDashboardClientProps {
   pendingJobs: Array<{
@@ -42,6 +43,7 @@ interface AdminDashboardClientProps {
     hourly_rate: number;
     currency?: string | null;
     urgency?: string | null;
+    updated_at: string | null;
     company?: {
       company_name?: string;
     };
@@ -57,16 +59,24 @@ interface AdminDashboardClientProps {
   };
 }
 
+type PendingJob = AdminDashboardClientProps["pendingJobs"][number];
+
 export function AdminDashboardClient({
   pendingJobs,
   stats,
 }: AdminDashboardClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
-  const [selectedJob, setSelectedJob] = React.useState<
-    AdminDashboardClientProps["pendingJobs"][number] | null
-  >(null);
+  const [selectedJob, setSelectedJob] = React.useState<PendingJob | null>(null);
   const [moderating, setModerating] = React.useState(false);
+  // Garde synchrone contre le double clic (l'état React arrive trop tard).
+  const moderatingRef = React.useRef(false);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [rejectReason, setRejectReason] = React.useState("");
+  const { toast } = useToast();
+  // Référence stable : Modal reprend le focus quand onClose change, ce qui
+  // ferait perdre la saisie du motif à chaque frappe.
+  const closeJob = React.useCallback(() => setSelectedJob(null), []);
 
   const supabase = createClient();
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
@@ -78,26 +88,68 @@ export function AdminDashboardClient({
     router.push("/auth/login");
   };
 
+  const tm = t.admin.moderation;
+  const openJob = (job: PendingJob, reject: boolean) => {
+    setSelectedJob(job);
+    setRejecting(reject);
+    setRejectReason("");
+  };
+
   const handleModerate = async (
-    jobId: string,
+    job: PendingJob,
     action: "approve" | "reject",
   ) => {
+    if (moderatingRef.current) return;
+    moderatingRef.current = true;
     setModerating(true);
+    let code = "moderation_failed";
     try {
-      const res = await fetch(`/api/admin/jobs/${jobId}/moderate`, {
+      const res = await fetch(`/api/admin/jobs/${job.id}/moderate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          reason: action === "reject" ? rejectReason : undefined,
+          // Refus en base si l'offre a changé depuis son affichage.
+          seen_updated_at: job.updated_at ?? undefined,
+        }),
       });
-
-      if (res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        code?: string;
+        status?: string;
+      };
+      const expected = action === "approve" ? "active" : "rejected";
+      if (res.ok && body.status === expected) {
+        toast({
+          title: action === "approve" ? tm.approve : tm.reject,
+          description:
+            action === "approve" ? tm.approvedToast : tm.rejectedToast,
+          variant: "success",
+        });
         setSelectedJob(null);
         router.refresh();
+        return;
       }
+      code = body.code ?? code;
     } catch (error) {
       console.error("Moderation error:", error);
     } finally {
+      moderatingRef.current = false;
       setModerating(false);
+    }
+
+    toast({
+      title: tm.errorTitle,
+      description:
+        code in tm.errors
+          ? tm.errors[code as keyof typeof tm.errors]
+          : tm.errors.moderation_failed,
+      variant: "destructive",
+    });
+    // Décision déjà prise ou offre modifiée : l'écran est obsolète.
+    if (code === "job_not_pending" || code === "job_changed") {
+      setSelectedJob(null);
+      router.refresh();
     }
   };
 
@@ -323,7 +375,7 @@ export function AdminDashboardClient({
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => setSelectedJob(job)}
+                        onClick={() => openJob(job, false)}
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         {t.admin.moderation.view}
@@ -332,15 +384,19 @@ export function AdminDashboardClient({
                         variant="success"
                         size="sm"
                         className="flex-1"
-                        onClick={() => handleModerate(job.id, "approve")}
+                        disabled={moderating}
+                        onClick={() => handleModerate(job, "approve")}
                       >
                         <CheckCircle className="w-4 h-4 mr-1" />
                         {t.admin.moderation.approve}
                       </Button>
+                      {/* Le refus exige un motif : saisi dans l'aperçu. */}
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleModerate(job.id, "reject")}
+                        disabled={moderating}
+                        aria-label={t.admin.moderation.reject}
+                        onClick={() => openJob(job, true)}
                       >
                         <XCircle className="w-4 h-4" />
                       </Button>
@@ -398,7 +454,7 @@ export function AdminDashboardClient({
       {/* Job Preview Modal */}
       <Modal
         isOpen={!!selectedJob}
-        onClose={() => setSelectedJob(null)}
+        onClose={closeJob}
         title={selectedJob?.title || ""}
       >
         {selectedJob && (
@@ -458,7 +514,26 @@ export function AdminDashboardClient({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
+            {rejecting && (
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="job-reject-reason"
+                  className="text-sm font-medium text-foreground"
+                >
+                  {tm.reasonLabel}
+                </label>
+                <textarea
+                  id="job-reject-reason"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder={tm.reasonPlaceholder}
+                  maxLength={500}
+                  className="w-full min-h-24 rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground resize-none"
+                />
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-4 border-t">
               <Button
                 variant="outline"
                 className="flex-1"
@@ -468,15 +543,21 @@ export function AdminDashboardClient({
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => handleModerate(selectedJob.id, "reject")}
-                disabled={moderating}
+                onClick={() =>
+                  rejecting
+                    ? handleModerate(selectedJob, "reject")
+                    : setRejecting(true)
+                }
+                disabled={
+                  moderating || (rejecting && rejectReason.trim().length < 3)
+                }
               >
                 <XCircle className="w-4 h-4 mr-2" />
-                {t.admin.moderation.reject}
+                {rejecting ? tm.confirmReject : tm.reject}
               </Button>
               <Button
-                onClick={() => handleModerate(selectedJob.id, "approve")}
-                disabled={moderating}
+                onClick={() => handleModerate(selectedJob, "approve")}
+                disabled={moderating || rejecting}
               >
                 {moderating ? (
                   <LoadingSpinner size="sm" />
