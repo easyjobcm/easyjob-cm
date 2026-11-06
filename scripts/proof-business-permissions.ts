@@ -882,9 +882,10 @@ async function proveApplications() {
     revive,
   );
 
-  // B8 — sélection et rejet légitimes par l'entreprise (comportement actuel de app/company/jobs/[id]).
+  // B8 — sélection (select_candidate depuis le lot 7a) et rejet légitimes
+  // par l'entreprise (app/company/jobs/[id]).
   const { data: app2 } = await applyRpc(sOther, job);
-  const { error: selErr } = await sCoA
+  const { error: directSelErr } = await sCoA
     .from("job_applications")
     .update({
       status: "selected",
@@ -892,6 +893,15 @@ async function proveApplications() {
       selected_by: coA.id,
     })
     .eq("id", app2?.id ?? "");
+  report(
+    "B8 sélection par UPDATE direct refusée (select_candidate, lot 7a)",
+    directSelErr !== null &&
+      (await applicationsFor(job, other.profileId))[0]?.status === "pending",
+    directSelErr?.code,
+  );
+  const { error: selErr } = await sCoA.rpc("select_candidate", {
+    p_application_id: app2?.id ?? "",
+  });
   const sel = (await applicationsFor(job, other.profileId))[0];
   report(
     "B8 sélection légitime par l'entreprise préservée",
@@ -908,17 +918,29 @@ async function proveApplications() {
       (await applicationsFor(job, other.profileId))[0]?.status === "selected",
     backErr?.code,
   );
+  const { error: rejSelErr } = await sCoA
+    .from("job_applications")
+    .update({ status: "rejected", rejection_reason: "Libérer la place" })
+    .eq("id", app2?.id ?? "");
+  report(
+    "B8 rejet d'une candidature sélectionnée refusé (mission et contrat en cours, lot 7a)",
+    rejSelErr !== null &&
+      (await applicationsFor(job, other.profileId))[0]?.status === "selected",
+    rejSelErr?.code,
+  );
+  const { data: app3 } = await applyRpc(sOther, jobOther);
   const { error: rejErr } = await sCoA
     .from("job_applications")
     .update({
       status: "rejected",
       rejection_reason: "Profil ne correspondant pas",
     })
-    .eq("id", app2?.id ?? "");
+    .eq("id", app3?.id ?? "");
   report(
     "B8 rejet motivé par l'entreprise préservé",
     !rejErr &&
-      (await applicationsFor(job, other.profileId))[0]?.status === "rejected",
+      (await applicationsFor(jobOther, other.profileId))[0]?.status ===
+        "rejected",
     rejErr,
   );
   const { error: wSelErr } = await withdrawRpc(sOther, job);
@@ -1828,6 +1850,15 @@ async function cleanup() {
   // référencent users sans ON DELETE : sans cette étape, les comptes
   // entreprise et admin concernés ne peuvent pas être supprimés.
   if (createdIds.length > 0) {
+    // Les sélections (lot 7a) portent une mission, sans ON DELETE.
+    const { data: selected } = await svc
+      .from("job_applications")
+      .select("id")
+      .in("selected_by", createdIds);
+    const selectedIds = (selected ?? []).map((a) => a.id);
+    if (selectedIds.length > 0) {
+      await svc.from("missions").delete().in("application_id", selectedIds);
+    }
     await svc.from("job_applications").delete().in("selected_by", createdIds);
     await svc
       .from("profile_update_requests")

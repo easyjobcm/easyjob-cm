@@ -1601,6 +1601,76 @@ export const fr = {
     },
   },
 
+  companyApplicants: {
+    back: "Retour",
+    jobNotFound: "Offre non trouvée",
+    applications: "candidature(s)",
+    positionsFilled: "/{count} poste(s) pourvu(s)",
+    tabs: {
+      pending: "En attente ({count})",
+      shortlisted: "Présélect. ({count})",
+      selected: "Sélectionnées ({count})",
+      rejected: "Rejetées ({count})",
+    },
+    status: {
+      pending: "En attente",
+      shortlisted: "Présélectionnée",
+      selected: "Sélectionnée",
+      rejected: "Rejetée",
+      withdrawn: "Retirée",
+      no_show: "Absent",
+    },
+    empty: "Aucune candidature dans cette catégorie",
+    distance: "{km} km",
+    missions: "{count} missions",
+    actions: {
+      select: "Sélectionner",
+      reject: "Rejeter",
+      contact: "Contacter",
+      contract: "Contrat",
+    },
+    cancel: "Annuler",
+    processing: "Traitement...",
+    selectDialog: {
+      title: "Confirmer la sélection",
+      description: "Voulez-vous sélectionner {name} pour ce poste ?",
+      notice:
+        "Une mission et un contrat seront créés, et le candidat sera notifié.",
+      confirm: "Confirmer",
+    },
+    rejectDialog: {
+      title: "Rejeter la candidature",
+      description: "Rejeter la candidature de {name} ?",
+      placeholder: "Raison du rejet (optionnel)",
+      confirm: "Rejeter",
+    },
+    toasts: {
+      selectedTitle: "Candidat sélectionné",
+      selectedDesc:
+        "La mission et le contrat ont été créés. Le candidat a été notifié.",
+      rejectedTitle: "Candidature rejetée",
+      rejectedDesc: "La candidature a été rejetée.",
+      rejectError: "Impossible de rejeter cette candidature.",
+      errorTitle: "Erreur",
+    },
+    errors: {
+      not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+      not_a_company:
+        "Seules les entreprises peuvent sélectionner des candidats.",
+      account_suspended: "Votre compte est suspendu.",
+      company_not_found: "Profil entreprise introuvable.",
+      application_not_found: "Candidature introuvable.",
+      application_not_selectable:
+        "Cette candidature ne peut plus être sélectionnée (retirée ou refusée).",
+      job_not_available: "Cette offre n'est plus publiée.",
+      no_positions: "Toutes les places de cette offre sont pourvues.",
+      candidate_unavailable: "Ce candidat n'est plus disponible.",
+      selection_incomplete:
+        "Sélection enregistrée sans mission ou contrat. Contactez le support.",
+      generic: "La sélection n'a pas pu être enregistrée. Réessayez.",
+    },
+  },
+
   days: {
     monday: "Lun",
     tuesday: "Mar",

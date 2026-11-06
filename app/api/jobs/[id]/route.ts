@@ -18,7 +18,7 @@ export async function GET(
       .select(
         `
         *,
-        company:company_profiles(
+        company:company_public_profiles(
           id, 
           company_name, 
           logo_url, 

@@ -48,7 +48,7 @@ interface JobDetailClientProps {
     positions_available: number | null;
     positions_filled: number | null;
     company?: {
-      company_name?: string;
+      company_name?: string | null;
       logo_url?: string | null;
       sector?: string | null;
       description?: string | null;
@@ -444,7 +444,7 @@ export function JobDetailClient({
                     {job.company.logo_url ? (
                       <img
                         src={job.company.logo_url}
-                        alt={job.company.company_name}
+                        alt={job.company.company_name ?? ""}
                         className="w-full h-full object-cover rounded-xl"
                       />
                     ) : (

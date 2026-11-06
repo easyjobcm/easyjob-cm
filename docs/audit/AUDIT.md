@@ -118,7 +118,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-07 | P1 | `contracts` et `missions` : les politiques UPDATE des parties ne restreignent pas les colonnes. Le statut du contrat est calculé dans le navigateur et la signature est stockée en data-URL. L'entreprise peut modifier `payment_status`, `platform_fee`, `actual_*_time`, `validated_at` de ses missions. | baseline:2005 (contracts), 1949 (missions) ; `app/contracts/[id]/page.tsx:229-262` | Un candidat peut passer un contrat à `completed` sans signature de l'entreprise, ou modifier `contract_data`. Une entreprise peut modifier les heures ou les statuts de paiement. Le contrat n'a aucune valeur probante (pas d'horodatage serveur, d'IP ni d'empreinte). | RPC `sign_contract` (horodatage, IP et rôle côté serveur, transition contrôlée) et RPC de validation des heures. Retirer l'UPDATE direct ou le limiter par trigger. | Tests de transition : signature unilatérale → `candidate_signed` seulement ; modification de `contract_data` par une partie refusée. |
 | F-08 | P1 | **Corrigé localement (lot 3, §12) : `next` 16.4.3.** Constat d'origine, rectifié au §12 : Next.js **16.2.6** : avis critiques publiés (RCE dans l'Image Optimizer pour SVG/AVIF, RCE `use cache`, RCE `next/og`) et hauts (contournement Proxy/middleware avec Turbopack, SSRF, DoS Server Actions). | `pnpm audit` ; `package.json` | Applicabilité non démontrée : l'application n'utilise pas `next/image`, `next/og` ni `use cache`, mais l'endpoint `/_next/image` existe par défaut, et le Proxy est utilisé pour l'authentification. Mise à jour peu coûteuse. | Monter `next` et `eslint-config-next` sur la dernière version 16.x qui corrige tous les avis listés (> 16.4.0 selon l'audit), puis relancer `pnpm audit`. | `pnpm audit --prod` sans avis `next` critique ou haut ; build, lint et tests verts. |
 | F-09 | P1 | **Corrigé et vérifié localement (lot 6, §17).** Constat d'origine : publication d'offre bloquée. (a) L'UI insère l'offre directement (`status: "pending_review"`) en contournant `/api/jobs` POST, qui contrôle la vérification de l'entreprise et le statut `is_active`. (b) Aucune politique ne permet à l'admin de **lire** ou de **modifier** une offre non `active` : le tableau de bord admin et la route `moderate` (session admin) agissent sur 0 ligne et renvoient pourtant un succès. (c) L'entreprise peut aussi passer elle-même son offre à `active` (politique FOR ALL). | `app/company/jobs/new/page.tsx:134-155` ; `app/api/jobs/route.ts:193` ; politiques jobs baseline:1932 et `20260908120000_*:38` ; `app/api/admin/jobs/[id]/moderate/route.ts:46-55` ; `app/admin/dashboard/page.tsx:16-23` | Le parcours honnête bloque : l'offre n'est jamais publiée. Le parcours malveillant contourne la modération. | Un seul chemin de création (route serveur), une RPC `moderate_job` admin avec audit, un trigger qui interdit à l'entreprise de modifier `status` hors brouillon, et un statut unique (`pending_moderation` **ou** `pending_review`). | Test bout en bout : création → visible dans la file admin → approbation → visible par les candidats ; passage direct à `active` par l'entreprise refusé. |
-| F-10 | P1 | Cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
+| F-10 | P1 | **Partie sélection corrigée et vérifiée localement (lot 7a, §18) ; pointage, contrat et paiement ouverts (7b, 7c).** Constat d'origine : cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
 
 ### P2 — Fiabilité, sécurité secondaire, maintenance
 
@@ -129,7 +129,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-13 | P2 | Callback OAuth : `next` n'est pas validé (`${origin}${next}`). Une valeur `next=@domaine-tiers` produit une redirection ouverte. Si `next` contient `/signup/company`, l'`upsert` **écrase le rôle** d'un compte existant. | `app/auth/callback/route.ts:13-52` | Hameçonnage après connexion. Un candidat peut se changer en entreprise, ou un admin être rétrogradé, en se reconnectant par OAuth avec ce paramètre. | N'accepter que des chemins relatifs commençant par `/` et pas par `//` ni `/\`. N'upserter le rôle que si la ligne n'existe pas. Créer la page `/auth/error`, qui n'existe pas. | Tests unitaires du filtre `next` ; un utilisateur existant garde son rôle. |
 | F-14 | P2 | **Corrigé et vérifié localement (lot 5, §15).** Constat d'origine : clients Supabase **non typés**, donc des erreurs de schéma passent `tsc`. Exemple : l'onboarding entreprise écrit dans une table inexistante `companies` et tente `users.is_verified = true` (neutralisé par trigger), erreurs ignorées. | `lib/supabase/client.ts`, `server.ts` ; `app/onboarding/company/page.tsx:112-134` | Les informations d'onboarding entreprise sont perdues sans message. D'autres décalages de schéma sont probables mais non mesurés. | `createBrowserClient<Database>` et `createServerClient<Database>`, puis corriger les erreurs révélées. | `tsc` vert avec clients typés. |
 | F-15 | P2 | `/api/chat` : public (le middleware laisse passer `/api/*`), sans authentification, quota, limite de taille ni validation Zod. Appelle un LLM payant. Le prompt système promet des **retraits Mobile Money avec 2 % de frais et un paiement sous 48 h**, alors que le MVP l'interdit. | `app/api/chat/route.ts` ; `lib/supabase/middleware.ts:5` | Abus de coût, et informations fausses données aux utilisateurs. La variable de la passerelle IA n'est pas documentée dans `.env.example`. | Authentification, quota par utilisateur et par IP, limite de messages et de taille, prompt aligné sur les règles réelles. Ou retirer le chatbot du MVP. | Requête anonyme → 401 ; requête trop grosse → 413. |
-| F-16 | P2 | Politique « Companies can view candidate summaries » posée sur **`company_profiles`** : toute entreprise lit tous les profils d'entreprise (NIU, email de contact…). À l'inverse, aucune politique ne permet à une entreprise de voir le nom ou la photo de ses candidats : la liste des candidatures s'affiche sans identité. | baseline:1963 ; `app/company/jobs/[id]/page.tsx:115-131` | Fuite de données entre concurrents, et fonction de sélection inutilisable. | Remplacer par une vue ou une RPC qui expose les colonnes autorisées des candidats ayant postulé aux offres de l'entreprise (jamais téléphone, email, CNI, MoMo). Supprimer la politique erronée. | Une entreprise A ne lit pas l'entreprise B ; elle voit prénom, initiale et photo de ses candidats seulement. |
+| F-16 | P2 | **Corrigé et vérifié localement (lot 7a, §18).** Constat d'origine : politique « Companies can view candidate summaries » posée sur **`company_profiles`** : toute entreprise lit tous les profils d'entreprise (NIU, email de contact…). À l'inverse, aucune politique ne permet à une entreprise de voir le nom ou la photo de ses candidats : la liste des candidatures s'affiche sans identité. | baseline:1963 ; `app/company/jobs/[id]/page.tsx:115-131` | Fuite de données entre concurrents, et fonction de sélection inutilisable. | Remplacer par une vue ou une RPC qui expose les colonnes autorisées des candidats ayant postulé aux offres de l'entreprise (jamais téléphone, email, CNI, MoMo). Supprimer la politique erronée. | Une entreprise A ne lit pas l'entreprise B ; elle voit prénom, initiale et photo de ses candidats seulement. |
 | F-17 | P2 | Annulation de candidature : aucune politique DELETE sur `job_applications`. La route renvoie `success` sans rien supprimer. | `app/api/jobs/[id]/apply/route.ts:200-215` ; politiques baseline | L'utilisateur croit avoir annulé. | Passer en `status = 'withdrawn'` (UPDATE contrôlé) et vérifier le nombre de lignes modifiées. | Après annulation, le statut vaut `withdrawn`. |
 | F-18 | P2 | Le retour utilisateur est factice : `toast()` ne fait que `console.info`. Les pages mission, contrat et offres entreprise, ainsi que l'onboarding, ne montrent jamais les erreurs. Les liens `/login` et `/auth/error` mènent à des 404. | `hooks/use-toast.ts` ; `app/missions/[id]/page.tsx:93` ; `app/contracts/[id]/page.tsx:111` ; `app/company/jobs/[id]/page.tsx:101` | Échecs silencieux sur les parcours critiques et utilisateurs bloqués. | Un vrai composant de notification accessible (`role="status"`), routes corrigées. | Test de composant ; vérification manuelle sur mobile. |
 | F-19 | P2 | Les textes promettent des fonctions **absentes du code** : paiement 100 % en 48 h ou 50/50, « montant bloqué » et remboursements, « remplacement garanti », « l'IA sélectionne pour vous », « essai gratuit 7 jours ». Aucun paiement, séquestre ni IA de sélection n'est implémenté (`lib/matching/ai-matching.ts` est heuristique). | `lib/i18n/fr.ts:1151-1189, 1310, 1353-1371` ; `lib/payments/mobile-money.ts` non importé | Promesses commerciales non tenues, avec un risque de confiance et un risque juridique (droit de la consommation et règles de communication commerciale à faire valider). | Retirer ou marquer « bientôt » ce qui n'existe pas. | Relecture produit : chaque promesse correspond à une fonction livrée. |
@@ -1077,4 +1077,90 @@ La vérification des entreprises des fixtures est posée en clé service. Elle n
 - Catégorie, heures par semaine et avantages du formulaire ne sont pas enregistrés (préexistant) : ils sont à ressaisir lors d'une correction.
 - `moderation_by` d'une offre active reste lisible en lecture directe (identifiant de l'admin). Une restriction de colonnes est à étudier avec les autres projections publiques.
 - Écran de connexion : sous automatisation, le premier clic sur « Se connecter » juste après la saisie est perdu ; le parcours s'est connecté avec la touche Entrée. Préexistant, hors lot.
+- CI distante non observée. Script navigateur local, hors dépôt.
+
+## 18. Suivi — Lot 7a : sélection atomique et visibilité des candidats (F-10 partie sélection, F-16) (2026-11-06)
+
+Branche `fix/lot-07a-candidate-selection`, base `origin/main-dev` (92dfe16, lot 6 finalisé avec `delete_job`). **Corrigé et vérifié localement, non commité, non déployé.** Migration : `supabase/migrations/20261106120000_candidate_selection.sql`.
+
+### État avant correction
+
+- La sélection était un UPDATE direct de `job_applications` (`app/company/jobs/[id]`), autorisé par le trigger du lot 2 : ni contrôle des places, ni mission, ni contrat, ni notification. Le compteur était tenu par le trigger du lot 6.
+- L'entreprise pouvait repasser une candidature sélectionnée en `rejected` ou `shortlisted` et libérer la place.
+- `missions` et `contracts` héritaient du `GRANT ALL` ; aucune politique n'autorisait l'INSERT ou le DELETE.
+- F-16 : toute entreprise lisait tous les profils entreprise. Aucune lecture n'exposait aux entreprises leurs candidats : la liste s'affichait sans identité. Les candidats ne lisaient jamais le nom de l'entreprise d'une offre.
+
+### Sélection
+
+`app/company/jobs/[id]` → `POST /api/applications/[id]/select` → RPC `select_candidate`, dans une transaction :
+
+1. Entreprise déduite de `auth.uid()` (rôle entreprise, compte et profil actifs).
+2. Verrou de la candidature, puis de l'offre (`FOR UPDATE`), même ordre que `delete_job` et que le trigger de compteur. Une candidature d'une autre entreprise reçoit la même réponse qu'une candidature inexistante.
+3. Contrôles : candidature `pending` ou `shortlisted`, offre `active`, place disponible, compte du candidat actif.
+4. Candidature `selected` ; `positions_filled` incrémenté par `trg_sync_job_positions_filled` (lot 6).
+5. Mission `pending` (date, horaires, pause de l'offre) et contrat `pending`. Le format suit le SRS §6.7 : simple sous 3 jours, formalisé au-delà. `contract_data` fige les conditions de l'offre.
+6. Notification `application_update` au candidat, dans sa langue, avec les identifiants de la mission et du contrat.
+
+Index uniques `missions.application_id` et `contracts.application_id`. Une relance (double clic, réponse perdue) sur une candidature déjà sélectionnée renvoie les mêmes liens (`already_selected`), sans nouvelle écriture. La route ne confirme le succès que si le statut, la mission et le contrat sont présents ; l'écran relit ensuite l'état en base.
+
+| Code | HTTP | Cas |
+|---|---|---|
+| `application_not_found` | 404 | Candidature inexistante, d'une autre entreprise ou supprimée avec l'offre |
+| `application_not_selectable` | 409 | Candidature retirée, refusée ou absente (`no_show`) |
+| `job_not_available` | 409 | Offre non publiée |
+| `no_positions` | 409 | Offre complète |
+| `candidate_unavailable` | 409 | Compte du candidat suspendu |
+| `selection_incomplete` | 409 | Candidature déjà `selected` sans mission ou contrat |
+
+**Sélections antérieures** : une candidature passée à `selected` par l'ancien UPDATE direct n'a ni mission ni contrat. Elle reste en l'état ; une relance renvoie `selection_incomplete` et n'annonce pas de succès. Réparation : correction par le support, à cadrer. Requête de contrôle, en lecture seule (lot 0) :
+
+```sql
+select a.id, a.job_id, a.selected_at
+from public.job_applications a
+where a.status = 'selected'
+  and (not exists (select 1 from public.missions m where m.application_id = a.id)
+       or not exists (select 1 from public.contracts c where c.application_id = a.id));
+```
+
+Avant déploiement, vérifier aussi qu'aucune candidature n'a plusieurs missions ou contrats : les index uniques échoueraient.
+
+### Écritures en session
+
+- `protect_job_application_writes` (remplacée) : l'entreprise ne peut plus écrire `selected`, ni `selected_at` ou `selected_by`, ni modifier une candidature `selected` ou `no_show`. La présélection et le refus des candidatures `pending` ou `shortlisted` restent possibles. La candidature et le retrait passent toujours par `apply_to_job` et `withdraw_job_application` (retrait limité à `pending`).
+- `missions` et `contracts` : plus d'INSERT, de DELETE ni de TRUNCATE en session. Les UPDATE existants (pointage, signature) relèvent des lots 7b et 7c.
+- L'annulation d'une sélection n'a pas de chemin applicatif. Une correction de confiance (clé service) décrémente le compteur par le trigger, mais laisse mission et contrat : c'est le cycle d'annulation, à cadrer.
+
+### Visibilité (F-16)
+
+- Politique `Companies can view candidate summaries` supprimée : une entreprise ne lit plus que son propre profil.
+- `company_job_applicants(job_id)`, RPC SECURITY DEFINER : vérifie que l'offre appartient à l'appelant et renvoie, pour chaque candidature, le prénom, l'initiale du nom, la présence d'une photo, le niveau Sandbox, la fiabilité, le nombre de missions et les compétences (profil partiel du SRS §6.6). Jamais email, téléphone, CNI, MoMo, adresse, coordonnées, documents ni identifiant du candidat. La ville n'est plus affichée : la distance la remplace.
+- `GET /api/jobs/[id]/applications` relaie cette RPC. La photo est servie par `GET /api/jobs/[id]/applications/[applicationId]/photo`, après le même contrôle. La clé service ne lit que cet objet du bucket privé ; ni chemin ni URL signée (qui contiendrait le chemin) n'atteignent le navigateur.
+- Vue `company_public_profiles` (nom, logo, ville, secteur, description) : entreprises ayant une offre active, entreprises des offres auxquelles l'appelant a postulé, et son propre profil. Elle remplace l'embed `company_profiles` sur les offres publiques, les suggestions et « Mes jobs ». Les candidats voient désormais le nom de l'entreprise ; NIU, contacts et RCCM restent inaccessibles. La vue est en lecture seule.
+- Restent sur l'embed `company_profiles` : `contracts/[id]`, `missions`, `missions/[id]` et `earnings`. Sans ligne visible, ils n'affichent pas le nom de l'entreprise côté candidat. À traiter avec 7b et 7c.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Nouvelle preuve `pnpm test:rls candidate-selection` | ✅ 33 assertions, vraies sessions, candidatures créées par `apply_to_job`, état relu en clé service |
+| Sélection (S1-S9) | Mission, contrat et notification liés aux parties ; place consommée ; relance et double clic sans doublon ; dernière place disputée : une sélection, une mission, un contrat, une notification ; offre complète ; panne provoquée à l'écriture de la notification : rien n'est écrit, puis la relance réussit une seule fois ; contrat formalisé à partir de 3 jours |
+| Refus (R1-R13) | Sélection directe et écriture seule de `selected_at` ; remise en refus ou en présélection d'une sélection ; INSERT direct de mission ou de contrat, suppression d'une mission ; autre entreprise, candidat, anonyme ; candidature retirée ou refusée ; offre repassée en modération ; sélection antérieure sans mission. Présélection et refus légitimes préservés |
+| Concurrence (C1-C4, ordres forcés par un ralentissement temporaire) | Sélection puis retrait : sélection conservée. Retrait puis sélection : retirée, rien créé. Sélection puis suppression : 409, engagements conservés. Suppression puis sélection : 404, aucune mission orpheline |
+| Visibilité (F1-F9) | Profil d'une autre entreprise et profils candidats illisibles en direct ; colonnes autorisées seules ; réponse sans donnée sensible ni identifiant interne ; photo servie à l'entreprise de l'offre seulement (autre entreprise 404, anonyme 401) ; isolation entre entreprises ; vitrine publique limitée et en lecture seule ; nom d'entreprise affiché sur l'offre publique |
+| Contrôle négatif (trigger des candidatures désactivé, politique F-16 recréée) | ❌ détecté : 6 échecs (R1-R4, R6-R8, F1), code de sortie 1. Pile recréée (arrêt sans sauvegarde, démarrage), protections revérifiées |
+| Preuves existantes adaptées | `business-permissions` B8 et `job-moderation` G1, F3, I5, I8-I10 sélectionnaient par UPDATE direct : elles passent par `select_candidate`, et B8 vérifie le refus de la sélection directe et de la remise en cause d'une sélection |
+| `pnpm test:rls` complet | ✅ 20/20 preuves |
+| Navigateur : Chrome headless, vrais taps, 390×844 tactile, deux sessions | ✅ 9 vérifications : prénom et initiale, réponse sans donnée sensible, sélection avec toast, statut et places relus de la base, offre complète expliquée puis refusée, notification du candidat et mission réservée (nom de l'entreprise) retrouvées après rechargement, écran entreprise en EN, pas de défilement horizontal |
+| `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .`, `vitest run` (251 tests) | ✅ |
+| `pnpm build` contre la pile dédiée (54421) | ✅ |
+| Types générés depuis la pile dédiée | Régénérés (RPC, vue), identiques au schéma final |
+
+### Limites restantes
+
+- F-10, hors sélection : signature du contrat (7b), pointage et validation des heures (7c), paiement (lot distinct). Les politiques UPDATE de `missions` et `contracts` restent ouvertes jusqu'à ces lots.
+- Annulation d'une sélection et réparation d'une sélection sans mission : sans chemin applicatif (support, pénalités).
+- Notification enregistrée en base seulement : ni push ni SMS (SRS §6.6). Pas de temps réel : lot 7d.
+- Sélection multi-jours par sous-offre journalière : non implémentée (décomposition absente).
+- `app/company/jobs/[id]` : boutons « Contacter » et « Contrat » sans action (préexistants) ; onglets serrés à 390 px (mise en page existante en quatre colonnes) ; avatar sans initiales quand il n'y a pas de photo (composant existant).
+- Validation administrative des entreprises : toujours absente (§16).
 - CI distante non observée. Script navigateur local, hors dépôt.

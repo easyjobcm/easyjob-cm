@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,8 +31,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { QueryData } from "@supabase/supabase-js";
-import type { Tables } from "@/lib/database.types";
+import { useI18n } from "@/lib/i18n";
+import type { Database, Tables } from "@/lib/database.types";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -47,36 +47,18 @@ type Job = Pick<
   | "positions_filled"
 >;
 
-const applicationsQuery = (
-  supabase: ReturnType<typeof createClient>,
-  jobId: string,
-) =>
-  supabase
-    .from("job_applications")
-    .select(
-      `
-        *,
-        candidate:candidate_profiles(
-          id,
-          first_name,
-          last_name,
-          profile_photo_url,
-          city,
-          reliability_score,
-          completed_missions,
-          skills:candidate_skills(skill_name)
-        )
-      `,
-    )
-    .eq("job_id", jobId)
-    .order("match_score", { ascending: false });
-
-type Application = QueryData<ReturnType<typeof applicationsQuery>>[number];
+/** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
+type Application = Omit<
+  Database["public"]["Functions"]["company_job_applicants"]["Returns"][number],
+  "has_photo"
+> & { photo_url: string | null };
 
 export default function CompanyJobDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { toast } = useToast();
+  const { t, locale } = useI18n();
+  const ta = t.companyApplicants;
   const jobId = params.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -90,6 +72,8 @@ export default function CompanyJobDetailPage() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  // Garde synchrone contre le double clic (l'état React arrive trop tard).
+  const processingRef = useRef(false);
 
   useEffect(() => {
     loadData();
@@ -107,74 +91,77 @@ export default function CompanyJobDetailPage() {
       return;
     }
 
-    // Get job details
     const { data: jobData } = await supabase
       .from("jobs")
-      .select("*")
+      .select(
+        "id, title, city, quartier, start_date, start_time, end_time, positions_available, positions_filled",
+      )
       .eq("id", jobId)
       .single();
 
     if (jobData) setJob(jobData);
 
-    // Get applications with candidate info
-    const { data: appsData } = await applicationsQuery(supabase, jobId);
-
-    if (appsData) setApplications(appsData);
+    const res = await fetch(`/api/jobs/${jobId}/applications`).catch(
+      () => null,
+    );
+    if (res?.ok) {
+      const body = (await res.json()) as { applications: Application[] };
+      setApplications(body.applications);
+    }
 
     setLoading(false);
   }
 
+  const name = (app: Application | null) =>
+    app
+      ? [app.first_name, app.last_initial ? `${app.last_initial}.` : null]
+          .filter(Boolean)
+          .join(" ")
+      : "";
+
   const handleSelectCandidate = async () => {
-    if (!selectedApplication) return;
-
+    if (!selectedApplication || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user) return;
+    const res = await fetch(
+      `/api/applications/${selectedApplication.application_id}/select`,
+      { method: "POST" },
+    ).catch(() => null);
+    const body = ((await res?.json().catch(() => null)) ?? {}) as {
+      code?: string;
+      selection?: { status?: string };
+    };
 
-    // Update application status
-    // `.select` : une ligne filtrée par la RLS ne renvoie pas d'erreur, il
-    // faut compter les lignes modifiées pour ne pas annoncer un faux succès.
-    const { data: updated, error } = await supabase
-      .from("job_applications")
-      .update({
-        status: "selected",
-        selected_at: new Date().toISOString(),
-        selected_by: user.id,
-      })
-      .eq("id", selectedApplication.id)
-      .select("id");
-
-    if (error || !updated?.length) {
+    // Succès seulement si la base a bien enregistré la sélection.
+    if (res?.ok && body.selection?.status === "selected") {
       toast({
-        title: "Erreur",
-        description: "Impossible de selectionner le candidat.",
+        title: ta.toasts.selectedTitle,
+        variant: "success",
+        description: ta.toasts.selectedDesc,
+      });
+    } else {
+      toast({
+        title: ta.toasts.errorTitle,
+        description:
+          body.code && body.code in ta.errors
+            ? ta.errors[body.code as keyof typeof ta.errors]
+            : ta.errors.generic,
         variant: "destructive",
       });
-      // L'écran peut être obsolète (candidature retirée entre-temps).
-      loadData();
-    } else {
-      // positions_filled est tenu à jour en base par le trigger
-      // trg_sync_job_positions_filled.
-      toast({
-        title: "Candidat selectionne",
-        variant: "success",
-        description: "Le candidat a ete notifie de sa selection.",
-      });
-      loadData();
     }
+    // L'écran affiche toujours l'état relu (places, statut).
+    await loadData();
 
     setSelectedApplication(null);
     setActionType(null);
+    processingRef.current = false;
     setProcessing(false);
   };
 
   const handleRejectCandidate = async () => {
-    if (!selectedApplication) return;
-
+    if (!selectedApplication || processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
     const supabase = createClient();
 
@@ -184,37 +171,40 @@ export default function CompanyJobDetailPage() {
         status: "rejected",
         rejection_reason: rejectionReason || null,
       })
-      .eq("id", selectedApplication.id)
+      .eq("id", selectedApplication.application_id)
       .select("id");
 
     if (error || !updated?.length) {
       toast({
-        title: "Erreur",
-        description: "Impossible de rejeter le candidat.",
+        title: ta.toasts.errorTitle,
+        description: ta.toasts.rejectError,
         variant: "destructive",
       });
-      loadData();
     } else {
       toast({
-        title: "Candidature rejetee",
+        title: ta.toasts.rejectedTitle,
         variant: "success",
-        description: "Le candidat a ete notifie.",
+        description: ta.toasts.rejectedDesc,
       });
-      loadData();
     }
+    await loadData();
 
     setSelectedApplication(null);
     setActionType(null);
     setRejectionReason("");
+    processingRef.current = false;
     setProcessing(false);
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    return new Date(date).toLocaleDateString(
+      locale === "fr" ? "fr-FR" : "en-GB",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    );
   };
 
   const formatTime = (time: string) => {
@@ -225,30 +215,47 @@ export default function CompanyJobDetailPage() {
     switch (status) {
       case "pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-700">En attente</Badge>
+          <Badge className="bg-yellow-100 text-yellow-700">
+            {ta.status.pending}
+          </Badge>
         );
       case "shortlisted":
         return (
-          <Badge className="bg-blue-100 text-blue-700">Preselectionnee</Badge>
+          <Badge className="bg-blue-100 text-blue-700">
+            {ta.status.shortlisted}
+          </Badge>
         );
       case "selected":
         return (
-          <Badge className="bg-green-100 text-green-700">Selectionnee</Badge>
+          <Badge className="bg-green-100 text-green-700">
+            {ta.status.selected}
+          </Badge>
         );
       case "rejected":
-        return <Badge className="bg-red-100 text-red-700">Rejetee</Badge>;
+        return (
+          <Badge className="bg-red-100 text-red-700">
+            {ta.status.rejected}
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return (
+          <Badge variant="secondary">
+            {status && status in ta.status
+              ? ta.status[status as keyof typeof ta.status]
+              : status}
+          </Badge>
+        );
     }
   };
 
-  const filteredApplications = applications.filter((app) => {
-    if (activeTab === "pending") return app.status === "pending";
-    if (activeTab === "shortlisted") return app.status === "shortlisted";
-    if (activeTab === "selected") return app.status === "selected";
-    if (activeTab === "rejected") return app.status === "rejected";
-    return true;
-  });
+  const countStatus = (status: string) =>
+    String(applications.filter((a) => a.status === status).length);
+
+  const filteredApplications = applications.filter(
+    (app) => app.status === activeTab,
+  );
+  const isFull =
+    !!job && (job.positions_filled ?? 0) >= (job.positions_available ?? 1);
 
   if (loading) {
     return (
@@ -267,10 +274,10 @@ export default function CompanyJobDetailPage() {
       <div className="min-h-screen bg-background p-4">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
+          {ta.back}
         </Button>
         <div className="text-center mt-8">
-          <p className="text-muted-foreground">Offre non trouvee</p>
+          <p className="text-muted-foreground">{ta.jobNotFound}</p>
         </div>
       </div>
     );
@@ -287,7 +294,7 @@ export default function CompanyJobDetailPage() {
           className="mb-3"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
+          {ta.back}
         </Button>
 
         <h1 className="text-xl font-bold">{job.title}</h1>
@@ -313,13 +320,16 @@ export default function CompanyJobDetailPage() {
             <Users className="h-4 w-4 text-violet-600" />
             <span className="font-medium">{applications.length}</span>
             <span className="text-sm text-muted-foreground">
-              candidature(s)
+              {ta.applications}
             </span>
           </div>
           <div className="text-sm">
             <span className="font-medium">{job.positions_filled}</span>
             <span className="text-muted-foreground">
-              /{job.positions_available} poste(s) pourvu(s)
+              {ta.positionsFilled.replace(
+                "{count}",
+                String(job.positions_available),
+              )}
             </span>
           </div>
         </div>
@@ -330,20 +340,19 @@ export default function CompanyJobDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="pending" className="text-xs">
-              En attente (
-              {applications.filter((a) => a.status === "pending").length})
+              {ta.tabs.pending.replace("{count}", countStatus("pending"))}
             </TabsTrigger>
             <TabsTrigger value="shortlisted" className="text-xs">
-              Preselect. (
-              {applications.filter((a) => a.status === "shortlisted").length})
+              {ta.tabs.shortlisted.replace(
+                "{count}",
+                countStatus("shortlisted"),
+              )}
             </TabsTrigger>
             <TabsTrigger value="selected" className="text-xs">
-              Selectionnees (
-              {applications.filter((a) => a.status === "selected").length})
+              {ta.tabs.selected.replace("{count}", countStatus("selected"))}
             </TabsTrigger>
             <TabsTrigger value="rejected" className="text-xs">
-              Rejetees (
-              {applications.filter((a) => a.status === "rejected").length})
+              {ta.tabs.rejected.replace("{count}", countStatus("rejected"))}
             </TabsTrigger>
           </TabsList>
 
@@ -352,30 +361,27 @@ export default function CompanyJobDetailPage() {
               <Card>
                 <CardContent className="p-6 text-center">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">
-                    Aucune candidature dans cette categorie
-                  </p>
+                  <p className="text-muted-foreground">{ta.empty}</p>
                 </CardContent>
               </Card>
             ) : (
               filteredApplications.map((app) => (
-                <Card key={app.id}>
+                <Card key={app.application_id}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={app.candidate?.profile_photo_url} />
+                        {app.photo_url && (
+                          <AvatarImage src={app.photo_url} alt={name(app)} />
+                        )}
                         <AvatarFallback>
-                          {app.candidate?.first_name?.[0]}
-                          {app.candidate?.last_name?.[0]}
+                          {app.first_name?.[0]}
+                          {app.last_initial}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold">
-                            {app.candidate?.first_name}{" "}
-                            {app.candidate?.last_name}
-                          </span>
+                          <span className="font-semibold">{name(app)}</span>
                           {getStatusBadge(app.status)}
                           {app.match_score && (
                             <Badge variant="outline" className="text-xs">
@@ -385,44 +391,48 @@ export default function CompanyJobDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {app.candidate?.city}
-                            {app.distance_km &&
-                              ` (${app.distance_km.toFixed(1)} km)`}
-                          </span>
+                          {app.distance_km !== null && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {ta.distance.replace(
+                                "{km}",
+                                Number(app.distance_km).toFixed(1),
+                              )}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <Star className="h-3 w-3 text-yellow-500" />
-                            {(app.candidate?.reliability_score || 0).toFixed(1)}
+                            {Number(app.reliability_score || 0).toFixed(1)}
                           </span>
                           <span>
-                            {app.candidate?.completed_missions || 0} missions
+                            {ta.missions.replace(
+                              "{count}",
+                              String(app.completed_missions || 0),
+                            )}
                           </span>
                         </div>
 
-                        {app.candidate?.skills &&
-                          app.candidate.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {app.candidate.skills
-                                .slice(0, 3)
-                                .map((skill, i) => (
-                                  <Badge
-                                    key={i}
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {skill.skill_name}
-                                  </Badge>
-                                ))}
-                              {app.candidate.skills.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{app.candidate.skills.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
+                        {app.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {app.skills.slice(0, 3).map((skill) => (
+                              <Badge
+                                key={skill}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                            {app.skills.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{app.skills.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
 
-                        {app.status === "pending" && (
+                        {(app.status === "pending" ||
+                          app.status === "shortlisted") && (
                           <div className="flex items-center gap-2 mt-3">
                             <Button
                               size="sm"
@@ -432,7 +442,7 @@ export default function CompanyJobDetailPage() {
                               }}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
-                              Selectionner
+                              {ta.actions.select}
                             </Button>
                             <Button
                               size="sm"
@@ -443,7 +453,7 @@ export default function CompanyJobDetailPage() {
                               }}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
-                              Rejeter
+                              {ta.actions.reject}
                             </Button>
                           </div>
                         )}
@@ -452,11 +462,11 @@ export default function CompanyJobDetailPage() {
                           <div className="flex items-center gap-2 mt-3">
                             <Button size="sm" variant="outline">
                               <Phone className="h-4 w-4 mr-1" />
-                              Contacter
+                              {ta.actions.contact}
                             </Button>
                             <Button size="sm" variant="outline">
                               <FileText className="h-4 w-4 mr-1" />
-                              Contrat
+                              {ta.actions.contract}
                             </Button>
                           </div>
                         )}
@@ -477,25 +487,25 @@ export default function CompanyJobDetailPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmer la selection</DialogTitle>
+            <DialogTitle>{ta.selectDialog.title}</DialogTitle>
             <DialogDescription>
-              Voulez-vous selectionner{" "}
-              {selectedApplication?.candidate?.first_name}{" "}
-              {selectedApplication?.candidate?.last_name} pour ce poste ?
+              {ta.selectDialog.description.replace(
+                "{name}",
+                name(selectedApplication),
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Le candidat recevra une notification et pourra signer le contrat
-              electronique.
+              {isFull ? ta.errors.no_positions : ta.selectDialog.notice}
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionType(null)}>
-              Annuler
+              {ta.cancel}
             </Button>
             <Button onClick={handleSelectCandidate} disabled={processing}>
-              {processing ? "Traitement..." : "Confirmer"}
+              {processing ? ta.processing : ta.selectDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -508,30 +518,31 @@ export default function CompanyJobDetailPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rejeter la candidature</DialogTitle>
+            <DialogTitle>{ta.rejectDialog.title}</DialogTitle>
             <DialogDescription>
-              Rejeter la candidature de{" "}
-              {selectedApplication?.candidate?.first_name}{" "}
-              {selectedApplication?.candidate?.last_name} ?
+              {ta.rejectDialog.description.replace(
+                "{name}",
+                name(selectedApplication),
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Raison du rejet (optionnel)"
+              placeholder={ta.rejectDialog.placeholder}
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionType(null)}>
-              Annuler
+              {ta.cancel}
             </Button>
             <Button
               variant="destructive"
               onClick={handleRejectCandidate}
               disabled={processing}
             >
-              {processing ? "Traitement..." : "Rejeter"}
+              {processing ? ta.processing : ta.rejectDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

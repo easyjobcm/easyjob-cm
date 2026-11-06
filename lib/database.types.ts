@@ -102,6 +102,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cancellation_penalties_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cancellation_penalties_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
@@ -517,6 +524,13 @@ export type Database = {
             referencedRelation: "company_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_availability_alerts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       company_favorite_candidates: {
@@ -551,6 +565,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_favorite_candidates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -776,6 +797,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1188,6 +1216,13 @@ export type Database = {
             referencedRelation: "company_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "job_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       jobs: {
@@ -1375,6 +1410,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1752,6 +1794,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
@@ -2090,7 +2139,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      company_public_profiles: {
+        Row: {
+          city: string | null
+          company_name: string | null
+          description: string | null
+          id: string | null
+          logo_url: string | null
+          sector: string | null
+        }
+        Insert: {
+          city?: string | null
+          company_name?: string | null
+          description?: string | null
+          id?: string | null
+          logo_url?: string | null
+          sector?: string | null
+        }
+        Update: {
+          city?: string | null
+          company_name?: string | null
+          description?: string | null
+          id?: string | null
+          logo_url?: string | null
+          sector?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_edit_candidate_identity: {
@@ -2175,6 +2250,24 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      company_job_applicants: {
+        Args: { p_job_id: string }
+        Returns: {
+          application_id: string
+          completed_missions: number
+          created_at: string
+          distance_km: number
+          first_name: string
+          has_photo: boolean
+          last_initial: string
+          match_score: number
+          rejection_reason: string
+          reliability_score: number
+          sandbox_level: number
+          skills: string[]
+          status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
       create_job: {
         Args: { p_job: Json }
         Returns: {
@@ -2406,6 +2499,16 @@ export type Database = {
       recompute_user_verification: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      select_candidate: {
+        Args: { p_application_id: string }
+        Returns: {
+          already_selected: boolean
+          application_id: string
+          contract_id: string
+          mission_id: string
+          status: Database["public"]["Enums"]["application_status"]
+        }[]
       }
       skill_requires_license: {
         Args: { p_skill_name: string }

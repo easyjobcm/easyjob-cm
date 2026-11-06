@@ -1007,27 +1007,27 @@ async function main() {
       .eq("job_id", j1)
       .eq("candidate_id", candC)
       .single();
-    const { data: g1Rows, error: g1Err } = await V.client
-      .from("job_applications")
-      .update({
-        status: "selected",
-        selected_at: new Date().toISOString(),
-        selected_by: idV,
-      })
-      .eq("id", app1?.id ?? "")
-      .select("id");
+    // Depuis le lot 7a, la sélection passe par select_candidate.
+    const { data: g1Rows, error: g1Err } = await V.client.rpc(
+      "select_candidate",
+      { p_application_id: app1?.id ?? "" },
+    );
     const g1Job = await readJob(j1);
     report(
-      "G1 : sélection par l'entreprise (écriture existante) → positions_filled = 1",
-      !g1Err && g1Rows?.length === 1 && g1Job?.positions_filled === 1,
+      "G1 : sélection par l'entreprise (select_candidate) → positions_filled = 1",
+      !g1Err &&
+        g1Rows?.[0]?.status === "selected" &&
+        g1Job?.positions_filled === 1,
       { error: g1Err?.message, filled: g1Job?.positions_filled },
     );
-    await V.client
+    // Annulation : correction de confiance seulement (le cycle d'annulation
+    // relève du lot 7) ; le compteur suit.
+    await serviceClient
       .from("job_applications")
       .update({ status: "rejected", rejection_reason: "Preuve" })
       .eq("id", app1?.id ?? "");
     report(
-      "G2 : annulation de la sélection → positions_filled = 0",
+      "G2 : sélection annulée par correction de confiance → positions_filled = 0",
       (await readJob(j1))?.positions_filled === 0,
     );
 
@@ -1038,10 +1038,9 @@ async function main() {
       .insert({ job_id: jP2, candidate_id: candC, status: "pending" })
       .select("id")
       .single();
-    await P.client
-      .from("job_applications")
-      .update({ status: "selected", selected_by: idP })
-      .eq("id", app2?.id ?? "");
+    await P.client.rpc("select_candidate", {
+      p_application_id: app2?.id ?? "",
+    });
     const f3Before = await readJob(jP2);
     const f3 = await http("PATCH", `/api/jobs/${jP2}`, P.cookie, JOB_BODY);
     report(
@@ -1147,10 +1146,7 @@ async function main() {
 
     const jSel = await seedJob(coV, "active");
     const appSel = await seedApplication(jSel, "pending");
-    await V.client
-      .from("job_applications")
-      .update({ status: "selected", selected_by: idV })
-      .eq("id", appSel);
+    await V.client.rpc("select_candidate", { p_application_id: appSel });
     await expectCommitmentKept(
       "I5 : candidat sélectionné → 409 job_has_commitments (route et RPC), offre et candidature conservées",
       jSel,
@@ -1206,11 +1202,7 @@ async function main() {
           : Promise.resolve();
       const [selection, deletion] = await Promise.all([
         delay("selection").then(() =>
-          V.client
-            .from("job_applications")
-            .update({ status: "selected", selected_by: idV })
-            .eq("id", appId)
-            .select("id"),
+          V.client.rpc("select_candidate", { p_application_id: appId }),
         ),
         delay("deletion").then(() =>
           http("DELETE", `/api/jobs/${jobId}`, V.cookie),
@@ -1222,7 +1214,8 @@ async function main() {
         .select("status")
         .eq("id", appId)
         .maybeSingle();
-      const selected = !selection.error && (selection.data ?? []).length === 1;
+      const selected =
+        !selection.error && selection.data?.[0]?.status === "selected";
       const deletedFirst = deletion.status === 200 && !job && !app && !selected;
       const selectedFirst =
         deletion.status === 409 &&

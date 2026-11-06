@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 19 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 20 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -96,6 +96,16 @@ Pour la suppression : `grant delete on public.jobs to authenticated; alter table
 
 `job-moderation` crée aussi, le temps d'une assertion, un trigger qui fait échouer l'écriture dans `audit_logs` pour une seule offre, afin de prouver l'absence d'effet partiel, et deux triggers de ralentissement (`pg_sleep`) pour forcer l'ordre entre une sélection et une suppression. Ils ne visent que les lignes de la preuve et sont retirés en fin de preuve, même en cas d'échec.
 
+Pour la sélection (lot 7a), désactiver le trigger des candidatures et recréer la politique F-16 :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "alter table public.job_applications disable trigger trg_protect_job_application_writes; create policy neg_f16 on public.company_profiles for select using (exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'company'));"
+pnpm test:rls candidate-selection   # attendu : 6 échecs (dont R1 et F1), code de sortie 1
+pnpm exec supabase stop --workdir $stack --no-backup   # puis l'étape 1 : pile recréée
+```
+
+`candidate-selection` utilise le même procédé : un trigger qui fait échouer la notification d'une candidature, et des ralentissements pour ordonner sélection, retrait et suppression. Il téléverse aussi une photo de test dans `candidate-documents`, supprimée au nettoyage.
+
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises) et §17 (offres et modération). Les tables `contracts` et `missions` n'ont pas encore de preuve dédiée (lot 7).
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats). `contracts` et `missions` sont couverts pour la création et la suppression (§18) ; leurs mises à jour (signature, pointage) relèvent des lots 7b et 7c.

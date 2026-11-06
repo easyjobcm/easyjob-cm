@@ -1575,6 +1575,75 @@ export const en: TranslationKeys = {
     },
   },
 
+  companyApplicants: {
+    back: "Back",
+    jobNotFound: "Job not found",
+    applications: "application(s)",
+    positionsFilled: "/{count} position(s) filled",
+    tabs: {
+      pending: "Pending ({count})",
+      shortlisted: "Shortlist ({count})",
+      selected: "Selected ({count})",
+      rejected: "Rejected ({count})",
+    },
+    status: {
+      pending: "Pending",
+      shortlisted: "Shortlisted",
+      selected: "Selected",
+      rejected: "Rejected",
+      withdrawn: "Withdrawn",
+      no_show: "No-show",
+    },
+    empty: "No applications in this category",
+    distance: "{km} km",
+    missions: "{count} missions",
+    actions: {
+      select: "Select",
+      reject: "Reject",
+      contact: "Contact",
+      contract: "Contract",
+    },
+    cancel: "Cancel",
+    processing: "Processing...",
+    selectDialog: {
+      title: "Confirm selection",
+      description: "Do you want to select {name} for this job?",
+      notice:
+        "A mission and a contract will be created, and the candidate will be notified.",
+      confirm: "Confirm",
+    },
+    rejectDialog: {
+      title: "Reject application",
+      description: "Reject the application from {name}?",
+      placeholder: "Reason for rejection (optional)",
+      confirm: "Reject",
+    },
+    toasts: {
+      selectedTitle: "Candidate selected",
+      selectedDesc:
+        "The mission and the contract have been created. The candidate has been notified.",
+      rejectedTitle: "Application rejected",
+      rejectedDesc: "The application has been rejected.",
+      rejectError: "This application could not be rejected.",
+      errorTitle: "Error",
+    },
+    errors: {
+      not_authenticated: "Session expired. Please sign in again.",
+      not_a_company: "Only companies can select candidates.",
+      account_suspended: "Your account is suspended.",
+      company_not_found: "Company profile not found.",
+      application_not_found: "Application not found.",
+      application_not_selectable:
+        "This application can no longer be selected (withdrawn or rejected).",
+      job_not_available: "This job is no longer published.",
+      no_positions: "All positions for this job are filled.",
+      candidate_unavailable: "This candidate is no longer available.",
+      selection_incomplete:
+        "Selection saved without a mission or contract. Contact support.",
+      generic: "The selection could not be saved. Please try again.",
+    },
+  },
+
   days: {
     monday: "Mon",
     tuesday: "Tue",

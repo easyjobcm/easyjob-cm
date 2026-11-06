@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         id, title, description, address, city, start_date, start_time,
         end_time, hourly_rate, positions_available, positions_filled,
         status, urgency, published_at, category_id, sandbox_level_required,
-        company:company_profiles(id, company_name, logo_url, city),
+        company:company_public_profiles(id, company_name, logo_url, city),
         category:job_categories(id, name_fr, name_en, icon)
       `,
         { count: "exact" },

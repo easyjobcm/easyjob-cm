@@ -32,6 +32,7 @@ const PROOFS = [
   "company-onboarding",
   "company-permissions",
   "job-moderation",
+  "candidate-selection",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",

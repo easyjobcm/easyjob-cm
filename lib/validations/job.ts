@@ -73,8 +73,9 @@ export type JobInput = z.input<typeof jobInputSchema>;
 export type JobInputData = z.output<typeof jobInputSchema>;
 
 /**
- * Codes renvoyés par les RPC `create_job`, `update_job`, `moderate_job` et
- * `delete_job` (message de l'exception), traduits dans `companyJobs.errors`
+ * Codes renvoyés par les RPC `create_job`, `update_job`, `moderate_job`,
+ * `delete_job`, `select_candidate` et `company_job_applicants` (message de
+ * l'exception), traduits dans `companyJobs.errors`, `companyApplicants.errors`
  * et `admin.moderation.errors`.
  */
 export const JOB_RPC_REFUSALS = {
@@ -96,6 +97,12 @@ export const JOB_RPC_REFUSALS = {
   job_not_pending: 409,
   job_changed: 409,
   company_not_eligible: 409,
+  application_not_found: 404,
+  application_not_selectable: 409,
+  job_not_available: 409,
+  no_positions: 409,
+  candidate_unavailable: 409,
+  selection_incomplete: 409,
 } as const;
 
 export type JobRpcRefusal = keyof typeof JOB_RPC_REFUSALS;

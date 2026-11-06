@@ -134,7 +134,7 @@ export async function POST(_request: NextRequest) {
         end_time,
         positions_available,
         positions_filled,
-        company:company_profiles(company_name)
+        company:company_public_profiles(company_name)
       `,
       )
       .eq("status", "active")

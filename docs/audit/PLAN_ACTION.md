@@ -13,7 +13,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
-| 7 | Sélection → mission → contrat → pointage | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (3 sous-lots) |
+| 7 | Sélection → mission → contrat → pointage — **7a corrigé et vérifié localement, non déployé** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
@@ -208,9 +208,20 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 
 ## Lot 7 — Sélection → mission → contrat → pointage
 
-À découper en trois PR successives. Avant de commencer, **confirmer avec le produit** les règles minimales du MVP (contrat simple ou formalisé, pause automatique, validation des heures). Ne pas tout implémenter d'un coup.
+À découper en quatre PR successives (7a à 7d). Avant de commencer, **confirmer avec le produit** les règles minimales du MVP (contrat simple ou formalisé, pause automatique, validation des heures). Ne pas tout implémenter d'un coup.
 
 ### 7a — Sélection atomique et visibilité des candidats
+
+> **Statut (2026-11-06)** : réalisé sur `fix/lot-07a-candidate-selection` (base `origin/main-dev`, 92dfe16, lot 6 intégré), **non commité, non déployé**. Détails : `AUDIT.md` §18.
+> - `select_candidate` : sélection, mission et contrat `pending`, notification, dans une transaction ; relance idempotente ; verrous candidature puis offre, comme `delete_job`.
+> - Sélection et remise en cause d'une sélection interdites en session ; présélection, refus et retrait inchangés.
+> - F-16 : politique supprimée ; candidats exposés par `company_job_applicants` (prénom, initiale, photo par route contrôlée) ; nom d'entreprise public par la vue `company_public_profiles`.
+> - Preuve `candidate-selection` ajoutée à `pnpm test:rls`.
+>
+> **Avant déploiement** : lot 0, en lecture seule, la requête du §18 sur les sélections sans mission ni contrat, et la vérification d'unicité des missions et contrats par candidature (les index uniques échoueraient sinon).
+>
+> Reste ouvert après 7a : annulation d'une sélection (support, pénalités), signature (7b), pointage (7c), temps réel (7d).
+
 - **IDs** : F-10 (partie sélection), F-16.
 - **Périmètre** : RPC `select_candidate(application_id)` qui vérifie la propriété de l'offre, verrouille la ligne `jobs` (`FOR UPDATE`), contrôle les places, passe la candidature à `selected`, incrémente `positions_filled`, crée la `mission` et le `contract` en `pending`, puis notifie le candidat. Vue ou RPC qui expose aux entreprises les colonnes autorisées de leurs candidats (sans téléphone, email, CNI, MoMo ni coordonnées du domicile). Suppression de la politique erronée sur `company_profiles`.
 - **Critères** : deux sélections concurrentes sur la dernière place produisent une seule réussite ; l'entreprise A ne lit pas l'entreprise B ; aucune donnée sensible du candidat n'est visible.
@@ -225,6 +236,12 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Périmètre** : RPC `check_in` et `check_out` (distance calculée côté serveur à partir de la position envoyée, une seule arrivée et un seul départ par mission, statut `in_progress` puis `completed`). Validation des heures par l'entreprise via RPC. Restriction de l'UPDATE entreprise sur `missions`. Dates affichées en `Africa/Douala`.
 - **Critères** : un double clic ne crée pas deux arrivées ; une erreur est affichée à l'utilisateur ; l'entreprise ne modifie ni `payment_status` ni `platform_fee`.
 
+### 7d — Temps réel (Realtime)
+- **IDs** : suite de F-10 (retour immédiat des statuts de sélection, de contrat et de mission).
+- **Périmètre** : abonnements Realtime aux changements de candidature, de mission et de contrat, limités par RLS aux parties concernées ; reprise de l'état à la reconnexion, sans dépendre des événements manqués.
+- **Critères** : une mise à jour apparaît entre deux sessions autorisées (entreprise et candidat) ; une entreprise tierce ne reçoit aucun événement ; après reconnexion, l'état affiché est celui de la base.
+
+- **Hors lot 7** : abonnements payants, paiements, corrections exceptionnelles par le support (annulation d'une sélection, réparation d'une sélection sans mission) ; chacun à cadrer dans un lot distinct.
 - **Exclusions du lot 7** : paiement Mobile Money réel (lot distinct à cadrer : fournisseur, webhooks signés, idempotence, rapprochement), sanctions automatiques, niveaux sandbox automatiques.
 - **Dépendances** : lots 1, 2 et 6, lot 5 recommandé.
 - **Risques / retour arrière** : changement de modèle d'écriture (du client vers la RPC). Procéder par sous-lot, avec migration réversible et pages adaptées dans la même PR.

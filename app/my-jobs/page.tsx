@@ -57,7 +57,7 @@ const fetcher = async (_url: string) => {
         start_date,
         start_time,
         end_time,
-        company:company_profiles (
+        company:company_public_profiles (
           company_name
         )
       )
@@ -81,7 +81,7 @@ const fetcher = async (_url: string) => {
         title,
         city,
         hourly_rate,
-        company:company_profiles (
+        company:company_public_profiles (
           company_name
         )
       )

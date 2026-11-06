@@ -20,7 +20,7 @@ export default async function JobDetailPage({ params }: PageProps) {
     .select(
       `
       *,
-      company:company_profiles(
+      company:company_public_profiles(
         id, 
         company_name, 
         logo_url, 
