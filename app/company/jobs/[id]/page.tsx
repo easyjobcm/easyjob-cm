@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,10 @@ export default function CompanyJobDetailPage() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
+  // Contrat de chaque candidature sélectionnée (colonnes lisibles, lot 7b).
+  const [contracts, setContracts] = useState<
+    Map<string, Pick<Tables<"contracts">, "id" | "status">>
+  >(new Map());
   // Garde synchrone contre le double clic (l'état React arrive trop tard).
   const processingRef = useRef(false);
 
@@ -108,6 +113,19 @@ export default function CompanyJobDetailPage() {
       const body = (await res.json()) as { applications: Application[] };
       setApplications(body.applications);
     }
+
+    const { data: contractRows } = await supabase
+      .from("contracts")
+      .select("id, application_id, status")
+      .eq("job_id", jobId);
+    setContracts(
+      new Map(
+        (contractRows ?? []).map((c) => [
+          c.application_id,
+          { id: c.id, status: c.status },
+        ]),
+      ),
+    );
 
     setLoading(false);
   }
@@ -459,15 +477,47 @@ export default function CompanyJobDetailPage() {
                         )}
 
                         {app.status === "selected" && (
-                          <div className="flex items-center gap-2 mt-3">
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
                             <Button size="sm" variant="outline">
                               <Phone className="h-4 w-4 mr-1" />
                               {ta.actions.contact}
                             </Button>
-                            <Button size="sm" variant="outline">
-                              <FileText className="h-4 w-4 mr-1" />
-                              {ta.actions.contract}
-                            </Button>
+                            {(() => {
+                              const contract = contracts.get(
+                                app.application_id,
+                              );
+                              if (!contract) return null;
+                              return (
+                                <>
+                                  <motion.div whileTap={{ scale: 0.97 }}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        router.push(`/contracts/${contract.id}`)
+                                      }
+                                    >
+                                      <FileText className="h-4 w-4 mr-1" />
+                                      {ta.actions.contract}
+                                    </Button>
+                                  </motion.div>
+                                  <Badge
+                                    variant={
+                                      contract.status === "completed"
+                                        ? "success"
+                                        : "warning"
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {
+                                      t.contract.status[
+                                        contract.status ?? "pending"
+                                      ]
+                                    }
+                                  </Badge>
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

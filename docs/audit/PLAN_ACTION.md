@@ -13,7 +13,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
-| 7 | Sélection → mission → contrat → pointage — **7a corrigé et vérifié localement, non déployé** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
+| 7 | Sélection → mission → contrat → pointage — **7a et 7b corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
@@ -227,6 +227,19 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Critères** : deux sélections concurrentes sur la dernière place produisent une seule réussite ; l'entreprise A ne lit pas l'entreprise B ; aucune donnée sensible du candidat n'est visible.
 
 ### 7b — Contrat
+
+> **Statut (2026-11-06)** : réalisé sur `fix/lot-07b-contract-signing` (base `origin/main-dev`, b2f330a, lot 7a intégré), **non commité, non déployé**. Détails : `AUDIT.md` §19.
+> - Signature par consentement explicite (SRS §11.8), sans image : `sign_contract` déduit la partie, horodate, vérifie l'empreinte présentée et calcule le statut ; relance idempotente.
+> - `terms_hash` (SHA-256 des parties et des conditions figées) ; trigger d'immuabilité pour tous les rôles ; plus d'UPDATE en session ; SELECT limité aux colonnes non sensibles.
+> - Écrans : contrat depuis la mission (candidat) et depuis la candidature sélectionnée (entreprise).
+> - Preuve `contract-signing` ajoutée à `pnpm test:rls`.
+>
+> **Avant déploiement** : lot 0, en lecture seule, la requête de contrôle de la migration (signatures sans empreinte, statuts incohérents, data-URL).
+>
+> **Décision produit pour 7c** : conditionner ou non le démarrage de la mission à la double signature (SRS §6.7, US-CONT-02), sans bloquer le paiement d'une mission déjà effectuée.
+>
+> Reste ouvert : contenu légal complet et PDF, rappels et expiration (US-CONT-02), F-07 partie `missions` (7c).
+
 - **IDs** : F-07 (partie contrat).
 - **Périmètre** : RPC `sign_contract(contract_id)` qui détermine la partie depuis `auth.uid()`, horodate côté serveur, enregistre l'IP transmise par la route, applique des transitions strictes, stocke la signature dans Storage et non en data-URL dans une colonne, et calcule une empreinte de `contract_data`. Retrait de l'UPDATE direct.
 - **Critères** : une signature unilatérale ne produit jamais `completed` ; `contract_data` n'est pas modifiable par une partie.

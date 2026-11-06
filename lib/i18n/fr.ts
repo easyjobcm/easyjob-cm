@@ -1671,6 +1671,85 @@ export const fr = {
     },
   },
 
+  // Contrat de mission (lot 7b)
+  contract: {
+    back: "Retour",
+    title: "Contrat de mission",
+    reference: "Référence : {ref}",
+    open: "Voir le contrat",
+    notFound: "Contrat introuvable ou inaccessible.",
+    loadError: "Le contrat n'a pas pu être chargé.",
+    retry: "Réessayer",
+    template: {
+      simple: "Contrat simple (moins de 3 jours)",
+      formal: "Contrat formalisé (3 jours et plus)",
+    },
+    status: {
+      pending: "En attente de signatures",
+      candidate_signed: "Signé par le candidat",
+      company_signed: "Signé par l'entreprise",
+      completed: "Signé par les deux parties",
+      rejected: "Refusé",
+      expired: "Expiré",
+      signed_candidate: "À vérifier",
+      signed_company: "À vérifier",
+      fully_signed: "À vérifier",
+    },
+    parties: "Parties au contrat",
+    company: "Entreprise",
+    candidate: "Candidat",
+    terms: "Conditions enregistrées",
+    termsNotice:
+      "Conditions figées lors de la sélection. Une modification ultérieure de l'offre ne les change pas.",
+    job: "Mission",
+    dates: "Dates",
+    hours: "Horaires",
+    breakMinutes: "Pause : {min} min",
+    place: "Lieu",
+    rate: "Taux horaire",
+    perHour: "{amount}/heure",
+    clausesTitle: "Engagements des parties",
+    clausesVersion: "Version des clauses : {version}",
+    clausesMissing:
+      "Les clauses générales n'ont pas été enregistrées avec ce contrat. Elles ne sont pas reconstituées.",
+    signatures: "Signatures",
+    signedOn: "Signé le {date}",
+    awaiting: "En attente",
+    fingerprint: "Empreinte du contenu signé : {hash}",
+    needsReview:
+      "Ce contrat doit être vérifié par le support avant toute nouvelle signature.",
+    yourSignature: "Votre accord",
+    sign: "Signer et accepter",
+    signing: "Signature en cours…",
+    confirmTitle: "Confirmer votre signature",
+    confirmDescription:
+      "Vous acceptez le contrat « {job} » avec {company}. Votre signature ne pourra plus être modifiée.",
+    confirm: "Je signe",
+    cancel: "Annuler",
+    alreadySignedByYou: "Vous avez signé ce contrat.",
+    awaitingOther: "La signature de l'autre partie est attendue.",
+    separateSteps:
+      "La signature du contrat est distincte du pointage et du paiement de la mission.",
+    toasts: {
+      signedTitle: "Contrat signé",
+      signedDesc: "Votre signature a été enregistrée.",
+      completedDesc: "Le contrat est signé par les deux parties.",
+      errorTitle: "Signature non enregistrée",
+    },
+    errors: {
+      not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+      account_suspended: "Votre compte est suspendu.",
+      contract_not_found: "Contrat introuvable ou inaccessible.",
+      contract_not_signable: "Ce contrat ne peut plus être signé.",
+      contract_needs_review:
+        "Ce contrat doit être vérifié par le support avant signature.",
+      terms_mismatch:
+        "Le contrat affiché n'est plus à jour. Rechargez-le avant de signer.",
+      consent_required: "Cochez la case d'acceptation pour signer.",
+      generic: "La signature n'a pas pu être enregistrée. Réessayez.",
+    },
+  },
+
   days: {
     monday: "Lun",
     tuesday: "Mar",

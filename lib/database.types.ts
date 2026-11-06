@@ -716,6 +716,27 @@ export type Database = {
           },
         ]
       }
+      contract_clause_versions: {
+        Row: {
+          body: Json
+          contract_template: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          body: Json
+          contract_template: string
+          created_at?: string
+          id: string
+        }
+        Update: {
+          body?: Json
+          contract_template?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           application_id: string
@@ -723,10 +744,14 @@ export type Database = {
           candidate_ip: string | null
           candidate_signature_url: string | null
           candidate_signed_at: string | null
+          candidate_signed_by: string | null
+          candidate_terms_hash: string | null
           company_id: string
           company_ip: string | null
           company_signature_url: string | null
           company_signed_at: string | null
+          company_signed_by: string | null
+          company_terms_hash: string | null
           contract_data: Json | null
           contract_template: string
           created_at: string | null
@@ -735,6 +760,7 @@ export type Database = {
           id: string
           job_id: string
           status: Database["public"]["Enums"]["contract_status"] | null
+          terms_hash: string | null
           updated_at: string | null
         }
         Insert: {
@@ -743,10 +769,14 @@ export type Database = {
           candidate_ip?: string | null
           candidate_signature_url?: string | null
           candidate_signed_at?: string | null
+          candidate_signed_by?: string | null
+          candidate_terms_hash?: string | null
           company_id: string
           company_ip?: string | null
           company_signature_url?: string | null
           company_signed_at?: string | null
+          company_signed_by?: string | null
+          company_terms_hash?: string | null
           contract_data?: Json | null
           contract_template: string
           created_at?: string | null
@@ -755,6 +785,7 @@ export type Database = {
           id?: string
           job_id: string
           status?: Database["public"]["Enums"]["contract_status"] | null
+          terms_hash?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -763,10 +794,14 @@ export type Database = {
           candidate_ip?: string | null
           candidate_signature_url?: string | null
           candidate_signed_at?: string | null
+          candidate_signed_by?: string | null
+          candidate_terms_hash?: string | null
           company_id?: string
           company_ip?: string | null
           company_signature_url?: string | null
           company_signed_at?: string | null
+          company_signed_by?: string | null
+          company_terms_hash?: string | null
           contract_data?: Json | null
           contract_template?: string
           created_at?: string | null
@@ -775,6 +810,7 @@ export type Database = {
           id?: string
           job_id?: string
           status?: Database["public"]["Enums"]["contract_status"] | null
+          terms_hash?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2268,6 +2304,30 @@ export type Database = {
           status: Database["public"]["Enums"]["application_status"]
         }[]
       }
+      contract_expected_status: {
+        Args: { p_candidate_signed_at: string; p_company_signed_at: string }
+        Returns: Database["public"]["Enums"]["contract_status"]
+      }
+      contract_sign_core: {
+        Args: {
+          p_contract_id: string
+          p_observed_ip: string
+          p_terms_hash: string
+          p_uid: string
+        }
+        Returns: {
+          already_signed: boolean
+          candidate_signed_at: string
+          company_signed_at: string
+          contract_id: string
+          signed_party: string
+          status: Database["public"]["Enums"]["contract_status"]
+        }[]
+      }
+      contract_terms_hash: {
+        Args: { c: Database["public"]["Tables"]["contracts"]["Row"] }
+        Returns: string
+      }
       create_job: {
         Args: { p_job: Json }
         Returns: {
@@ -2334,7 +2394,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      current_contract_clauses: { Args: { p_template: string }; Returns: Json }
       delete_job: { Args: { p_job_id: string }; Returns: string }
+      get_contract: {
+        Args: { p_contract_id: string }
+        Returns: {
+          application_id: string
+          can_sign: boolean
+          candidate_name: string
+          candidate_signed_at: string
+          company_name: string
+          company_signed_at: string
+          contract_id: string
+          contract_template: string
+          created_at: string
+          job_id: string
+          mission_id: string
+          needs_review: boolean
+          status: Database["public"]["Enums"]["contract_status"]
+          terms: Json
+          terms_hash: string
+          viewer_party: string
+        }[]
+      }
       has_verified_license_for: {
         Args: { p_candidate_id: string; p_skill_name: string }
         Returns: boolean
@@ -2508,6 +2590,33 @@ export type Database = {
           contract_id: string
           mission_id: string
           status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
+      sign_contract: {
+        Args: { p_contract_id: string; p_terms_hash: string }
+        Returns: {
+          already_signed: boolean
+          candidate_signed_at: string
+          company_signed_at: string
+          contract_id: string
+          signed_party: string
+          status: Database["public"]["Enums"]["contract_status"]
+        }[]
+      }
+      sign_contract_observed: {
+        Args: {
+          p_contract_id: string
+          p_observed_ip?: string
+          p_terms_hash: string
+          p_user_id: string
+        }
+        Returns: {
+          already_signed: boolean
+          candidate_signed_at: string
+          company_signed_at: string
+          contract_id: string
+          signed_party: string
+          status: Database["public"]["Enums"]["contract_status"]
         }[]
       }
       skill_requires_license: {

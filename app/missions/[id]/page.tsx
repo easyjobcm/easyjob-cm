@@ -20,6 +20,8 @@ import {
   Star,
   Navigation,
   AlertCircle,
+  FileText,
+  ChevronRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,9 +33,14 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
+import type { Tables } from "@/lib/database.types";
 
 interface Mission {
   id: string;
+  application_id: string | null;
   status: string;
   scheduled_date: string;
   scheduled_start_time: string;
@@ -63,6 +70,12 @@ export default function MissionDetailPage() {
   const params = useParams();
   const { toast } = useToast();
   const missionId = params.id as string;
+  const { t } = useI18n();
+  // Contrat de la mission (lot 7b) : signature distincte du pointage.
+  const [contract, setContract] = useState<Pick<
+    Tables<"contracts">,
+    "id" | "status"
+  > | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [mission, setMission] = useState<Mission | null>(null);
@@ -110,6 +123,14 @@ export default function MissionDetailPage() {
 
     if (missionData) {
       setMission(missionData as Mission);
+      if (missionData.application_id) {
+        const { data: contractData } = await supabase
+          .from("contracts")
+          .select("id, status")
+          .eq("application_id", missionData.application_id)
+          .maybeSingle();
+        setContract(contractData);
+      }
     }
 
     setLoading(false);
@@ -489,6 +510,27 @@ export default function MissionDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {contract && (
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Link href={`/contracts/${contract.id}`} className="block">
+              <Card className="transition-shadow hover:shadow-md">
+                <CardContent className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileText className="h-5 w-5 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium">{t.contract.open}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {t.contract.status[contract.status ?? "pending"]}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+        )}
 
         {/* Location Status */}
         <Card>

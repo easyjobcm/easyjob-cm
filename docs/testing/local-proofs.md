@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 20 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 21 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -106,6 +106,18 @@ pnpm exec supabase stop --workdir $stack --no-backup   # puis l'étape 1 : pile 
 
 `candidate-selection` utilise le même procédé : un trigger qui fait échouer la notification d'une candidature, et des ralentissements pour ordonner sélection, retrait et suppression. Il téléverse aussi une photo de test dans `candidate-documents`, supprimée au nettoyage.
 
+Pour les contrats (lot 7b), rouvrir l'UPDATE, désactiver le trigger et recréer l'ancienne politique :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "grant select, update on public.contracts to authenticated; alter table public.contracts disable trigger trg_protect_contract_writes; create policy neg_f07 on public.contracts for update using (candidate_id in (select id from public.candidate_profiles where user_id = auth.uid()) or company_id in (select id from public.company_profiles where user_id = auth.uid()));"
+pnpm test:rls contract-signing   # attendu : 19 échecs (dont R1, S4, R5), code de sortie 1
+pnpm exec supabase db reset --workdir $stack   # restauration
+```
+
+`contract-signing` désactive aussi le trigger des contrats le temps d'une écriture, pour simuler une signature antérieure au lot ; il le réactive aussitôt, et dans le bloc `finally` en cas d'échec.
+
+**Ports réservés par Windows.** Si `supabase start` échoue avec « ports are not available » et que `netsh interface ipv4 show excludedportrange protocol=tcp` montre une plage réservée couvrant 544xx, décaler les ports dans `$stack/supabase/config.toml` (copie temporaire, par exemple 554xx) et adapter le contrôle `pile inattendue` de l'étape 3.
+
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats). `contracts` et `missions` sont couverts pour la création et la suppression (§18) ; leurs mises à jour (signature, pointage) relèvent des lots 7b et 7c.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats) et §19 (signature des contrats). `contracts` est couvert en lecture, création, signature et suppression ; `missions` pour la création et la suppression, ses mises à jour (pointage) relevant du lot 7c.

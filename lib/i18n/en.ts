@@ -1644,6 +1644,85 @@ export const en: TranslationKeys = {
     },
   },
 
+  // Mission contract (lot 7b)
+  contract: {
+    back: "Back",
+    title: "Mission contract",
+    reference: "Reference: {ref}",
+    open: "View contract",
+    notFound: "Contract not found or not accessible.",
+    loadError: "The contract could not be loaded.",
+    retry: "Retry",
+    template: {
+      simple: "Simple contract (under 3 days)",
+      formal: "Formal contract (3 days or more)",
+    },
+    status: {
+      pending: "Awaiting signatures",
+      candidate_signed: "Signed by the candidate",
+      company_signed: "Signed by the company",
+      completed: "Signed by both parties",
+      rejected: "Rejected",
+      expired: "Expired",
+      signed_candidate: "Needs review",
+      signed_company: "Needs review",
+      fully_signed: "Needs review",
+    },
+    parties: "Parties",
+    company: "Company",
+    candidate: "Candidate",
+    terms: "Recorded terms",
+    termsNotice:
+      "Terms frozen at selection. Later changes to the job offer do not affect them.",
+    job: "Mission",
+    dates: "Dates",
+    hours: "Hours",
+    breakMinutes: "Break: {min} min",
+    place: "Location",
+    rate: "Hourly rate",
+    perHour: "{amount}/hour",
+    clausesTitle: "Commitments",
+    clausesVersion: "Clause version: {version}",
+    clausesMissing:
+      "The general clauses were not recorded with this contract. They are not reconstructed.",
+    signatures: "Signatures",
+    signedOn: "Signed on {date}",
+    awaiting: "Pending",
+    fingerprint: "Fingerprint of the signed content: {hash}",
+    needsReview:
+      "This contract must be reviewed by support before any new signature.",
+    yourSignature: "Your agreement",
+    sign: "Sign and accept",
+    signing: "Signing…",
+    confirmTitle: "Confirm your signature",
+    confirmDescription:
+      'You accept the contract "{job}" with {company}. Your signature cannot be changed afterwards.',
+    confirm: "Sign",
+    cancel: "Cancel",
+    alreadySignedByYou: "You have signed this contract.",
+    awaitingOther: "Waiting for the other party's signature.",
+    separateSteps:
+      "Signing the contract is separate from mission check-in and payment.",
+    toasts: {
+      signedTitle: "Contract signed",
+      signedDesc: "Your signature has been recorded.",
+      completedDesc: "The contract is signed by both parties.",
+      errorTitle: "Signature not recorded",
+    },
+    errors: {
+      not_authenticated: "Session expired. Please sign in again.",
+      account_suspended: "Your account is suspended.",
+      contract_not_found: "Contract not found or not accessible.",
+      contract_not_signable: "This contract can no longer be signed.",
+      contract_needs_review:
+        "This contract must be reviewed by support before signing.",
+      terms_mismatch:
+        "The contract shown is out of date. Reload it before signing.",
+      consent_required: "Tick the acceptance box to sign.",
+      generic: "The signature could not be recorded. Please try again.",
+    },
+  },
+
   days: {
     monday: "Mon",
     tuesday: "Tue",

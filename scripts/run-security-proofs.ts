@@ -33,6 +33,7 @@ const PROOFS = [
   "company-permissions",
   "job-moderation",
   "candidate-selection",
+  "contract-signing",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",
