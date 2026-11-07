@@ -15,6 +15,20 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const time = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/);
 const optionalText = (max: number) => z.string().trim().max(max).optional();
 
+/** Borne de `jobs.mission_pay_per_candidate` (type integer). */
+export const MISSION_PAY_MAX = 2_147_483_647;
+
+/**
+ * Montant fixe en XAF versé à CHAQUE candidat sélectionné pour la mission
+ * (forfait, indépendant de la durée et du nombre de places). Entier
+ * strictement positif : mêmes règles que `public.job_apply_content`.
+ */
+export const missionPaySchema = z
+  .number({ error: "missionPayRequired" })
+  .int("missionPayInteger")
+  .positive("missionPayInvalid")
+  .max(MISSION_PAY_MAX, "missionPayTooHigh");
+
 /**
  * Contenu d'une offre écrit par l'entreprise (création et modification).
  * Mêmes champs et mêmes règles que `public.job_apply_content` : les RPC
@@ -39,7 +53,7 @@ export const jobInputSchema = z
     start_date: isoDate.refine((d) => d >= doualaToday(), "startDatePast"),
     start_time: time,
     end_time: time,
-    hourly_rate: z.number().positive("hourlyRateInvalid"),
+    mission_pay_per_candidate: missionPaySchema,
     category_id: z.string().uuid().optional(),
     job_type: z
       .enum(Constants.public.Enums.job_type)

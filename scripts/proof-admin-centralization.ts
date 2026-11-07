@@ -703,7 +703,7 @@ async function main() {
       start_date: "2099-01-15",
       start_time: "09:00",
       end_time: "17:00",
-      hourly_rate: 5000,
+      mission_pay_per_candidate: 5000,
     };
 
     const h1 = await fetchJson("/api/admin/companies", "POST", Rsess.cookies, {

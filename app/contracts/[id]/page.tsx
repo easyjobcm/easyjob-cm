@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
-import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import type { Database } from "@/lib/database.types";
 
 type ContractRow =
@@ -65,8 +66,9 @@ const termsSchema = z
     break_minutes: z.number().nullish(),
     address: z.string().nullish(),
     city: z.string().nullish(),
-    hourly_rate: z.number().nullish(),
+    mission_pay_per_candidate: z.number().nullish(),
     currency: z.string().nullish(),
+    pay_basis: z.string().nullish(),
   })
   .partial();
 
@@ -440,24 +442,25 @@ export default function ContractSignPage() {
                     "—"}
                 </span>
               </div>
-              <div className="pt-2 border-t">
-                <span className="text-sm text-muted-foreground mr-2">
-                  {tc.rate}
-                </span>
-                <span
-                  className="text-lg font-bold text-primary"
-                  data-testid="contract-rate"
-                >
-                  {terms.hourly_rate != null
-                    ? tc.perHour.replace(
-                        "{amount}",
-                        formatCurrency(
-                          terms.hourly_rate,
-                          terms.currency ?? "XAF",
-                        ),
-                      )
-                    : "—"}
-                </span>
+              <div className="pt-2 border-t space-y-0.5">
+                <p className="text-sm text-muted-foreground">{tc.pay}</p>
+                {/* Seules les conditions forfaitaires en XAF sont affichées :
+                    un contrat sans ces trois valeurs figées affiche « — ». */}
+                <MissionPay
+                  amount={
+                    terms.pay_basis === "per_mission" &&
+                    terms.currency === "XAF" &&
+                    Number.isInteger(terms.mission_pay_per_candidate) &&
+                    (terms.mission_pay_per_candidate ?? 0) > 0
+                      ? terms.mission_pay_per_candidate
+                      : null
+                  }
+                  amountClassName="text-lg text-primary"
+                  testId="contract-pay"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t.pay.contractBasis}
+                </p>
               </div>
             </CardContent>
           </Card>

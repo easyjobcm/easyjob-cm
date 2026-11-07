@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { MissionPay } from "@/components/jobs/mission-pay";
 
 interface JobCardProps {
   job: {
@@ -25,8 +26,7 @@ interface JobCardProps {
     start_date: string;
     start_time: string;
     end_time: string;
-    hourly_rate: number;
-    currency: string;
+    mission_pay_per_candidate: number;
     urgency: "normal" | "urgent" | "critical";
     positions_available: number;
     positions_filled: number;
@@ -149,14 +149,13 @@ export function JobCard({
             </div>
           </div>
 
-          {/* Footer: Rate & Spots */}
-          <div className="flex items-center justify-between pt-3 border-t border-border/50">
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-bold text-primary">
-                {formatCurrency(job.hourly_rate, job.currency)}
-              </span>
-              <span className="text-xs text-muted-foreground">/h</span>
-            </div>
+          {/* Footer: rémunération par candidat pour la mission & places */}
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/50">
+            <MissionPay
+              amount={job.mission_pay_per_candidate}
+              amountClassName="text-lg text-primary"
+              testId="job-card-pay"
+            />
 
             <div className="flex items-center gap-2">
               {spotsLeft <= 3 && spotsLeft > 0 && (

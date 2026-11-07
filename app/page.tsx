@@ -849,7 +849,7 @@ export default function WelcomePage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-[#7C3AED]">
-                            {job.pay} FCFA/j
+                            {job.pay} F CFA / mission
                           </span>
                           <div className="flex items-center gap-0.5">
                             <Star className="w-2.5 h-2.5 text-[#D97706] fill-[#D97706]" />

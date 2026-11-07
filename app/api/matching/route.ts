@@ -128,7 +128,7 @@ export async function POST(_request: NextRequest) {
         id,
         title,
         city,
-        hourly_rate,
+        mission_pay_per_candidate,
         start_date,
         start_time,
         end_time,

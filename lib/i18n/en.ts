@@ -93,7 +93,9 @@ export const en: TranslationKeys = {
       date: "Date",
       time: "Time",
       location: "Location",
-      salary: "Salary",
+      pay: "Pay per candidate",
+      positions: "People needed",
+      positionsValue: "{count} person(s)",
     },
     momo: {
       title: "Mobile Money review",
@@ -562,9 +564,22 @@ export const en: TranslationKeys = {
     applied: "Application sent",
     deadline: "Deadline",
     spotsLeft: "spots left",
-    perHour: "/hour",
-    perDay: "/day",
-    perMission: "/mission",
+  },
+
+  // Pay: fixed amount per candidate for the mission (XAF)
+  pay: {
+    forMission: "for the mission",
+    perCandidate: "Pay per candidate",
+    flatNote:
+      "Fixed amount paid to each selected candidate for the mission, whatever the actual finishing time.",
+    formLabel: "Pay per candidate for the mission (CFA francs)",
+    formHint:
+      "Fixed amount paid to each selected candidate, whatever the actual finishing time. The schedule is still shown so everyone can plan.",
+    formExample:
+      "Example: 3 people needed at 10,000 CFA francs = 10,000 CFA francs for each of them.",
+    positions: "{count} person(s) needed",
+    contractBasis:
+      "Flat amount per mission, per candidate, in CFA francs (XAF)",
   },
 
   // Tasks
@@ -1553,7 +1568,12 @@ export const en: TranslationKeys = {
       cityRequired: "Missing city: complete your company profile.",
       startDatePast: "The start date cannot be in the past.",
       endDateBeforeStart: "The end date must be after the start date.",
-      hourlyRateInvalid: "The hourly rate must be positive.",
+      missionPayRequired: "Enter the pay per candidate for the mission.",
+      missionPayInvalid:
+        "The pay per candidate must be greater than 0 CFA francs.",
+      missionPayInteger:
+        "The pay per candidate must be a whole number of CFA francs.",
+      missionPayTooHigh: "The pay per candidate is too high.",
       positionsInvalid:
         "Invalid number of positions (at least 1, and not fewer than the candidates already selected).",
       invalid_job_data: "Some job details are invalid.",
@@ -1680,7 +1700,6 @@ export const en: TranslationKeys = {
     schedule: "{start} – {end} (Douala time)",
     scheduleNote:
       "Scheduled hours from the job offer. The agreed pay does not depend on the duration.",
-    perHour: "{amount}/hour",
     tracking: "Tracking",
     startedAt: "Start confirmed at {time}",
     completedAt: "Completion confirmed at {time}",
@@ -1792,8 +1811,7 @@ export const en: TranslationKeys = {
     hours: "Hours",
     breakMinutes: "Break: {min} min",
     place: "Location",
-    rate: "Hourly rate",
-    perHour: "{amount}/hour",
+    pay: "Pay per candidate",
     clausesTitle: "Commitments",
     clausesVersion: "Clause version: {version}",
     clausesMissing:

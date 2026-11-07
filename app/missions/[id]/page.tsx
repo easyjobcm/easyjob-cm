@@ -22,7 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { useI18n } from "@/lib/i18n";
-import { formatCurrency, formatTime } from "@/lib/utils";
+import { formatTime } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import { doualaTime } from "@/lib/utils/douala-time";
 import type { Database } from "@/lib/database.types";
 
@@ -39,6 +40,8 @@ type Mission = Nullable<
   | "company_name"
   | "address"
   | "city"
+  | "mission_pay_per_candidate"
+  | "currency"
 >;
 
 type LoadResult =
@@ -250,12 +253,14 @@ export default function MissionDetailPage() {
                 </span>
               </div>
               <div className="pt-2 border-t space-y-1">
-                <span className="text-lg font-bold text-primary">
-                  {tm.perHour.replace(
-                    "{amount}",
-                    formatCurrency(Number(mission.hourly_rate ?? 0)),
-                  )}
-                </span>
+                <p className="text-xs text-muted-foreground">
+                  {t.pay.perCandidate}
+                </p>
+                <MissionPay
+                  amount={mission.mission_pay_per_candidate}
+                  amountClassName="text-lg text-primary"
+                  testId="mission-pay"
+                />
                 <p className="text-xs text-muted-foreground">
                   {tm.scheduleNote}
                 </p>

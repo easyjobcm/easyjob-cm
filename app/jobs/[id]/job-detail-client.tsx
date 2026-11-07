@@ -11,7 +11,8 @@ import { useI18n } from "@/lib/i18n";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { toast } from "@/hooks/use-toast";
 import type { EssentialKey } from "@/lib/utils/profile-completion";
-import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import {
   MapPin,
   Clock,
@@ -38,8 +39,7 @@ interface JobDetailClientProps {
     latitude?: number | null;
     longitude?: number | null;
     description: string;
-    currency?: string | null;
-    hourly_rate: number;
+    mission_pay_per_candidate: number;
     start_date: string;
     end_date?: string | null;
     start_time: string;
@@ -99,7 +99,8 @@ export function JobDetailClient({
   const categoryName =
     locale === "fr" ? job.category?.name_fr : job.category?.name_en;
 
-  // Calculate duration and total pay
+  // Durée prévue, affichée pour l'organisation du candidat. Elle n'entre
+  // dans aucun calcul : la rémunération est un montant fixe par mission.
   const calculateDuration = (start: string, end: string) => {
     const [startH, startM] = start.split(":").map(Number);
     const [endH, endM] = end.split(":").map(Number);
@@ -109,7 +110,6 @@ export function JobDetailClient({
   };
 
   const duration = calculateDuration(job.start_time, job.end_time);
-  const totalPay = duration * job.hourly_rate;
 
   const handleApply = async () => {
     if (!isLoggedIn) {
@@ -232,12 +232,13 @@ export function JobDetailClient({
             <span>{job.company?.company_name}</span>
           </div>
 
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">
-              {formatCurrency(job.hourly_rate, job.currency)}
-            </span>
-            <span className="text-white/80">/h</span>
-          </div>
+          <MissionPay
+            amount={job.mission_pay_per_candidate}
+            amountClassName="text-3xl"
+            suffixClassName="text-sm text-white/80"
+            testId="job-detail-pay"
+          />
+          <p className="text-white/80 text-xs mt-1">{t.pay.flatNote}</p>
           {categoryName && (
             <p className="text-white/80 text-sm mt-1">{categoryName}</p>
           )}
@@ -480,15 +481,14 @@ export function JobDetailClient({
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm text-muted-foreground">
-              {locale === "fr" ? "Remuneration totale" : "Total pay"}
+              {t.pay.perCandidate}
             </p>
-            <p className="text-xl font-bold text-foreground">
-              {formatCurrency(totalPay, job.currency)}
-            </p>
+            <MissionPay
+              amount={job.mission_pay_per_candidate}
+              amountClassName="text-xl text-foreground"
+              testId="job-detail-cta-pay"
+            />
           </div>
-          <Badge variant="secondary" className="text-base px-3 py-1">
-            {duration}h
-          </Badge>
         </div>
 
         {hasApplied ? (

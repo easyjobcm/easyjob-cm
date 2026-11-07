@@ -1196,7 +1196,7 @@ Colonnes illisibles en session : `candidate_ip`, `company_ip`, `*_signed_by`, `*
 
 ### Mécanisme
 
-- **Empreinte** `terms_hash` : SHA-256 hex de `{v: 1, contract_id, application_id, job_id, candidate_id, company_id, template, terms: contract_data}` en jsonb canonique. Elle couvre les parties, le format, les conditions figées par `select_candidate` (intitulé, entreprise, dates, horaires, pause, adresse, ville, taux horaire, devise, mission) et `contract_data.clauses`. Elle ne couvre pas l'identité civile des parties. Calculée par trigger à l'insertion, jamais fournie par un client.
+- **Empreinte** `terms_hash` : SHA-256 hex de `{v: 1, contract_id, application_id, job_id, candidate_id, company_id, template, terms: contract_data}` en jsonb canonique. Elle couvre les parties, le format, les conditions figées par `select_candidate` (intitulé, entreprise, dates, horaires, pause, adresse, ville, montant par candidat, devise, nature forfaitaire, mission ; le taux horaire est remplacé au lot 7c-bis, §21) et `contract_data.clauses`. Elle ne couvre pas l'identité civile des parties. Calculée par trigger à l'insertion, jamais fournie par un client.
 - **Texte accepté** : la case « J'accepte » couvre exactement ce que l'empreinte couvre. Ce sont les conditions de la mission (carte « Conditions enregistrées »), les clauses générales (carte « Engagements des parties ») et la phrase de consentement elle-même, en FR et en EN, sous l'identifiant de version (`simple-v1`, `formal-v1`). Ce texte est copié à l'insertion depuis `contract_clause_versions` (dernière version du format, jamais une valeur fournie par l'appelant), comme les conditions du lot 7a. L'écran l'affiche depuis le contrat, dans la langue de l'utilisateur, avec le numéro de version. Il ne lit plus les clauses dans les dictionnaires : une mise à jour des textes de l'application ne change pas un contrat existant. Les autres textes de l'écran (titres, aide, boutons) ne font pas partie de l'accord. Les deux langues sont couvertes quelle que soit la langue affichée ; la langue affichée au moment de la signature n'est pas enregistrée.
 - **Versions des clauses** : `contract_clause_versions` est immuable, pour tous les rôles. Une version ne peut être supprimée tant qu'un contrat la cite. Faire évoluer les clauses revient à insérer une nouvelle version par migration : les nouveaux contrats la reçoivent, les contrats existants gardent la leur. La version initiale reprend le texte affiché avant ce lot. La phrase de consentement ne promet plus l'IP, qui peut être absente. Le contrat formalisé reprend le même texte en attendant la validation juridique.
 - **Signature** : noyau commun `contract_sign_core`, jamais exposé. Utilisateur = `auth.uid()` (`sign_contract`) ou utilisateur de la session vérifiée par la route (`auth.getUser()`, transmis à `sign_contract_observed`) ; partie déduite du contrat (aucun paramètre ne la désigne) ; verrou de la ligne ; l'empreinte présentée doit égaler l'empreinte enregistrée (`terms_mismatch` sinon) ; heure `now()` ; enregistrement de l'heure, du signataire, de l'IP et de l'empreinte acceptée ; statut calculé ; notification `mission_update` de l'autre partie, dans sa langue.
@@ -1363,7 +1363,63 @@ Le code n'apparaît jamais dans `get_mission`, `candidate_tasks`, les réponses 
 - Paiement (versement, signature exigée, frais, remboursement), abonnements, annulations, absences, indemnités : lots dédiés. Aucun paiement n'est déclenché.
 - Rappels internes seulement, sur la page ouverte : pas de notification planifiée (H−15, fin), faute de planificateur ; pas de SMS ni de push.
 - Le code peut être saisi dès le début confirmé ; le rappel et la mise en avant attendent l'heure de fin prévue.
-- Le montant affiché reste le taux horaire de l'offre : le formulaire d'offre n'exprime pas encore un montant par tâche.
+- ~~Le montant affiché reste le taux horaire de l'offre.~~ Traité au lot 7c-bis (§21) : montant fixe par candidat pour la mission.
 - Blocage de la mission suivante si la note manque après 48 h (SRS §5.1) : non appliqué.
 - Missions de plusieurs jours : une seule mission par sélection (premier jour), §18.
 - Temps réel : lot 7d. CI distante non observée. Script navigateur local, hors dépôt.
+
+## 21. Suivi — Lot 7c-bis : montant fixe par candidat pour la mission (2026-11-07)
+
+Branche `feat/lot-07c-bis-task-compensation`, base `origin/main-dev` (7963ac4, lot 7c intégré). **Réalisé et vérifié localement sur la pile dédiée, non commité, non déployé.** Migration : `supabase/migrations/20261107120000_mission_pay_per_candidate.sql`.
+
+### État avant correction
+
+- L'offre portait un taux horaire (`jobs.hourly_rate`), alors que le lot 7c a décidé une mission rémunérée à la tâche. Le détail d'offre calculait une « Rémunération totale » = durée × taux ; les cartes, la modération, les listes et le contrat affichaient « XAF/h ».
+- Une colonne inutilisée, `jobs.salary_per_person_per_day` (salaire journalier, verrou `salary_locked`, trigger `enforce_salary_lock`), portait un troisième modèle.
+- Le formulaire imposait côté client un minimum de 500 F/h, absent en base.
+- Clauses v1 du contrat : « valider les heures effectuées », sans objet depuis 7c.
+
+### Modèle retenu
+
+- Un seul champ : `jobs.mission_pay_per_candidate integer not null`, en XAF, strictement positif (contrainte `jobs_mission_pay_per_candidate_chk`). C'est le montant versé à **chaque** candidat sélectionné pour la mission. Exemple : 3 places, 8 h-12 h, 10 000 F CFA ⇒ 10 000 F CFA pour chacun. Finir à 11 h 30 ou à 12 h 30 ne change rien.
+- Devise : `jobs.currency` non nulle, XAF uniquement (`jobs_currency_xaf_chk`).
+- `hourly_rate`, `salary_per_person_per_day`, `salary_locked` et `prevent_salary_modification` sont supprimés. `payments.hourly_rate` reste : cette table relève du lot paiement.
+- Bornes : entier de 1 à 2 147 483 647 (type `integer`), en base comme dans Zod (`missionPaySchema`). Le minimum de 500 F/h n'est pas repris : il portait sur une heure.
+- Dates, horaires et nombre de personnes restent affichés séparément. Ils servent à l'organisation du candidat et à l'appréciation du support, jamais à un calcul.
+
+### Mécanisme
+
+- `job_apply_content` (appelée par `create_job` et `update_job`) exige un nombre JSON entier strictement positif. Une chaîne, une fraction, zéro, une valeur négative, absente ou hors borne lève `invalid_job_data` (DETAIL `mission_pay_per_candidate`). Une charge utile contenant encore `hourly_rate` est refusée (DETAIL `hourly_rate`). Les contrôles de publication, de modification et de nouvelle modération du lot 6 sont repris à l'identique.
+- `select_candidate` fige dans `contract_data` : `mission_pay_per_candidate`, `currency = 'XAF'` et `pay_basis = 'per_mission'`. Les horaires restent figés pour information. L'empreinte du lot 7b porte sur tout `contract_data` : ces valeurs sont couvertes sans changer `contract_terms_hash`.
+- Clauses `simple-v2` et `formal-v2` : remise du code de fin et règlement du « montant forfaitaire convenu pour la mission, quelle que soit l'heure de fin effective ». Les contrats existants gardent leur version.
+- `get_mission` (type de retour modifié, fonction recréée) renvoie le montant et la devise **du contrat**, jamais ceux de l'offre ; `null` sans contrat. Les listes du candidat (`/missions`, « Mes jobs » réservés) lisent aussi le contrat.
+- Aucun calcul ne multiplie le forfait par une durée ou par le nombre de places : le calcul durée × taux du détail d'offre est supprimé.
+
+### Reprise des données
+
+Aucune conversion : un taux horaire ne se convertit pas en forfait sans la durée convenue. La migration échoue (`mission_pay_migration_blocked`, avec le nombre d'offres et de contrats concernés et une piste) dès qu'une offre existe. Le projet distant n'en a aucune (phase de test). Une pile de développement seedée se réinitialise puis se reseede (`scripts/seed-test-data.ts`, montants convertis à la main).
+
+### Écrans
+
+- **Formulaire** : libellé « Rémunération par candidat pour la mission (F CFA) », explication et exemple. Refus immédiat de 0, d'un négatif et d'une fraction. Horaires saisis pour les deux types d'offre ; le champ « heures par semaine », jamais enregistré, est retiré. Aperçu avec dates, horaires, nombre de personnes et montant séparés.
+- **Affichage** : composant partagé `MissionPay` (« 10 000 F CFA pour la mission » / « 10,000 CFA francs for the mission ») et formateur `formatXaf`. Ils sont utilisés par la carte, le détail, la modération (travail, montant, plage horaire et nombre de personnes ensemble), les listes entreprise, les missions, « Mes jobs » et le contrat.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| `job-moderation` P1-P4 (nouvelles) | ✅ RPC directe : 0, négatif, 10 000,5, chaîne, absent, > integer et `hourly_rate` → `invalid_job_data` sur le bon champ, aucune offre. Route : 0, −5, 10 000,5 → 400. 10 000 XAF, 3 places, 08:00-12:00 enregistrés tels quels. Contraintes refusées même en clé service |
+| `contract-signing` M1-M3 (nouvelles) ; L1, L6, R1, CL1-CL10 adaptées | ✅ 3 places à 10 000 F CFA, trois sélections : chaque contrat porte 10 000, XAF, `per_mission`, 08:00-12:00 ; quatrième candidature refusée (`no_positions`) ; l'empreinte change si le montant, la devise ou la nature changent ; la signature du candidat porte sur ces conditions ; offre modifiée après sélection sans effet ; clauses courantes v2 |
+| `mission-time-tracking` P1 (nouvelle) | ✅ `get_mission` renvoie les 1 500 XAF du contrat, inchangés après modification de l'offre en clé service |
+| Garde-fou de migration (transaction annulée, une offre présente) | ✅ échec `mission_pay_migration_blocked` avec DETAIL et HINT, rien n'est écrit |
+| `pnpm test:rls` complet, pile dédiée | ✅ 22/22 preuves |
+| Navigateur : Chrome headless, 390×844 tactile, vrais formulaires | ✅ 23 vérifications. Création par le formulaire (refus de 0, −500 et 10000.5), aperçu, modération puis approbation. Carte et détail en FR et en EN, deux sélections, contrats des deux candidats en FR (et en EN pour le premier), mission, « Mes jobs ». Aucun défilement horizontal |
+| `tsc --noEmit`, `eslint`, `prettier --check .`, `vitest run` (264 tests), `pnpm build` (pile dédiée), types régénérés | ✅ |
+
+### Limites restantes
+
+- Versement Mobile Money, frais facturés à l'entreprise, abonnements, fourchette négociable et temps réel : lots distincts.
+- `payments.hourly_rate` et `hours_worked` (table du lot paiement) gardent l'ancien vocabulaire.
+- Missions de plusieurs jours : le montant vaut pour la mission sélectionnée (une mission par sélection, §18). Il n'existe pas de forfait par jour.
+- Un contrat antérieur à 7c-bis (aucun sur le distant) n'a pas de `pay_basis` : il afficherait « — » plutôt qu'un montant réinterprété.
+- Libellés codés en dur hors dictionnaire (formulaire, maquette de l'accueil), antérieurs au lot : lot 9.

@@ -15,8 +15,9 @@ export default async function AdminDashboardPage() {
   const { data: jobRows } = await supabase
     .from("jobs")
     .select(
-      `id, company_id, title, description, city, start_date, start_time,
-       end_time, hourly_rate, currency, urgency, updated_at`,
+      `id, company_id, title, description, city, start_date, end_date,
+       start_time, end_time, mission_pay_per_candidate, positions_available,
+       urgency, updated_at`,
     )
     .eq("status", "pending_review")
     .order("created_at", { ascending: true })

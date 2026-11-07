@@ -378,6 +378,8 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 11. **Soumission à l'admin pour modération** : l'offre passe en statut "en attente de validation". Elle n'est pas visible par les candidats tant qu'elle n'est pas approuvée.
 12. Après validation admin, si l'offre couvre plusieurs jours, elle est automatiquement décomposée en sous-offres journalières.
 
+> **Décision produit du 2026-11-07 (lot 7c-bis), montant par mission :** les étapes 3 et 4 portent sur un **montant fixe en francs CFA (XAF), par candidat, pour la mission** (« Rémunération par candidat pour la mission (F CFA) »), et non plus sur un salaire par jour ou un taux horaire. Exemple : 3 personnes recherchées pour un inventaire de 8 h à 12 h à 10 000 F CFA ⇒ 10 000 F CFA pour chacune ; terminer à 11 h 30 ou à 12 h 30 conserve ce montant. Le montant est un entier strictement positif, contrôlé par le formulaire et par la base. Dates, horaires et nombre de personnes restent saisis et affichés séparément : ils servent à l'organisation du candidat et à l'appréciation du montant par le support, jamais à un calcul. La validation du montant par l'IA (étape 4) n'est pas implémentée ; la modération affiche ensemble le travail demandé, le montant par candidat et la plage horaire.
+
 **Critères d'acceptation :**
 - La génération IA prend moins de 5 secondes.
 - L'entreprise peut modifier tous les champs avant soumission.
@@ -463,6 +465,8 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Conditions d'annulation et pénalités.
 - Consentement électronique avec horodatage et adresse IP.
 
+> **Décision produit du 2026-11-07 (lot 7c-bis) :** la rémunération figée dans le contrat à la sélection est le montant fixe par candidat pour la mission, en XAF, avec la mention qu'il s'agit d'un forfait par mission. Elle est couverte par l'empreinte acceptée lors de la signature. Les horaires restent indiqués à titre d'organisation. Une modification ultérieure de l'offre ne change pas le contrat.
+
 **Critères d'acceptation :**
 - Le contrat est généré en moins de 10 secondes après sélection.
 - ~~Les deux parties doivent signer avant que la mission ne démarre officiellement.~~ **Décision produit du 2026-11-06 (lot 7c) :** un candidat sélectionné peut commencer sa mission et pointer son arrivée et son départ même si aucune partie n'a encore signé le contrat. Sa propre signature sera exigée pour le paiement (lot paiement). La signature, le pointage et le paiement sont trois étapes distinctes.
@@ -537,6 +541,8 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
    - Les frais Easyjob CM sont prélevés.
    - Le solde est libéré vers le compte Mobile Money du candidat selon le délai défini en section 5.3.
 5. En cas de litige, le montant reste bloqué jusqu'à résolution par `admin_ops`.
+
+> **Décision produit du 2026-11-07 (lot 7c-bis) :** le montant de l'étape 1 se lit désormais (nombre de personnes × montant par candidat pour la mission) + frais Easyjob CM ; aucun terme ne dépend de la durée. Le blocage, le versement et les frais restent à réaliser dans le lot paiement.
 
 **Critères d'acceptation :**
 - Le montant bloqué est visible par l'entreprise dans son tableau de bord (par offre, par journée, par candidat).

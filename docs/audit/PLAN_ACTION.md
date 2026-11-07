@@ -13,7 +13,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
-| 7 | Sélection → mission → contrat → pointage — **7a, 7b et 7c corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
+| 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c et 7c-bis corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
@@ -254,11 +254,21 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 >
 > **Avant déploiement** : lot 0, en lecture seule, les requêtes de contrôle de la migration (événements orphelins, missions écrites par une session, avis en double).
 >
-> Reste ouvert : notifications planifiées, blocage à 48 h faute de note, montant par tâche dans le formulaire d'offre, missions multi-jours, temps réel (7d), paiement.
+> Reste ouvert : notifications planifiées, blocage à 48 h faute de note, missions multi-jours, temps réel (7d), paiement. Montant par tâche : traité en 7c-bis.
 
 - **IDs** : F-10 (partie suivi), F-07 (partie mission), F-30.
 - **Périmètre** (révisé le 2026-11-07) : début de mission par RPC dès H−15, code de fin à six chiffres généré à la sélection et consommé par le candidat, tâches et rappels internes, évaluations dans les deux sens. Restriction des écritures sur `missions`, `mission_check_ins`, codes et `reviews`. Dates affichées en `Africa/Douala`. Sans géolocalisation ni validation des heures.
 - **Critères** : un double clic ne crée ni deux débuts ni deux réalisations ; le code n'est lisible que par l'entreprise propriétaire ; les tentatives sont limitées en base ; une erreur est affichée à l'utilisateur ; l'entreprise ne modifie ni `payment_status` ni `platform_fee`.
+
+### 7c-bis — Montant fixe par candidat pour la mission
+
+> **Statut (2026-11-07)** : réalisé sur `feat/lot-07c-bis-task-compensation` (base `origin/main-dev`, 7963ac4, lot 7c intégré), **non commité, non déployé**. Détails : `AUDIT.md` §21.
+> - `jobs.mission_pay_per_candidate` (entier XAF > 0, contrainte en base) remplace `hourly_rate` ; la colonne journalière inutilisée est supprimée ; devise XAF imposée.
+> - Contrat : montant, `XAF` et `per_mission` figés par `select_candidate` et couverts par l'empreinte ; clauses v2 ; `get_mission` lit le contrat.
+> - Migration bloquante si une offre existe (aucune conversion arbitraire).
+
+- **Périmètre** : montant annoncé et montant accepté dans le contrat. Hors périmètre : versement Mobile Money, frais entreprise, abonnements, fourchette négociable, temps réel.
+- **Critères** : 3 places à 10 000 F CFA ⇒ chaque contrat porte 10 000 XAF ; aucun calcul ne multiplie le forfait par la durée ou par le nombre de places ; un montant nul, négatif ou fractionnaire est refusé par la RPC comme par le formulaire.
 
 ### 7d — Temps réel (Realtime)
 - **IDs** : suite de F-10 (retour immédiat des statuts de sélection, de contrat et de mission).

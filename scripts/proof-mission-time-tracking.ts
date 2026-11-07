@@ -314,7 +314,7 @@ async function main() {
           start_date: opts.date ?? today,
           start_time: opts.start ?? "00:00",
           end_time: "23:59",
-          hourly_rate: 1500,
+          mission_pay_per_candidate: 1500,
           company_id: coA,
           status: "active",
           positions_available: opts.positions ?? 1,
@@ -480,6 +480,37 @@ async function main() {
         !!codesA.error &&
         !!codesAnon.error,
       [codesC1.error?.code, codesA.error?.code, codesAnon.error?.code],
+    );
+
+    // ── P. Montant de la mission (lot 7c-bis) ───────────────────
+    // get_mission renvoie le montant figé dans le contrat : une écriture
+    // ultérieure de l'offre (clé service, hors RPC) ne le change pas.
+    await serviceClient
+      .from("jobs")
+      .update({ mission_pay_per_candidate: 9999 })
+      .eq("id", jobPair);
+    const { data: payAfter } = await C1.client.rpc("get_mission", {
+      p_mission_id: m1.missionId,
+    });
+    await serviceClient
+      .from("jobs")
+      .update({ mission_pay_per_candidate: 1500 })
+      .eq("id", jobPair);
+    const payBefore = (rawMission.body.mission ?? {}) as Record<
+      string,
+      unknown
+    >;
+    report(
+      "P1 mission : montant par candidat et devise lus dans le contrat (1 500 XAF), inchangés après modification de l'offre, aucun taux horaire",
+      payBefore.mission_pay_per_candidate === 1500 &&
+        payBefore.currency === "XAF" &&
+        !("hourly_rate" in payBefore) &&
+        payAfter?.[0]?.mission_pay_per_candidate === 1500 &&
+        payAfter[0].currency === "XAF",
+      [
+        payBefore.mission_pay_per_candidate,
+        payAfter?.[0]?.mission_pay_per_candidate,
+      ],
     );
 
     // ── D. Début de mission ──────────────────────────────────────

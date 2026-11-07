@@ -93,7 +93,9 @@ export const fr = {
       date: "Date",
       time: "Horaires",
       location: "Lieu",
-      salary: "Salaire",
+      pay: "Rémunération par candidat",
+      positions: "Personnes recherchées",
+      positionsValue: "{count} personne(s)",
     },
     momo: {
       title: "Révue Mobile Money",
@@ -566,9 +568,21 @@ export const fr = {
     applied: "Candidature envoyée",
     deadline: "Date limite",
     spotsLeft: "places restantes",
-    perHour: "/heure",
-    perDay: "/jour",
-    perMission: "/mission",
+  },
+
+  // Rémunération : montant fixe par candidat pour la mission (XAF)
+  pay: {
+    forMission: "pour la mission",
+    perCandidate: "Rémunération par candidat",
+    flatNote:
+      "Montant fixe versé à chaque candidat sélectionné pour la mission, quelle que soit l'heure de fin effective.",
+    formLabel: "Rémunération par candidat pour la mission (F CFA)",
+    formHint:
+      "Montant fixe versé à chaque candidat sélectionné, quelle que soit l'heure de fin effective. Les horaires restent affichés pour l'organisation.",
+    formExample:
+      "Exemple : 3 personnes recherchées à 10 000 F CFA = 10 000 F CFA pour chacune.",
+    positions: "{count} personne(s) recherchée(s)",
+    contractBasis: "Forfait par mission, par candidat, en francs CFA (XAF)",
   },
 
   // Tasks
@@ -1578,7 +1592,13 @@ export const fr = {
         "Ville manquante : complétez le profil de votre entreprise.",
       startDatePast: "La date de début ne peut pas être passée.",
       endDateBeforeStart: "La date de fin doit suivre la date de début.",
-      hourlyRateInvalid: "Le taux horaire doit être positif.",
+      missionPayRequired:
+        "Indiquez la rémunération par candidat pour la mission.",
+      missionPayInvalid:
+        "La rémunération par candidat doit être supérieure à 0 F CFA.",
+      missionPayInteger:
+        "La rémunération par candidat doit être un nombre entier de F CFA.",
+      missionPayTooHigh: "Rémunération par candidat trop élevée.",
       positionsInvalid:
         "Nombre de postes invalide (au moins 1, et pas moins que les candidats déjà sélectionnés).",
       invalid_job_data: "Certaines informations de l'offre sont invalides.",
@@ -1707,7 +1727,6 @@ export const fr = {
     schedule: "{start} – {end} (heure de Douala)",
     scheduleNote:
       "Horaires prévus par l'offre. La rémunération convenue ne dépend pas de la durée.",
-    perHour: "{amount}/heure",
     tracking: "Suivi",
     startedAt: "Début confirmé à {time}",
     completedAt: "Réalisation confirmée à {time}",
@@ -1823,8 +1842,7 @@ export const fr = {
     hours: "Horaires",
     breakMinutes: "Pause : {min} min",
     place: "Lieu",
-    rate: "Taux horaire",
-    perHour: "{amount}/heure",
+    pay: "Rémunération par candidat",
     clausesTitle: "Engagements des parties",
     clausesVersion: "Version des clauses : {version}",
     clausesMissing:

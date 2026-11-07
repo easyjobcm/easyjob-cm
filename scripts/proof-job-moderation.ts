@@ -307,7 +307,7 @@ const JOB_BODY = {
   start_date: "2099-01-15",
   start_time: "09:00",
   end_time: "17:00",
-  hourly_rate: 1500,
+  mission_pay_per_candidate: 1500,
 };
 
 type HttpResult = { status: number; body: Record<string, unknown> };
@@ -515,7 +515,7 @@ async function main() {
       p_job: { ...JOB_BODY, start_date: "2000-01-01" },
     });
     const { error: a14Err } = await V.client.rpc("create_job", {
-      p_job: { ...JOB_BODY, hourly_rate: -5 },
+      p_job: { ...JOB_BODY, mission_pay_per_candidate: -5 },
     });
     const { error: a15Err } = await V.client.rpc("create_job", {
       p_job: { ...JOB_BODY, urgency: "critical" },
@@ -525,10 +525,10 @@ async function main() {
       title: "",
     });
     report(
-      "A13-A16 : date passée, taux négatif, urgence réservée, titre vide → refusés sans offre créée",
+      "A13-A16 : date passée, montant négatif, urgence réservée, titre vide → refusés sans offre créée",
       a13Err?.message === "invalid_job_data" &&
         a13Err.details === "start_date" &&
-        a14Err?.details === "hourly_rate" &&
+        a14Err?.details === "mission_pay_per_candidate" &&
         a15Err?.details === "urgency" &&
         a16.status === 400 &&
         a16.body.code === "invalid_job_data" &&
@@ -541,7 +541,125 @@ async function main() {
       },
     );
 
+    // ── P. Montant par candidat pour la mission (lot 7c-bis) ────
+    // Appel direct de la RPC (sans Zod) : la base applique seule la règle
+    // « entier XAF strictement positif » et refuse l'ancien taux horaire.
+    const payCases: [string, Record<string, unknown>, string][] = [
+      ["zéro", { mission_pay_per_candidate: 0 }, "mission_pay_per_candidate"],
+      [
+        "négatif",
+        { mission_pay_per_candidate: -10000 },
+        "mission_pay_per_candidate",
+      ],
+      [
+        "fractionnaire",
+        { mission_pay_per_candidate: 10000.5 },
+        "mission_pay_per_candidate",
+      ],
+      [
+        "chaîne",
+        { mission_pay_per_candidate: "10000" },
+        "mission_pay_per_candidate",
+      ],
+      [
+        "absent",
+        { mission_pay_per_candidate: undefined },
+        "mission_pay_per_candidate",
+      ],
+      [
+        "au-delà d'integer",
+        { mission_pay_per_candidate: 3_000_000_000 },
+        "mission_pay_per_candidate",
+      ],
+      ["ancien taux horaire", { hourly_rate: 1500 }, "hourly_rate"],
+    ];
+    const vCountBeforePay = await countJobs(coV);
+    const payResults: Record<string, unknown> = {};
+    let payOk = true;
+    for (const [label, patch, field] of payCases) {
+      const { error } = await V.client.rpc("create_job", {
+        p_job: JSON.parse(JSON.stringify({ ...JOB_BODY, ...patch })),
+      });
+      payResults[label] = `${error?.message}/${error?.details}`;
+      payOk &&=
+        error?.message === "invalid_job_data" && error.details === field;
+    }
+    report(
+      "P1 : RPC directe, montant nul, négatif, fractionnaire, chaîne, absent, hors borne ou taux horaire → invalid_job_data sur le champ, aucune offre",
+      payOk && (await countJobs(coV)) === vCountBeforePay,
+      payResults,
+    );
+
+    const p2 = await Promise.all(
+      [0, -5, 10000.5].map((amount) =>
+        http("POST", "/api/jobs", V.cookie, {
+          ...JOB_BODY,
+          mission_pay_per_candidate: amount,
+        }),
+      ),
+    );
+    report(
+      "P2 : route POST /api/jobs, montant nul, négatif ou fractionnaire → 400 (Zod), aucune offre",
+      p2.every((r) => r.status === 400 && r.body.code === "invalid_job_data") &&
+        (await countJobs(coV)) === vCountBeforePay,
+      p2.map((r) => r.status),
+    );
+
+    const { data: p3Job, error: p3Err } = await V.client.rpc("create_job", {
+      p_job: {
+        ...JOB_BODY,
+        title: "Inventaire preuve L7c-bis",
+        start_time: "08:00",
+        end_time: "12:00",
+        positions_available: 3,
+        mission_pay_per_candidate: 10000,
+      },
+    });
+    const { data: p3Row } = p3Job
+      ? await serviceClient
+          .from("jobs")
+          .select(
+            "status, mission_pay_per_candidate, currency, positions_available, start_time, end_time",
+          )
+          .eq("id", p3Job.id)
+          .single()
+      : { data: null };
+    report(
+      "P3 : 10 000 XAF, 3 places, 8 h-12 h → offre en attente, montant entier par candidat, devise XAF, horaires conservés",
+      !p3Err &&
+        p3Row?.status === "pending_review" &&
+        p3Row.mission_pay_per_candidate === 10000 &&
+        p3Row.currency === "XAF" &&
+        p3Row.positions_available === 3 &&
+        p3Row.start_time === "08:00:00" &&
+        p3Row.end_time === "12:00:00",
+      p3Err?.message ?? p3Row,
+    );
+
+    // Contrainte en base, même pour la clé service (hors RPC).
+    const { error: p4Err } = p3Job
+      ? await serviceClient
+          .from("jobs")
+          .update({ mission_pay_per_candidate: 0 })
+          .eq("id", p3Job.id)
+      : { error: null };
+    const { error: p4bErr } = p3Job
+      ? await serviceClient
+          .from("jobs")
+          .update({ currency: "EUR" })
+          .eq("id", p3Job.id)
+      : { error: null };
+    report(
+      "P4 : contraintes jobs_mission_pay_per_candidate_chk et jobs_currency_xaf_chk (clé service) → refus",
+      !!p4Err &&
+        p4Err.message.includes("jobs_mission_pay_per_candidate_chk") &&
+        !!p4bErr &&
+        p4bErr.message.includes("jobs_currency_xaf_chk"),
+      [p4Err?.message, p4bErr?.message],
+    );
+
     // ── B. Écritures directes ───────────────────────────────────
+    const vCountBeforeB1 = await countJobs(coV);
     const { data: b1Rows, error: b1Err } = await V.client
       .from("jobs")
       .insert({ ...JOB_BODY, company_id: coV, status: "active" })
@@ -550,7 +668,7 @@ async function main() {
       "B1 : INSERT direct en statut active → 42501, aucune ligne",
       b1Err?.code === "42501" &&
         (b1Rows ?? []).length === 0 &&
-        (await countJobs(coV)) === vCountBeforeInvalid,
+        (await countJobs(coV)) === vCountBeforeB1,
       { code: b1Err?.code },
     );
 
@@ -605,7 +723,7 @@ async function main() {
       {
         positions_filled: 9,
         urgency_fee: 0,
-        salary_locked: false,
+        currency: "XAF",
         sandbox_level_required: 0,
       },
     );
@@ -970,14 +1088,14 @@ async function main() {
     await moderate(R, jP, { action: "approve" });
     const f2 = await http("PATCH", `/api/jobs/${jP}`, P.cookie, {
       ...JOB_BODY,
-      hourly_rate: 2500,
+      mission_pay_per_candidate: 2500,
     });
     const jPRow = await readJob(jP);
     report(
       "F2 : plan pro, offre active modifiée → nouvelle modération, retirée du public",
       f2.status === 200 &&
         jPRow?.status === "pending_review" &&
-        Number(jPRow.hourly_rate) === 2500 &&
+        jPRow.mission_pay_per_candidate === 2500 &&
         jPRow.published_at === null &&
         !(await visibleTo(C.client, jP)),
       { status: f2.status, row: jPRow?.status },

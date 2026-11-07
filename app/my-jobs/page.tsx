@@ -17,7 +17,9 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
+import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
 import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
@@ -53,7 +55,7 @@ const fetcher = async (_url: string) => {
         id,
         title,
         city,
-        hourly_rate,
+        mission_pay_per_candidate,
         start_date,
         start_time,
         end_time,
@@ -72,6 +74,7 @@ const fetcher = async (_url: string) => {
     .select(
       `
       id,
+      application_id,
       status,
       scheduled_date,
       scheduled_start_time,
@@ -80,7 +83,6 @@ const fetcher = async (_url: string) => {
         id,
         title,
         city,
-        hourly_rate,
         company:company_public_profiles (
           company_name
         )
@@ -90,9 +92,21 @@ const fetcher = async (_url: string) => {
     .eq("candidate_id", profile.id)
     .order("scheduled_date", { ascending: false });
 
+  // Mission : montant figé dans le contrat (jamais relu depuis l'offre).
+  const { data: contracts } = await supabase
+    .from("contracts")
+    .select("application_id, contract_data")
+    .eq("candidate_id", profile.id);
+  const payByApplication = frozenPayByApplication(contracts);
+
   return {
     applications: applications || [],
-    missions: missions || [],
+    missions: (missions || []).map((m) => ({
+      ...m,
+      pay: m.application_id
+        ? (payByApplication.get(m.application_id) ?? null)
+        : null,
+    })),
   };
 };
 
@@ -234,9 +248,10 @@ export default function MyJobsPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
-            <span className="font-semibold text-primary">
-              {formatCurrency(application.job?.hourly_rate || 0)}/h
-            </span>
+            <MissionPay
+              amount={application.job?.mission_pay_per_candidate}
+              amountClassName="text-primary"
+            />
             {application.created_at && (
               <span className="text-xs text-muted-foreground">
                 {locale === "fr" ? "Postule le" : "Applied on"}{" "}
@@ -277,9 +292,7 @@ export default function MyJobsPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
-            <span className="font-semibold text-primary">
-              {formatCurrency(mission.job?.hourly_rate || 0)}/h
-            </span>
+            <MissionPay amount={mission.pay} amountClassName="text-primary" />
             <span className="text-sm font-medium text-foreground">
               {formatDate(mission.scheduled_date, locale)}
             </span>

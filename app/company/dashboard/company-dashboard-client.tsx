@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import {
   Briefcase,
   Users,
@@ -37,8 +38,7 @@ interface CompanyDashboardClientProps {
     start_date: string;
     city: string;
     start_time?: string | null;
-    hourly_rate: number;
-    currency?: string | null;
+    mission_pay_per_candidate: number;
     applications?: Array<{
       count?: number;
     }>;
@@ -291,9 +291,11 @@ export function CompanyDashboardClient({
                           </span>
                         </span>
                       </div>
-                      <p className="text-sm font-medium text-primary">
-                        {formatCurrency(job.hourly_rate, job.currency)}/h
-                      </p>
+                      <MissionPay
+                        amount={job.mission_pay_per_candidate}
+                        amountClassName="text-sm text-primary"
+                        className="justify-end text-right"
+                      />
                     </div>
                   </CardContent>
                 </Card>

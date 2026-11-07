@@ -12,7 +12,12 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/lib/database.types";
-import { jobInputSchema, type JobInput } from "@/lib/validations/job";
+import {
+  jobInputSchema,
+  missionPaySchema,
+  type JobInput,
+} from "@/lib/validations/job";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import { JOB_PENDING_STATUS } from "@/lib/utils/job-status";
 import {
   Briefcase,
@@ -23,6 +28,7 @@ import {
   Check,
   AlertTriangle,
   Info,
+  Users,
 } from "lucide-react";
 
 type Step = "basics" | "schedule" | "requirements" | "payment" | "review";
@@ -73,7 +79,7 @@ export type JobFormInitial = Pick<
   | "start_time"
   | "end_time"
   | "positions_available"
-  | "hourly_rate"
+  | "mission_pay_per_candidate"
   | "required_skills"
   | "urgency"
 >;
@@ -96,7 +102,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
   const isContract = initialJob?.job_type === "contract";
   const [formData, setFormData] = React.useState({
     title: initialJob?.title ?? "",
-    // Catégorie, heures par semaine et avantages ne sont pas enregistrés :
+    // Catégorie et avantages ne sont pas enregistrés :
     // ils sont à ressaisir lors d'une correction.
     category: "",
     type: (isContract ? "contract" : "shift") as "shift" | "contract",
@@ -107,7 +113,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     endTime: initialJob?.end_time.slice(0, 5) ?? "",
     startDate: isContract ? (initialJob?.start_date ?? "") : "",
     endDate: isContract ? (initialJob?.end_date ?? "") : "",
-    hoursPerWeek: "",
     workersNeeded: initialJob?.positions_available ?? 1,
     // Location
     useCompanyAddress: true,
@@ -117,8 +122,8 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     benefits: [] as string[],
     customRequirement: "",
     customBenefit: "",
-    // Payment
-    hourlyRate: initialJob ? String(Math.round(initialJob.hourly_rate)) : "",
+    // Payment : montant fixe par candidat pour la mission (XAF entiers)
+    missionPay: initialJob ? String(initialJob.mission_pay_per_candidate) : "",
     urgent: initialJob?.urgency === "urgent",
   });
 
@@ -153,6 +158,18 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       variant: "destructive",
     });
   };
+
+  // Saisie vide : NaN (montant manquant) ; aucune conversion silencieuse
+  // d'une fraction en entier, refusée par missionPaySchema.
+  const missionPayValue =
+    formData.missionPay.trim() === ""
+      ? Number.NaN
+      : Number(formData.missionPay);
+  const missionPayCheck = missionPaySchema.safeParse(missionPayValue);
+  const missionPayError =
+    formData.missionPay.trim() !== "" && !missionPayCheck.success
+      ? errorMessage(missionPayCheck.error.issues[0]?.message)
+      : null;
 
   const handlePublish = async () => {
     setSubmitError(null);
@@ -193,7 +210,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         start_time: formData.startTime,
         end_time: formData.endTime,
         positions_available: formData.workersNeeded,
-        hourly_rate: parseInt(formData.hourlyRate),
+        mission_pay_per_candidate: missionPayValue,
         city: companyProfile.city,
         address: companyProfile.address || "",
         required_skills: formData.requirements,
@@ -273,23 +290,18 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       case "basics":
         return formData.title && formData.category && formData.description;
       case "schedule":
-        if (formData.type === "shift") {
-          return formData.date && formData.startTime && formData.endTime;
-        }
-        return formData.startDate && formData.endDate && formData.hoursPerWeek;
+        if (!formData.startTime || !formData.endTime) return false;
+        if (formData.type === "shift") return !!formData.date;
+        return !!formData.startDate && !!formData.endDate;
       case "requirements":
         return true;
       case "payment":
-        return formData.hourlyRate && parseInt(formData.hourlyRate) >= 500;
+        return missionPayCheck.success;
       case "review":
         return true;
       default:
         return false;
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("fr-CM").format(amount);
   };
 
   return (
@@ -448,41 +460,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                     min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">
-                      {locale === "fr" ? "Heure de debut" : "Start time"}
-                    </label>
-                    <Input
-                      type="time"
-                      value={formData.startTime}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          startTime: e.target.value,
-                        }))
-                      }
-                      className="mt-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">
-                      {locale === "fr" ? "Heure de fin" : "End time"}
-                    </label>
-                    <Input
-                      type="time"
-                      value={formData.endTime}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          endTime: e.target.value,
-                        }))
-                      }
-                      className="mt-1.5"
-                    />
-                  </div>
-                </div>
               </>
             ) : (
               <>
@@ -525,28 +502,43 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label className="text-sm font-medium text-foreground">
-                    {locale === "fr" ? "Heures par semaine" : "Hours per week"}
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.hoursPerWeek}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        hoursPerWeek: e.target.value,
-                      }))
-                    }
-                    placeholder="40"
-                    className="mt-1.5"
-                    min={1}
-                    max={60}
-                  />
-                </div>
               </>
             )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  {locale === "fr" ? "Heure de debut" : "Start time"}
+                </label>
+                <Input
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      startTime: e.target.value,
+                    }))
+                  }
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground">
+                  {locale === "fr" ? "Heure de fin" : "End time"}
+                </label>
+                <Input
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      endTime: e.target.value,
+                    }))
+                  }
+                  className="mt-1.5"
+                />
+              </div>
+            </div>
 
             <div>
               <label className="text-sm font-medium text-foreground">
@@ -644,30 +636,45 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         {currentStep === "payment" && (
           <div className="space-y-6">
             <div>
-              <label className="text-sm font-medium text-foreground">
-                {locale === "fr" ? "Taux horaire (XAF)" : "Hourly rate (XAF)"}
+              <label
+                htmlFor="mission-pay"
+                className="text-sm font-medium text-foreground"
+              >
+                {t.pay.formLabel}
               </label>
               <div className="relative mt-1.5">
                 <Banknote className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  id="mission-pay"
                   type="number"
-                  value={formData.hourlyRate}
+                  inputMode="numeric"
+                  step={1}
+                  min={1}
+                  value={formData.missionPay}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      hourlyRate: e.target.value,
+                      missionPay: e.target.value,
                     }))
                   }
-                  placeholder="1500"
+                  placeholder="10000"
                   className="pl-10 text-lg"
-                  min={500}
+                  aria-invalid={missionPayError ? true : undefined}
+                  aria-describedby="mission-pay-hint"
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {locale === "fr"
-                  ? "Minimum recommande: 1000 XAF/h"
-                  : "Recommended minimum: 1000 XAF/h"}
-              </p>
+              {missionPayError && (
+                <p role="alert" className="text-xs text-destructive mt-1">
+                  {missionPayError}
+                </p>
+              )}
+              <div
+                id="mission-pay-hint"
+                className="text-xs text-muted-foreground mt-1 space-y-1"
+              >
+                <p>{t.pay.formHint}</p>
+                <p>{t.pay.formExample}</p>
+              </div>
             </div>
 
             <Card
@@ -764,7 +771,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                     </span>
                   </div>
 
-                  {formData.type === "shift" && (
+                  {formData.startTime && formData.endTime && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
@@ -774,10 +781,28 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                   )}
 
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <Banknote className="h-4 w-4" />
-                    <span className="font-semibold text-primary">
-                      {formatCurrency(parseInt(formData.hourlyRate))} XAF/h
+                    <Users className="h-4 w-4" />
+                    <span>
+                      {t.pay.positions.replace(
+                        "{count}",
+                        String(formData.workersNeeded),
+                      )}
                     </span>
+                  </div>
+
+                  <div className="flex items-start gap-2 text-muted-foreground pt-2 border-t">
+                    <Banknote className="h-4 w-4 mt-1" />
+                    <div className="space-y-0.5">
+                      <p className="text-xs">{t.pay.perCandidate}</p>
+                      <MissionPay
+                        amount={
+                          missionPayCheck.success ? missionPayCheck.data : null
+                        }
+                        amountClassName="text-primary"
+                        testId="review-mission-pay"
+                      />
+                      <p className="text-xs">{t.pay.flatNote}</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>

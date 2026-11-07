@@ -4,8 +4,11 @@ import {
   jobInputSchema,
   jobModerationSchema,
   jobRefusal,
+  MISSION_PAY_MAX,
 } from "@/lib/validations/job";
 import { canEditJob } from "@/lib/utils/job-status";
+import { formatXaf } from "@/lib/utils";
+import { frozenMissionPay } from "@/lib/utils/mission-pay";
 
 const valid = {
   title: "Serveur",
@@ -15,7 +18,7 @@ const valid = {
   start_date: "2099-01-15",
   start_time: "09:00",
   end_time: "17:00",
-  hourly_rate: 1500,
+  mission_pay_per_candidate: 10000,
 };
 
 const firstIssue = (input: Record<string, unknown>) =>
@@ -43,10 +46,47 @@ describe("jobInputSchema", () => {
     expect(firstIssue({ ...valid, end_date: "2099-01-10" })).toBe(
       "endDateBeforeStart",
     );
-    expect(firstIssue({ ...valid, hourly_rate: 0 })).toBe("hourlyRateInvalid");
+    expect(firstIssue({ ...valid, mission_pay_per_candidate: 0 })).toBe(
+      "missionPayInvalid",
+    );
     expect(
       jobInputSchema.safeParse({ ...valid, urgency: "critical" }).success,
     ).toBe(false);
+  });
+
+  it("accepte un montant entier par candidat et refuse nul, négatif, fraction, absent et ancien taux", () => {
+    expect(
+      jobInputSchema.parse({ ...valid, positions_available: 3 })
+        .mission_pay_per_candidate,
+    ).toBe(10000);
+    expect(firstIssue({ ...valid, mission_pay_per_candidate: -1 })).toBe(
+      "missionPayInvalid",
+    );
+    expect(firstIssue({ ...valid, mission_pay_per_candidate: 10000.5 })).toBe(
+      "missionPayInteger",
+    );
+    expect(
+      firstIssue({ ...valid, mission_pay_per_candidate: Number.NaN }),
+    ).toBe("missionPayRequired");
+    expect(
+      firstIssue({ ...valid, mission_pay_per_candidate: MISSION_PAY_MAX + 1 }),
+    ).toBe("missionPayTooHigh");
+    const { mission_pay_per_candidate: _omit, ...withoutPay } = valid;
+    void _omit;
+    expect(firstIssue({ ...withoutPay, hourly_rate: 1500 })).toBe(
+      "missionPayRequired",
+    );
+    // Un ancien champ n'est jamais transmis à la base.
+    expect(
+      jobInputSchema.parse({ ...valid, hourly_rate: 1500 }),
+    ).not.toHaveProperty("hourly_rate");
+  });
+
+  it("formate le montant en F CFA (fr) et en CFA francs (en)", () => {
+    expect(formatXaf(10000, "fr").replace(/\s/g, " ")).toBe("10 000 F CFA");
+    expect(formatXaf(10000, "en").replace(/\s/g, " ")).toBe(
+      "10,000 CFA francs",
+    );
   });
 
   it("calcule la date du jour à Douala (UTC+1)", () => {
@@ -93,5 +133,21 @@ describe("canEditJob", () => {
     expect(canEditJob(job("active"), true)).toBe(true);
     expect(canEditJob(job("active", 1), true)).toBe(false);
     expect(canEditJob(job("filled"), true)).toBe(false);
+  });
+});
+
+describe("frozenMissionPay", () => {
+  it("lit le montant figé du contrat, sans jamais l'inventer", () => {
+    expect(
+      frozenMissionPay({
+        mission_pay_per_candidate: 10000,
+        currency: "XAF",
+        pay_basis: "per_mission",
+      }),
+    ).toBe(10000);
+    expect(frozenMissionPay({ hourly_rate: 1500 })).toBeNull();
+    expect(frozenMissionPay({ mission_pay_per_candidate: 10000.5 })).toBeNull();
+    expect(frozenMissionPay(null)).toBeNull();
+    expect(frozenMissionPay([10000])).toBeNull();
   });
 });

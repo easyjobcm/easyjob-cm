@@ -19,8 +19,7 @@ type JobListItem = {
   start_date: string;
   start_time: string;
   end_time: string;
-  hourly_rate: number;
-  currency: string;
+  mission_pay_per_candidate: number;
   urgency: "normal" | "urgent" | "critical";
   positions_available: number;
   positions_filled: number;

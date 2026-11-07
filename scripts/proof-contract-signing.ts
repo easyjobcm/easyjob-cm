@@ -15,6 +15,10 @@
  *         masqué pour l'entreprise, aucune donnée sensible, colonnes
  *         sensibles illisibles, tiers et anonyme refusés, offre modifiée
  *         après sélection sans effet.
+ *      M. Forfait par candidat (lot 7c-bis) : offre 8 h-12 h à 10 000 F CFA
+ *         pour 3 places, trois sélections, chaque contrat porte 10 000 XAF
+ *         « par mission » ; quatrième candidature refusée ; l'empreinte couvre
+ *         montant, devise et forfait.
  *      S. Signatures : candidat puis entreprise, horodatages serveur,
  *         signataires, empreintes ; relance qui retrouve l'horodatage
  *         d'origine ; notifications de l'autre partie ; mission inchangée.
@@ -63,6 +67,9 @@ const {
 const DB_URL = readLocalDbUrl();
 const PROOF_PASSWORD = "Proof-L7b-sign-01!";
 const PROOF_USER_METADATA = { proofContractSigning: true };
+/** Version courante des clauses simples (lot 7c-bis : forfait par mission). */
+const CURRENT_SIMPLE = "simple-v2";
+const CURRENT_FORMAL = "formal-v2";
 const PROOF_VERSION_PREFIX = "simple-proof-l7b-";
 const PROOF_VERSION = `${PROOF_VERSION_PREFIX}${Date.now()}`;
 
@@ -304,7 +311,7 @@ const JOB_BODY = {
   start_date: "2099-03-10",
   start_time: "09:00",
   end_time: "17:00",
-  hourly_rate: 1500,
+  mission_pay_per_candidate: 1500,
 };
 
 type HttpResult = {
@@ -497,12 +504,15 @@ async function main() {
         v1.company_name === "Restaurant A" &&
         v1.candidate_name === `Aline ${SECRETS.lastName}` &&
         terms1.job_title === "Serveur preuve L7b" &&
-        terms1.hourly_rate === 1500 &&
+        terms1.mission_pay_per_candidate === 1500 &&
+        terms1.currency === "XAF" &&
+        terms1.pay_basis === "per_mission" &&
+        !("hourly_rate" in terms1) &&
         terms1.start_date === "2099-03-10" &&
         v1.mission_id === k1.missionId &&
         isHex64(v1.terms_hash) &&
         (terms1.clauses as Record<string, unknown> | undefined)?.version ===
-          "simple-v1" &&
+          CURRENT_SIMPLE &&
         v1.terms_hash === before.terms_hash,
       g1.status === 200
         ? {
@@ -598,7 +608,10 @@ async function main() {
     // L'offre change après la sélection : le contrat garde ses conditions.
     await serviceClient
       .from("jobs")
-      .update({ title: "Titre modifié après sélection", hourly_rate: 9999 })
+      .update({
+        title: "Titre modifié après sélection",
+        mission_pay_per_candidate: 9999,
+      })
       .eq("id", job1);
     const g6 = await view(C1, k1.contractId);
     const v6 = g6.body.contract as ContractView | undefined;
@@ -607,9 +620,111 @@ async function main() {
       "L6 offre modifiée après sélection : conditions et empreinte du contrat inchangées",
       g6.status === 200 &&
         t6.job_title === "Serveur preuve L7b" &&
-        t6.hourly_rate === 1500 &&
+        t6.mission_pay_per_candidate === 1500 &&
         v6?.terms_hash === before.terms_hash,
-      { title: t6.job_title, rate: t6.hourly_rate },
+      { title: t6.job_title, pay: t6.mission_pay_per_candidate },
+    );
+
+    // ── M. Forfait par candidat (lot 7c-bis) ─────────────────────
+    // Inventaire 8 h-12 h, 3 places, 10 000 F CFA : chaque contrat porte
+    // 10 000 XAF, jamais multiplié par la durée ni par le nombre de places.
+    const { data: invJob, error: invErr } = await serviceClient
+      .from("jobs")
+      .insert({
+        ...JOB_BODY,
+        title: "Inventaire preuve L7c-bis",
+        start_time: "08:00",
+        end_time: "12:00",
+        mission_pay_per_candidate: 10000,
+        positions_available: 3,
+        company_id: coA,
+        status: "active",
+      })
+      .select("id")
+      .single();
+    if (invErr || !invJob) throw new Error(`job seed: ${invErr?.message}`);
+    const invContracts = [];
+    for (const cand of [C1, C2, C3]) {
+      invContracts.push(await contractFor(cand, invJob.id));
+    }
+    const invViews = await Promise.all(
+      invContracts.map((k, i) => view([C1, C2, C3][i], k.contractId)),
+    );
+    const invTerms = invViews.map(
+      (g) =>
+        ((g.body.contract as ContractView | undefined)?.terms ?? {}) as Record<
+          string,
+          unknown
+        >,
+    );
+    const { data: invRow } = await serviceClient
+      .from("jobs")
+      .select("positions_filled, mission_pay_per_candidate")
+      .eq("id", invJob.id)
+      .single();
+    report(
+      "M1 3 places à 10 000 F CFA, 3 sélections : chaque candidat lit 10 000 XAF forfaitaires dans son contrat, horaires 08:00-12:00 conservés",
+      invViews.every((g) => g.status === 200) &&
+        invTerms.every(
+          (t) =>
+            t.mission_pay_per_candidate === 10000 &&
+            t.currency === "XAF" &&
+            t.pay_basis === "per_mission" &&
+            t.start_time === "08:00:00" &&
+            t.end_time === "12:00:00" &&
+            !("hourly_rate" in t),
+        ) &&
+        new Set(invContracts.map((k) => k.contractId)).size === 3 &&
+        invRow?.positions_filled === 3 &&
+        invRow.mission_pay_per_candidate === 10000,
+      invTerms.map((t) => [
+        t.mission_pay_per_candidate,
+        t.currency,
+        t.pay_basis,
+      ]),
+    );
+
+    // Offre pleine : la candidature est déjà refusée (apply_to_job), et une
+    // sélection d'une candidature antérieure le serait (select_candidate).
+    const { data: invApp4, error: invApp4Err } = await C4.client.rpc(
+      "apply_to_job",
+      { p_job_id: invJob.id },
+    );
+    const { data: invContractRows } = await serviceClient
+      .from("contracts")
+      .select("id")
+      .eq("job_id", invJob.id);
+    report(
+      "M2 offre pleine (3/3) : quatrième candidature refusée (no_positions), toujours 3 contrats",
+      !invApp4 &&
+        invApp4Err?.message === "no_positions" &&
+        (invContractRows ?? []).length === 3,
+      invApp4Err?.message,
+    );
+
+    // L'empreinte (contract_terms_hash) porte sur le montant, la devise et
+    // la nature forfaitaire : une valeur différente donne une autre empreinte.
+    const coverage = execSql(
+      `select (c.terms_hash = public.contract_terms_hash(c)
+         and public.contract_terms_hash(jsonb_populate_record(c, jsonb_build_object('contract_data', c.contract_data || '{"mission_pay_per_candidate": 20000}'::jsonb))) <> c.terms_hash
+         and public.contract_terms_hash(jsonb_populate_record(c, jsonb_build_object('contract_data', c.contract_data || '{"currency": "EUR"}'::jsonb))) <> c.terms_hash
+         and public.contract_terms_hash(jsonb_populate_record(c, jsonb_build_object('contract_data', c.contract_data || '{"pay_basis": "per_hour"}'::jsonb))) <> c.terms_hash) as covered
+       from public.contracts c where c.id = '${invContracts[0].contractId}'`,
+    );
+    const invSign = await sign(C1, invContracts[0].contractId, {
+      terms_hash: (invViews[0].body.contract as ContractView | undefined)
+        ?.terms_hash,
+      consent: true,
+    });
+    const invSigned = await row(invContracts[0].contractId);
+    report(
+      "M3 empreinte : couvre montant, devise et forfait ; la signature du candidat porte sur ces conditions",
+      /"covered"\s*:\s*true/.test(coverage) &&
+        invSign.status === 200 &&
+        invSigned.candidate_terms_hash === invSigned.terms_hash &&
+        (invSigned.contract_data as Record<string, unknown>)
+          ?.mission_pay_per_candidate === 10000,
+      { coverage: coverage.slice(0, 120), sign: invSign.status },
     );
 
     // ── R. Refus avant signature ─────────────────────────────────
@@ -624,7 +739,9 @@ async function main() {
       .select("id");
     const { data: upd2, error: updErr2 } = await A.client
       .from("contracts")
-      .update({ contract_data: { job_title: "Forgé", hourly_rate: 1 } })
+      .update({
+        contract_data: { job_title: "Forgé", mission_pay_per_candidate: 1 },
+      })
       .eq("id", k1.contractId)
       .select("id");
     const { data: upd3, error: updErr3 } = await C1.client
@@ -1148,7 +1265,7 @@ async function main() {
     const { data: v1Row } = await serviceClient
       .from("contract_clause_versions")
       .select("id, body")
-      .eq("id", "simple-v1")
+      .eq("id", CURRENT_SIMPLE)
       .single();
     const kc = await contractFor(C3, job7);
     const gc1 = await view(C3, kc.contractId);
@@ -1158,7 +1275,7 @@ async function main() {
     const body1 = (v1Row?.body ?? {}) as Record<string, unknown>;
     report(
       "CL1 nouveau contrat : clauses FR/EN et phrase de consentement de la version courante figées dans le contrat",
-      clauses1?.version === "simple-v1" &&
+      clauses1?.version === CURRENT_SIMPLE &&
         JSON.stringify(clauses1.fr) === JSON.stringify(body1.fr) &&
         JSON.stringify(clauses1.en) === JSON.stringify(body1.en) &&
         typeof (clauses1.fr as Record<string, unknown>)?.consent === "string" &&
@@ -1173,7 +1290,7 @@ async function main() {
     });
     const rc1 = await row(kc.contractId);
     report(
-      "CL2 le candidat signe la version simple-v1",
+      `CL2 le candidat signe la version ${CURRENT_SIMPLE}`,
       sc1.status === 200 &&
         rc1.status === "candidate_signed" &&
         rc1.candidate_terms_hash === hc,
@@ -1205,8 +1322,8 @@ async function main() {
     const clauses2 = (vc2?.terms as Record<string, unknown> | undefined)
       ?.clauses as Record<string, unknown> | undefined;
     report(
-      "CL4 l'entreprise relit la version signée par le candidat (simple-v1), même empreinte",
-      clauses2?.version === "simple-v1" &&
+      `CL4 l'entreprise relit la version signée par le candidat (${CURRENT_SIMPLE}), même empreinte`,
+      clauses2?.version === CURRENT_SIMPLE &&
         JSON.stringify(clauses2.fr) === JSON.stringify(body1.fr) &&
         vc2?.terms_hash === hc &&
         vc2.can_sign === true,
@@ -1263,24 +1380,24 @@ async function main() {
     const rcClauses = (rc2.contract_data as Record<string, unknown>)
       ?.clauses as Record<string, unknown> | undefined;
     report(
-      "CL8 l'entreprise signe la version du candidat : completed, mêmes empreintes, clauses simple-v1",
+      `CL8 l'entreprise signe la version du candidat : completed, mêmes empreintes, clauses ${CURRENT_SIMPLE}`,
       sc2.status === 200 &&
         rc2.status === "completed" &&
         rc2.company_terms_hash === hc &&
         rc2.candidate_terms_hash === hc &&
-        rcClauses?.version === "simple-v1",
+        rcClauses?.version === CURRENT_SIMPLE,
       rc2.status,
     );
 
     const { error: updVersionErr } = await serviceClient
       .from("contract_clause_versions")
       .update({ body: evolved })
-      .eq("id", "simple-v1")
+      .eq("id", CURRENT_SIMPLE)
       .select("id");
     const { error: delV1Err } = await serviceClient
       .from("contract_clause_versions")
       .delete()
-      .eq("id", "simple-v1")
+      .eq("id", CURRENT_SIMPLE)
       .select("id");
     const { error: delProofErr } = await serviceClient
       .from("contract_clause_versions")
@@ -1401,12 +1518,12 @@ async function main() {
       { review: vO?.needs_review, sign: sO.status, code: sO.body.code },
     );
 
-    // ── CL10. Contrat formalisé : clauses formal-v1, jamais simple ──
+    // ── CL10. Contrat formalisé : clauses formal courantes, jamais simple ──
     const kf = await contractFor(C1, job9);
     const { data: formalRow } = await serviceClient
       .from("contract_clause_versions")
       .select("body")
-      .eq("id", "formal-v1")
+      .eq("id", CURRENT_FORMAL)
       .single();
     const formalBody = (formalRow?.body ?? {}) as Record<string, unknown>;
     const gf = await view(C1, kf.contractId);
@@ -1419,9 +1536,9 @@ async function main() {
       consent: true,
     });
     report(
-      "CL10 contrat formalisé (3 jours) : type formal, clauses formal-v1 (texte FR/EN renvoyé par get_contract), empreinte cohérente, signable",
+      `CL10 contrat formalisé (3 jours) : type formal, clauses ${CURRENT_FORMAL} (texte FR/EN renvoyé par get_contract), empreinte cohérente, signable`,
       vf?.contract_template === "formal" &&
-        clausesF?.version === "formal-v1" &&
+        clausesF?.version === CURRENT_FORMAL &&
         JSON.stringify(clausesF.fr) === JSON.stringify(formalBody.fr) &&
         JSON.stringify(clausesF.en) === JSON.stringify(formalBody.en) &&
         vf.terms_hash === rf.terms_hash &&

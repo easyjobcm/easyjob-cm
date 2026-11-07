@@ -320,7 +320,7 @@ const JOB_BODY = {
   start_date: "2099-02-10",
   start_time: "09:00",
   end_time: "17:00",
-  hourly_rate: 1500,
+  mission_pay_per_candidate: 1500,
 };
 
 type HttpResult = {

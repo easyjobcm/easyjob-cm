@@ -1270,7 +1270,7 @@ export type Database = {
           city: string
           company_id: string
           created_at: string | null
-          currency: string | null
+          currency: string
           description: string
           dress_code: string | null
           effective_hours: number | null
@@ -1278,7 +1278,6 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
-          hourly_rate: number
           id: string
           is_recurring: boolean | null
           is_sandbox: boolean | null
@@ -1290,6 +1289,7 @@ export type Database = {
           location_reference: string | null
           longitude: number | null
           min_experience_months: number | null
+          mission_pay_per_candidate: number
           moderated_at: string | null
           moderation_by: string | null
           moderation_notes: string | null
@@ -1305,8 +1305,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          salary_locked: boolean | null
-          salary_per_person_per_day: number | null
           sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
@@ -1327,7 +1325,7 @@ export type Database = {
           city: string
           company_id: string
           created_at?: string | null
-          currency?: string | null
+          currency?: string
           description: string
           dress_code?: string | null
           effective_hours?: number | null
@@ -1335,7 +1333,6 @@ export type Database = {
           end_time: string
           estimated_hours?: number | null
           expires_at?: string | null
-          hourly_rate: number
           id?: string
           is_recurring?: boolean | null
           is_sandbox?: boolean | null
@@ -1347,6 +1344,7 @@ export type Database = {
           location_reference?: string | null
           longitude?: number | null
           min_experience_months?: number | null
+          mission_pay_per_candidate: number
           moderated_at?: string | null
           moderation_by?: string | null
           moderation_notes?: string | null
@@ -1362,8 +1360,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          salary_locked?: boolean | null
-          salary_per_person_per_day?: number | null
           sandbox_level_required?: number
           selection_deadline?: string | null
           special_instructions?: string | null
@@ -1384,7 +1380,7 @@ export type Database = {
           city?: string
           company_id?: string
           created_at?: string | null
-          currency?: string | null
+          currency?: string
           description?: string
           dress_code?: string | null
           effective_hours?: number | null
@@ -1392,7 +1388,6 @@ export type Database = {
           end_time?: string
           estimated_hours?: number | null
           expires_at?: string | null
-          hourly_rate?: number
           id?: string
           is_recurring?: boolean | null
           is_sandbox?: boolean | null
@@ -1404,6 +1399,7 @@ export type Database = {
           location_reference?: string | null
           longitude?: number | null
           min_experience_months?: number | null
+          mission_pay_per_candidate?: number
           moderated_at?: string | null
           moderation_by?: string | null
           moderation_notes?: string | null
@@ -1419,8 +1415,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          salary_locked?: boolean | null
-          salary_per_person_per_day?: number | null
           sandbox_level_required?: number
           selection_deadline?: string | null
           special_instructions?: string | null
@@ -2424,7 +2418,7 @@ export type Database = {
           city: string
           company_id: string
           created_at: string | null
-          currency: string | null
+          currency: string
           description: string
           dress_code: string | null
           effective_hours: number | null
@@ -2432,7 +2426,6 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
-          hourly_rate: number
           id: string
           is_recurring: boolean | null
           is_sandbox: boolean | null
@@ -2444,6 +2437,7 @@ export type Database = {
           location_reference: string | null
           longitude: number | null
           min_experience_months: number | null
+          mission_pay_per_candidate: number
           moderated_at: string | null
           moderation_by: string | null
           moderation_notes: string | null
@@ -2459,8 +2453,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          salary_locked: boolean | null
-          salary_per_person_per_day: number | null
           sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
@@ -2521,10 +2513,11 @@ export type Database = {
           completed_at: string
           contract_id: string
           contract_status: Database["public"]["Enums"]["contract_status"]
-          hourly_rate: number
+          currency: string
           job_id: string
           job_title: string
           mission_id: string
+          mission_pay_per_candidate: number
           scheduled_date: string
           scheduled_end_at: string
           scheduled_end_time: string
@@ -2558,7 +2551,7 @@ export type Database = {
           city: string
           company_id: string
           created_at: string | null
-          currency: string | null
+          currency: string
           description: string
           dress_code: string | null
           effective_hours: number | null
@@ -2566,7 +2559,6 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
-          hourly_rate: number
           id: string
           is_recurring: boolean | null
           is_sandbox: boolean | null
@@ -2578,6 +2570,7 @@ export type Database = {
           location_reference: string | null
           longitude: number | null
           min_experience_months: number | null
+          mission_pay_per_candidate: number
           moderated_at: string | null
           moderation_by: string | null
           moderation_notes: string | null
@@ -2593,8 +2586,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          salary_locked: boolean | null
-          salary_per_person_per_day: number | null
           sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
@@ -2645,7 +2636,7 @@ export type Database = {
           city: string
           company_id: string
           created_at: string | null
-          currency: string | null
+          currency: string
           description: string
           dress_code: string | null
           effective_hours: number | null
@@ -2653,7 +2644,6 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
-          hourly_rate: number
           id: string
           is_recurring: boolean | null
           is_sandbox: boolean | null
@@ -2665,6 +2655,7 @@ export type Database = {
           location_reference: string | null
           longitude: number | null
           min_experience_months: number | null
+          mission_pay_per_candidate: number
           moderated_at: string | null
           moderation_by: string | null
           moderation_notes: string | null
@@ -2680,8 +2671,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          salary_locked: boolean | null
-          salary_per_person_per_day: number | null
           sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
@@ -2790,7 +2779,7 @@ export type Database = {
           city: string
           company_id: string
           created_at: string | null
-          currency: string | null
+          currency: string
           description: string
           dress_code: string | null
           effective_hours: number | null
@@ -2798,7 +2787,6 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
-          hourly_rate: number
           id: string
           is_recurring: boolean | null
           is_sandbox: boolean | null
@@ -2810,6 +2798,7 @@ export type Database = {
           location_reference: string | null
           longitude: number | null
           min_experience_months: number | null
+          mission_pay_per_candidate: number
           moderated_at: string | null
           moderation_by: string | null
           moderation_notes: string | null
@@ -2825,8 +2814,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          salary_locked: boolean | null
-          salary_per_person_per_day: number | null
           sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null

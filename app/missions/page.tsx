@@ -18,16 +18,20 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { MissionPay } from "@/components/jobs/mission-pay";
+import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 
 interface Mission {
   id: string;
+  application_id: string | null;
   status: string;
   scheduled_date: string;
   scheduled_start_time: string;
   scheduled_end_time: string;
+  /** Montant accepté dans le contrat (null : contrat absent). */
+  pay: number | null;
   job: {
     title: string;
-    hourly_rate: number;
     city: string;
     company: {
       company_name: string;
@@ -72,7 +76,6 @@ export default function MissionsListPage() {
         *,
         job:jobs(
           title,
-          hourly_rate,
           city,
           company:company_public_profiles(company_name)
         )
@@ -81,8 +84,22 @@ export default function MissionsListPage() {
       .eq("candidate_id", profile.id)
       .order("scheduled_date", { ascending: true });
 
+    // Montant figé dans le contrat de chaque mission (jamais l'offre).
+    const { data: contracts } = await supabase
+      .from("contracts")
+      .select("application_id, contract_data")
+      .eq("candidate_id", profile.id);
+    const payByApplication = frozenPayByApplication(contracts);
+
     if (missionsData) {
-      setMissions(missionsData as Mission[]);
+      setMissions(
+        (missionsData as Omit<Mission, "pay">[]).map((m) => ({
+          ...m,
+          pay: m.application_id
+            ? (payByApplication.get(m.application_id) ?? null)
+            : null,
+        })),
+      );
     }
 
     setLoading(false);
@@ -287,14 +304,11 @@ export default function MissionsListPage() {
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <div className="font-bold text-violet-600">
-                            {mission.job?.hourly_rate?.toLocaleString()} XAF
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            /heure
-                          </div>
-                        </div>
+                        <MissionPay
+                          amount={mission.pay}
+                          amountClassName="text-violet-600"
+                          className="justify-end text-right max-w-[45%]"
+                        />
                       </div>
                     </CardContent>
                   </Card>

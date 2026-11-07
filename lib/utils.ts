@@ -36,6 +36,19 @@ export function formatCurrency(
   }).format(amount);
 }
 
+/**
+ * Montant entier en francs CFA (XAF), sans décimales :
+ * « 10 000 F CFA » (fr) ou « 10,000 CFA francs » (en). Espaces insécables
+ * pour que le montant et l'unité restent sur la même ligne.
+ */
+export function formatXaf(amount: number, locale: string = "fr"): string {
+  const en = locale === "en";
+  const value = new Intl.NumberFormat(en ? "en-US" : "fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return en ? `${value} CFA francs` : `${value} F CFA`;
+}
+
 export function formatDate(date: Date | string, locale: string = "fr"): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {

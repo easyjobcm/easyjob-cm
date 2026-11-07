@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/utils";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import {
   Users,
   Briefcase,
@@ -38,10 +39,11 @@ interface AdminDashboardClientProps {
     description: string;
     city: string;
     start_date: string;
+    end_date?: string | null;
     start_time: string;
     end_time: string;
-    hourly_rate: number;
-    currency?: string | null;
+    mission_pay_per_candidate: number;
+    positions_available: number | null;
     urgency?: string | null;
     updated_at: string | null;
     company?: {
@@ -365,9 +367,11 @@ export function AdminDashboardClient({
                           {job.company?.company_name}
                         </p>
                       </div>
-                      <p className="text-sm font-medium text-primary whitespace-nowrap">
-                        {formatCurrency(job.hourly_rate, job.currency)}/h
-                      </p>
+                      <MissionPay
+                        amount={job.mission_pay_per_candidate}
+                        amountClassName="text-sm text-primary"
+                        className="justify-end text-right"
+                      />
                     </div>
 
                     <div className="flex items-center gap-2 mt-3">
@@ -480,15 +484,19 @@ export function AdminDashboardClient({
                 </p>
                 <p className="font-medium">
                   {formatDate(selectedJob.start_date, locale)}
+                  {selectedJob.end_date &&
+                  selectedJob.end_date !== selectedJob.start_date
+                    ? ` – ${formatDate(selectedJob.end_date, locale)}`
+                    : ""}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   {t.admin.jobPreview.time}
                 </p>
-                <p className="font-medium">
-                  {selectedJob.start_time?.slice(0, 5)} -{" "}
-                  {selectedJob.end_time?.slice(0, 5)}
+                <p className="font-medium" data-testid="moderation-schedule">
+                  {formatTime(selectedJob.start_time, locale)} –{" "}
+                  {formatTime(selectedJob.end_time, locale)}
                 </p>
               </div>
             </div>
@@ -502,16 +510,29 @@ export function AdminDashboardClient({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
-                  {t.admin.jobPreview.salary}
+                  {t.admin.jobPreview.positions}
                 </p>
-                <p className="font-medium text-primary">
-                  {formatCurrency(
-                    selectedJob.hourly_rate,
-                    selectedJob.currency,
+                <p className="font-medium" data-testid="moderation-positions">
+                  {t.admin.jobPreview.positionsValue.replace(
+                    "{count}",
+                    String(selectedJob.positions_available ?? 1),
                   )}
-                  /h
                 </p>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm text-muted-foreground mb-1">
+                {t.admin.jobPreview.pay}
+              </p>
+              <MissionPay
+                amount={selectedJob.mission_pay_per_candidate}
+                amountClassName="text-lg text-primary"
+                testId="moderation-pay"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {t.pay.flatNote}
+              </p>
             </div>
 
             {rejecting && (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Enums, Tables } from "@/lib/database.types";
 import { useI18n } from "@/lib/i18n";
+import { MissionPay } from "@/components/jobs/mission-pay";
 import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
 import { getPlanLimits } from "@/lib/utils/profile-status";
 import { canEditJob, type JobStatus } from "@/lib/utils/job-status";
@@ -53,7 +54,7 @@ type Job = Pick<
   | "start_date"
   | "start_time"
   | "end_time"
-  | "hourly_rate"
+  | "mission_pay_per_candidate"
   | "positions_available"
   | "positions_filled"
   | "status"
@@ -395,9 +396,10 @@ export default function CompanyJobsPage() {
                               )}
                             </span>
                           </div>
-                          <div className="text-sm font-medium text-violet-600">
-                            {job.hourly_rate.toLocaleString()} XAF/h
-                          </div>
+                          <MissionPay
+                            amount={job.mission_pay_per_candidate}
+                            amountClassName="text-sm text-violet-600"
+                          />
                         </div>
                       </div>
 

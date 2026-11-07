@@ -228,7 +228,7 @@ async function makeJob(
     start_date: new Date(Date.now() + 864e5).toISOString().split("T")[0],
     start_time: "09:00",
     end_time: "13:00",
-    hourly_rate: 1000,
+    mission_pay_per_candidate: 1000,
     currency: "XAF",
     address: "Rue de la preuve",
     city: "Douala",
