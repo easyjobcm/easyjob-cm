@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { ReviewDialog } from "@/components/missions/review-dialog";
+import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +51,19 @@ type Job = Pick<
   | "positions_filled"
 >;
 
+/** Réponse de GET /api/jobs/[id]/missions (lot 7c ; null possibles). */
+type JobMissionRow =
+  Database["public"]["Functions"]["company_job_missions"]["Returns"][number];
+type JobMission = Omit<
+  JobMissionRow,
+  "application_id" | "started_at" | "completed_at" | "completion_code"
+> & {
+  application_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  completion_code: string | null;
+};
+
 /** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
 type Application = Omit<
   Database["public"]["Functions"]["company_job_applicants"]["Returns"][number],
@@ -60,6 +76,7 @@ export default function CompanyJobDetailPage() {
   const { toast } = useToast();
   const { t, locale } = useI18n();
   const ta = t.companyApplicants;
+  const tcomp = ta.completion;
   const jobId = params.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -79,6 +96,12 @@ export default function CompanyJobDetailPage() {
   >(new Map());
   // Garde synchrone contre le double clic (l'état React arrive trop tard).
   const processingRef = useRef(false);
+  // Pointages et heures de chaque candidature sélectionnée (lot 7c).
+  const [missions, setMissions] = useState<Map<string, JobMission>>(new Map());
+  const [reviewMission, setReviewMission] = useState<{
+    mission: JobMission;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -127,8 +150,29 @@ export default function CompanyJobDetailPage() {
       ),
     );
 
+    const missionsRes = await fetch(`/api/jobs/${jobId}/missions`, {
+      cache: "no-store",
+    }).catch(() => null);
+    const missionRows = missionsRes?.ok
+      ? (((await missionsRes.json()) as { missions: JobMission[] }).missions ??
+        [])
+      : [];
+    const byApplication = new Map(
+      missionRows
+        .filter((m) => m.application_id)
+        .map((m) => [m.application_id as string, m]),
+    );
+    setMissions(byApplication);
+
     setLoading(false);
+    return byApplication;
   }
+
+  const onCandidateReviewed = async () => {
+    setReviewMission(null);
+    await loadData();
+    toast({ title: t.mission.review.thanks, variant: "success" });
+  };
 
   const name = (app: Application | null) =>
     app
@@ -520,6 +564,100 @@ export default function CompanyJobDetailPage() {
                             })()}
                           </div>
                         )}
+
+                        {app.status === "selected" &&
+                          (() => {
+                            const m = missions.get(app.application_id);
+                            if (!m) return null;
+                            return (
+                              <div
+                                className="mt-3 rounded-lg border p-3 text-sm space-y-2"
+                                data-testid="company-mission-completion"
+                              >
+                                <div className="text-muted-foreground">
+                                  {tcomp.scheduled
+                                    .replace(
+                                      "{start}",
+                                      doualaDateTime(
+                                        m.scheduled_start_at,
+                                        locale,
+                                      ),
+                                    )
+                                    .replace(
+                                      "{end}",
+                                      doualaTime(m.scheduled_end_at, locale),
+                                    )}
+                                </div>
+                                {m.completion_code && (
+                                  <div className="rounded-lg bg-primary/5 p-3 space-y-1">
+                                    <div className="text-xs font-medium text-muted-foreground">
+                                      {tcomp.title}
+                                    </div>
+                                    <div
+                                      className="font-mono text-2xl font-bold tracking-[0.3em] text-primary"
+                                      data-testid="completion-code"
+                                    >
+                                      {m.completion_code}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      {tcomp.instruction}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {tcomp.dispute}{" "}
+                                      <Link
+                                        href="/help"
+                                        className="text-primary underline"
+                                      >
+                                        {tcomp.support}
+                                      </Link>
+                                    </p>
+                                  </div>
+                                )}
+                                <div data-testid="company-mission-status">
+                                  {m.completed_at ? (
+                                    <span className="text-success flex items-center gap-1">
+                                      <CheckCircle className="h-4 w-4" />
+                                      {tcomp.completedAt.replace(
+                                        "{time}",
+                                        doualaTime(m.completed_at, locale),
+                                      )}
+                                    </span>
+                                  ) : m.started_at ? (
+                                    tcomp.startedAt.replace(
+                                      "{time}",
+                                      doualaTime(m.started_at, locale),
+                                    )
+                                  ) : (
+                                    <span className="text-muted-foreground">
+                                      {tcomp.notStarted}
+                                    </span>
+                                  )}
+                                </div>
+                                {m.completed_at &&
+                                  (m.company_reviewed ? (
+                                    <div className="text-muted-foreground">
+                                      {tcomp.rated}
+                                    </div>
+                                  ) : (
+                                    <motion.div whileTap={{ scale: 0.97 }}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        data-testid="rate-candidate"
+                                        onClick={() =>
+                                          setReviewMission({
+                                            mission: m,
+                                            name: name(app),
+                                          })
+                                        }
+                                      >
+                                        {tcomp.rate}
+                                      </Button>
+                                    </motion.div>
+                                  ))}
+                              </div>
+                            );
+                          })()}
                       </div>
                     </div>
                   </CardContent>
@@ -529,6 +667,17 @@ export default function CompanyJobDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {reviewMission && (
+        <ReviewDialog
+          open={!!reviewMission}
+          onOpenChange={(open) => !open && setReviewMission(null)}
+          missionId={reviewMission.mission.mission_id}
+          reviewer="company"
+          name={reviewMission.name}
+          onReviewed={() => void onCandidateReviewed()}
+        />
+      )}
 
       {/* Selection Dialog */}
       <Dialog

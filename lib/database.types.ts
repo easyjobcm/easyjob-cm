@@ -1528,6 +1528,54 @@ export type Database = {
           },
         ]
       }
+      mission_completion_codes: {
+        Row: {
+          attempt_window_started_at: string | null
+          code: string
+          consumed_at: string | null
+          created_at: string
+          failed_attempts: number
+          job_id: string
+          locked_until: string | null
+          mission_id: string
+        }
+        Insert: {
+          attempt_window_started_at?: string | null
+          code: string
+          consumed_at?: string | null
+          created_at?: string
+          failed_attempts?: number
+          job_id: string
+          locked_until?: string | null
+          mission_id: string
+        }
+        Update: {
+          attempt_window_started_at?: string | null
+          code?: string
+          consumed_at?: string | null
+          created_at?: string
+          failed_attempts?: number
+          job_id?: string
+          locked_until?: string | null
+          mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_completion_codes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_completion_codes_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: true
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       missions: {
         Row: {
           actual_end_time: string | null
@@ -1911,6 +1959,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           mission_id: string
+          origin: string
           overall_rating: number
           professionalism_rating: number | null
           punctuality_rating: number | null
@@ -1927,6 +1976,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           mission_id: string
+          origin?: string
           overall_rating: number
           professionalism_rating?: number | null
           punctuality_rating?: number | null
@@ -1943,6 +1993,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           mission_id?: string
+          origin?: string
           overall_rating?: number
           professionalism_rating?: number | null
           punctuality_rating?: number | null
@@ -2261,6 +2312,26 @@ export type Database = {
         }
         Returns: number
       }
+      candidate_tasks: {
+        Args: never
+        Returns: {
+          address: string
+          candidate_reviewed: boolean
+          candidate_signed: boolean
+          city: string
+          company_name: string
+          completed_at: string
+          contract_id: string
+          job_title: string
+          mission_id: string
+          scheduled_end_at: string
+          scheduled_start_at: string
+          server_now: string
+          start_available_at: string
+          started_at: string
+          status: Database["public"]["Enums"]["mission_status"]
+        }[]
+      }
       candidate_update_cni: {
         Args: {
           p_back_url: string
@@ -2302,6 +2373,21 @@ export type Database = {
           sandbox_level: number
           skills: string[]
           status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
+      company_job_missions: {
+        Args: { p_job_id: string }
+        Returns: {
+          application_id: string
+          code_used: boolean
+          company_reviewed: boolean
+          completed_at: string
+          completion_code: string
+          mission_id: string
+          scheduled_end_at: string
+          scheduled_start_at: string
+          started_at: string
+          status: Database["public"]["Enums"]["mission_status"]
         }[]
       }
       contract_expected_status: {
@@ -2396,6 +2482,10 @@ export type Database = {
       }
       current_contract_clauses: { Args: { p_template: string }; Returns: Json }
       delete_job: { Args: { p_job_id: string }; Returns: string }
+      generate_mission_completion_code: {
+        Args: { p_job_id: string }
+        Returns: string
+      }
       get_contract: {
         Args: { p_contract_id: string }
         Returns: {
@@ -2414,6 +2504,36 @@ export type Database = {
           status: Database["public"]["Enums"]["contract_status"]
           terms: Json
           terms_hash: string
+          viewer_party: string
+        }[]
+      }
+      get_mission: {
+        Args: { p_mission_id: string }
+        Returns: {
+          address: string
+          application_id: string
+          candidate_reviewed: boolean
+          candidate_signed: boolean
+          city: string
+          company_id: string
+          company_name: string
+          company_reviewed: boolean
+          completed_at: string
+          contract_id: string
+          contract_status: Database["public"]["Enums"]["contract_status"]
+          hourly_rate: number
+          job_id: string
+          job_title: string
+          mission_id: string
+          scheduled_date: string
+          scheduled_end_at: string
+          scheduled_end_time: string
+          scheduled_start_at: string
+          scheduled_start_time: string
+          server_now: string
+          start_available_at: string
+          started_at: string
+          status: Database["public"]["Enums"]["mission_status"]
           viewer_party: string
         }[]
       }
@@ -2493,6 +2613,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      mission_schedule_bounds: {
+        Args: { p_date: string; p_end: string; p_start: string }
+        Returns: {
+          ends_at: string
+          starts_at: string
+        }[]
       }
       moderate_cni: {
         Args: {
@@ -2622,6 +2749,36 @@ export type Database = {
       skill_requires_license: {
         Args: { p_skill_name: string }
         Returns: string
+      }
+      start_mission: {
+        Args: { p_mission_id: string }
+        Returns: {
+          already_started: boolean
+          mission_id: string
+          started_at: string
+          status: Database["public"]["Enums"]["mission_status"]
+        }[]
+      }
+      submit_completion_code: {
+        Args: { p_code: string; p_mission_id: string }
+        Returns: {
+          already_completed: boolean
+          completed_at: string
+          locked_until: string
+          mission_id: string
+          remaining_attempts: number
+          result: string
+        }[]
+      }
+      submit_mission_review: {
+        Args: { p_comment?: string; p_mission_id: string; p_rating: number }
+        Returns: {
+          already_reviewed: boolean
+          created_at: string
+          overall_rating: number
+          review_id: string
+          reviewer_type: string
+        }[]
       }
       update_job: {
         Args: { p_job: Json; p_job_id: string }

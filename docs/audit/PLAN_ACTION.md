@@ -13,7 +13,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
-| 7 | Sélection → mission → contrat → pointage — **7a et 7b corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
+| 7 | Sélection → mission → contrat → pointage — **7a, 7b et 7c corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
@@ -244,10 +244,21 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Périmètre** : RPC `sign_contract(contract_id)` qui détermine la partie depuis `auth.uid()`, horodate côté serveur, enregistre l'IP transmise par la route, applique des transitions strictes, stocke la signature dans Storage et non en data-URL dans une colonne, et calcule une empreinte de `contract_data`. Retrait de l'UPDATE direct.
 - **Critères** : une signature unilatérale ne produit jamais `completed` ; `contract_data` n'est pas modifiable par une partie.
 
-### 7c — Pointage et validation des heures
-- **IDs** : F-10 (partie pointage), F-07 (partie mission), F-30.
-- **Périmètre** : RPC `check_in` et `check_out` (distance calculée côté serveur à partir de la position envoyée, une seule arrivée et un seul départ par mission, statut `in_progress` puis `completed`). Validation des heures par l'entreprise via RPC. Restriction de l'UPDATE entreprise sur `missions`. Dates affichées en `Africa/Douala`.
-- **Critères** : un double clic ne crée pas deux arrivées ; une erreur est affichée à l'utilisateur ; l'entreprise ne modifie ni `payment_status` ni `platform_fee`.
+### 7c — Début de mission, code de fin et évaluations
+
+> **Statut (2026-11-07)** : réalisé sur `fix/lot-07c-mission-time-tracking` (base `origin/main-dev`, 89c5466, lot 7b intégré), **non commité, non déployé**. Détails : `AUDIT.md` §20. La première version (pointage GPS, heures retenues, validation des heures) a été remplacée avant commit.
+> - Mission rémunérée à la tâche : début dès H−15 (`start_mission`), fin confirmée par le code à six chiffres généré à la sélection et remis par l'entreprise (`submit_completion_code`, 5 essais puis 15 min de blocage). Aucune géolocalisation ; aucune validation des heures.
+> - Tâches du candidat (`candidate_tasks`) : signer, commencer, valider le code, noter l'entreprise ; rappels sur la page ouverte ; heure de Douala.
+> - Évaluations (`submit_mission_review`) : note de l'entreprise obligatoire, note du candidat facultative, une par sens ; étoiles recalculées par trigger.
+> - Écritures directes fermées sur `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews`. Preuve `mission-time-tracking` réécrite.
+>
+> **Avant déploiement** : lot 0, en lecture seule, les requêtes de contrôle de la migration (événements orphelins, missions écrites par une session, avis en double).
+>
+> Reste ouvert : notifications planifiées, blocage à 48 h faute de note, montant par tâche dans le formulaire d'offre, missions multi-jours, temps réel (7d), paiement.
+
+- **IDs** : F-10 (partie suivi), F-07 (partie mission), F-30.
+- **Périmètre** (révisé le 2026-11-07) : début de mission par RPC dès H−15, code de fin à six chiffres généré à la sélection et consommé par le candidat, tâches et rappels internes, évaluations dans les deux sens. Restriction des écritures sur `missions`, `mission_check_ins`, codes et `reviews`. Dates affichées en `Africa/Douala`. Sans géolocalisation ni validation des heures.
+- **Critères** : un double clic ne crée ni deux débuts ni deux réalisations ; le code n'est lisible que par l'entreprise propriétaire ; les tentatives sont limitées en base ; une erreur est affichée à l'utilisateur ; l'entreprise ne modifie ni `payment_status` ni `platform_fee`.
 
 ### 7d — Temps réel (Realtime)
 - **IDs** : suite de F-10 (retour immédiat des statuts de sélection, de contrat et de mission).

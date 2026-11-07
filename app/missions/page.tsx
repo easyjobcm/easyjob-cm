@@ -74,7 +74,7 @@ export default function MissionsListPage() {
           title,
           hourly_rate,
           city,
-          company:company_profiles(company_name)
+          company:company_public_profiles(company_name)
         )
       `,
       )

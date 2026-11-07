@@ -162,10 +162,10 @@ Voir section 12.
 
 ### 5.1 Règles générales
 
-- Toute mission doit être contractualisée avant le début du travail.
+- Toute mission doit être contractualisée (contrat généré à la sélection). La signature n'est pas exigée avant le début du travail : voir la décision du 2026-11-06 au §6.7 (signature du candidat requise pour le paiement).
 - Le paiement doit être confirmé (fonds bloqués) avant que l'offre ne soit soumise à la modération admin.
 - Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
-- Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h).
+- Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h). **Décision produit du 2026-11-07 (lot 7c) :** la note de l'entreprise par le candidat est obligatoire (tâche « Noter l'entreprise » affichée dès l'acceptation du code de fin, jusqu'à la note) ; la note du candidat par l'entreprise est facultative et ne bloque aucune étape. Une seule évaluation par auteur, mission et sens. Le blocage de la mission suivante après 48 h n'est pas encore appliqué.
 
 #### 5.1.1 Verrouillage des informations vérifiées — mise à jour initiée par l'admin
 
@@ -465,7 +465,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 
 **Critères d'acceptation :**
 - Le contrat est généré en moins de 10 secondes après sélection.
-- Les deux parties doivent signer avant que la mission ne démarre officiellement.
+- ~~Les deux parties doivent signer avant que la mission ne démarre officiellement.~~ **Décision produit du 2026-11-06 (lot 7c) :** un candidat sélectionné peut commencer sa mission et pointer son arrivée et son départ même si aucune partie n'a encore signé le contrat. Sa propre signature sera exigée pour le paiement (lot paiement). La signature, le pointage et le paiement sont trois étapes distinctes.
 - Le contrat est archivé et consultable à tout moment.
 - Le contrat est disponible en PDF téléchargeable.
 
@@ -483,18 +483,19 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 
 **Actions candidat :**
 - "Je suis en route" (déclenche notification à l'entreprise).
+- **Décision produit du 2026-11-07 (lot 7c), mission rémunérée à la tâche :** les actions candidat de ce paragraphe sont remplacées par deux tâches. « Commencer la mission » est disponible 15 minutes avant l'heure prévue (heure de Douala) et enregistre le début une seule fois. « Fin de mission » est rappelée à l'heure de fin prévue : le candidat saisit le code de fin remis par l'entreprise. Aucune géolocalisation n'est demandée ni bloquante. Le montant convenu ne dépend pas de la durée ; les horaires prévus restent la référence affichée, le début et la fin déclarés servent au suivi. « En route », « Arrivé » et « J'ai commencé » ne sont pas implémentés.
 - "Je suis arrivé" (horodatage). Le candidat est attendu **30 minutes avant le début** de la mission.
 - "J'ai commencé" (démarrage officiel de la mission).
 - "J'ai terminé" (soumission du code de validation reçu de l'entreprise).
 
 **Actions entreprise :**
-- Génération du code de validation (4-6 chiffres, usage unique).
-- Validation de la fin de mission.
+- Génération du code de validation (4-6 chiffres, usage unique). **Décision du 2026-11-07 :** un code de six chiffres par mission et par candidat, généré à la sélection (distinct pour chaque candidat d'une offre), visible par la seule entreprise propriétaire. Son unique action en fin de mission est de le communiquer à chaque candidat présent ayant effectué le travail ; en cas de litige, le support.
+- ~~Validation de la fin de mission.~~ Remplacée par la saisie du code par le candidat (réalisation enregistrée avec son horodatage). Aucune validation des heures par l'entreprise.
 - Signalement d'un problème.
 
 **Critères d'acceptation :**
 - Chaque changement de statut est horodaté et sauvegardé.
-- Le code de validation expire 2 heures après génération.
+- ~~Le code de validation expire 2 heures après génération.~~ Le code ne sert qu'une fois et n'expire pas (généré à la sélection) ; après 5 erreurs, la saisie est bloquée 15 minutes.
 - L'entreprise est notifiée à chaque étape importante.
 - En cas de non-présentation, l'entreprise peut déclencher un "no-show" dans les 30 minutes suivant l'heure de début.
 
@@ -532,7 +533,7 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 1. Lors de la soumission d'une offre, l'entreprise effectue un **virement Mobile Money** du montant total : (nombre de personnes × salaire journalier × nombre de jours) + frais Easyjob CM.
 2. Ce montant est **bloqué sur le compte de la plateforme** et affiché dans le tableau de bord de l'entreprise comme "montant réservé pour cette offre".
 3. Si, à la fin de la mission, le nombre de candidats ayant effectivement travaillé est inférieur au nombre prévu, la plateforme **rembourse automatiquement le surplus** sur le même compte Mobile Money ayant effectué le virement, dans les meilleurs délais.
-4. À la validation de fin de mission par l'entreprise :
+4. À la confirmation de réalisation par le code de fin (décision du 2026-11-07, §6.8 ; versement : lot paiement, signature du candidat exigée) :
    - Les frais Easyjob CM sont prélevés.
    - Le solde est libéré vers le compte Mobile Money du candidat selon le délai défini en section 5.3.
 5. En cas de litige, le montant reste bloqué jusqu'à résolution par `admin_ops`.

@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 21 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 22 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -116,8 +116,18 @@ pnpm exec supabase db reset --workdir $stack   # restauration
 
 `contract-signing` désactive aussi le trigger des contrats le temps d'une écriture, pour simuler une signature antérieure au lot ; il le réactive aussitôt, et dans le bloc `finally` en cas d'échec.
 
+Pour les missions (lot 7c), ouvrir en session la lecture des codes de fin et l'écriture des évaluations :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "grant select on public.mission_completion_codes to authenticated; create policy neg_codes on public.mission_completion_codes for select to authenticated using (true); grant insert, update on public.reviews to authenticated; alter table public.reviews disable trigger trg_protect_review_writes; create policy neg_reviews on public.reviews for insert to authenticated with check (true);"
+pnpm test:rls mission-time-tracking   # attendu : 3 échecs (E1, R6, X3), code de sortie 1
+pnpm exec supabase db reset --workdir $stack   # restauration
+```
+
+`mission-time-tracking` crée des offres du jour en heure de Douala (00:00-23:59) et une offre du lendemain pour le refus « trop tôt ».
+
 **Ports réservés par Windows.** Si `supabase start` échoue avec « ports are not available » et que `netsh interface ipv4 show excludedportrange protocol=tcp` montre une plage réservée couvrant 544xx, décaler les ports dans `$stack/supabase/config.toml` (copie temporaire, par exemple 554xx) et adapter le contrôle `pile inattendue` de l'étape 3.
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats) et §19 (signature des contrats). `contracts` est couvert en lecture, création, signature et suppression ; `missions` pour la création et la suppression, ses mises à jour (pointage) relevant du lot 7c.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) et §20 (début de mission, code de fin et évaluations). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
