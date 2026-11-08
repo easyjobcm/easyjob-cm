@@ -85,3 +85,30 @@ export function signupRoleFromPath(
   if (pathname === "/auth/signup/candidate") return "candidate";
   return null;
 }
+
+/** Paramètre de retour vers une page protégée (`next`, ancien `redirect`). */
+export function loginReturnParam(
+  params: Pick<URLSearchParams, "get">,
+): string | null {
+  return params.get("next") ?? params.get("redirect");
+}
+
+/**
+ * Destination demandée après connexion (lot 9), ou `null` pour appliquer
+ * la destination par défaut du rôle. Réutilise `safeInternalPath` : seul un
+ * chemin interne est accepté. Les pages d'authentification et l'accueil ne
+ * sont pas des destinations de retour (boucle ou retour sans objet).
+ */
+export function postLoginPath(raw: string | null | undefined): string | null {
+  const path = safeInternalPath(raw, "");
+  if (!path || path === "/") return null;
+  const pathname = path.split("?", 1)[0].toLowerCase();
+  if (pathname === "/auth" || pathname.startsWith("/auth/")) return null;
+  return path;
+}
+
+/** Lien vers la connexion qui ramène ensuite à `path` (chemin interne). */
+export function loginHref(path: string): string {
+  const safe = postLoginPath(path);
+  return safe ? `/auth/login?next=${encodeURIComponent(safe)}` : "/auth/login";
+}

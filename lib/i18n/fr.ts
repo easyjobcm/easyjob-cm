@@ -471,7 +471,7 @@ export const fr = {
     },
     candidate: {
       heroTitle: "Bienvenue future star d'EasyJob",
-      heroSubtitle: "Des missions près de chez vous, payées en Mobile Money.",
+      heroSubtitle: "Des missions près de chez vous, à montant fixe en XAF.",
     },
     company: {
       heroTitle: "Recrutez les meilleurs talents",
@@ -578,18 +578,136 @@ export const fr = {
     spotsLeft: "places restantes",
   },
 
+  // Candidature : état, refus de /apply et retrait (lot 9)
+  application: {
+    applyNowTitle: "Postulez maintenant !",
+    positionsLeft: {
+      one: "1 place disponible",
+      other: "{count} places disponibles",
+      none: "Aucune place disponible",
+    },
+    confirmBefore:
+      "Avant de postuler, assurez-vous de pouvoir vous présenter à cette mission.",
+    status: {
+      pending: {
+        title: "Candidature envoyée",
+        desc: "Vous serez notifié si vous êtes sélectionné.",
+      },
+      shortlisted: {
+        title: "Vous êtes présélectionné",
+        desc: "L'entreprise étudie votre candidature. Vous serez notifié de sa décision.",
+      },
+      selected: {
+        title: "Vous êtes sélectionné",
+        desc: "Signez votre contrat depuis l'onglet Tâches.",
+      },
+      rejected: {
+        title: "Candidature non retenue",
+        desc: "L'entreprise n'a pas retenu votre candidature pour cette offre. D'autres offres vous attendent.",
+      },
+      withdrawn: {
+        title: "Candidature retirée",
+        desc: "Vous avez retiré votre candidature. Il n'est pas possible de postuler de nouveau à cette offre.",
+      },
+      no_show: {
+        title: "Absence enregistrée",
+        desc: "Une absence a été enregistrée pour cette mission. Contactez le support en cas d'erreur.",
+      },
+    },
+    sentToast: {
+      title: "Candidature envoyée",
+      desc: "Suivez-la dans Mes jobs.",
+    },
+    withdraw: {
+      button: "Retirer ma candidature",
+      confirmTitle: "Retirer votre candidature ?",
+      confirmBody:
+        "L'entreprise ne la verra plus et vous ne pourrez pas postuler de nouveau à cette offre.",
+      confirm: "Retirer",
+      cancel: "Annuler",
+      doneTitle: "Candidature retirée",
+      doneDesc: "Elle apparaît dans l'historique de Mes jobs.",
+      errorTitle: "Retrait impossible",
+      errors: {
+        application_not_withdrawable:
+          "Seule une candidature en attente peut être retirée. Contactez l'entreprise ou le support.",
+        application_not_found:
+          "Candidature introuvable. Rechargez la page pour voir son état actuel.",
+        generic: "Le retrait n'a pas pu être enregistré. Réessayez.",
+      },
+    },
+    errorTitle: "Candidature non envoyée",
+    refusals: {
+      not_authenticated:
+        "Votre session a expiré. Reconnectez-vous pour postuler.",
+      profile_not_found: "Terminez d'abord votre inscription pour postuler.",
+      onboarding_incomplete:
+        "Terminez d'abord votre inscription pour postuler.",
+      account_suspended:
+        "Votre compte est suspendu : vous ne pouvez pas postuler. Contactez le support.",
+      job_not_found: "Cette offre n'est plus disponible.",
+      job_not_available: "Cette offre n'accepte plus de candidatures.",
+      sandbox_level_too_low:
+        "Cette offre demande un niveau de confiance plus élevé. Réalisez d'autres missions pour y accéder.",
+      no_positions: "Toutes les places de cette offre sont pourvues.",
+      already_applied: "Vous avez déjà postulé à cette offre.",
+      profile_incomplete:
+        "Votre profil doit être complété à au moins 60 % pour postuler.",
+      profile_not_verified:
+        "Votre identité, votre CNI et votre Mobile Money doivent être vérifiés pour postuler.",
+      application_failed:
+        "La candidature n'a pas pu être envoyée. Réessayez dans un instant.",
+      network:
+        "Connexion impossible. Vérifiez votre connexion internet, puis réessayez.",
+      generic: "La candidature n'a pas pu être envoyée. Réessayez.",
+    },
+    documents: {
+      missingCni: "Cette offre exige une CNI vérifiée.",
+      missingLicense: "Cette offre exige un permis de conduire valide.",
+      missingSkill:
+        "Cette offre exige un diplôme ou un certificat valide pour la compétence « {skill} ».",
+      missingOther: "Cette offre exige un justificatif valide : {doc}.",
+      pending: "Votre justificatif est encore en cours de vérification.",
+      rejected:
+        "Votre justificatif a été refusé. Remplacez-le depuis votre profil.",
+      expired: "Votre justificatif a expiré. Mettez-le à jour pour postuler.",
+      labels: {
+        casier_judiciaire: "casier judiciaire",
+        diplome: "diplôme",
+        certificat: "certificat",
+        attestation_formation: "attestation de formation",
+        attestation_travail: "attestation de travail",
+        autre: "document",
+      },
+    },
+    actions: {
+      signIn: "Se connecter",
+      finishSignup: "Terminer mon inscription",
+      completeProfile: "Compléter mon profil",
+      documents: "Gérer mes justificatifs",
+      identity: "Vérifier mon identité",
+      browseJobs: "Voir les autres offres",
+      myApplications: "Voir mes candidatures",
+      support: "Contacter le support",
+      tasks: "Ouvrir mes tâches",
+    },
+  },
+
   // Rémunération : montant fixe par candidat pour la mission (XAF)
   pay: {
     forMission: "pour la mission",
     perCandidate: "Rémunération par candidat",
     flatNote:
-      "Montant fixe versé à chaque candidat sélectionné pour la mission, quelle que soit l'heure de fin effective.",
+      "Montant fixe convenu pour chaque candidat sélectionné, quelle que soit l'heure de fin effective.",
     formLabel: "Rémunération par candidat pour la mission (F CFA)",
     formHint:
-      "Montant fixe versé à chaque candidat sélectionné, quelle que soit l'heure de fin effective. Les horaires restent affichés pour l'organisation.",
+      "Montant fixe convenu pour chaque candidat sélectionné, quelle que soit l'heure de fin effective. Les horaires restent affichés pour l'organisation.",
     formExample:
       "Exemple : 3 personnes recherchées à 10 000 F CFA = 10 000 F CFA pour chacune.",
-    positions: "{count} personne(s) recherchée(s)",
+    positions: {
+      one: "{count} personne recherchée",
+      other: "{count} personnes recherchées",
+    },
     contractBasis: "Forfait par mission, par candidat, en francs CFA (XAF)",
   },
 
@@ -606,14 +724,78 @@ export const fr = {
   },
 
   // My Jobs
+  // Gains : montants convenus des missions terminées (lot 9)
+  earnings: {
+    title: "Mes gains",
+    totalLabel: "Montant convenu des missions terminées",
+    missionsCount: {
+      one: "{count} mission terminée",
+      other: "{count} missions terminées",
+    },
+    note: "Chaque montant est celui inscrit dans le contrat de la mission. L'entreprise s'engage à vous le régler : aucun versement ni retrait Mobile Money n'est encore effectué par l'application.",
+    listTitle: "Missions terminées",
+    contractAmount: "Montant du contrat",
+    noAmount: "Montant non disponible",
+    emptyTitle: "Aucune mission terminée",
+    emptyDesc:
+      "Le montant convenu de chaque mission apparaîtra ici une fois sa fin confirmée par le code.",
+    browseJobs: "Parcourir les offres",
+    loadErrorTitle: "Connexion impossible",
+    loadErrorDesc:
+      "Vos missions n'ont pas pu être chargées. Vérifiez votre connexion, puis réessayez.",
+    retry: "Réessayer",
+  },
+
   myJobs: {
-    title: "Mes Jobs",
-    applications: "Candidatures",
-    booked: "Réservés",
-    worked: "Effectués",
-    empty: "Trouvez votre prochain job !",
-    emptyDesc: "Vous n'avez pas encore de candidatures",
-    browseJobs: "Parcourir les jobs",
+    title: "Mes jobs",
+    tabs: {
+      applied: "Candidatures",
+      booked: "Réservées",
+      completed: "Terminées",
+    },
+    applicationStatus: {
+      pending: "En attente",
+      shortlisted: "Présélectionnée",
+      selected: "Sélectionnée",
+      rejected: "Non retenue",
+      withdrawn: "Retirée",
+      no_show: "Absence",
+    },
+    missionStatus: {
+      pending: "Prévue",
+      confirmed: "Confirmée",
+      in_progress: "En cours",
+      completed: "Terminée",
+      cancelled: "Annulée",
+      no_show: "Absence",
+      en_route: "En route",
+      arrived: "Sur place",
+      validated: "Validée",
+      disputed: "En litige",
+    },
+    appliedOn: "Postulé le",
+    history: "Historique",
+    empty: {
+      neverTitle: "Trouvez votre prochain job !",
+      neverDesc: "Vous n'avez encore postulé à aucune offre.",
+      noActiveTitle: "Aucune candidature en cours",
+      noActiveDesc:
+        "Vos candidatures retirées ou non retenues restent visibles dans l'historique ci-dessous.",
+      bookedTitle: "Aucune mission réservée",
+      bookedDesc:
+        "Vos missions apparaissent ici dès qu'une entreprise vous sélectionne.",
+      completedTitle: "Aucune mission terminée",
+      completedDesc:
+        "Vos missions confirmées par le code de fin apparaîtront ici.",
+    },
+    browseJobs: "Parcourir les offres",
+    loadError: {
+      title: "Connexion impossible",
+      desc: "Vos candidatures n'ont pas pu être chargées. Vérifiez votre connexion, puis réessayez.",
+      stale:
+        "Connexion impossible : affichage du dernier état connu. Vérifiez votre connexion.",
+      retry: "Réessayer",
+    },
   },
 
   // Profile
@@ -1019,7 +1201,8 @@ export const fr = {
     mobileMoney: "Mobile Money",
     paymentPage: {
       title: "Mobile Money",
-      subtitle: "Utilisé pour recevoir vos paiements de mission.",
+      subtitle:
+        "Vérifié par l'équipe EasyJob. Aucun paiement n'est encore effectué par l'application.",
       provider: "Opérateur",
       number: "Numéro Mobile Money",
       numberPlaceholder: "6XX XXX XXX",
@@ -1109,7 +1292,7 @@ export const fr = {
         },
         {
           q: "À quoi sert l'onglet Tâches ?",
-          a: "C'est votre centre de suivi pour les démarches liées à vos missions : validez vos heures d'arrivée et de départ après un job, signez numériquement vos contrats de courte durée avant de démarrer une mission, et donnez votre avis une fois la mission terminée. Tant qu'une signature de contrat ou une évaluation reste en attente, le démarrage de votre prochaine mission peut être retardé. Le dépôt d'autres documents (RIB, justificatif étudiant, certificat de travail) et les formations/briefings ne sont pas encore disponibles dans l'application.",
+          a: "C'est votre centre de suivi pour vos missions : signez votre contrat, commencez la mission à partir de 15 minutes avant l'heure prévue, saisissez le code à six chiffres remis par l'entreprise pour confirmer la fin, puis évaluez l'entreprise. Le dépôt d'autres documents (RIB, justificatif étudiant, certificat de travail) et les formations ne sont pas encore disponibles dans l'application.",
         },
         {
           q: "Comment suivre mes candidatures dans Mes Jobs ?",
@@ -1141,15 +1324,15 @@ export const fr = {
         },
         {
           q: "Comment fonctionne Mobile Money ?",
-          a: "Depuis Profil > Mobile Money, ajoutez ou modifiez votre numéro MTN ou Orange. Un changement de numéro nécessite une nouvelle vérification.",
+          a: "Depuis Profil > Mobile Money, déclarez ou modifiez votre numéro MTN ou Orange. Il est vérifié par l'équipe EasyJob, et un changement de numéro demande une nouvelle vérification. Aucun paiement ni retrait n'est encore effectué par l'application.",
         },
         {
           q: "Quand suis-je payé ?",
-          a: "Selon votre profil : 7 jours après la mission par défaut, 48h si vous êtes Premium et bien noté, ou moitié-moitié si l'une des deux conditions est remplie.",
+          a: "Le montant fixe de la mission, en XAF, figure dans votre contrat. L'entreprise s'engage à vous le régler une fois la fin confirmée par le code. L'application n'effectue pas encore de versement : aucun paiement ni retrait Mobile Money n'y est géré pour l'instant.",
         },
         {
           q: "Comment fonctionne Premium ?",
-          a: "Premium (1 000 FCFA/mois) améliore votre priorité de candidature et votre délai de paiement. La souscription en libre-service n'est pas encore disponible : contactez le support.",
+          a: "Premium coûte 1 000 FCFA par mois. La souscription en libre-service n'est pas encore disponible : contactez le support pour l'activer et connaître les avantages proposés.",
         },
         {
           q: "Comment obtenir de l'aide ?",
@@ -1191,12 +1374,6 @@ export const fr = {
       expiresOn: "Expire le {date}",
       renewSoon: "Renouvellement imminent",
       benefits: {
-        fastPayment: {
-          title: "Paiement accéléré",
-          desc4Stars:
-            "100 % en 48h dès que votre note dépasse 4★. Sinon 50 % immédiat + 50 % sous 7 jours.",
-          descDefault: "50 % immédiat + 50 % sous 7 jours.",
-        },
         priority: {
           title: "Priorité dans les candidatures",
           desc: "Votre profil remonte en premier auprès des entreprises.",
@@ -1209,13 +1386,12 @@ export const fr = {
     },
     upgradePremium: {
       title: "Passez à Premium",
-      tagline: "Multipliez vos chances. Soyez payé plus vite.",
+      tagline: "Démarquez-vous auprès des entreprises.",
       price: "1 000 FCFA",
       pricePeriod: "/ mois",
       ctaPrimary: "Devenir Premium",
       ctaSecondary: "Voir les avantages",
       bullets: {
-        fastPayment: "Payé en 48h au lieu de 7 jours",
         priority: "Priorité sur toutes les candidatures",
         exclusive: "Accès aux offres exclusives Premium",
       },
@@ -1229,11 +1405,9 @@ export const fr = {
       contactSupport: "Contacter le support",
     },
     paymentDelay: {
-      title: "Délai de paiement",
-      standard: "7 jours après la mission",
-      premiumFast: "100 % en 48 h",
-      premiumSplit: "50 % immédiat + 50 % sous 7 j",
-      improveCta: "Améliorez votre note pour passer à 48 h",
+      title: "Rémunération",
+      standard: "Montant fixe en XAF, inscrit dans chaque contrat",
+      note: "Réglé par l'entreprise : aucun versement n'est encore effectué par l'application.",
     },
 
     // ── Statuts & Plans (entreprise) ─────────────────────────
@@ -1255,7 +1429,7 @@ export const fr = {
         urgentPaid: "Options urgentes payantes",
         urgentFree: "Options urgentes incluses",
         aiRecoOff: "Pas de recommandations IA",
-        aiRecoOn: "Recommandations IA d'anciens travailleurs",
+        aiRecoOn: "Indicateurs de fiabilité des candidats",
         reportingOff: "Pas de reporting",
         reportingBasic: "Reporting basique",
         reportingAdvanced: "Reporting avancé",
@@ -1286,12 +1460,12 @@ export const fr = {
         desc: "Boostez une offre pour 2 000 FCFA quand vous en avez besoin.",
       },
       securePayment: {
-        title: "Paiement sécurisé",
-        desc: "Vos paiements sont bloqués jusqu'à validation de la mission.",
+        title: "Contrat signé",
+        desc: "Chaque sélection crée un contrat que vous et le candidat signez dans l'application.",
       },
       historyAccess: {
         title: "Historique complet",
-        desc: "Accédez à toutes vos missions passées et factures.",
+        desc: "Retrouvez vos offres et leurs missions passées.",
       },
       // ── Plan Starter (4 avantages propres) ──
       reducedFee: {
@@ -1320,8 +1494,8 @@ export const fr = {
         desc: "Boostez toutes vos offres sans frais supplémentaires.",
       },
       aiMatch: {
-        title: "IA Talent Match",
-        desc: "L'IA pré-sélectionne les meilleurs profils pour chacune de vos offres.",
+        title: "Indicateurs de fiabilité",
+        desc: "Comparez les candidats grâce à leur note, leurs missions et leurs vérifications.",
       },
       favorites: {
         title: "Liste de favoris",
@@ -1348,13 +1522,13 @@ export const fr = {
         desc: "Éditez vos offres publiées à tout moment, sans support.",
       },
       trialFree: {
-        title: "7 jours d'essai gratuits",
-        desc: "Testez le plan sans engagement, annulez à tout moment.",
+        title: "Activation par le support",
+        desc: "Le plan est activé par l'équipe EasyJob ; le paiement en ligne n'est pas encore disponible.",
       },
       // ── Plan Business (10 avantages) ──
       guaranteedReplacement: {
-        title: "Remplacement garanti",
-        desc: "En cas de no-show, nous remplaçons le candidat sous 2h.",
+        title: "Aide en cas d'absence",
+        desc: "Si un candidat ne se présente pas, contactez le support. Aucun remplacement automatique n'est proposé.",
       },
       bulkHiring: {
         title: "Recrutement en masse",
@@ -1394,48 +1568,46 @@ export const fr = {
       },
       // ── Pénalités d'annulation ──
       cancellationPenalty: {
-        label: "Annulation tardive :",
+        label: "Annulation :",
         freeStarter:
-          "vous récupérez 50% du montant bloqué. 25% pour les candidats premium, 25% pour EasyJob.",
-        pro: "vous récupérez 75% du montant bloqué. 25% pour les candidats premium.",
+          "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
+        pro: "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
         business:
-          "vous récupérez 100% du montant bloqué. Aucune pénalité — remplacement garanti.",
+          "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
       },
     },
     upgradeBanner: {
       title: "Vos concurrents recrutent plus vite",
       tagline:
-        "0% de frais. L'IA sélectionne pour vous. Essai gratuit 7 jours.",
+        "0 % de frais de service, options urgentes incluses et modification directe des offres actives.",
       taglineStarter:
-        "Arrêtez de payer des frais. Passez au Pro — 7 jours offerts.",
+        "Passez au Pro : offres illimitées et modification directe.",
       // Labels courts dans les lignes de plan
       starter: "Starter",
       starterKicker:
         "Frais réduits à 8% · Urgentes à 1 000 FCFA · Visibilité accrue",
       pro: "Pro",
       proKicker:
-        "0% de frais · IA qui sélectionne · Favoris · Modèles · Rapport",
+        "0 % de frais · Options urgentes · Favoris · Modèles · Rapport",
       business: "Business",
-      businessKicker:
-        "7j offerts · Remplacement en 2h garanti · Manager dédié · SLA <30 min",
+      businessKicker: "Tout Pro · Manager dédié · Support prioritaire",
       // Badges & CTA
       recommended: "Recommandé",
-      trialBadge: "7j gratuits",
-      ctaTrial: "Essayer Pro — 7 jours gratuits",
-      cta: "Voir les plans",
-      businessCta: "En savoir plus sur Business",
+      cta: "Changer de plan avec le support",
+      ctaNote: "Le changement de plan est effectué par l'équipe EasyJob.",
+      businessCta: "Demander l'offre Business",
     },
 
     // ── Showcase Premium Entreprise ─────────────────────────
     premiumCompany: {
       sectionLabel: "Votre avantage stratégique",
       headlineStarter: "Recrutez plus vite. Sans limite.",
-      headlinePro: "L'IA recrute pour vous.",
+      headlinePro: "Publiez sans limite, modifiez en direct.",
       headlineBusiness: "Le sur-mesure pour les grandes équipes.",
       taglineStarter:
         "5 offres simultanées, options urgentes incluses, modification directe.",
       taglinePro:
-        "Offres illimitées, IA qui recommande vos meilleurs candidats, reporting.",
+        "Offres illimitées, options urgentes incluses, modification directe.",
       taglineBusiness:
         "Account manager dédié, SLA garanti, branding, multi-utilisateurs, reporting avancé.",
       metrics: {
@@ -1453,8 +1625,8 @@ export const fr = {
           desc: "Candidats vérifiés CNI prioritaires + contrats signés et archivés.",
         },
         aiTalent: {
-          title: "IA Talent Match",
-          desc: "Recommandations intelligentes basées sur vos anciens travailleurs performants.",
+          title: "Indicateurs de fiabilité",
+          desc: "Note, missions réalisées et vérifications de chaque candidat.",
         },
         priorityPool: {
           title: "Pool de talents prioritaire",
@@ -1526,7 +1698,7 @@ export const fr = {
 
   companyJobs: {
     title: "Mes offres",
-    total: "{count} offre(s) au total",
+    total: { one: "{count} offre au total", other: "{count} offres au total" },
     newJob: "Nouvelle offre",
     createJob: "Créer une offre",
     tabs: {
@@ -1552,9 +1724,11 @@ export const fr = {
       cancelled: "Annulée",
     },
     urgent: "Urgent",
-    applications: "candidature(s)",
-    positions: "/{count} poste(s)",
+    applications: { one: "candidature", other: "candidatures" },
+    positions: { one: "/{count} poste", other: "/{count} postes" },
     rejectionReason: "Motif du refus : {reason}",
+    rejectedNext:
+      "Modifiez l'offre pour corriger ce point : elle repassera en vérification.",
     lockedPlan:
       "Offre publiée : la modification directe est réservée aux plans Pro et Business. Contactez le support.",
     actions: {
@@ -1632,8 +1806,11 @@ export const fr = {
   companyApplicants: {
     back: "Retour",
     jobNotFound: "Offre non trouvée",
-    applications: "candidature(s)",
-    positionsFilled: "/{count} poste(s) pourvu(s)",
+    applications: { one: "candidature", other: "candidatures" },
+    positionsFilled: {
+      one: "/{count} poste pourvu",
+      other: "/{count} postes pourvus",
+    },
     tabs: {
       pending: "En attente ({count})",
       shortlisted: "Présélect. ({count})",
@@ -1688,27 +1865,35 @@ export const fr = {
     toasts: {
       selectedTitle: "Candidat sélectionné",
       selectedDesc:
-        "La mission et le contrat ont été créés. Le candidat a été notifié.",
+        "La mission et le contrat ont été créés et le candidat a été notifié. Signez maintenant le contrat depuis cette candidature.",
       rejectedTitle: "Candidature rejetée",
-      rejectedDesc: "La candidature a été rejetée.",
-      rejectError: "Impossible de rejeter cette candidature.",
+      rejectedDesc:
+        "La candidature a été rejetée et le candidat la voit comme non retenue.",
+      rejectError:
+        "Impossible de rejeter cette candidature. La liste a été actualisée : vérifiez son état, puis réessayez.",
       errorTitle: "Erreur",
     },
     errors: {
       not_authenticated: "Session expirée. Veuillez vous reconnecter.",
       not_a_company:
         "Seules les entreprises peuvent sélectionner des candidats.",
-      account_suspended: "Votre compte est suspendu.",
+      account_suspended:
+        "Votre compte est suspendu : contactez le support pour le réactiver.",
       company_not_found: "Profil entreprise introuvable.",
       application_not_found: "Candidature introuvable.",
       application_not_selectable:
-        "Cette candidature ne peut plus être sélectionnée (retirée ou refusée).",
-      job_not_available: "Cette offre n'est plus publiée.",
-      no_positions: "Toutes les places de cette offre sont pourvues.",
-      candidate_unavailable: "Ce candidat n'est plus disponible.",
+        "Cette candidature ne peut plus être sélectionnée (retirée ou refusée). Choisissez un autre candidat.",
+      job_not_available:
+        "Cette offre n'est plus publiée : elle doit l'être pour sélectionner un candidat.",
+      no_positions:
+        "Toutes les places de cette offre sont pourvues : aucune autre sélection n'est possible.",
+      candidate_unavailable:
+        "Ce candidat n'est plus disponible. Choisissez un autre candidat.",
       selection_incomplete:
         "Sélection enregistrée sans mission ou contrat. Contactez le support.",
       generic: "La sélection n'a pas pu être enregistrée. Réessayez.",
+      network:
+        "Connexion impossible : la sélection n'a pas été envoyée. Vérifiez votre connexion, puis réessayez.",
     },
   },
 
@@ -1779,7 +1964,10 @@ export const fr = {
       submit: "Valider le code",
       submitting: "Vérification…",
       close: "Fermer",
-      invalid: "Code incorrect. Il vous reste {count} essai(s).",
+      invalid: {
+        one: "Code incorrect. Il vous reste {count} essai.",
+        other: "Code incorrect. Il vous reste {count} essais.",
+      },
       locked: "Trop d'essais. Réessayez à partir de {time}.",
       format: "Le code comporte six chiffres.",
       successTitle: "Mission réalisée",
@@ -1872,7 +2060,7 @@ export const fr = {
     alreadySignedByYou: "Vous avez signé ce contrat.",
     awaitingOther: "La signature de l'autre partie est attendue.",
     separateSteps:
-      "La signature du contrat est distincte du pointage et du paiement de la mission.",
+      "La signature du contrat est distincte du début de mission, de la confirmation par code et du règlement du montant convenu.",
     toasts: {
       signedTitle: "Contrat signé",
       signedDesc: "Votre signature a été enregistrée.",
@@ -1928,15 +2116,15 @@ export const fr = {
     hero: {
       title: "Trouvez votre prochaine mission en un clic",
       subtitle:
-        "La plateforme qui connecte les talents camerounais aux entreprises locales. Paiement Mobile Money, contrat digital, confiance garantie.",
+        "La plateforme qui connecte les talents camerounais aux entreprises locales. Montant fixe par mission, contrat signé dans l'application, fin confirmée par code.",
       ctaCandidate: "Je cherche une mission",
       ctaCompany: "Je recrute",
-      trust: "Inscription gratuite · Paiement Mobile Money · Contrat signé",
+      trust: "Inscription gratuite · Montant fixe en XAF · Contrat signé",
     },
     stats: {
-      missions: "Missions publiées",
-      companies: "Entreprises actives",
-      candidates: "Candidats inscrits",
+      flatPay: "Montant fixe par mission",
+      signatures: "Signatures par contrat",
+      completionCode: "Chiffres du code de fin",
       cities: "Villes couvertes",
     },
     how: {
@@ -1948,55 +2136,55 @@ export const fr = {
       step3: "Étape 3",
       cStep1Title: "Créez votre profil",
       cStep1Desc:
-        "Inscription en 2 min. Photo, compétences, CNI vérifiée. L'IA complète votre profil automatiquement.",
+        "Inscription en quelques minutes : photo, compétences, CNI vérifiée par l'équipe EasyJob.",
       cStep2Title: "Postulez en 1 clic",
       cStep2Desc:
         "Trouvez une offre adaptée à vos disponibilités. Aucun message requis. Réponse rapide.",
-      cStep3Title: "Recevez votre paiement",
+      cStep3Title: "Confirmez la fin de mission",
       cStep3Desc:
-        "Mission validée ? Votre paiement arrive directement sur votre MoMo MTN ou Orange Money.",
+        "Saisissez le code à six chiffres remis par l'entreprise. Le montant fixe convenu figure dans votre contrat.",
       eStep1Title: "Décrivez votre besoin",
       eStep1Desc:
-        "En quelques mots. L'IA génère votre offre complète et structurée en moins de 5 secondes.",
-      eStep2Title: "Recevez des profils triés",
+        "Renseignez le poste, les horaires et le montant fixe par candidat. L'équipe EasyJob vérifie l'offre avant publication.",
+      eStep2Title: "Choisissez vos candidats",
       eStep2Desc:
-        "Notre algorithme vous présente les candidats les plus proches et les plus adaptés en premier.",
+        "Consultez les candidatures avec la note, les missions et les vérifications de chacun, puis sélectionnez.",
       eStep3Title: "Mission accomplie",
       eStep3Desc:
-        "Validez la fin de mission. Le paiement des candidats est géré automatiquement par EasyJob CM.",
+        "Remettez le code de fin au candidat une fois le travail effectué, réglez le montant convenu, puis évaluez-le.",
     },
     features: {
       title: "Pourquoi choisir EasyJob CM",
-      f1Title: "Paiement Mobile Money",
+      f1Title: "Montant fixe par mission",
       f1Desc:
-        "MTN MoMo & Orange Money. Paiement garanti, délai transparent selon votre profil.",
+        "Chaque offre annonce un montant en XAF par candidat, repris tel quel dans le contrat.",
       f2Title: "Contrat digital",
       f2Desc:
-        "Chaque mission est couverte par un contrat signé électroniquement. Zéro litige.",
+        "Chaque sélection crée un contrat que l'entreprise et le candidat signent électroniquement.",
       f3Title: "Système de confiance",
       f3Desc:
-        "Le niveau Sandbox récompense la fiabilité. Montez en grade, accédez aux meilleures offres.",
-      f4Title: "Matching par IA",
+        "Une offre peut exiger un niveau Sandbox minimum. Le niveau de chaque candidat est attribué par l'équipe EasyJob.",
+      f4Title: "Recherche ciblée",
       f4Desc:
-        "L'algorithme vous recommande les missions les plus proches de chez vous et de votre profil.",
+        "Filtrez les offres par ville et par catégorie, puis postulez en un clic.",
     },
     sandbox: {
       title: "Un système de confiance unique",
       subtitle:
-        "Progressez mission après mission. Chaque niveau débloque de nouvelles opportunités.",
+        "Chaque candidat commence au niveau Nouveau. Le niveau est attribué par l'équipe EasyJob et n'évolue pas automatiquement. Certaines offres demandent un niveau minimum pour postuler.",
       l0Name: "Nouveau",
-      l0Desc: "Missions d'initiation",
+      l0Desc: "Niveau de départ",
       l1Name: "Confirmé",
-      l1Desc: "1 mission · 3.5★",
+      l1Desc: "Niveau 1",
       l2Name: "Fiable",
-      l2Desc: "3 missions · 4★",
+      l2Desc: "Niveau 2",
       l3Name: "Expert",
-      l3Desc: "10 missions · 4.5★",
+      l3Desc: "Niveau 3",
     },
     cta: {
       title: "Prêt à commencer ?",
       subtitle:
-        "Rejoignez des centaines de candidats et entreprises à Douala et Yaoundé.",
+        "Créez votre compte pour trouver ou publier une mission à Douala et Yaoundé.",
       btn: "Créer mon compte gratuitement",
       login: "J'ai déjà un compte",
     },
@@ -2038,7 +2226,7 @@ export const fr = {
     language: { french: "Français", english: "English" },
     trust: {
       signup: "Inscription gratuite",
-      momo: "Paiement Mobile Money",
+      momo: "Montant fixe en XAF",
       contract: "Contrat signé",
     },
     simpleFastSecure: "Simple. Rapide. Sécurisé.",
@@ -2047,13 +2235,13 @@ export const fr = {
       jobsNear: "Missions près de vous",
       doualaCount: "Douala · 12 offres",
       applyOneClick: "Postuler en 1 clic",
-      paymentReceived: "Paiement reçu",
+      paymentReceived: "Contrat signé",
       missionConfirmed: "Mission confirmée",
       expert: "Expert",
     },
     pwa: {
       title: "Installez EasyJob CM sur votre appareil",
-      desc: "Application PWA — fonctionne hors ligne, rapide comme une app native. Compatible iOS, Android et desktop.",
+      desc: "Application web à installer sur l'écran d'accueil, sans passer par un store. Compatible iOS, Android et ordinateur.",
       install: "Installer l'app",
       installed: "Application installée !",
       free: "Gratuit · Aucun store requis",

@@ -1,9 +1,16 @@
 "use client";
 
+/** Action proposée sous le message : lien vers l'étape suivante (lot 9). */
+export interface ToastAction {
+  label: string;
+  href: string;
+}
+
 export interface ToastOptions {
   title?: string;
   description?: string;
   variant?: "default" | "destructive" | "success" | "warning";
+  action?: ToastAction;
 }
 
 export interface ToastItem {
@@ -11,6 +18,7 @@ export interface ToastItem {
   title: string;
   description: string;
   variant: NonNullable<ToastOptions["variant"]>;
+  action?: ToastAction;
 }
 
 // État partagé hors React : `toast()` est appelé depuis des gestionnaires
@@ -48,6 +56,7 @@ export function toast(options: ToastOptions): number {
     title: options.title ?? "",
     description: options.description ?? "",
     variant: options.variant ?? "default",
+    ...(options.action ? { action: options.action } : {}),
   };
   // Les plus anciennes sont retirées au-delà de MAX_TOASTS.
   for (const old of toasts.slice(
@@ -58,7 +67,11 @@ export function toast(options: ToastOptions): number {
   toasts = [...toasts, item];
   timers.set(
     item.id,
-    setTimeout(() => dismissToast(item.id), DURATION_MS[item.variant]),
+    // Une action proposée laisse 4 s de plus pour être lue et utilisée.
+    setTimeout(
+      () => dismissToast(item.id),
+      DURATION_MS[item.variant] + (item.action ? 4000 : 0),
+    ),
   );
   emit();
   return item.id;

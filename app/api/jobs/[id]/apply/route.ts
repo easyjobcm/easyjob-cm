@@ -133,8 +133,14 @@ async function applyRefusalResponse(
   if (error.message === "document_requirement") {
     const detail = parseDocumentRequirementDetail(error.details);
     if (detail) {
+      // `error` (français) conservé ; `code` et `requirement` permettent
+      // à l'interface de traduire le refus (lot 9).
       return NextResponse.json(
-        { error: documentRequirementMessage(detail) },
+        {
+          error: documentRequirementMessage(detail),
+          code: "document_requirement",
+          requirement: detail,
+        },
         { status: 403 },
       );
     }
@@ -181,7 +187,7 @@ export async function DELETE(
       const refusal = WITHDRAW_REFUSALS[error.message];
       if (refusal) {
         return NextResponse.json(
-          { error: refusal.error },
+          { error: refusal.error, code: error.message },
           { status: refusal.status },
         );
       }
@@ -199,7 +205,7 @@ export async function DELETE(
         reason: "unexpected_state",
       });
       return NextResponse.json(
-        { error: "Failed to cancel application" },
+        { error: "Failed to cancel application", code: "application_failed" },
         { status: 500 },
       );
     }

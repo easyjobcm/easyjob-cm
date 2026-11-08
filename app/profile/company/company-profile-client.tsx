@@ -201,7 +201,7 @@ export function CompanyProfileClient({
               <LangSwitch variant="light" />
               <ThemeToggle variant="light" />
               <Link
-                href="/profile/company/edit"
+                href="/onboarding/company"
                 aria-label={t.profile.editProfile}
               >
                 <motion.div

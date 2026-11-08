@@ -21,7 +21,6 @@ import {
   Eye,
   Shield,
   AlertTriangle,
-  Settings,
   FileCheck,
   LogOut,
 } from "lucide-react";
@@ -187,11 +186,6 @@ export function AdminDashboardClient({
           <div className="flex items-center gap-2">
             <LangSwitch />
             <ThemeToggle />
-            <Button asChild variant="ghost" size="icon">
-              <Link href="/admin/settings">
-                <Settings className="w-5 h-5" />
-              </Link>
-            </Button>
           </div>
         </div>
       </div>
@@ -286,7 +280,7 @@ export function AdminDashboardClient({
             </Card>
           </Link>
 
-          <Link href="/admin/jobs">
+          <Link href="/admin/dashboard#moderation">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <Briefcase className="w-6 h-6 text-success mb-2" />
@@ -321,7 +315,7 @@ export function AdminDashboardClient({
         </div>
 
         {/* Pending Jobs for Moderation */}
-        <div>
+        <div id="moderation" className="scroll-mt-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-foreground">
               {t.admin.moderation.pendingJobsTitle}
@@ -332,7 +326,7 @@ export function AdminDashboardClient({
               )}
             </h2>
             <Link
-              href="/admin/jobs?status=pending"
+              href="/admin/dashboard#moderation"
               className="text-sm text-primary font-medium"
             >
               {t.admin.moderation.viewAll}

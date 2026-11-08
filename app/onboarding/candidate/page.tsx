@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { OnboardingClient } from "./onboarding-client";
 import { LiveRefresh } from "@/lib/realtime/provider";
+import { loginHref } from "@/lib/auth/safe-redirect";
 
 export default async function CandidateOnboardingPage() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ export default async function CandidateOnboardingPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect("/login?redirect=/onboarding/candidate");
+    redirect(loginHref("/onboarding/candidate"));
   }
 
   // Get user data

@@ -56,7 +56,10 @@ export async function updateSession(request: NextRequest) {
     if (!user) {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/login";
-      url.searchParams.set("next", pathname);
+      // Chemin et query string d'origine : la page de connexion y revient
+      // après authentification (postLoginPath, lot 9).
+      url.search = "";
+      url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return NextResponse.redirect(url);
     }
 

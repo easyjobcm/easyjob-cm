@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
+import { isCompanyRole } from "@/lib/utils/profile-status";
 
 // Get current user profile
 export async function GET(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id)
         .single();
       profile = candidateProfile;
-    } else if (userData.role === "company") {
+    } else if (isCompanyRole(userData.role)) {
       const { data: companyProfile } = await supabase
         .from("company_profiles")
         .select("*")

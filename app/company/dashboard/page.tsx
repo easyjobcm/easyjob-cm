@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LiveRefresh } from "@/lib/realtime/provider";
 import { CompanyDashboardClient } from "./company-dashboard-client";
+import { loginHref } from "@/lib/auth/safe-redirect";
+import { isCompanyRole } from "@/lib/utils/profile-status";
 
 export default async function CompanyDashboardPage() {
   const supabase = await createClient();
@@ -12,7 +14,7 @@ export default async function CompanyDashboardPage() {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    redirect("/login?redirect=/company/dashboard");
+    redirect(loginHref("/company/dashboard"));
   }
 
   // Get user data
@@ -22,7 +24,8 @@ export default async function CompanyDashboardPage() {
     .eq("id", user.id)
     .single();
 
-  if (!userData || userData.role !== "company") {
+  // Même droits que les RPC entreprise (`company`, `company_premium`).
+  if (!userData || !isCompanyRole(userData.role)) {
     redirect("/");
   }
 

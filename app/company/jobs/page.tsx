@@ -50,6 +50,7 @@ import {
   useLiveRefresh,
 } from "@/lib/realtime/provider";
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
+import { plural } from "@/lib/i18n/plural";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -279,7 +280,7 @@ export default function CompanyJobsPage() {
           <div>
             <h1 className="text-xl font-bold">{tj.title}</h1>
             <p className="text-sm text-muted-foreground">
-              {tj.total.replace("{count}", String(jobs.length))}
+              {plural(jobs.length, tj.total, locale)}
             </p>
           </div>
           {!suspended && (
@@ -369,6 +370,11 @@ export default function CompanyJobsPage() {
                             )}
                           </p>
                         )}
+                        {job.status === "rejected" && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {tj.rejectedNext}
+                          </p>
+                        )}
                         {job.status === "active" && !directEdit && (
                           <p className="mt-1 text-xs text-muted-foreground">
                             {tj.lockedPlan}
@@ -398,7 +404,11 @@ export default function CompanyJobsPage() {
                               {job._count?.applications || 0}
                             </span>
                             <span className="text-muted-foreground">
-                              {tj.applications}
+                              {plural(
+                                job._count?.applications || 0,
+                                tj.applications,
+                                locale,
+                              )}
                             </span>
                           </div>
                           <div className="text-sm">
@@ -406,9 +416,10 @@ export default function CompanyJobsPage() {
                               {job.positions_filled}
                             </span>
                             <span className="text-muted-foreground">
-                              {tj.positions.replace(
-                                "{count}",
-                                String(job.positions_available),
+                              {plural(
+                                job.positions_available ?? 0,
+                                tj.positions,
+                                locale,
                               )}
                             </span>
                           </div>

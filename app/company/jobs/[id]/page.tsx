@@ -43,6 +43,7 @@ import {
   useLiveRefresh,
 } from "@/lib/realtime/provider";
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
+import { plural } from "@/lib/i18n/plural";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -255,8 +256,10 @@ export default function CompanyJobDetailPage() {
     } else {
       toast({
         title: ta.toasts.errorTitle,
-        description:
-          body.code && body.code in ta.errors
+        // Requête non aboutie : message réseau ; sinon le code métier.
+        description: !res
+          ? ta.errors.network
+          : body.code && body.code in ta.errors
             ? ta.errors[body.code as keyof typeof ta.errors]
             : ta.errors.generic,
         variant: "destructive",
@@ -432,16 +435,13 @@ export default function CompanyJobDetailPage() {
             <Users className="h-4 w-4 text-violet-600" />
             <span className="font-medium">{applications.length}</span>
             <span className="text-sm text-muted-foreground">
-              {ta.applications}
+              {plural(applications.length, ta.applications, locale)}
             </span>
           </div>
           <div className="text-sm">
             <span className="font-medium">{job.positions_filled}</span>
             <span className="text-muted-foreground">
-              {ta.positionsFilled.replace(
-                "{count}",
-                String(job.positions_available),
-              )}
+              {plural(job.positions_available ?? 0, ta.positionsFilled, locale)}
             </span>
           </div>
         </div>

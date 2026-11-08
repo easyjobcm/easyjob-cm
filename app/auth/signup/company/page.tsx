@@ -320,14 +320,14 @@ export default function CompanySignupPage() {
                   <span className="text-xs leading-relaxed text-gray-700 dark:text-white/70">
                     {t.signup.account.terms}{" "}
                     <Link
-                      href="/legal/terms"
+                      href="/terms"
                       className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.termsLink}
                     </Link>{" "}
                     {t.signup.account.and}{" "}
                     <Link
-                      href="/legal/privacy"
+                      href="/privacy"
                       className="font-semibold text-[#5B21B6] dark:text-[#A78BFA] hover:underline"
                     >
                       {t.signup.account.privacyLink}

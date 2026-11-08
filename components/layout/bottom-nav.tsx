@@ -39,8 +39,8 @@ interface NavItem {
 
 const candidateNavItems: NavItem[] = [
   { href: "/jobs", label: "Offres", labelEn: "Jobs", icon: Home },
-  { href: "/tasks", label: "Taches", labelEn: "Tasks", icon: ClipboardList },
-  { href: "/my-jobs", label: "Mes Jobs", labelEn: "My Jobs", icon: Briefcase },
+  { href: "/tasks", label: "Tâches", labelEn: "Tasks", icon: ClipboardList },
+  { href: "/my-jobs", label: "Mes jobs", labelEn: "My Jobs", icon: Briefcase },
   { href: "/profile", label: "Profil", labelEn: "Profile", icon: User },
 ];
 
@@ -53,13 +53,14 @@ const companyNavItems: NavItem[] = [
   },
   { href: "/company/jobs/new", label: "Publier", labelEn: "Post", icon: Plus },
   {
-    href: "/company/applications",
-    label: "Candidats",
-    labelEn: "Candidates",
+    // Les candidats se consultent depuis chaque offre.
+    href: "/company/jobs",
+    label: "Mes offres",
+    labelEn: "My jobs",
     icon: Users,
   },
   {
-    href: "/company/profile",
+    href: "/profile/company",
     label: "Profil",
     labelEn: "Profile",
     icon: Settings,
@@ -91,12 +92,12 @@ const adminNavItems: NavItem[] = [
     labelEn: "Companies",
     icon: Building2,
   },
-  { href: "/admin/jobs", label: "Offres", labelEn: "Jobs", icon: Briefcase },
+  // Modération des offres : section du tableau de bord.
   {
-    href: "/admin/settings",
-    label: "Config",
-    labelEn: "Settings",
-    icon: Settings,
+    href: "/admin/dashboard#moderation",
+    label: "Offres",
+    labelEn: "Jobs",
+    icon: Briefcase,
   },
 ];
 

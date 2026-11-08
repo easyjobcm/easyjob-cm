@@ -39,6 +39,7 @@ import {
   type PlanLimits,
   formatDateShort,
 } from "@/lib/utils/profile-status";
+import { supportMailto } from "@/lib/support";
 
 interface PremiumCompanyBenefitsProps {
   plan: CompanyPlan;
@@ -305,7 +306,7 @@ export function PremiumCompanyBenefits({
               className="mt-4 border-t pt-4"
               style={{ borderColor: `${accent}20` }}
             >
-              <Link href="/upgrade/company">
+              <Link href={supportMailto("Changement de plan EasyJob")}>
                 <motion.div
                   whileTap={{ scale: 0.98 }}
                   className="flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-white shadow"

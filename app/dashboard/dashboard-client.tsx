@@ -116,7 +116,7 @@ export function DashboardClient({
                 : "Here is your dashboard"}
             </p>
           </div>
-          <Link href="/notifications">
+          <Link href="/profile/notifications">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />

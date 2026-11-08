@@ -15,7 +15,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c, 7c-bis et 7d corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux — **corrigé et vérifié localement, non déployé ; F-23 partiel** | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
-| 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
+| 9 | Retour utilisateur et textes — **corrigé et vérifié localement sur les parcours ciblés, non déployé ; F-19 et F-28 partiels** | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
 
 ---
@@ -317,6 +317,16 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Taille** : petit à moyen.
 
 ## Lot 9 — Retour utilisateur et textes
+
+> **Statut (2026-11-08)** : réalisé sur `fix/lot-09-user-feedback-i18n` (base `origin/main-dev`, 361cb26, lot 8 intégré), **non commité, non déployé**. Détails, affirmations vérifiées et points ouverts : `AUDIT.md` §24.
+> - Connexion : retour vers la page protégée d'origine (`next`, validation du lot 8) ; plus aucune redirection vers `/login`.
+> - Candidature : refus de `/apply` traduits par code avec l'étape suivante ; état réel de la candidature ; retrait depuis le détail d'offre.
+> - Mes jobs : « aucune candidature en cours » distinct de « jamais postulé », historique, dernier état conservé et « Réessayer » en cas de coupure.
+> - Entreprise : `company_premium` accède au tableau de bord ; liens morts corrigés ; messages de sélection, de refus et de modération avec l'étape suivante.
+> - Promesses retirées : paiement sous 48 h, séquestre, retrait Mobile Money, remplacement garanti, IA, essai gratuit, hors ligne, compteurs sans source ; écran des gains limité aux montants des contrats.
+> - Tests : `login-redirect`, `application-feedback`, `my-jobs`, `user-facing-claims` (promesses et liens internes), `company-role`, toast avec action ; essai navigateur 375 px FR/EN (script local hors dépôt).
+>
+> **Décisions produit attendues** : affichage des avantages d'abonnement non livrés (lot Free/Premium) ; mention « bientôt disponible » éventuelle ; renouvellement d'une candidature retirée ; progression Sandbox annoncée sur l'accueil.
 
 - **IDs** : F-18, F-19, F-28.
 - **Périmètre** : ~~remplacer `hooks/use-toast.ts` par un vrai composant (accessible, `aria-live`)~~ (fait au lot 2b, `AUDIT.md` §11 ; reste : textes des toasts en i18n), corriger `/login` en `/auth/login`, retirer ou marquer « bientôt disponible » les promesses non livrées (paiement 48 h, séquestre, remplacement garanti, IA, essai gratuit), passer les pages touchées par les lots 6 et 7 sur le dictionnaire i18n.

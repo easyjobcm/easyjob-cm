@@ -34,6 +34,7 @@ import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { CookieBanner } from "@/components/shared/cookie-banner";
 import { Chatbot } from "@/components/chatbot/chatbot";
+import { SUPPORT_MAILTO } from "@/lib/support";
 
 // ─── PWA install event type ────────────────────────────────────────────────────
 
@@ -381,10 +382,12 @@ export default function WelcomePage() {
     t("home.sandbox.l3Desc"),
   ];
 
+  // Destinations existantes uniquement (lot 9) : les pages À propos, Blog,
+  // Presse, Tarifs, Statut et Signalement n'existent pas.
   const navLinks = [
     { label: t("landing.nav.features"), href: "#features" },
     { label: t("landing.nav.howItWorks"), href: "#how" },
-    { label: t("landing.nav.about"), href: "/about" },
+    { label: t("landing.nav.sandbox"), href: "#sandbox" },
   ];
 
   const footerCols: { title: string; links: FooterLink[] }[] = [
@@ -394,34 +397,22 @@ export default function WelcomePage() {
         { label: t("landing.nav.howItWorks"), href: "#how" },
         { label: t("landing.nav.features"), href: "#features" },
         { label: t("landing.nav.sandbox"), href: "#sandbox" },
-        { label: t("landing.footer.pricing"), href: "/pricing" },
-      ],
-    },
-    {
-      title: t("landing.footer.company"),
-      links: [
-        { label: t("landing.footer.about"), href: "/about" },
-        { label: t("landing.footer.blog"), href: "/blog" },
-        { label: t("landing.footer.press"), href: "/press" },
-        { label: t("landing.footer.contact"), href: "/contact" },
       ],
     },
     {
       title: t("landing.footer.support"),
       links: [
-        { label: t("landing.footer.faq"), href: "/faq" },
+        { label: t("landing.footer.faq"), href: "/help/guide" },
         { label: t("landing.footer.helpCenter"), href: "/help" },
-        { label: t("landing.footer.reportBug"), href: "/report" },
-        { label: t("landing.footer.status"), href: "/status" },
+        { label: t("landing.footer.contact"), href: SUPPORT_MAILTO },
       ],
     },
     {
       title: t("landing.footer.legal"),
       links: [
-        { label: t("auth.terms"), href: "/legal/terms" },
-        { label: t("auth.privacy"), href: "/legal/privacy" },
+        { label: t("auth.terms"), href: "/terms" },
+        { label: t("auth.privacy"), href: "/privacy" },
         { label: t("landing.footer.cookies"), onClick: resetCookies },
-        { label: t("landing.footer.gdpr"), href: "/legal/gdpr" },
       ],
     },
   ];
@@ -991,21 +982,23 @@ export default function WelcomePage() {
         <Section>
           <div className="max-w-4xl mx-auto px-4 py-12 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center relative">
             {[
+              // Faits vérifiables du produit livré (lot 9) : aucun compteur
+              // d'utilisateurs ou de missions sans source.
               {
-                value: "1 500+",
-                label: t("home.stats.missions"),
+                value: "XAF",
+                label: t("home.stats.flatPay"),
                 icon: Briefcase,
                 color: "#7C3AED",
               },
               {
-                value: "200+",
-                label: t("home.stats.companies"),
+                value: "2",
+                label: t("home.stats.signatures"),
                 icon: Building2,
                 color: "#3B82F6",
               },
               {
-                value: "5 000+",
-                label: t("home.stats.candidates"),
+                value: "6",
+                label: t("home.stats.completionCode"),
                 icon: Users,
                 color: "#059669",
               },
@@ -1620,7 +1613,7 @@ export default function WelcomePage() {
           </div>
 
           {/* Links grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-10 pb-10 border-b border-white/5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 mb-10 pb-10 border-b border-white/5">
             {footerCols.map((col) => (
               <div key={col.title}>
                 <h4 className="text-[11px] font-bold uppercase tracking-[1.5px] text-[#7C3AED] mb-3">

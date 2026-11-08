@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Zap, Star, Sparkles, ArrowRight } from "lucide-react";
+import { Star, Sparkles, ArrowRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -15,7 +15,6 @@ export function PremiumBanner() {
   const tr = t.profile.upgradePremium;
 
   const bullets = [
-    { icon: Zap, label: tr.bullets.fastPayment },
     { icon: Star, label: tr.bullets.priority },
     { icon: Sparkles, label: tr.bullets.exclusive },
   ];

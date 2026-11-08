@@ -2,13 +2,9 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Clock, Zap, TrendingUp } from "lucide-react";
+import { Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
-import {
-  computePaymentDelayMode,
-  type PaymentDelayMode,
-} from "@/lib/utils/profile-status";
 
 interface PaymentDelayInfoProps {
   role: string;
@@ -16,11 +12,10 @@ interface PaymentDelayInfoProps {
 }
 
 /**
- * Bloc "Délai de paiement" — affiché sur le profil candidat (premium ou standard).
- * Selon SRS v1.1 :
- *  - premium + 4★    → 48h
- *  - premium OU 4★   → 50% + 50% / 7j
- *  - sinon           → 7 jours
+ * Bloc « Rémunération » du profil candidat (lot 9). Le SRS prévoit des
+ * délais de versement (48 h, 50/50, 7 jours) qui ne sont pas implémentés :
+ * aucun versement n'est effectué par l'application. Le bloc rappelle que le
+ * montant fixe est inscrit dans chaque contrat et réglé par l'entreprise.
  */
 export function PaymentDelayInfo({
   role,
@@ -28,29 +23,17 @@ export function PaymentDelayInfo({
 }: PaymentDelayInfoProps) {
   const { t } = useI18n();
   const tr = t.profile.paymentDelay;
-  const mode: PaymentDelayMode = computePaymentDelayMode(role, averageRating);
-
+  // Aucun délai de versement n'existe (lot 9) : le montant fixe est inscrit
+  // dans chaque contrat et réglé par l'entreprise. `role` et
+  // `averageRating` restent acceptés pour compatibilité.
+  void role;
+  void averageRating;
   const config = {
-    fast48h: {
-      icon: Zap,
-      color: "#22C55E",
-      label: tr.premiumFast,
-      cta: null as string | null,
-    },
-    split: {
-      icon: TrendingUp,
-      color: "#F59E0B",
-      label: tr.premiumSplit,
-      cta: averageRating < 4 ? tr.improveCta : null,
-    },
-    standard7d: {
-      icon: Clock,
-      color: "#6B7280",
-      label: tr.standard,
-      cta: null as string | null,
-    },
-  }[mode];
-
+    icon: Clock,
+    color: "#7C3AED",
+    label: tr.standard,
+    cta: tr.note as string | null,
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -77,7 +60,7 @@ export function PaymentDelayInfo({
                 {config.label}
               </p>
               {config.cta && (
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {config.cta}
                 </p>
               )}

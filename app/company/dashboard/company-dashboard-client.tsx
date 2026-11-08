@@ -12,7 +12,6 @@ import {
   Briefcase,
   Users,
   Clock,
-  TrendingUp,
   Plus,
   ChevronRight,
   Calendar,
@@ -57,50 +56,37 @@ export function CompanyDashboardClient({
   jobs,
   stats,
 }: CompanyDashboardClientProps) {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
 
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return locale === "fr" ? "Bonjour" : "Good morning";
-    if (hour < 18) return locale === "fr" ? "Bon apres-midi" : "Good afternoon";
+    if (hour < 18) return locale === "fr" ? "Bon après-midi" : "Good afternoon";
     return locale === "fr" ? "Bonsoir" : "Good evening";
   };
 
+  // Libellés du dictionnaire (companyJobs.status) : plus de statut
+  // technique brut (`rejected`, `expired`) ni de texte sans accents (lot 9).
   const getStatusBadge = (status: string | null) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary">
-            {locale === "fr" ? "Brouillon" : "Draft"}
-          </Badge>
-        );
-      case "pending_review":
-        return (
-          <Badge variant="warning">
-            {locale === "fr" ? "En attente" : "Pending"}
-          </Badge>
-        );
-      case "active":
-        return (
-          <Badge variant="success">
-            {locale === "fr" ? "Publie" : "Published"}
-          </Badge>
-        );
-      case "filled":
-        return (
-          <Badge variant="outline">
-            {locale === "fr" ? "Pourvu" : "Filled"}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="destructive">
-            {locale === "fr" ? "Annule" : "Cancelled"}
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
+    const labels = t.companyJobs.status;
+    const variant: Record<
+      string,
+      "secondary" | "warning" | "success" | "outline" | "destructive"
+    > = {
+      draft: "secondary",
+      pending_review: "warning",
+      active: "success",
+      filled: "outline",
+      expired: "outline",
+      rejected: "destructive",
+      cancelled: "destructive",
+    };
+    const key = (status ?? "") as keyof typeof labels;
+    return (
+      <Badge variant={variant[key] ?? "secondary"}>
+        {labels[key] ?? status ?? "—"}
+      </Badge>
+    );
   };
 
   return (
@@ -126,7 +112,7 @@ export function CompanyDashboardClient({
             </div>
           </div>
           <div className="flex gap-2">
-            <Link href="/company/notifications">
+            <Link href="/profile/notifications">
               <Button
                 variant="ghost"
                 size="icon"
@@ -135,7 +121,7 @@ export function CompanyDashboardClient({
                 <Bell className="w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/company/settings">
+            <Link href="/profile/settings">
               <Button
                 variant="ghost"
                 size="icon"
@@ -219,13 +205,13 @@ export function CompanyDashboardClient({
                 <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground mb-4">
                   {locale === "fr"
-                    ? "Vous n'avez pas encore publie d'offre"
+                    ? "Vous n'avez pas encore publié d'offre"
                     : "You haven't posted any jobs yet"}
                 </p>
                 <Link href="/company/jobs/new">
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
-                    {locale === "fr" ? "Creer une offre" : "Create a job"}
+                    {locale === "fr" ? "Créer une offre" : "Create a job"}
                   </Button>
                 </Link>
               </CardContent>
@@ -306,7 +292,7 @@ export function CompanyDashboardClient({
 
         {/* Quick Links */}
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/company/applications">
+          <Link href="/company/jobs">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
@@ -325,14 +311,15 @@ export function CompanyDashboardClient({
             </Card>
           </Link>
 
-          <Link href="/company/analytics">
+          {/* Aucun écran de statistiques : profil de l'entreprise. */}
+          <Link href="/profile/company">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-2">
-                  <TrendingUp className="w-6 h-6 text-success" />
+                  <Building2 className="w-6 h-6 text-success" />
                 </div>
                 <p className="font-medium text-foreground text-sm">
-                  {locale === "fr" ? "Statistiques" : "Analytics"}
+                  {locale === "fr" ? "Profil entreprise" : "Company profile"}
                 </p>
               </CardContent>
             </Card>

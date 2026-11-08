@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import {
@@ -82,6 +83,15 @@ export function Toaster() {
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {item.description}
                   </p>
+                )}
+                {item.action && (
+                  <Link
+                    href={item.action.href}
+                    onClick={() => dismissToast(item.id)}
+                    className="mt-2 inline-flex min-h-9 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    {item.action.label}
+                  </Link>
                 )}
               </div>
               <motion.button

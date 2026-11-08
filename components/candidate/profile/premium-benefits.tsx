@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Zap, Star, Sparkles, Crown } from "lucide-react";
+import { Star, Sparkles, Crown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/profile-status";
@@ -25,18 +25,11 @@ export function PremiumBenefits({
   const { t } = useI18n();
   const tr = t.profile.premium;
 
-  const fastPaymentDesc =
-    averageRating >= 4
-      ? tr.benefits.fastPayment.desc4Stars
-      : tr.benefits.fastPayment.descDefault;
+  // Le « paiement accéléré » est retiré (lot 9) : aucun versement n'est
+  // effectué par l'application. `averageRating` reste accepté.
+  void averageRating;
 
   const benefits = [
-    {
-      icon: Zap,
-      title: tr.benefits.fastPayment.title,
-      desc: fastPaymentDesc,
-      color: "#22C55E",
-    },
     {
       icon: Star,
       title: tr.benefits.priority.title,

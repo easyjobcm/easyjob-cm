@@ -60,3 +60,28 @@ describe("toast (état partagé lu par <Toaster />)", () => {
     expect(getToasts()).toBe(getToasts());
   });
 });
+
+// Lot 9 : un refus propose l'étape suivante (lien) et reste affiché plus longtemps.
+describe("toast avec action", () => {
+  afterEach(() => {
+    for (const t of getToasts()) dismissToast(t.id);
+    vi.useRealTimers();
+  });
+
+  it("conserve l'action et prolonge l'affichage de 4 s", () => {
+    vi.useFakeTimers();
+    toast({
+      title: "Candidature non envoyée",
+      variant: "destructive",
+      action: { label: "Voir mes candidatures", href: "/my-jobs" },
+    });
+    expect(getToasts()[0]?.action).toEqual({
+      label: "Voir mes candidatures",
+      href: "/my-jobs",
+    });
+    vi.advanceTimersByTime(8000);
+    expect(getToasts()).toHaveLength(1);
+    vi.advanceTimersByTime(4000);
+    expect(getToasts()).toHaveLength(0);
+  });
+});

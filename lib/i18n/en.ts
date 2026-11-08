@@ -467,7 +467,7 @@ export const en: TranslationKeys = {
     },
     candidate: {
       heroTitle: "Welcome future EasyJob star",
-      heroSubtitle: "Jobs near you, paid via Mobile Money.",
+      heroSubtitle: "Jobs near you, at a fixed pay in XAF.",
     },
     company: {
       heroTitle: "Hire top talent",
@@ -575,17 +575,128 @@ export const en: TranslationKeys = {
   },
 
   // Pay: fixed amount per candidate for the mission (XAF)
+
+  // Application: status, /apply refusals and withdrawal (lot 9)
+  application: {
+    applyNowTitle: "Apply now!",
+    positionsLeft: {
+      one: "1 position available",
+      other: "{count} positions available",
+      none: "No positions available",
+    },
+    confirmBefore: "Before applying, make sure you can attend this mission.",
+    status: {
+      pending: {
+        title: "Application sent",
+        desc: "You will be notified if you are selected.",
+      },
+      shortlisted: {
+        title: "You are shortlisted",
+        desc: "The company is reviewing your application. You will be notified of its decision.",
+      },
+      selected: {
+        title: "You are selected",
+        desc: "Sign your contract from the Tasks tab.",
+      },
+      rejected: {
+        title: "Application not accepted",
+        desc: "The company did not accept your application for this job. Other jobs are waiting for you.",
+      },
+      withdrawn: {
+        title: "Application withdrawn",
+        desc: "You withdrew your application. You cannot apply to this job again.",
+      },
+      no_show: {
+        title: "No-show recorded",
+        desc: "A no-show was recorded for this mission. Contact support if this is a mistake.",
+      },
+    },
+    sentToast: {
+      title: "Application sent",
+      desc: "Follow it in My Jobs.",
+    },
+    withdraw: {
+      button: "Withdraw my application",
+      confirmTitle: "Withdraw your application?",
+      confirmBody:
+        "The company will no longer see it and you will not be able to apply to this job again.",
+      confirm: "Withdraw",
+      cancel: "Cancel",
+      doneTitle: "Application withdrawn",
+      doneDesc: "It now appears in your My Jobs history.",
+      errorTitle: "Withdrawal failed",
+      errors: {
+        application_not_withdrawable:
+          "Only a pending application can be withdrawn. Contact the company or support.",
+        application_not_found:
+          "Application not found. Reload the page to see its current status.",
+        generic: "The withdrawal could not be saved. Please try again.",
+      },
+    },
+    errorTitle: "Application not sent",
+    refusals: {
+      not_authenticated: "Your session has expired. Sign in again to apply.",
+      profile_not_found: "Finish signing up first to apply.",
+      onboarding_incomplete: "Finish signing up first to apply.",
+      account_suspended:
+        "Your account is suspended: you cannot apply. Contact support.",
+      job_not_found: "This job is no longer available.",
+      job_not_available: "This job no longer accepts applications.",
+      sandbox_level_too_low:
+        "This job requires a higher trust level. Complete more missions to access it.",
+      no_positions: "All positions for this job are filled.",
+      already_applied: "You have already applied to this job.",
+      profile_incomplete:
+        "Your profile must be at least 60% complete to apply.",
+      profile_not_verified:
+        "Your identity, ID card and Mobile Money must be verified to apply.",
+      application_failed:
+        "The application could not be sent. Please try again in a moment.",
+      network:
+        "Cannot connect. Check your internet connection, then try again.",
+      generic: "The application could not be sent. Please try again.",
+    },
+    documents: {
+      missingCni: "This job requires a verified national ID card.",
+      missingLicense: "This job requires a valid driving licence.",
+      missingSkill:
+        "This job requires a valid diploma or certificate for the skill \u201c{skill}\u201d.",
+      missingOther: "This job requires a valid document: {doc}.",
+      pending: "Your document is still being verified.",
+      rejected: "Your document was rejected. Replace it from your profile.",
+      expired: "Your document has expired. Update it to apply.",
+      labels: {
+        casier_judiciaire: "criminal record",
+        diplome: "diploma",
+        certificat: "certificate",
+        attestation_formation: "training certificate",
+        attestation_travail: "work certificate",
+        autre: "document",
+      },
+    },
+    actions: {
+      signIn: "Sign in",
+      finishSignup: "Finish signing up",
+      completeProfile: "Complete my profile",
+      documents: "Manage my documents",
+      identity: "Verify my identity",
+      browseJobs: "See other jobs",
+      myApplications: "View my applications",
+      support: "Contact support",
+      tasks: "Open my tasks",
+    },
+  },
   pay: {
     forMission: "for the mission",
     perCandidate: "Pay per candidate",
     flatNote:
-      "Fixed amount paid to each selected candidate for the mission, whatever the actual finishing time.",
+      "Fixed amount agreed for each selected candidate, whatever the actual finishing time.",
     formLabel: "Pay per candidate for the mission (CFA francs)",
     formHint:
-      "Fixed amount paid to each selected candidate, whatever the actual finishing time. The schedule is still shown so everyone can plan.",
+      "Fixed amount agreed for each selected candidate, whatever the actual finishing time. The schedule is still shown so everyone can plan.",
     formExample:
       "Example: 3 people needed at 10,000 CFA francs = 10,000 CFA francs for each of them.",
-    positions: "{count} person(s) needed",
+    positions: { one: "{count} person needed", other: "{count} people needed" },
     contractBasis:
       "Flat amount per mission, per candidate, in CFA francs (XAF)",
   },
@@ -603,14 +714,77 @@ export const en: TranslationKeys = {
   },
 
   // My Jobs
+  // Earnings: agreed amounts of completed missions (lot 9)
+  earnings: {
+    title: "My earnings",
+    totalLabel: "Agreed amount of completed missions",
+    missionsCount: {
+      one: "{count} completed mission",
+      other: "{count} completed missions",
+    },
+    note: "Each amount is the one set in the mission's contract. The company commits to paying it: the app doesn't make any payment or Mobile Money withdrawal yet.",
+    listTitle: "Completed missions",
+    contractAmount: "Contract amount",
+    noAmount: "Amount unavailable",
+    emptyTitle: "No completed mission",
+    emptyDesc:
+      "The agreed amount of each mission will appear here once completion is confirmed with the code.",
+    browseJobs: "Browse jobs",
+    loadErrorTitle: "Cannot connect",
+    loadErrorDesc:
+      "Your missions could not be loaded. Check your connection, then try again.",
+    retry: "Try again",
+  },
+
   myJobs: {
     title: "My Jobs",
-    applications: "Applications",
-    booked: "Booked",
-    worked: "Worked",
-    empty: "Find your next job!",
-    emptyDesc: "You don't have any applications yet",
+    tabs: {
+      applied: "Applications",
+      booked: "Booked",
+      completed: "Completed",
+    },
+    applicationStatus: {
+      pending: "Pending",
+      shortlisted: "Shortlisted",
+      selected: "Selected",
+      rejected: "Not accepted",
+      withdrawn: "Withdrawn",
+      no_show: "No-show",
+    },
+    missionStatus: {
+      pending: "Scheduled",
+      confirmed: "Confirmed",
+      in_progress: "In progress",
+      completed: "Completed",
+      cancelled: "Cancelled",
+      no_show: "No-show",
+      en_route: "On the way",
+      arrived: "On site",
+      validated: "Validated",
+      disputed: "Disputed",
+    },
+    appliedOn: "Applied on",
+    history: "History",
+    empty: {
+      neverTitle: "Find your next job!",
+      neverDesc: "You haven't applied to any job yet.",
+      noActiveTitle: "No application in progress",
+      noActiveDesc:
+        "Your withdrawn or declined applications remain visible in the history below.",
+      bookedTitle: "No booked mission",
+      bookedDesc: "Your missions appear here as soon as a company selects you.",
+      completedTitle: "No completed mission",
+      completedDesc:
+        "Missions confirmed with the completion code will appear here.",
+    },
     browseJobs: "Browse jobs",
+    loadError: {
+      title: "Cannot connect",
+      desc: "Your applications could not be loaded. Check your connection, then try again.",
+      stale:
+        "Cannot connect: showing the last known state. Check your connection.",
+      retry: "Try again",
+    },
   },
 
   // Profile
@@ -1003,7 +1177,8 @@ export const en: TranslationKeys = {
     mobileMoney: "Mobile Money",
     paymentPage: {
       title: "Mobile Money",
-      subtitle: "Used to receive your mission payments.",
+      subtitle:
+        "Verified by the EasyJob team. The app doesn't make payments yet.",
       provider: "Provider",
       number: "Mobile Money number",
       numberPlaceholder: "6XX XXX XXX",
@@ -1093,7 +1268,7 @@ export const en: TranslationKeys = {
         },
         {
           q: "What is the Tasks tab for?",
-          a: "It's your tracking center for mission-related steps: confirm your arrival and departure check-in times after a job, digitally sign your short-term contracts before a mission starts, and leave your review once a mission is completed. As long as a contract signature or an evaluation is pending, your next mission may be delayed. Uploading other documents (bank details, student proof, work certificate) and training/briefings aren't available yet in the app.",
+          a: "It's your tracking center for your missions: sign your contract, start the mission from 15 minutes before the scheduled time, enter the six-digit code the company gives you to confirm completion, then review the company. Uploading other documents (bank details, student proof, work certificate) and training aren't available in the app yet.",
         },
         {
           q: "How do I track my applications in My Jobs?",
@@ -1125,15 +1300,15 @@ export const en: TranslationKeys = {
         },
         {
           q: "How does Mobile Money work?",
-          a: "From Profile > Mobile Money, add or edit your MTN or Orange number. Changing the number requires a new verification.",
+          a: "From Profile > Mobile Money, declare or edit your MTN or Orange number. The EasyJob team verifies it, and a new number needs a new verification. The app doesn't make payments or withdrawals yet.",
         },
         {
           q: "When do I get paid?",
-          a: "It depends on your profile: 7 days after the mission by default, 48h if you're Premium and well rated, or split 50/50 if only one condition is met.",
+          a: "The mission's fixed amount, in XAF, is shown in your contract. The company commits to paying it once completion is confirmed with the code. The app doesn't make payments yet: no Mobile Money payment or withdrawal is handled in it for now.",
         },
         {
           q: "How does Premium work?",
-          a: "Premium (1,000 FCFA/month) improves your application priority and payment delay. Self-service subscription isn't available yet: contact support.",
+          a: "Premium costs 1,000 FCFA per month. Self-service subscription isn't available yet: contact support to activate it and learn about the benefits offered.",
         },
         {
           q: "How do I get help?",
@@ -1175,12 +1350,6 @@ export const en: TranslationKeys = {
       expiresOn: "Expires on {date}",
       renewSoon: "Renewing soon",
       benefits: {
-        fastPayment: {
-          title: "Fast payment",
-          desc4Stars:
-            "100% within 48h once your rating exceeds 4★. Otherwise 50% immediately + 50% within 7 days.",
-          descDefault: "50% immediately + 50% within 7 days.",
-        },
         priority: {
           title: "Priority on applications",
           desc: "Your profile is shown first to companies.",
@@ -1193,13 +1362,12 @@ export const en: TranslationKeys = {
     },
     upgradePremium: {
       title: "Go Premium",
-      tagline: "Boost your chances. Get paid faster.",
+      tagline: "Stand out to companies.",
       price: "1,000 FCFA",
       pricePeriod: "/ month",
       ctaPrimary: "Become Premium",
       ctaSecondary: "See benefits",
       bullets: {
-        fastPayment: "Paid in 48h instead of 7 days",
         priority: "Priority on every application",
         exclusive: "Access to exclusive Premium jobs",
       },
@@ -1213,11 +1381,9 @@ export const en: TranslationKeys = {
       contactSupport: "Contact support",
     },
     paymentDelay: {
-      title: "Payment delay",
-      standard: "7 days after the mission",
-      premiumFast: "100% within 48h",
-      premiumSplit: "50% immediate + 50% within 7d",
-      improveCta: "Improve your rating to unlock 48h payment",
+      title: "Pay",
+      standard: "Fixed amount in XAF, set in each contract",
+      note: "Paid by the company: the app doesn't make payments yet.",
     },
 
     // ── Statuses & Plans (company) ───────────────────────────
@@ -1239,7 +1405,7 @@ export const en: TranslationKeys = {
         urgentPaid: "Urgent options paid",
         urgentFree: "Urgent options included",
         aiRecoOff: "No AI recommendations",
-        aiRecoOn: "AI recommendations from past workers",
+        aiRecoOn: "Candidate reliability indicators",
         reportingOff: "No reporting",
         reportingBasic: "Basic reporting",
         reportingAdvanced: "Advanced reporting",
@@ -1270,12 +1436,12 @@ export const en: TranslationKeys = {
         desc: "Boost a job for 2,000 FCFA whenever you need it.",
       },
       securePayment: {
-        title: "Secure payment",
-        desc: "Your payments are held until the mission is validated.",
+        title: "Signed contract",
+        desc: "Each selection creates a contract that you and the candidate sign in the app.",
       },
       historyAccess: {
         title: "Full history",
-        desc: "Access all your past missions and invoices.",
+        desc: "Find your jobs and their past missions.",
       },
       // ── Starter plan (4 perks) ──
       reducedFee: {
@@ -1304,8 +1470,8 @@ export const en: TranslationKeys = {
         desc: "Boost all your jobs with no extra cost.",
       },
       aiMatch: {
-        title: "AI Talent Match",
-        desc: "AI pre-selects the best profiles for each of your jobs.",
+        title: "Reliability indicators",
+        desc: "Compare candidates by rating, missions and verifications.",
       },
       favorites: {
         title: "Favorites list",
@@ -1332,13 +1498,13 @@ export const en: TranslationKeys = {
         desc: "Edit your published jobs anytime, no support needed.",
       },
       trialFree: {
-        title: "7-day free trial",
-        desc: "Try the plan with no commitment, cancel anytime.",
+        title: "Activation by support",
+        desc: "The plan is activated by the EasyJob team; online payment isn't available yet.",
       },
       // ── Business plan (10 perks) ──
       guaranteedReplacement: {
-        title: "Guaranteed replacement",
-        desc: "If a candidate doesn't show up, we replace them within 2h.",
+        title: "Help with no-shows",
+        desc: "If a candidate doesn't show up, contact support. No automatic replacement is offered.",
       },
       bulkHiring: {
         title: "Bulk hiring",
@@ -1378,44 +1544,43 @@ export const en: TranslationKeys = {
       },
       // ── Cancellation penalties ──
       cancellationPenalty: {
-        label: "Late cancellation:",
+        label: "Cancellation:",
         freeStarter:
-          "you recover 50% of the locked amount. 25% goes to premium candidates, 25% to EasyJob.",
-        pro: "you recover 75% of the locked amount. 25% goes to premium candidates.",
+          "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
+        pro: "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
         business:
-          "you recover 100% of the locked amount. No penalty — guaranteed replacement.",
+          "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
       },
     },
     upgradeBanner: {
       title: "Your competitors hire faster",
-      tagline: "0% fees. AI screens candidates for you. Free 7-day trial.",
-      taglineStarter: "Stop paying fees. Switch to Pro — 7 days free.",
+      tagline:
+        "0% service fee, urgent options included and direct editing of active jobs.",
+      taglineStarter: "Switch to Pro: unlimited jobs and direct editing.",
       // Short labels inside plan rows
       starter: "Starter",
       starterKicker: "8% fee · Urgent boost at 1,000 FCFA · Higher visibility",
       pro: "Pro",
-      proKicker: "0% fee · AI shortlisting · Favorites · Templates · Report",
+      proKicker: "0% fee · Urgent options · Favorites · Templates · Report",
       business: "Business",
       businessKicker:
-        "7 days free · Replacement in 2h guaranteed · Dedicated manager · <30 min SLA",
+        "Everything in Pro · Dedicated manager · Priority support",
       // Badges & CTA
       recommended: "Recommended",
-      trialBadge: "7d free",
-      ctaTrial: "Try Pro — 7 days free",
-      cta: "See plans",
-      businessCta: "Learn more about Business",
+      cta: "Change plan with support",
+      ctaNote: "Plan changes are made by the EasyJob team.",
+      businessCta: "Ask about Business",
     },
 
     // ── Premium Company Showcase ────────────────────────────
     premiumCompany: {
       sectionLabel: "Your strategic advantage",
       headlineStarter: "Hire faster. Without limits.",
-      headlinePro: "AI hires for you.",
+      headlinePro: "Post without limits, edit directly.",
       headlineBusiness: "Tailor-made for large teams.",
       taglineStarter:
         "5 simultaneous jobs, urgent options included, direct editing.",
-      taglinePro:
-        "Unlimited jobs, AI recommending your top candidates, reporting.",
+      taglinePro: "Unlimited jobs, urgent options included, direct editing.",
       taglineBusiness:
         "Dedicated account manager, guaranteed SLA, branding, multi-user, advanced reporting.",
       metrics: {
@@ -1433,8 +1598,8 @@ export const en: TranslationKeys = {
           desc: "Priority ID-verified candidates + signed and archived contracts.",
         },
         aiTalent: {
-          title: "AI Talent Match",
-          desc: "Smart recommendations based on your past high-performing workers.",
+          title: "Reliability indicators",
+          desc: "Each candidate's rating, completed missions and verifications.",
         },
         priorityPool: {
           title: "Priority talent pool",
@@ -1504,7 +1669,7 @@ export const en: TranslationKeys = {
 
   companyJobs: {
     title: "My jobs",
-    total: "{count} job(s) in total",
+    total: { one: "{count} job in total", other: "{count} jobs in total" },
     newJob: "New job",
     createJob: "Create a job",
     tabs: {
@@ -1530,9 +1695,10 @@ export const en: TranslationKeys = {
       cancelled: "Cancelled",
     },
     urgent: "Urgent",
-    applications: "application(s)",
-    positions: "/{count} position(s)",
+    applications: { one: "application", other: "applications" },
+    positions: { one: "/{count} position", other: "/{count} positions" },
     rejectionReason: "Rejection reason: {reason}",
+    rejectedNext: "Edit the job to fix this point: it will be reviewed again.",
     lockedPlan:
       "Published job: direct editing is available on Pro and Business plans. Contact support.",
     actions: {
@@ -1606,8 +1772,11 @@ export const en: TranslationKeys = {
   companyApplicants: {
     back: "Back",
     jobNotFound: "Job not found",
-    applications: "application(s)",
-    positionsFilled: "/{count} position(s) filled",
+    applications: { one: "application", other: "applications" },
+    positionsFilled: {
+      one: "/{count} position filled",
+      other: "/{count} positions filled",
+    },
     tabs: {
       pending: "Pending ({count})",
       shortlisted: "Shortlist ({count})",
@@ -1662,26 +1831,34 @@ export const en: TranslationKeys = {
     toasts: {
       selectedTitle: "Candidate selected",
       selectedDesc:
-        "The mission and the contract have been created. The candidate has been notified.",
+        "The mission and the contract have been created and the candidate has been notified. Now sign the contract from this application.",
       rejectedTitle: "Application rejected",
-      rejectedDesc: "The application has been rejected.",
-      rejectError: "This application could not be rejected.",
+      rejectedDesc:
+        "The application has been rejected and the candidate sees it as not accepted.",
+      rejectError:
+        "This application could not be rejected. The list has been refreshed: check its status, then try again.",
       errorTitle: "Error",
     },
     errors: {
       not_authenticated: "Session expired. Please sign in again.",
       not_a_company: "Only companies can select candidates.",
-      account_suspended: "Your account is suspended.",
+      account_suspended:
+        "Your account is suspended: contact support to reactivate it.",
       company_not_found: "Company profile not found.",
       application_not_found: "Application not found.",
       application_not_selectable:
-        "This application can no longer be selected (withdrawn or rejected).",
-      job_not_available: "This job is no longer published.",
-      no_positions: "All positions for this job are filled.",
-      candidate_unavailable: "This candidate is no longer available.",
+        "This application can no longer be selected (withdrawn or rejected). Choose another candidate.",
+      job_not_available:
+        "This job is no longer published: it must be live to select a candidate.",
+      no_positions:
+        "All positions for this job are filled: no other selection is possible.",
+      candidate_unavailable:
+        "This candidate is no longer available. Choose another candidate.",
       selection_incomplete:
         "Selection saved without a mission or contract. Contact support.",
       generic: "The selection could not be saved. Please try again.",
+      network:
+        "Cannot connect: the selection was not sent. Check your connection, then try again.",
     },
   },
 
@@ -1749,7 +1926,10 @@ export const en: TranslationKeys = {
       submit: "Validate code",
       submitting: "Checking…",
       close: "Close",
-      invalid: "Incorrect code. {count} attempt(s) left.",
+      invalid: {
+        one: "Incorrect code. {count} attempt left.",
+        other: "Incorrect code. {count} attempts left.",
+      },
       locked: "Too many attempts. Try again from {time}.",
       format: "The code has six digits.",
       successTitle: "Mission completed",
@@ -1841,7 +2021,7 @@ export const en: TranslationKeys = {
     alreadySignedByYou: "You have signed this contract.",
     awaitingOther: "Waiting for the other party's signature.",
     separateSteps:
-      "Signing the contract is separate from mission check-in and payment.",
+      "Signing the contract is separate from starting the mission, confirming it with the code and paying the agreed amount.",
     toasts: {
       signedTitle: "Contract signed",
       signedDesc: "Your signature has been recorded.",
@@ -1897,15 +2077,15 @@ export const en: TranslationKeys = {
     hero: {
       title: "Find your next mission in one click",
       subtitle:
-        "The platform connecting Cameroonian talent with local businesses. Mobile Money payment, digital contract, guaranteed trust.",
+        "The platform connecting Cameroonian talent with local businesses. Fixed pay per mission, contract signed in the app, completion confirmed by code.",
       ctaCandidate: "I am looking for a job",
       ctaCompany: "I am hiring",
-      trust: "Free registration · Mobile Money payment · Signed contract",
+      trust: "Free registration · Fixed pay in XAF · Signed contract",
     },
     stats: {
-      missions: "Published missions",
-      companies: "Active companies",
-      candidates: "Registered candidates",
+      flatPay: "Fixed pay per mission",
+      signatures: "Signatures per contract",
+      completionCode: "Digits in the completion code",
       cities: "Cities covered",
     },
     how: {
@@ -1917,55 +2097,54 @@ export const en: TranslationKeys = {
       step3: "Step 3",
       cStep1Title: "Create your profile",
       cStep1Desc:
-        "Sign up in 2 min. Photo, skills, verified ID. AI completes your profile automatically.",
+        "Sign up in a few minutes: photo, skills, ID verified by the EasyJob team.",
       cStep2Title: "Apply in one click",
       cStep2Desc:
         "Find a mission that fits your schedule. No message required. Fast response.",
-      cStep3Title: "Get paid",
+      cStep3Title: "Confirm the mission",
       cStep3Desc:
-        "Mission validated? Your payment goes directly to your MTN or Orange MoMo.",
+        "Enter the six-digit code the company gives you. The agreed fixed amount is in your contract.",
       eStep1Title: "Describe your need",
       eStep1Desc:
-        "In a few words. AI generates your complete structured job listing in under 5 seconds.",
-      eStep2Title: "Receive ranked profiles",
+        "Enter the role, schedule and fixed pay per candidate. The EasyJob team reviews the job before it goes live.",
+      eStep2Title: "Pick your candidates",
       eStep2Desc:
-        "Our algorithm shows you the closest and most suitable candidates first.",
+        "Review applications with each candidate's rating, missions and verifications, then select.",
       eStep3Title: "Mission done",
       eStep3Desc:
-        "Validate the mission end. Candidate payment is handled automatically by EasyJob CM.",
+        "Give the completion code to the candidate once the work is done, pay the agreed amount, then review them.",
     },
     features: {
       title: "Why choose EasyJob CM",
-      f1Title: "Mobile Money Payment",
+      f1Title: "Fixed pay per mission",
       f1Desc:
-        "MTN MoMo & Orange Money. Guaranteed payment, transparent timeline based on your profile.",
+        "Each job states an amount in XAF per candidate, carried as is into the contract.",
       f2Title: "Digital Contract",
       f2Desc:
-        "Every mission is covered by an electronically signed contract. Zero disputes.",
+        "Each selection creates a contract that the company and the candidate sign electronically.",
       f3Title: "Trust System",
       f3Desc:
-        "The Sandbox level rewards reliability. Level up and access better opportunities.",
-      f4Title: "AI Matching",
-      f4Desc:
-        "The algorithm recommends missions closest to you and matching your profile.",
+        "A job may require a minimum Sandbox level. Each candidate's level is assigned by the EasyJob team.",
+      f4Title: "Targeted search",
+      f4Desc: "Filter jobs by city and category, then apply in one click.",
     },
     sandbox: {
       title: "A unique trust system",
       subtitle:
-        "Progress mission by mission. Each level unlocks new opportunities.",
+        "Every candidate starts at the New level. The level is assigned by the EasyJob team and does not change automatically. Some jobs require a minimum level to apply.",
       l0Name: "New",
-      l0Desc: "Introductory missions",
+      l0Desc: "Starting level",
       l1Name: "Confirmed",
-      l1Desc: "1 mission · 3.5★",
+      l1Desc: "Level 1",
       l2Name: "Reliable",
-      l2Desc: "3 missions · 4★",
+      l2Desc: "Level 2",
       l3Name: "Expert",
-      l3Desc: "10 missions · 4.5★",
+      l3Desc: "Level 3",
     },
     cta: {
       title: "Ready to start?",
       subtitle:
-        "Join hundreds of candidates and companies in Douala and Yaoundé.",
+        "Create your account to find or post a mission in Douala and Yaoundé.",
       btn: "Create my free account",
       login: "I already have an account",
     },
@@ -2006,7 +2185,7 @@ export const en: TranslationKeys = {
     language: { french: "Français", english: "English" },
     trust: {
       signup: "Free signup",
-      momo: "Mobile Money payment",
+      momo: "Fixed pay in XAF",
       contract: "Signed contract",
     },
     simpleFastSecure: "Simple. Fast. Secure.",
@@ -2015,13 +2194,13 @@ export const en: TranslationKeys = {
       jobsNear: "Jobs near you",
       doualaCount: "Douala · 12 jobs",
       applyOneClick: "Apply in 1 click",
-      paymentReceived: "Payment received",
+      paymentReceived: "Contract signed",
       missionConfirmed: "Mission confirmed",
       expert: "Expert",
     },
     pwa: {
       title: "Install EasyJob CM on your device",
-      desc: "PWA app — works offline, as fast as a native app. iOS, Android and desktop compatible.",
+      desc: "Web app you can install on your home screen, no store needed. Works on iOS, Android and desktop.",
       install: "Install the app",
       installed: "App installed!",
       free: "Free · No store needed",

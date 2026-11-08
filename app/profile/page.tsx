@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { loginHref } from "@/lib/auth/safe-redirect";
 
 /**
  * /profile — redirige vers la route spécifique au rôle de l'utilisateur.
@@ -14,7 +15,7 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect("/auth/login?redirect=/profile");
+    redirect(loginHref("/profile"));
   }
 
   const { data: userData } = await supabase

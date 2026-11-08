@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { type CompanyPlan } from "@/lib/utils/profile-status";
+import { supportMailto } from "@/lib/support";
 
 interface UpgradeBannerProps {
   currentPlan?: CompanyPlan;
@@ -103,12 +104,12 @@ export function UpgradeBanner({
     (k) => ORDER.indexOf(k) > ORDER.indexOf(currentPlan),
   );
 
-  // CTA principal → essai Pro si pas encore utilisé
-  const showTrial = !hasUsedTrial;
-  const primaryHref = showTrial
-    ? "/upgrade/company?plan=pro&trial=true"
-    : "/upgrade/company";
-  const primaryLabel = showTrial ? tr.ctaTrial : tr.cta;
+  // Aucun essai ni paiement en ligne (lot 9) : le changement de plan
+  // passe par le support. `hasUsedTrial` reste accepté pour compatibilité.
+  void hasUsedTrial;
+  const showTrial = false;
+  const primaryHref = supportMailto("Changement de plan EasyJob");
+  const primaryLabel = tr.cta;
 
   return (
     <motion.div
@@ -248,7 +249,7 @@ export function UpgradeBanner({
                           className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-400"
                         >
                           <Gift className="h-2.5 w-2.5" />
-                          {tr.trialBadge}
+                          {tr.recommended}
                         </motion.span>
                       )}
                     </div>
@@ -301,6 +302,9 @@ export function UpgradeBanner({
             <ArrowRight className="h-4 w-4" />
           </motion.div>
         </Link>
+        <p className="mt-2 text-center text-[11px] text-white/50">
+          {tr.ctaNote}
+        </p>
 
         {/* Lien secondaire Business si free */}
         {currentPlan === "free" && (
@@ -311,7 +315,7 @@ export function UpgradeBanner({
             className="mt-3 text-center"
           >
             <Link
-              href="/upgrade/company?plan=business"
+              href={supportMailto("Offre Business EasyJob")}
               className="text-[11px] text-white/40 underline-offset-2 transition-colors hover:text-white/70 hover:underline"
             >
               {tr.businessCta} →

@@ -8,6 +8,7 @@ import { normalizeCompanyPlan } from "@/lib/utils/profile-status";
 import { accountStateSchema } from "@/lib/realtime/signals";
 import { CompanyProfileClient } from "./company-profile-client";
 import { LiveRefresh } from "@/lib/realtime/provider";
+import { loginHref } from "@/lib/auth/safe-redirect";
 
 export default async function CompanyProfilePage() {
   const supabase = await createClient();
@@ -18,7 +19,7 @@ export default async function CompanyProfilePage() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect("/auth/login?redirect=/profile/company");
+    redirect(loginHref("/profile/company"));
   }
 
   const { data: userData } = await supabase

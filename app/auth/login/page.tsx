@@ -14,6 +14,7 @@ import {
   computeCompanyCriteria,
   computeCompletion,
 } from "@/lib/utils/profile-completion";
+import { loginReturnParam, postLoginPath } from "@/lib/auth/safe-redirect";
 
 const STAGGER = {
   hidden: { opacity: 0, y: 18 },
@@ -67,19 +68,31 @@ export default function LoginPage() {
         .single();
 
       const role = userData?.role ?? "candidate";
+      // Page protégée d'origine (`next` posé par le middleware ou par un
+      // écran), réduite à un chemin interne (validation du lot 8).
+      const returnTo = postLoginPath(
+        loginReturnParam(new URLSearchParams(window.location.search)),
+      );
 
       if (
         role === "admin_support" ||
         role === "admin_ops" ||
         role === "admin_founder"
       ) {
-        router.push("/admin");
+        router.push(returnTo?.startsWith("/admin") ? returnTo : "/admin");
         return;
       }
 
       // Bloquer l'accès si le téléphone n'est pas encore vérifié
       if (!userData?.phone_verified) {
         router.push("/auth/verify-phone");
+        return;
+      }
+
+      // Retour demandé : la page d'origine applique ses propres règles
+      // (rôle, complétude du profil, droits en base).
+      if (returnTo) {
+        router.push(returnTo);
         return;
       }
 

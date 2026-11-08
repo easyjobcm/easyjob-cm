@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
 import { doualaTime } from "@/lib/utils/douala-time";
+import { plural } from "@/lib/i18n/plural";
 
 type Props = {
   open: boolean;
@@ -84,9 +85,7 @@ export function CompletionCodeDialog({
       setCode("");
       onCompleted(completedAt);
     } else if (body.code === "invalid_code") {
-      setError(
-        tc.invalid.replace("{count}", String(body.remaining_attempts ?? 0)),
-      );
+      setError(plural(body.remaining_attempts ?? 0, tc.invalid, locale));
     } else if (body.code === "code_locked" && body.locked_until) {
       setError(
         tc.locked.replace("{time}", doualaTime(body.locked_until, locale)),

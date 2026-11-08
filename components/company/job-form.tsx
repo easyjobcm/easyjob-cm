@@ -31,6 +31,8 @@ import {
   Info,
   Users,
 } from "lucide-react";
+import { loginHref } from "@/lib/auth/safe-redirect";
+import { plural } from "@/lib/i18n/plural";
 
 type Step = "basics" | "schedule" | "requirements" | "payment" | "review";
 
@@ -192,9 +194,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push(
-          `/login?redirect=${encodeURIComponent(window.location.pathname)}`,
-        );
+        router.push(loginHref(window.location.pathname));
         return;
       }
 
@@ -794,9 +794,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Users className="h-4 w-4" />
                     <span>
-                      {t.pay.positions.replace(
-                        "{count}",
-                        String(formData.workersNeeded),
+                      {plural(
+                        Number(formData.workersNeeded) || 0,
+                        t.pay.positions,
+                        locale,
                       )}
                     </span>
                   </div>

@@ -29,6 +29,9 @@ import {
   Share2,
   Zap,
 } from "lucide-react";
+import { loginHref } from "@/lib/auth/safe-redirect";
+import { applyRefusalFeedback } from "@/lib/jobs/application-feedback";
+import { parseDocumentRequirementDetail } from "@/lib/matching/skill-document-requirements";
 
 interface JobDetailClientProps {
   job: {
@@ -66,6 +69,7 @@ interface JobDetailClientProps {
   };
   userApplication: {
     id: string;
+    status?: string | null;
   } | null;
   isFavorite: boolean;
   isLoggedIn: boolean;
@@ -86,7 +90,16 @@ export function JobDetailClient({
   const [showBlockedModal, setShowBlockedModal] = React.useState(false);
   const [applying, setApplying] = React.useState(false);
   const [isFavorite, setIsFavorite] = React.useState(initialFavorite);
-  const [hasApplied, setHasApplied] = React.useState(!!userApplication);
+  // Statut réel de la candidature (lot 9) : une candidature retirée ou
+  // refusée n'est plus présentée comme « envoyée ».
+  const statusOf = (a: typeof userApplication) =>
+    a ? (a.status ?? "pending") : null;
+  const [applicationStatus, setApplicationStatus] = React.useState<
+    string | null
+  >(statusOf(userApplication));
+  const hasApplied = applicationStatus !== null;
+  const [showWithdrawModal, setShowWithdrawModal] = React.useState(false);
+  const [withdrawing, setWithdrawing] = React.useState(false);
   // Pré-rempli côté serveur (page) ; le POST renvoie la liste à jour.
   const [missingEssentials, setMissingEssentials] = React.useState(
     initialMissingEssentials,
@@ -102,7 +115,7 @@ export function JobDetailClient({
     seenProps.initialMissingEssentials !== initialMissingEssentials
   ) {
     setSeenProps({ userApplication, initialMissingEssentials });
-    setHasApplied(!!userApplication);
+    setApplicationStatus(statusOf(userApplication));
     setMissingEssentials(initialMissingEssentials);
   }
 
@@ -137,7 +150,7 @@ export function JobDetailClient({
 
   const handleApply = async () => {
     if (!isLoggedIn) {
-      router.push("/auth/login?redirect=/jobs/" + job.id);
+      router.push(loginHref(`/jobs/${job.id}`));
       return;
     }
 
@@ -149,14 +162,23 @@ export function JobDetailClient({
       });
 
       if (res.ok) {
-        setHasApplied(true);
+        setApplicationStatus("pending");
         setShowConfirmModal(false);
-        // Show success state
+        toast({
+          title: t.application.sentToast.title,
+          description: t.application.sentToast.desc,
+          variant: "success",
+          action: {
+            label: t.application.actions.myApplications,
+            href: "/my-jobs",
+          },
+        });
       } else {
-        const body = (await res.json()) as {
+        const body = ((await res.json().catch(() => null)) ?? {}) as {
           error?: string;
           code?: string;
           missing?: EssentialKey[];
+          requirement?: unknown;
         };
         // SRS §6.6/§11.5 (T8.3) — gate `users.is_verified` : le serveur
         // renvoie la liste informationnelle des champs à compléter.
@@ -170,27 +192,96 @@ export function JobDetailClient({
           setShowBlockedModal(true);
         } else {
           setShowConfirmModal(false);
-          toast({
-            title: t.common.error,
-            description:
-              body.code === "profile_incomplete"
-                ? t.profile.completion.required60
-                : body.error,
-            variant: "destructive",
-          });
+          // Message dans la langue de l'interface à partir du code métier ;
+          // `error` reste en anglais pour les autres appelants.
+          const feedback = applyRefusalFeedback(
+            {
+              status: res.status,
+              code: body.code,
+              requirement: parseDocumentRequirementDetail(
+                body.requirement ? JSON.stringify(body.requirement) : null,
+              ),
+            },
+            t.application,
+            `/jobs/${job.id}`,
+          );
+          toast({ ...feedback, variant: "destructive" });
+          // Offre complète, retirée ou déjà postulée : l'écran est relu.
+          if (body.code === "already_applied" || body.code === "no_positions") {
+            router.refresh();
+          }
         }
       }
-    } catch (error) {
-      console.error("Error applying:", error);
-      toast({ title: t.common.error, variant: "destructive" });
+    } catch {
+      // Requête non aboutie (réseau) : rien n'a changé, l'utilisateur peut
+      // réessayer depuis le même bouton.
+      setShowConfirmModal(false);
+      toast({
+        ...applyRefusalFeedback(
+          { status: null },
+          t.application,
+          `/jobs/${job.id}`,
+        ),
+        variant: "destructive",
+      });
     } finally {
       setApplying(false);
     }
   };
 
+  const handleWithdraw = async () => {
+    if (withdrawing) return;
+    setWithdrawing(true);
+    const tw = t.application.withdraw;
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/apply`, {
+        method: "DELETE",
+      });
+      const body = ((await res.json().catch(() => null)) ?? {}) as {
+        code?: string;
+        application?: { status?: string };
+      };
+      // Succès seulement si la base a bien enregistré le retrait.
+      if (res.ok && body.application?.status === "withdrawn") {
+        setApplicationStatus("withdrawn");
+        setShowWithdrawModal(false);
+        toast({
+          title: tw.doneTitle,
+          description: tw.doneDesc,
+          variant: "success",
+          action: {
+            label: t.application.actions.myApplications,
+            href: "/my-jobs",
+          },
+        });
+        router.refresh();
+        return;
+      }
+      setShowWithdrawModal(false);
+      toast({
+        title: tw.errorTitle,
+        description:
+          body.code && body.code in tw.errors
+            ? tw.errors[body.code as keyof typeof tw.errors]
+            : tw.errors.generic,
+        variant: "destructive",
+      });
+      router.refresh();
+    } catch {
+      setShowWithdrawModal(false);
+      toast({
+        title: tw.errorTitle,
+        description: t.application.refusals.network,
+        variant: "destructive",
+      });
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const toggleFavorite = async () => {
     if (!isLoggedIn) {
-      router.push("/auth/login?redirect=/jobs/" + job.id);
+      router.push(loginHref(`/jobs/${job.id}`));
       return;
     }
     // Optimistic update
@@ -245,7 +336,11 @@ export function JobDetailClient({
           {job.urgency !== "normal" && (
             <Badge className="mb-2 bg-white/20 text-white border-white/30">
               <Zap className="w-3 h-3 mr-1" />
-              {job.urgency === "critical" ? "Tres urgent" : "Urgent"}
+              {job.urgency === "critical"
+                ? locale === "fr"
+                  ? "Très urgent"
+                  : "Very urgent"
+                : "Urgent"}
             </Badge>
           )}
 
@@ -273,25 +368,65 @@ export function JobDetailClient({
       <div className="flex-1 px-4 -mt-4 relative z-10">
         {/* Application status card */}
         {hasApplied ? (
-          <Card className="mb-4 border-success/20 bg-success/5">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">
-                    {locale === "fr"
-                      ? "Candidature envoyee !"
-                      : "Application sent!"}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {locale === "fr"
-                      ? "Vous serez notifie si vous etes selectionne."
-                      : "You will be notified if selected."}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          (() => {
+            const st =
+              t.application.status[
+                (applicationStatus ??
+                  "pending") as keyof typeof t.application.status
+              ] ?? t.application.status.pending;
+            const closed =
+              applicationStatus === "withdrawn" ||
+              applicationStatus === "rejected" ||
+              applicationStatus === "no_show";
+            return (
+              <Card
+                className={
+                  closed
+                    ? "mb-4 border-border bg-muted/40"
+                    : "mb-4 border-success/20 bg-success/5"
+                }
+                data-testid="application-status"
+                data-status={applicationStatus ?? undefined}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    {closed ? (
+                      <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                    ) : (
+                      <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground">{st.title}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {st.desc}
+                      </p>
+                      {applicationStatus === "selected" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => router.push("/tasks")}
+                        >
+                          {t.application.actions.tasks}
+                        </Button>
+                      )}
+                      {applicationStatus === "pending" && !suspended && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => setShowWithdrawModal(true)}
+                          data-testid="application-withdraw"
+                        >
+                          {t.application.withdraw.button}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()
         ) : (
           <Card className="mb-4 border-primary/20 bg-primary/5">
             <CardContent className="p-4">
@@ -299,14 +434,22 @@ export function JobDetailClient({
                 <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div>
                   <p className="font-medium text-foreground">
-                    {locale === "fr" ? "Postulez maintenant !" : "Apply now!"}
+                    {t.application.applyNowTitle}
                   </p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {(job.positions_available ?? 1) -
-                      (job.positions_filled ?? 0)}{" "}
-                    {locale === "fr"
-                      ? "place(s) disponible(s)"
-                      : "position(s) available"}
+                    {(() => {
+                      const left = Math.max(
+                        0,
+                        (job.positions_available ?? 1) -
+                          (job.positions_filled ?? 0),
+                      );
+                      const p = t.application.positionsLeft;
+                      return left === 0
+                        ? p.none
+                        : left === 1
+                          ? p.one
+                          : p.other.replace("{count}", String(left));
+                    })()}
                   </p>
                 </div>
               </div>
@@ -348,7 +491,7 @@ export function JobDetailClient({
         {/* Schedule */}
         <section className="mb-6">
           <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-            {locale === "fr" ? "Details de la mission" : "Job Details"}
+            {locale === "fr" ? "Détails de la mission" : "Job Details"}
           </h2>
           <Card>
             <CardContent className="p-4 space-y-4">
@@ -403,7 +546,7 @@ export function JobDetailClient({
         {job.required_skills && job.required_skills.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
-              {locale === "fr" ? "Competences requises" : "Required Skills"}
+              {locale === "fr" ? "Compétences requises" : "Required Skills"}
             </h2>
             <Card>
               <CardContent className="p-4">
@@ -441,7 +584,7 @@ export function JobDetailClient({
                   <div>
                     <p className="text-sm font-medium text-foreground">
                       {locale === "fr"
-                        ? "Instructions speciales"
+                        ? "Instructions spéciales"
                         : "Special instructions"}
                     </p>
                     <p className="text-sm text-muted-foreground">
@@ -459,7 +602,7 @@ export function JobDetailClient({
           <section className="mb-6">
             <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">
               {locale === "fr"
-                ? "A propos de l'entreprise"
+                ? "À propos de l'entreprise"
                 : "About the company"}
             </h2>
             <Card>
@@ -522,7 +665,7 @@ export function JobDetailClient({
             size="lg"
             onClick={() => router.push("/my-jobs")}
           >
-            {locale === "fr" ? "Voir mes candidatures" : "View my applications"}
+            {t.application.actions.myApplications}
           </Button>
         ) : essentialsBlocked ? (
           <>
@@ -608,6 +751,41 @@ export function JobDetailClient({
         </div>
       </Modal>
 
+      {/* Retrait de la candidature (lot 9) */}
+      <Modal
+        isOpen={showWithdrawModal}
+        onClose={() => setShowWithdrawModal(false)}
+        title={t.application.withdraw.confirmTitle}
+      >
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            {t.application.withdraw.confirmBody}
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowWithdrawModal(false)}
+              className="flex-1"
+            >
+              {t.application.withdraw.cancel}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleWithdraw}
+              disabled={withdrawing}
+              className="flex-1"
+              data-testid="application-withdraw-confirm"
+            >
+              {withdrawing ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                t.application.withdraw.confirm
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Confirmation Modal */}
       <Modal
         isOpen={showConfirmModal}
@@ -619,11 +797,7 @@ export function JobDetailClient({
         }
       >
         <div className="space-y-4">
-          <p className="text-muted-foreground">
-            {locale === "fr"
-              ? "Avant de postuler, assurez-vous de pouvoir vous presenter a cette mission."
-              : "Before applying, make sure you can attend this job."}
-          </p>
+          <p className="text-muted-foreground">{t.application.confirmBefore}</p>
 
           <Card className="bg-muted/50">
             <CardContent className="p-4">
@@ -649,7 +823,7 @@ export function JobDetailClient({
               <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
               <p className="text-sm text-foreground">
                 {locale === "fr"
-                  ? "Une absence non justifiee peut affecter votre score de fiabilite."
+                  ? "Une absence non justifiée peut affecter votre score de fiabilité."
                   : "Unexcused absence may affect your reliability score."}
               </p>
             </div>

@@ -6,6 +6,7 @@ import {
 } from "@/lib/utils/profile-completion";
 import { CandidateProfileClient } from "./candidate-profile-client";
 import { LiveRefresh } from "@/lib/realtime/provider";
+import { loginHref } from "@/lib/auth/safe-redirect";
 
 export default async function CandidateProfilePage() {
   const supabase = await createClient();
@@ -16,7 +17,7 @@ export default async function CandidateProfilePage() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect("/auth/login?redirect=/profile/candidate");
+    redirect(loginHref("/profile/candidate"));
   }
 
   const { data: userData } = await supabase

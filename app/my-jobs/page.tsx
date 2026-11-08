@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useTranslation } from "@/lib/i18n";
+import { useTranslation, useTranslations } from "@/lib/i18n";
 import {
   Briefcase,
   Search,
@@ -15,6 +15,8 @@ import {
   Calendar,
   Building2,
   Loader2,
+  WifiOff,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { cn, formatDate } from "@/lib/utils";
@@ -23,28 +25,40 @@ import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { readSessionUser } from "@/lib/supabase/session-user";
+import {
+  applicationsEmptyState,
+  loadState,
+  splitApplications,
+} from "@/lib/jobs/my-jobs";
 
 type TabType = "applied" | "booked" | "completed";
 
+// Une erreur (réseau compris) est levée au lieu de renvoyer des listes
+// vides : SWR garde alors le dernier état connu et l'écran propose de
+// réessayer, au lieu d'annoncer « aucune candidature » (lot 9).
+function failIf(error: unknown) {
+  if (error) throw error;
+}
+
 const fetcher = async (_url: string) => {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  // Session locale (sans appel réseau) : hors ligne, la page ne se croit
+  // pas déconnectée.
+  const user = await readSessionUser(supabase);
+  if (user === undefined) throw new Error("session_unreadable");
   if (!user) return { applications: [], missions: [] };
 
-  // Get candidate profile
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("candidate_profiles")
     .select("id")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
+  failIf(profileError);
 
   if (!profile) return { applications: [], missions: [] };
 
-  // Get applications
-  const { data: applications } = await supabase
+  const { data: applications, error: applicationsError } = await supabase
     .from("job_applications")
     .select(
       `
@@ -67,9 +81,9 @@ const fetcher = async (_url: string) => {
     )
     .eq("candidate_id", profile.id)
     .order("created_at", { ascending: false });
+  failIf(applicationsError);
 
-  // Get missions
-  const { data: missions } = await supabase
+  const { data: missions, error: missionsError } = await supabase
     .from("missions")
     .select(
       `
@@ -91,12 +105,14 @@ const fetcher = async (_url: string) => {
     )
     .eq("candidate_id", profile.id)
     .order("scheduled_date", { ascending: false });
+  failIf(missionsError);
 
   // Mission : montant figé dans le contrat (jamais relu depuis l'offre).
-  const { data: contracts } = await supabase
+  const { data: contracts, error: contractsError } = await supabase
     .from("contracts")
     .select("application_id, contract_data")
     .eq("candidate_id", profile.id);
+  failIf(contractsError);
   const payByApplication = frozenPayByApplication(contracts);
 
   return {
@@ -117,24 +133,29 @@ type Mission = MyJobsData["missions"][number];
 export default function MyJobsPage() {
   const { locale } = useTranslation();
   const [activeTab, setActiveTab] = React.useState<TabType>("applied");
-  const { data, isLoading, mutate } = useSWR("/api/my-jobs", fetcher);
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    "/api/my-jobs",
+    fetcher,
+  );
+  const tm = useTranslations().myJobs;
 
   useLiveRefresh(["applications", "missions", "contracts", "jobs"], () =>
     mutate(),
   );
 
-  const tabs: { id: TabType; label: string; labelEn: string }[] = [
-    { id: "applied", label: "Candidatures", labelEn: "Applied" },
-    { id: "booked", label: "Reservees", labelEn: "Booked" },
-    { id: "completed", label: "Terminees", labelEn: "Completed" },
+  const tabs: { id: TabType; label: string }[] = [
+    { id: "applied", label: tm.tabs.applied },
+    { id: "booked", label: tm.tabs.booked },
+    { id: "completed", label: tm.tabs.completed },
   ];
 
   const applications: Application[] = data?.applications ?? [];
   const missions: Mission[] = data?.missions ?? [];
+  const state = loadState(data !== undefined, error);
 
-  const pendingApplications = applications.filter(
-    (a) => a.status === "pending" || a.status === "shortlisted",
-  );
+  const { active: pendingApplications, past: pastApplications } =
+    splitApplications(applications);
+  const appliedEmpty = applicationsEmptyState(applications);
   const bookedMissions = missions.filter(
     (m) =>
       m.status === "pending" ||
@@ -143,51 +164,37 @@ export default function MyJobsPage() {
   );
   const completedMissions = missions.filter((m) => m.status === "completed");
 
-  const getStatusBadge = (status: string | null) => {
-    const statusMap: Record<
-      string,
-      {
-        label: string;
-        variant: "default" | "success" | "warning" | "destructive";
-      }
-    > = {
-      pending: {
-        label: locale === "fr" ? "En attente" : "Pending",
-        variant: "warning",
-      },
-      shortlisted: {
-        label: locale === "fr" ? "Preselectionne" : "Shortlisted",
-        variant: "default",
-      },
-      selected: {
-        label: locale === "fr" ? "Selectionne" : "Selected",
-        variant: "success",
-      },
-      rejected: {
-        label: locale === "fr" ? "Refuse" : "Rejected",
-        variant: "destructive",
-      },
-      confirmed: {
-        label: locale === "fr" ? "Confirme" : "Confirmed",
-        variant: "success",
-      },
-      in_progress: {
-        label: locale === "fr" ? "En cours" : "In Progress",
-        variant: "default",
-      },
-      completed: {
-        label: locale === "fr" ? "Termine" : "Completed",
-        variant: "success",
-      },
-    };
-    const config = (status !== null && statusMap[status]) || {
-      label: status ?? "—",
-      variant: "default" as const,
-    };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+  const badgeVariant: Record<
+    string,
+    "default" | "success" | "warning" | "destructive"
+  > = {
+    pending: "warning",
+    shortlisted: "default",
+    selected: "success",
+    rejected: "destructive",
+    withdrawn: "default",
+    no_show: "destructive",
+    confirmed: "success",
+    in_progress: "default",
+    completed: "success",
+    cancelled: "destructive",
   };
 
-  const renderEmptyState = () => (
+  const getStatusBadge = (
+    status: string | null,
+    kind: "application" | "mission",
+  ) => {
+    const labels: Record<string, string> =
+      kind === "application" ? tm.applicationStatus : tm.missionStatus;
+    const label = (status !== null && labels[status]) || status || "—";
+    return (
+      <Badge variant={(status && badgeVariant[status]) || "default"}>
+        {label}
+      </Badge>
+    );
+  };
+
+  const renderEmptyState = (title: string, desc: string) => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="relative mb-6">
         <div className="h-24 w-24 rounded-3xl bg-linear-to-br from-primary/10 to-accent/10 flex items-center justify-center border-2 border-primary/20">
@@ -196,33 +203,33 @@ export default function MyJobsPage() {
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-foreground mb-2">
-        {locale === "fr"
-          ? "Trouvez votre prochain job !"
-          : "Find your next job!"}
-      </h2>
-      <p className="text-muted-foreground max-w-xs mb-6">
-        {activeTab === "applied" &&
-          (locale === "fr"
-            ? "Vous n'avez pas encore postule a des offres."
-            : "You haven't applied to any jobs yet.")}
-        {activeTab === "booked" &&
-          (locale === "fr"
-            ? "Aucune mission reservee pour le moment."
-            : "No booked jobs at the moment.")}
-        {activeTab === "completed" &&
-          (locale === "fr"
-            ? "Vos missions terminees apparaitront ici."
-            : "Your completed jobs will appear here.")}
-      </p>
+      <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>
+      <p className="text-muted-foreground max-w-xs mb-6">{desc}</p>
 
       <Link href="/jobs">
         <Button>
-          {locale === "fr" ? "Parcourir les offres" : "Browse jobs"}
+          {tm.browseJobs}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </Link>
     </div>
+  );
+
+  const retryButton = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => mutate()}
+      disabled={isValidating}
+      data-testid="my-jobs-retry"
+    >
+      {isValidating ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : (
+        <RefreshCw className="mr-2 h-4 w-4" />
+      )}
+      {tm.loadError.retry}
+    </Button>
   );
 
   const renderApplicationCard = (application: Application) => (
@@ -233,7 +240,7 @@ export default function MyJobsPage() {
             <h3 className="font-semibold text-foreground">
               {application.job?.title}
             </h3>
-            {getStatusBadge(application.status)}
+            {getStatusBadge(application.status, "application")}
           </div>
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />
@@ -256,8 +263,7 @@ export default function MyJobsPage() {
             />
             {application.created_at && (
               <span className="text-xs text-muted-foreground">
-                {locale === "fr" ? "Postule le" : "Applied on"}{" "}
-                {formatDate(application.created_at, locale)}
+                {tm.appliedOn} {formatDate(application.created_at, locale)}
               </span>
             )}
           </div>
@@ -274,7 +280,7 @@ export default function MyJobsPage() {
             <h3 className="font-semibold text-foreground">
               {mission.job?.title}
             </h3>
-            {getStatusBadge(mission.status)}
+            {getStatusBadge(mission.status, "mission")}
           </div>
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />
@@ -308,7 +314,7 @@ export default function MyJobsPage() {
     <AppShell>
       <div className="px-4 py-6">
         <h1 className="text-2xl font-bold text-foreground italic mb-6">
-          {locale === "fr" ? "Mes Jobs" : "My Jobs"}
+          {tm.title}
         </h1>
 
         {/* Tabs */}
@@ -324,7 +330,7 @@ export default function MyJobsPage() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {locale === "fr" ? tab.label : tab.labelEn}
+              {tab.label}
               {activeTab === tab.id && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
@@ -332,20 +338,80 @@ export default function MyJobsPage() {
           ))}
         </div>
 
+        {state === "stale" && (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-foreground"
+            data-testid="my-jobs-stale"
+          >
+            <div className="flex items-start gap-2">
+              <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <p>{tm.loadError.stale}</p>
+            </div>
+            <div>{retryButton}</div>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : state === "error" ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 py-12 text-center"
+            data-testid="my-jobs-error"
+          >
+            <WifiOff className="h-10 w-10 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-foreground">
+              {tm.loadError.title}
+            </h2>
+            <p className="max-w-xs text-muted-foreground">
+              {tm.loadError.desc}
+            </p>
+            {retryButton}
+          </div>
         ) : (
           <>
-            {activeTab === "applied" &&
-              (pendingApplications.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingApplications.map(renderApplicationCard)}
-                </div>
-              ) : (
-                renderEmptyState()
-              ))}
+            {activeTab === "applied" && (
+              <div className="space-y-3" data-testid="my-jobs-applied">
+                {pendingApplications.length > 0 ? (
+                  pendingApplications.map(renderApplicationCard)
+                ) : appliedEmpty === "never" ? (
+                  renderEmptyState(tm.empty.neverTitle, tm.empty.neverDesc)
+                ) : (
+                  // Historique présent : message compact, l'historique
+                  // reste visible sans défilement sur mobile.
+                  <div
+                    className="rounded-2xl border border-border bg-card p-4"
+                    data-testid="my-jobs-no-active"
+                  >
+                    <h2 className="font-semibold text-foreground">
+                      {tm.empty.noActiveTitle}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {tm.empty.noActiveDesc}
+                    </p>
+                    <Link href="/jobs" className="mt-3 inline-block">
+                      <Button size="sm">
+                        {tm.browseJobs}
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+                {pastApplications.length > 0 && (
+                  <section className="pt-4" data-testid="my-jobs-history">
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      {tm.history}
+                    </h2>
+                    <div className="space-y-3 opacity-80">
+                      {pastApplications.map(renderApplicationCard)}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
 
             {activeTab === "booked" &&
               (bookedMissions.length > 0 ? (
@@ -353,7 +419,7 @@ export default function MyJobsPage() {
                   {bookedMissions.map(renderMissionCard)}
                 </div>
               ) : (
-                renderEmptyState()
+                renderEmptyState(tm.empty.bookedTitle, tm.empty.bookedDesc)
               ))}
 
             {activeTab === "completed" &&
@@ -362,7 +428,10 @@ export default function MyJobsPage() {
                   {completedMissions.map(renderMissionCard)}
                 </div>
               ) : (
-                renderEmptyState()
+                renderEmptyState(
+                  tm.empty.completedTitle,
+                  tm.empty.completedDesc,
+                )
               ))}
           </>
         )}

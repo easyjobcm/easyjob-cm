@@ -1,208 +1,107 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import useSWR from "swr";
+import { motion } from "framer-motion";
+import { Wallet, Clock, Info, RefreshCw, WifiOff, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { readSessionUser } from "@/lib/supabase/session-user";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../../components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
-import {
-  Wallet,
-  ArrowDownToLine,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-} from "lucide-react";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { MissionPay } from "@/components/jobs/mission-pay";
+import { useI18n } from "@/lib/i18n";
+import { plural } from "@/lib/i18n/plural";
+import { formatDate, formatXaf } from "@/lib/utils";
+import { frozenPayByApplication } from "@/lib/utils/mission-pay";
+import { agreedEarnings, isCompletedMission } from "@/lib/jobs/earnings";
+import { loadState } from "@/lib/jobs/my-jobs";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
-interface EarningsSummary {
-  available_balance: number;
-  pending_balance: number;
-  total_earned: number;
-  total_withdrawn: number;
-}
+/**
+ * « Mes gains » (lot 9). L'ancien écran lisait `payments`, qu'aucun
+ * parcours n'écrit, et affichait un solde, des retraits et des heures
+ * travaillées. Il montre désormais les missions terminées et le montant
+ * figé dans leur contrat, sans promettre de versement.
+ */
+const fetcher = async (_key: string) => {
+  const supabase = createClient();
+  const user = await readSessionUser(supabase);
+  if (user === undefined) throw new Error("session_unreadable");
+  if (!user) return { missions: [] };
 
-interface Transaction {
-  id: string;
-  transaction_type: string;
-  amount: number;
-  balance_after: number;
-  description: string;
-  created_at: string;
-}
+  const { data: profile, error: profileError } = await supabase
+    .from("candidate_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  if (!profile) return { missions: [] };
 
-interface Payment {
-  id: string;
-  gross_amount: number;
-  net_amount: number;
-  hours_worked: number;
-  status: string;
-  created_at: string;
-  mission: {
-    scheduled_date: string;
-    job: {
-      title: string;
-      company: {
-        company_name: string;
-      };
-    };
+  const { data: missions, error: missionsError } = await supabase
+    .from("missions")
+    .select(
+      `id, application_id, status, scheduled_date,
+       job:jobs ( title, company:company_public_profiles ( company_name ) )`,
+    )
+    .eq("candidate_id", profile.id)
+    .order("scheduled_date", { ascending: false });
+  if (missionsError) throw missionsError;
+
+  const { data: contracts, error: contractsError } = await supabase
+    .from("contracts")
+    .select("application_id, contract_data")
+    .eq("candidate_id", profile.id);
+  if (contractsError) throw contractsError;
+  const payByApplication = frozenPayByApplication(contracts);
+
+  return {
+    missions: (missions ?? [])
+      .filter((m) => isCompletedMission(m.status))
+      .map((m) => ({
+        ...m,
+        pay: m.application_id
+          ? (payByApplication.get(m.application_id) ?? null)
+          : null,
+      })),
   };
-}
+};
 
 export default function EarningsPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<EarningsSummary>({
-    available_balance: 0,
-    pending_balance: 0,
-    total_earned: 0,
-    total_withdrawn: 0,
-  });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { t, locale } = useI18n();
+  const te = t.earnings;
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    "earnings",
+    fetcher,
+  );
+  useLiveRefresh(["missions", "contracts"], () => mutate());
 
-  useEffect(() => {
-    async function loadData() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const missions = data?.missions ?? [];
+  const totals = agreedEarnings(missions);
+  const state = loadState(data !== undefined, error);
 
-      if (!user) {
-        router.push("/login?redirect=/earnings");
-        return;
-      }
+  const retry = (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => mutate()}
+      disabled={isValidating}
+    >
+      {isValidating ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : (
+        <RefreshCw className="mr-2 h-4 w-4" />
+      )}
+      {te.retry}
+    </Button>
+  );
 
-      // Get candidate profile
-      const { data: profile } = await supabase
-        .from("candidate_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!profile) {
-        router.push("/onboarding/candidate");
-        return;
-      }
-
-      // Les calculs de solde sont effectués ici (serveur) — jamais côté client.
-      const { data: paymentData } = await supabase
-        .from("payments")
-        .select(
-          `
-          *,
-          mission:missions(
-            scheduled_date,
-            job:jobs(
-              title,
-              company:company_profiles(company_name)
-            )
-          )
-        `,
-        )
-        .eq("candidate_id", profile.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      if (paymentData) {
-        const typedPayments = paymentData as Payment[];
-        setPayments(typedPayments);
-
-        // Agrégation des montants (logique display uniquement, pas de déclenchement de paiement)
-        const totalEarned = typedPayments.reduce(
-          (sum, payment) => sum + (payment.net_amount || 0),
-          0,
-        );
-        const pendingBalance = typedPayments
-          .filter(
-            (payment) =>
-              payment.status === "pending" || payment.status === "processing",
-          )
-          .reduce((sum, payment) => sum + (payment.net_amount || 0), 0);
-
-        setSummary({
-          available_balance: totalEarned - pendingBalance,
-          pending_balance: pendingBalance,
-          total_earned: totalEarned,
-          total_withdrawn: 0,
-        });
-
-        const derivedTransactions: Transaction[] = typedPayments.map(
-          (payment) => ({
-            id: payment.id,
-            transaction_type: "credit",
-            amount: payment.net_amount,
-            balance_after: 0,
-            description: `Paiement mission: ${payment.mission?.job?.title || "Mission"}`,
-            created_at: payment.created_at,
-          }),
-        );
-
-        setTransactions(derivedTransactions);
-      }
-
-      setLoading(false);
-    }
-
-    loadData();
-  }, [router]);
-
-  const formatCurrency = (amount: number) => {
+  if (isLoading) {
     return (
-      new Intl.NumberFormat("fr-CM", {
-        style: "decimal",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(amount) + " XAF"
-    );
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Badge className="bg-green-100 text-green-700">Complete</Badge>;
-      case "pending":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-700">En attente</Badge>
-        );
-      case "processing":
-        return <Badge className="bg-blue-100 text-blue-700">En cours</Badge>;
-      case "failed":
-        return <Badge className="bg-red-100 text-red-700">Echoue</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case "credit":
-        return <ArrowDownToLine className="h-4 w-4 text-green-600" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-blue-600" />;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background pb-20">
+      <div className="min-h-screen bg-background pb-24">
         <div className="p-4 space-y-4">
           <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
         </div>
@@ -212,146 +111,112 @@ export default function EarningsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
+    <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      {/* En-tête */}
       <div className="bg-linear-to-br from-violet-600 to-violet-800 text-white p-6 rounded-b-3xl">
-        <h1 className="text-xl font-bold mb-4">Mes Gains</h1>
-
-        {/* Wallet Card */}
-        <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
+        <h1 className="text-xl font-bold mb-4">{te.title}</h1>
+        <Card className="bg-white/10 border-white/20 backdrop-blur-sm text-white">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                <span className="text-sm opacity-80">Solde disponible</span>
-              </div>
-              <TrendingUp className="h-5 w-5 opacity-80" />
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="h-5 w-5" aria-hidden />
+              <span className="text-sm opacity-80">{te.totalLabel}</span>
             </div>
-            <div className="text-3xl font-bold mb-4">
-              {formatCurrency(summary.available_balance)}
+            <div className="text-3xl font-bold" data-testid="earnings-total">
+              {formatXaf(totals.total, locale)}
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <div>
-                <span className="opacity-70">En attente: </span>
-                <span>{formatCurrency(summary.pending_balance)}</span>
-              </div>
-              <Badge className="bg-yellow-100 text-yellow-700">
-                Retrait indisponible en MVP
-              </Badge>
-            </div>
+            <p className="mt-1 text-sm opacity-80">
+              {plural(totals.count, te.missionsCount, locale)}
+            </p>
           </CardContent>
         </Card>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <div className="bg-white/10 rounded-xl p-3">
-            <div className="text-sm opacity-70">Total gagne</div>
-            <div className="text-lg font-bold">
-              {formatCurrency(summary.total_earned)}
-            </div>
-          </div>
-          <div className="bg-white/10 rounded-xl p-3">
-            <div className="text-sm opacity-70">Total retire</div>
-            <div className="text-lg font-bold">
-              {formatCurrency(summary.total_withdrawn)}
-            </div>
-          </div>
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-white/10 p-3 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>{te.note}</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <Tabs defaultValue="payments" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="payments">Paiements</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          </TabsList>
+      <div className="p-4 space-y-3">
+        {state === "stale" && (
+          <div
+            role="alert"
+            className="flex flex-col gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm"
+          >
+            <div className="flex items-start gap-2">
+              <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <p>{te.loadErrorDesc}</p>
+            </div>
+            <div>{retry}</div>
+          </div>
+        )}
 
-          <TabsContent value="payments" className="mt-4 space-y-3">
-            {payments.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">
-                    Aucun paiement pour le moment
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Completez des missions pour recevoir des paiements
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              payments.map((payment) => (
-                <Card key={payment.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {payment.mission?.job?.title || "Mission"}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {payment.mission?.job?.company?.company_name ||
-                            "Entreprise"}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatDate(payment.created_at)} |{" "}
-                          {payment.hours_worked}h
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-green-600">
-                          +{formatCurrency(payment.net_amount)}
-                        </div>
-                        {getStatusBadge(payment.status)}
-                      </div>
+        {state === "error" ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center gap-3 py-12 text-center"
+          >
+            <WifiOff className="h-10 w-10 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">{te.loadErrorTitle}</h2>
+            <p className="max-w-xs text-muted-foreground">{te.loadErrorDesc}</p>
+            {retry}
+          </div>
+        ) : missions.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <p className="font-medium text-foreground">{te.emptyTitle}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {te.emptyDesc}
+              </p>
+              <motion.div
+                whileTap={{ scale: 0.97 }}
+                className="mt-4 inline-block"
+              >
+                <Link href="/jobs">
+                  <Button>{te.browseJobs}</Button>
+                </Link>
+              </motion.div>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              {te.listTitle}
+            </h2>
+            {missions.map((m) => (
+              <Link key={m.id} href={`/missions/${m.id}`}>
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{m.job?.title}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {m.job?.company?.company_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDate(m.scheduled_date, locale)}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-muted-foreground">
+                        {te.contractAmount}
+                      </p>
+                      {m.pay == null ? (
+                        <p className="text-sm text-muted-foreground">
+                          {te.noAmount}
+                        </p>
+                      ) : (
+                        <MissionPay
+                          amount={m.pay}
+                          amountClassName="text-primary"
+                        />
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="transactions" className="mt-4 space-y-2">
-            {transactions.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">Aucune transaction</p>
-                </CardContent>
-              </Card>
-            ) : (
-              transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center gap-3 p-3 bg-card rounded-lg"
-                >
-                  <div className="p-2 bg-muted rounded-full">
-                    {getTransactionIcon(tx.transaction_type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-sm">
-                      {tx.description || tx.transaction_type}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDate(tx.created_at)}
-                    </div>
-                  </div>
-                  <div
-                    className={`font-semibold ${tx.transaction_type === "credit" || tx.transaction_type === "bonus" ? "text-green-600" : "text-red-600"}`}
-                  >
-                    {tx.transaction_type === "credit" ||
-                    tx.transaction_type === "bonus"
-                      ? "+"
-                      : "-"}
-                    {formatCurrency(Math.abs(tx.amount))}
-                  </div>
-                </div>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+              </Link>
+            ))}
+          </>
+        )}
       </div>
-
       <BottomNav />
     </div>
   );

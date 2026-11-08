@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
+import { supportMailto } from "@/lib/support";
 
 interface ActiveJobsCounterProps {
   used: number;
@@ -118,7 +119,7 @@ export function ActiveJobsCounter({ used, limit }: ActiveJobsCounterProps) {
             >
               <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
               <Link
-                href="/upgrade/company"
+                href={supportMailto("Changement de plan EasyJob")}
                 className="text-xs font-medium text-red-700 underline-offset-2 hover:underline dark:text-red-300"
               >
                 {tr.full}

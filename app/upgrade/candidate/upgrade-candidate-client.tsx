@@ -90,11 +90,7 @@ export function UpgradeCandidateClient({
                   </span>
                 </div>
                 <ul className="space-y-2">
-                  {[
-                    tr.bullets.fastPayment,
-                    tr.bullets.priority,
-                    tr.bullets.exclusive,
-                  ].map((label) => (
+                  {[tr.bullets.priority, tr.bullets.exclusive].map((label) => (
                     <li
                       key={label}
                       className="flex items-center gap-2.5 text-sm text-foreground/80"

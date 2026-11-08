@@ -23,6 +23,7 @@ import {
   type PlanLimits,
   formatDateShort,
 } from "@/lib/utils/profile-status";
+import { supportMailto } from "@/lib/support";
 
 interface PremiumCompanyShowcaseProps {
   plan: CompanyPlan;
@@ -390,7 +391,10 @@ export function PremiumCompanyShowcase({
         {/* CTA : upgrade vers plan supérieur, ou gérer abonnement */}
         <div className="mt-4 flex flex-col gap-2">
           {nextPlan && nextPlanLabel && (
-            <Link href="/upgrade/company" className="block">
+            <Link
+              href={supportMailto("Changement de plan EasyJob")}
+              className="block"
+            >
               <motion.div
                 whileTap={{ scale: 0.98 }}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-full font-bold text-white shadow-lg"
@@ -404,7 +408,10 @@ export function PremiumCompanyShowcase({
               </motion.div>
             </Link>
           )}
-          <Link href="/profile/company/subscription" className="block">
+          <Link
+            href={supportMailto("Gestion de mon abonnement EasyJob")}
+            className="block"
+          >
             <motion.div
               whileTap={{ scale: 0.98 }}
               className="flex h-11 w-full items-center justify-center rounded-full border bg-white/70 text-sm font-semibold backdrop-blur-sm dark:bg-white/5"
