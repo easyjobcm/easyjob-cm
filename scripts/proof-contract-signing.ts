@@ -52,6 +52,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Database, Json } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -331,16 +332,13 @@ async function http(
   if (cookie) headers.Cookie = cookie;
   if (json !== undefined) headers["Content-Type"] = "application/json";
   const send = () =>
-    fetch(`${APP_URL}${url}`, {
+    appFetch(`${APP_URL}${url}`, {
       method,
       headers,
       body: json !== undefined ? JSON.stringify(json) : undefined,
       redirect: "manual",
     });
-  const res = await send().catch((error: { cause?: { code?: string } }) => {
-    if (error?.cause?.code !== "ECONNRESET") throw error;
-    return send();
-  });
+  const res = await send();
   const text = await res.text();
   let body: Record<string, unknown> = {};
   try {

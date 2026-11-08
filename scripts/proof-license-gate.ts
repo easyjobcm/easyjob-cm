@@ -34,6 +34,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
 type LicenseCat =
@@ -113,7 +114,7 @@ async function getHtml(
   cookies: CookieEntry[],
   reqPath: string,
 ): Promise<{ status: number; html: string }> {
-  const res = await fetch(`${APP_URL}${reqPath}`, {
+  const res = await appFetch(`${APP_URL}${reqPath}`, {
     headers: { Cookie: cookieHeader(cookies), Accept: "text/html" },
     redirect: "follow",
     cache: "no-store",
@@ -296,7 +297,7 @@ async function main() {
 
   let serverUp = false;
   try {
-    const probe = await fetch(`${APP_URL}/profile/skills`, {
+    const probe = await appFetch(`${APP_URL}/profile/skills`, {
       headers: { Accept: "text/html" },
       redirect: "manual",
     });

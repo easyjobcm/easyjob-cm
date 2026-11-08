@@ -42,6 +42,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -321,7 +322,7 @@ async function http(
   const headers: Record<string, string> = {};
   if (cookie) headers.Cookie = cookie;
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(`${APP_URL}${url}`, {
+  const res = await appFetch(`${APP_URL}${url}`, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -813,7 +814,7 @@ async function main() {
     const c1Api = await http("GET", `/api/jobs/${j1}`, C.cookie);
     // La page est rendue en streaming (loading.tsx) : notFound() répond 200
     // avec l'écran « introuvable ». On vérifie donc l'absence du contenu.
-    const c1Page = await fetch(`${APP_URL}/jobs/${j1}`, {
+    const c1Page = await appFetch(`${APP_URL}/jobs/${j1}`, {
       headers: { Cookie: C.cookie },
       redirect: "manual",
     });
@@ -960,7 +961,7 @@ async function main() {
 
     const d9Api = await http("GET", `/api/jobs/${j1}`, C.cookie);
     const d9Html = await (
-      await fetch(`${APP_URL}/jobs/${j1}`, { headers: { Cookie: C.cookie } })
+      await appFetch(`${APP_URL}/jobs/${j1}`, { headers: { Cookie: C.cookie } })
     ).text();
     const d9Apply = await http("POST", `/api/jobs/${j1}/apply`, C.cookie, {});
     report(

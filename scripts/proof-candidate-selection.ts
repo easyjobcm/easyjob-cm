@@ -36,6 +36,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -335,17 +336,12 @@ async function http(
   cookie: string | null,
 ): Promise<HttpResult> {
   const send = () =>
-    fetch(`${APP_URL}${url}`, {
+    appFetch(`${APP_URL}${url}`, {
       method,
       headers: cookie ? { Cookie: cookie } : {},
       redirect: "manual",
     });
-  // Après une longue commande SQL, undici peut réutiliser une connexion
-  // keep-alive déjà fermée par Next (ECONNRESET avant toute réponse).
-  const res = await send().catch((error: { cause?: { code?: string } }) => {
-    if (error?.cause?.code !== "ECONNRESET") throw error;
-    return send();
-  });
+  const res = await send();
   const text = await res.text();
   let body: Record<string, unknown> = {};
   try {
@@ -1017,7 +1013,7 @@ async function main() {
     );
     const photoUrl = String(aline?.photo_url ?? "");
     const photoFetch = (cookie: string | null) =>
-      fetch(`${APP_URL}${photoUrl}`, {
+      appFetch(`${APP_URL}${photoUrl}`, {
         headers: cookie ? { Cookie: cookie } : {},
         redirect: "manual",
       });

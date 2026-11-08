@@ -41,6 +41,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
 type CompanyUpdate = Database["public"]["Tables"]["company_profiles"]["Update"];
@@ -263,7 +264,7 @@ async function putOnboarding(
   const form = new FormData();
   for (const [key, value] of Object.entries(fields)) form.append(key, value);
   if (file) form.append("rccm_document", file);
-  const res = await fetch(`${APP_URL}/api/company/onboarding`, {
+  const res = await appFetch(`${APP_URL}/api/company/onboarding`, {
     method: "PUT",
     headers: { Cookie: cookie },
     body: form,
@@ -277,7 +278,7 @@ async function postJson(
   cookie: string,
   body: unknown,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  const res = await fetch(`${APP_URL}${url}`, {
+  const res = await appFetch(`${APP_URL}${url}`, {
     method: "POST",
     headers: { Cookie: cookie, "Content-Type": "application/json" },
     body: JSON.stringify(body),

@@ -55,6 +55,7 @@ Points d'attention :
 - **`next build` plutôt que `next dev`.** Next 16 refuse un second serveur de développement dans le même répertoire. Le build lu par `next start` est celui de l'étape 3 : les `NEXT_PUBLIC_*` y sont figées. Ne réutilisez pas un `.next` construit avec une autre configuration, et relancez `pnpm build` en changeant de pile.
 - **Contrôle de la cible.** Vérifier `NEXT_APP_URL` prouve seulement que les requêtes partent vers une application locale, pas quelle base son serveur utilise. Le contrôle `throw "pile inattendue"` de l'étape 3 couvre ce point.
 - Une preuve qui ne joint pas l'application se termine en échec (et non plus en « ignorée »).
+- **Connexions keep-alive mortes.** `execSql` bloque Node plusieurs secondes (`spawnSync`) : la requête suivante vers l'application peut partir sur une connexion que Next a déjà fermée (`ECONNRESET` sous Windows, `UND_ERR_SOCKET` « other side closed » sous Linux). Les preuves passent par `scripts/lib/app-fetch.ts`, qui reprend une seule fois ces erreurs de socket, sans réponse HTTP. Une réponse HTTP, même 5xx, n'est jamais reprise.
 
 ## Fixtures et nettoyage
 
