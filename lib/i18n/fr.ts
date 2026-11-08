@@ -349,6 +349,14 @@ export const fr = {
 
   // Auth
   auth: {
+    oauthError: {
+      title: "Connexion interrompue",
+      description:
+        "Nous n'avons pas pu terminer la connexion avec Google. Le lien a peut-être expiré ou la connexion a été annulée.",
+      retry: "Reprendre la connexion",
+      signup: "Créer un compte",
+      home: "Retour à l'accueil",
+    },
     welcome: "Bienvenue sur EasyJob CM",
     welcomeBack: "Bon retour !",
     signIn: "Se connecter",
@@ -2100,9 +2108,24 @@ export const fr = {
       "Bonjour ! Je suis EasyBot, votre assistant virtuel. Comment puis-je vous aider aujourd'hui ?",
     placeholder: "Écrivez votre message...",
     q1: "Comment postuler ?",
-    q2: "Comment retirer mes gains ?",
+    q2: "Comment suis-je rémunéré ?",
     q3: "Comment publier une offre ?",
-    q4: "Quels sont les frais ?",
+    q4: "Où signer mon contrat ?",
+    send: "Envoyer",
+    signIn: "Se connecter",
+    errors: {
+      not_authenticated: "Connectez-vous pour discuter avec EasyBot.",
+      account_inactive:
+        "EasyBot est disponible une fois votre compte ouvert (téléphone vérifié) et actif.",
+      chat_payload_too_large:
+        "Message ou conversation trop long. Raccourcissez votre question.",
+      invalid_chat_request: "Message invalide. Réessayez.",
+      chat_quota_exceeded:
+        "Vous avez atteint la limite de questions. Réessayez plus tard.",
+      chat_unavailable:
+        "EasyBot est momentanément indisponible. Réessayez plus tard ou écrivez à support@easyjob.cm.",
+      generic: "Une erreur est survenue. Réessayez.",
+    },
   },
 };
 

@@ -20,6 +20,8 @@ import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 // protections), puis profils, puis opérations admin.
 const PROOFS = [
   "account-security",
+  "phone-verification",
+  "oauth-callback",
   "business-permissions",
   "jobs-rls-select",
   "essentials-gate",
@@ -36,6 +38,7 @@ const PROOFS = [
   "contract-signing",
   "mission-time-tracking",
   "realtime",
+  "chat-quota",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",

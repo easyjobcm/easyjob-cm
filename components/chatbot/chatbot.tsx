@@ -1,16 +1,59 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+
+import Link from "next/link";
 
 import { useChat } from "@ai-sdk/react";
 
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { Send, Bot, User, MessageCircle, X } from "lucide-react";
 
 import { motion } from "framer-motion";
 
 import { useTranslation } from "@/lib/i18n";
+
+import { CHAT_LIMITS } from "@/lib/chat/config";
+
+import { chatUserMessageSchema } from "@/lib/validations/chat";
+
+const CHAT_ERROR_CODES = new Set([
+  "not_authenticated",
+  "account_inactive",
+  "chat_payload_too_large",
+  "invalid_chat_request",
+  "chat_quota_exceeded",
+  "chat_unavailable",
+]);
+
+/**
+ * Code d'erreur renvoyé par /api/chat : corps JSON `{ code }` d'un refus
+ * HTTP, ou code transmis dans le flux (`chat_unavailable`).
+ */
+function chatErrorCode(error: Error | undefined): string | null {
+  if (!error) return null;
+  let code: unknown = error.message;
+  try {
+    code = (JSON.parse(error.message) as { code?: unknown }).code;
+  } catch {
+    // message brut : code du flux
+  }
+  return typeof code === "string" && CHAT_ERROR_CODES.has(code)
+    ? code
+    : "generic";
+}
+
+/** Historique envoyé : derniers messages, texte seul (limites serveur). */
+function historyForServer(messages: UIMessage[]) {
+  return messages.slice(-CHAT_LIMITS.clientHistoryMessages).map((m) => ({
+    id: m.id,
+    role: m.role,
+    parts: m.parts.flatMap((p) =>
+      p.type === "text" ? [{ type: "text" as const, text: p.text }] : [],
+    ),
+  }));
+}
 
 interface ChatbotProps {
   darkMode?: boolean;
@@ -25,11 +68,31 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ messages: all }) => ({
+          body: { messages: historyForServer(all) },
+        }),
+      }),
+    [],
+  );
+
+  const { messages, sendMessage, status, error, clearError } = useChat({
+    transport,
   });
 
   const isLoading = status === "streaming" || status === "submitted";
+
+  const errorCode = chatErrorCode(error);
+
+  const send = (text: string) => {
+    const parsed = chatUserMessageSchema.safeParse(text);
+    if (!parsed.success || isLoading) return;
+    if (error) clearError();
+    sendMessage({ text: parsed.data });
+  };
 
   // Auto-scroll to bottom when new messages arrive
 
@@ -44,7 +107,7 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
 
     if (!input.trim() || isLoading) return;
 
-    sendMessage({ text: input });
+    send(input);
 
     setInput("");
   };
@@ -267,10 +330,7 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
                 {quickQuestions.map((q, i) => (
                   <button
                     key={i}
-                    onClick={() => {
-                      setInput(q);
-                      sendMessage({ text: q });
-                    }}
+                    onClick={() => send(q)}
                     className="px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors"
                     style={{
                       color: darkMode ? "#C4B5FD" : "#7C3AED",
@@ -391,6 +451,28 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
           )}
         </div>
 
+        {errorCode && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mx-3 mb-2 rounded-xl px-3 py-2 text-[12px] leading-snug"
+            style={{
+              background: darkMode ? "rgba(124,58,237,0.16)" : "#F5F3FF",
+              color: darkMode ? "#DDD6FE" : "#5B21B6",
+            }}
+          >
+            <p>{t(`chatbot.errors.${errorCode}`)}</p>
+            {errorCode === "not_authenticated" && (
+              <Link
+                href="/auth/login"
+                className="mt-1 inline-block font-semibold underline"
+              >
+                {t("chatbot.signIn")}
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Input */}
 
         <div
@@ -401,6 +483,7 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              maxLength={CHAT_LIMITS.maxUserMessageChars}
               placeholder={t("chatbot.placeholder")}
               disabled={isLoading}
               className="flex-1 h-10 px-4 rounded-full text-[13px] outline-none border transition-colors placeholder:text-[#9CA3AF]"
@@ -413,6 +496,7 @@ export function Chatbot({ darkMode = false }: ChatbotProps) {
 
             <motion.button
               type="submit"
+              aria-label={t("chatbot.send")}
               disabled={isLoading || !input.trim()}
               whileTap={{ scale: 0.88 }}
               className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-all"

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { logServerError, requestIdFrom } from "@/lib/observability/server-log";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -81,9 +82,11 @@ export async function POST(
     // TODO: Send notification to company
     return NextResponse.json({ success: true, application });
   } catch (error) {
-    console.error("Application error:", error);
+    logServerError("jobs.apply", error, {
+      requestId: requestIdFrom(request.headers),
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", code: "application_failed" },
       { status: 500 },
     );
   }
@@ -137,9 +140,9 @@ async function applyRefusalResponse(
     }
   }
 
-  console.error("Application error:", error);
+  logServerError("jobs.apply", error);
   return NextResponse.json(
-    { error: "Failed to submit application" },
+    { error: "Failed to submit application", code: "application_failed" },
     { status: 500 },
   );
 }
@@ -182,15 +185,19 @@ export async function DELETE(
           { status: refusal.status },
         );
       }
-      console.error("Cancel application error:", error);
+      logServerError("jobs.withdraw", error);
       return NextResponse.json(
-        { error: "Failed to cancel application" },
+        { error: "Failed to cancel application", code: "application_failed" },
         { status: 500 },
       );
     }
 
     if (application?.status !== "withdrawn") {
-      console.error("Cancel application: unexpected state", application);
+      // Statut seul : jamais la ligne (identifiants, données du candidat).
+      logServerError("jobs.withdraw", null, {
+        category: "unexpected",
+        reason: "unexpected_state",
+      });
       return NextResponse.json(
         { error: "Failed to cancel application" },
         { status: 500 },
@@ -199,9 +206,11 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, application });
   } catch (error) {
-    console.error("Cancel application error:", error);
+    logServerError("jobs.withdraw", error, {
+      requestId: requestIdFrom(request.headers),
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", code: "application_failed" },
       { status: 500 },
     );
   }

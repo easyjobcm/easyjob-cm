@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { jobRefusal } from "@/lib/validations/job";
@@ -12,7 +13,7 @@ import { jobRefusal } from "@/lib/validations/job";
  * `…/applications/[applicationId]/photo`, sans chemin de stockage.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -47,11 +48,10 @@ export async function GET(
           { status: refusal.status },
         );
       }
-      console.error("Applicants error:", error);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 },
-      );
+      return internalErrorResponse("jobs.applicants", error, {
+        code: "applicants_failed",
+        request,
+      });
     }
 
     return NextResponse.json({
@@ -63,10 +63,9 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Applicants error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.applicants", error, {
+      code: "applicants_failed",
+      request,
+    });
   }
 }

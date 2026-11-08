@@ -347,6 +347,14 @@ export const en: TranslationKeys = {
 
   // Auth
   auth: {
+    oauthError: {
+      title: "Sign-in interrupted",
+      description:
+        "We could not complete the Google sign-in. The link may have expired or the sign-in was cancelled.",
+      retry: "Sign in again",
+      signup: "Create an account",
+      home: "Back to home",
+    },
     welcome: "Welcome to EasyJob CM",
     welcomeBack: "Welcome back!",
     signIn: "Sign in",
@@ -2068,8 +2076,23 @@ export const en: TranslationKeys = {
       "Hi! I am EasyBot, your virtual assistant. How can I help you today?",
     placeholder: "Type your message...",
     q1: "How do I apply?",
-    q2: "How do I withdraw my earnings?",
+    q2: "How am I paid?",
     q3: "How do I post a job?",
-    q4: "What are the fees?",
+    q4: "Where do I sign my contract?",
+    send: "Send",
+    signIn: "Sign in",
+    errors: {
+      not_authenticated: "Sign in to chat with EasyBot.",
+      account_inactive:
+        "EasyBot is available once your account is open (phone verified) and active.",
+      chat_payload_too_large:
+        "Message or conversation too long. Please shorten your question.",
+      invalid_chat_request: "Invalid message. Please try again.",
+      chat_quota_exceeded:
+        "You have reached the question limit. Please try again later.",
+      chat_unavailable:
+        "EasyBot is temporarily unavailable. Try again later or write to support@easyjob.cm.",
+      generic: "Something went wrong. Please try again.",
+    },
   },
 };

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "@/lib/database.types";
+import { readAuthPhoneSettings } from "@/lib/auth/phone-verification";
 
 /**
  * Especially important if using Fluid compute: Don't put this client in a
@@ -34,6 +36,37 @@ export async function createClient() {
         },
       },
     },
+  );
+}
+
+/**
+ * Client anon sans session persistée ni cookies : pour un appel à Supabase
+ * Auth dont la session éventuelle ne doit jamais remplacer celle du
+ * navigateur (vérification d'un code de téléphone, lot 8).
+ */
+export function createStatelessAnonClient() {
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  return createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseKey!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    },
+  );
+}
+
+/** Réglages publics de Supabase Auth (mode autoconfirm du téléphone). */
+export function readProjectAuthPhoneSettings() {
+  return readAuthPhoneSettings(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)!,
   );
 }
 

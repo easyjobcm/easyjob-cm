@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
+import { NextRequest, NextResponse } from "next/server";
 
 // Get all job categories
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -13,16 +14,17 @@ export async function GET() {
       .order("sort_order", { ascending: true });
 
     if (error) {
-      console.error("Error fetching categories:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse("categories.list", error, {
+        code: "categories_failed",
+        request,
+      });
     }
 
     return NextResponse.json({ categories });
   } catch (error) {
-    console.error("Error in categories API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("categories.list", error, {
+      code: "categories_failed",
+      request,
+    });
   }
 }

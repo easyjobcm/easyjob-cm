@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 23 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 26 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -38,6 +38,9 @@ $env:SUPABASE_URL = $env:API_URL
 $env:SUPABASE_SERVICE_ROLE_KEY = $env:SERVICE_ROLE_KEY
 $env:NEXT_PUBLIC_APP_URL = "http://localhost:3100"
 $env:MOBILE_MONEY_SANDBOX = "true"
+# EasyBot : fournisseur SIMULÉ servi par proof-chat-quota (aucun appel LLM).
+$env:AI_GATEWAY_API_KEY = "proof-fake-key"
+$env:EASYBOT_GATEWAY_URL = "http://127.0.0.1:3199/v3/ai"
 if ($env:NEXT_PUBLIC_SUPABASE_URL -ne "http://127.0.0.1:54421") { throw "pile inattendue" }
 pnpm build
 Start-Process pnpm -ArgumentList "start", "-p", "3100" -NoNewWindow
@@ -55,6 +58,9 @@ Points d'attention :
 - **`next build` plutôt que `next dev`.** Next 16 refuse un second serveur de développement dans le même répertoire. Le build lu par `next start` est celui de l'étape 3 : les `NEXT_PUBLIC_*` y sont figées. Ne réutilisez pas un `.next` construit avec une autre configuration, et relancez `pnpm build` en changeant de pile.
 - **Contrôle de la cible.** Vérifier `NEXT_APP_URL` prouve seulement que les requêtes partent vers une application locale, pas quelle base son serveur utilise. Le contrôle `throw "pile inattendue"` de l'étape 3 couvre ce point.
 - Une preuve qui ne joint pas l'application se termine en échec (et non plus en « ignorée »).
+- **Fournisseur simulé d'EasyBot.** `proof-chat-quota` ouvre un serveur HTTP local sur `127.0.0.1:3199` (`FAKE_GATEWAY_PORT`) qui imite la passerelle Vercel AI et compte les appels. Les deux variables de l'étape 3 sont lues à l'exécution : un redémarrage de `pnpm start` suffit, sans nouveau build. Sans elles, la route répond 503 et C4 échoue.
+- **Retour OAuth sans Google.** `proof-oauth-callback` crée le vérificateur PKCE par `signInWithOAuth({ skipBrowserRedirect: true })` (aucune requête) et pose en base la ligne `auth.flow_state` que Supabase Auth écrirait au retour de Google.
+- **Codes SMS sans SMS.** `proof-phone-verification` pose en base ce que Supabase Auth écrit à l'envoi d'un code (`phone_change`, empreinte sha224, `phone_change_sent_at`), puis vérifie par l'API réelle. La pile est en autoconfirm (`[auth.sms] enable_confirmations = false`) : la preuve s'appuie sur ce réglage pour reproduire H-04, et simule le réglage de production (code exigé) pour la reprise après réponse perdue.
 - **Connexions keep-alive mortes.** `execSql` bloque Node plusieurs secondes (`spawnSync`) : la requête suivante vers l'application peut partir sur une connexion que Next a déjà fermée (`ECONNRESET` sous Windows, `UND_ERR_SOCKET` « other side closed » sous Linux). Les preuves passent par `scripts/lib/app-fetch.ts`, qui reprend une seule fois ces erreurs de socket, sans réponse HTTP. Une réponse HTTP, même 5xx, n'est jamais reprise.
 
 ## Fixtures et nettoyage
@@ -141,6 +147,10 @@ Désactiver un trigger de signal fait échouer les assertions du domaine concern
 
 **Ports réservés par Windows.** Si `supabase start` échoue avec « ports are not available » et que `netsh interface ipv4 show excludedportrange protocol=tcp` montre une plage réservée couvrant 544xx, décaler les ports dans `$stack/supabase/config.toml` (copie temporaire, par exemple 554xx) et adapter le contrôle `pile inattendue` de l'étape 3.
 
+Pour la vérification du téléphone (lot 8), rétablir l'ancien repli « numéro relu = numéro demandé » dans `findPhoneProof` (`lib/auth/phone-verification.ts`, copie locale non commitée) reproduit H-04 : `pnpm test:rls phone-verification` → 2 échecs (H1 et H7 autoconfirm : code erroné → téléphone vérifié et profil créé). La preuve appelle le module directement : aucun build n'est nécessaire.
+
+Pour le quota d'EasyBot, recréer `consume_chat_quota` sur la pile dédiée sans ses deux `pg_advisory_xact_lock` (et avec un `perform pg_sleep(0.05);` en tête, qui élargit la fenêtre de course) fait passer plus de réservations que la limite : `pnpm test:rls chat-quota` → 3 échecs (C5, C6 ×2). Restauration : réexécuter `supabase/migrations/20261108120000_chat_quota.sql` sur la pile (`psql … < fichier`, idempotent).
+
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations) et §22 (temps réel). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.

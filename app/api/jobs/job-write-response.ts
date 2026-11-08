@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jobRefusal } from "@/lib/validations/job";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 // Messages historiques conservés : l'interface traduit `code`.
 const REFUSAL_MESSAGES: Partial<Record<string, string>> = {
@@ -17,17 +18,21 @@ const REFUSAL_MESSAGES: Partial<Record<string, string>> = {
  * appliquées par les RPC `create_job` et `update_job` : un appel PostgREST
  * direct rencontre les mêmes refus.
  */
-export function jobWriteErrorResponse(error: {
-  message: string;
-  details?: string | null;
-}) {
+export function jobWriteErrorResponse(
+  error: {
+    message: string;
+    details?: string | null;
+    code?: string;
+  },
+  op: string,
+  request?: { headers: Pick<Headers, "get"> } | null,
+) {
   const refusal = jobRefusal(error.message);
   if (!refusal) {
-    console.error("Job write error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse(op, error, {
+      code: "job_write_failed",
+      request,
+    });
   }
   return NextResponse.json(
     {

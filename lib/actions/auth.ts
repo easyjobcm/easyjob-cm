@@ -1,6 +1,11 @@
 "use server";
 
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import {
+  createAdminClient,
+  createClient,
+  createStatelessAnonClient,
+  readProjectAuthPhoneSettings,
+} from "@/lib/supabase/server";
 import {
   candidateAccountSchema,
   companyAccountSchema,
@@ -12,6 +17,14 @@ import {
 } from "@/lib/validations/auth";
 import { getClientIp } from "@/lib/utils/request";
 import { finalizeSignup } from "@/lib/auth/finalize-signup";
+import {
+  requestPhoneCode,
+  verifyPhoneCode,
+} from "@/lib/auth/phone-verification";
+import {
+  logServerError,
+  logServerWarning,
+} from "@/lib/observability/server-log";
 import type { Database } from "@/lib/database.types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
@@ -78,7 +91,7 @@ export async function signUpCandidateAction(input: {
     },
   });
   if (error) {
-    console.error("[signup] candidate auth.signUp failed:", error);
+    logServerError("auth.signup_candidate", error, { category: "auth" });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 
@@ -145,7 +158,7 @@ export async function signUpCompanyAction(input: {
     },
   });
   if (error) {
-    console.error("[signup] company auth.signUp failed:", error);
+    logServerError("auth.signup_company", error, { category: "auth" });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 
@@ -179,7 +192,7 @@ export async function verifyEmailOtpAction(input: {
     type: "signup",
   });
   if (error) {
-    console.error("[signup] verifyEmailOtp failed:", error);
+    logServerError("auth.verify_email_otp", error, { category: "auth" });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
   return { ok: true };
@@ -209,14 +222,16 @@ export async function resendEmailOtpAction(input: {
     p_ip: quotaIp(ip),
   });
   if (allowed === false) {
-    console.warn("[signup] email quota exceeded", { email, ip });
+    logServerWarning("auth.resend_email_otp", "email_quota_exceeded", {
+      category: "quota",
+    });
     return { ok: false, errorCode: "emailQuotaExceeded" };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resend({ type: "signup", email });
   if (error) {
-    console.error("[signup] resendEmailOtp failed:", error);
+    logServerError("auth.resend_email_otp", error, { category: "auth" });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
 
@@ -246,7 +261,9 @@ export async function sendPasswordResetOtpAction(input: {
     p_ip: quotaIp(ip),
   });
   if (allowed === false) {
-    console.warn("[forgot] email quota exceeded", { ip });
+    logServerWarning("auth.password_reset_otp", "email_quota_exceeded", {
+      category: "quota",
+    });
     return { ok: true }; // Anti-énumération : ne pas révéler le quota
   }
 
@@ -259,7 +276,7 @@ export async function sendPasswordResetOtpAction(input: {
 
   // Anti-énumération : on retourne toujours ok:true
   if (error) {
-    console.error("[forgot] sendPasswordResetOtp failed:", error);
+    logServerError("auth.password_reset_otp", error, { category: "auth" });
   } else {
     await admin.from("email_send_log").insert({ email: parsed.data.email, ip });
   }
@@ -289,7 +306,9 @@ export async function verifyPasswordResetOtpAction(input: {
     type: "recovery",
   });
   if (error) {
-    console.error("[forgot] verifyPasswordResetOtp failed:", error);
+    logServerError("auth.verify_password_reset_otp", error, {
+      category: "auth",
+    });
     return { ok: false, errorCode: mapAuthError(error.message) };
   }
   return { ok: true };
@@ -313,6 +332,7 @@ function isDevTestPhone(e164: string): boolean {
 /**
  * Envoie un OTP SMS pour ajouter/changer le numéro de téléphone
  * de l'utilisateur authentifié. Nécessite une session active.
+ * Logique serveur : lib/auth/phone-verification.ts (requestPhoneCode).
  */
 export async function sendPhoneOtpAction(input: {
   phone: string;
@@ -327,56 +347,38 @@ export async function sendPhoneOtpAction(input: {
   if (!user) return { ok: false, errorCode: "generic" };
 
   const e164 = `+237${parsed.data.phone}`;
-
-  // Anti-doublon : un autre user a-t-il déjà ce phone ?
   const admin = createAdminClient();
-  const { data: dup } = await admin
-    .from("users")
-    .select("id")
-    .eq("phone", e164)
-    .neq("id", user.id)
-    .maybeSingle();
-  if (dup) return { ok: false, errorCode: "phoneAlreadyUsed" };
 
-  // Anti-abus : quota par numéro (5/24h) et par IP (10/h).
-  const ip = await getClientIp();
-  const { data: allowed } = await admin.rpc("check_sms_send_quota", {
-    p_phone: e164,
-    p_ip: quotaIp(ip),
-  });
-  if (allowed === false) {
-    console.warn("[signup] SMS quota exceeded", { phone: e164, ip });
-    return { ok: false, errorCode: "smsQuotaExceeded" };
-  }
-
-  // Dev bypass : pas d'appel Supabase, OTP fixe accepté à l'étape suivante.
+  // Dev bypass (hors production) : pas d'appel Supabase, OTP fixe accepté
+  // à l'étape suivante. Le contrôle de doublon reste appliqué.
   if (isDevTestPhone(e164)) {
-    console.log("[signup] DEV bypass — sendPhoneOtp skipped for", e164);
+    const { data: dup } = await admin
+      .from("users")
+      .select("id")
+      .eq("phone", e164)
+      .neq("id", user.id)
+      .maybeSingle();
+    if (dup) return { ok: false, errorCode: "phoneAlreadyUsed" };
     return { ok: true };
   }
 
-  const { error } = await supabase.auth.updateUser({ phone: e164 });
-  if (error) {
-    console.error("[signup] sendPhoneOtp updateUser failed:", {
-      message: error.message,
-      code: error.code,
-      status: error.status,
-      e164,
-    });
-    return { ok: false, errorCode: mapAuthError(error.message) };
-  }
-
-  // Log l'envoi pour les quotas suivants.
-  await admin.from("sms_send_log").insert({
-    phone: e164,
-    ip,
-    user_id: user.id,
-  });
-
-  console.log("[signup] OTP sent (or test_otp matched) for", e164);
-  return { ok: true };
+  return requestPhoneCode(
+    {
+      admin,
+      session: supabase,
+      readSettings: readProjectAuthPhoneSettings,
+    },
+    user,
+    e164,
+    await getClientIp(),
+  );
 }
 
+/**
+ * Vérifie le code saisi puis finalise l'inscription (finalizeSignup, lot 1).
+ * Un échec de vérification ne finalise que sur preuve serveur fiable
+ * (H-04) : voir lib/auth/phone-verification.ts.
+ */
 export async function verifyPhoneOtpAction(input: {
   phone: string;
   token: string;
@@ -391,50 +393,38 @@ export async function verifyPhoneOtpAction(input: {
   if (!user) return { ok: false, errorCode: "generic" };
 
   const e164 = `+237${parsed.data.phone}`;
+  const admin = createAdminClient();
 
   // Dev bypass : on confirme directement via admin sans passer par GoTrue.
   if (isDevTestPhone(e164)) {
     if (parsed.data.token !== DEV_TEST_OTP) {
       return { ok: false, errorCode: "otpWrong" };
     }
-    const adminAuth = createAdminClient();
-    const { error: updErr } = await adminAuth.auth.admin.updateUserById(
-      user.id,
-      { phone: e164, phone_confirm: true },
-    );
+    const { error: updErr } = await admin.auth.admin.updateUserById(user.id, {
+      phone: e164,
+      phone_confirm: true,
+    });
     if (updErr) {
-      console.error("[signup] DEV bypass updateUserById failed:", updErr);
+      logServerError("auth.verify_phone.dev_bypass", updErr);
       return { ok: false, errorCode: "generic" };
     }
-    console.log("[signup] DEV bypass — phone confirmed for", e164);
-    return finalizeSignup(createAdminClient(), user, e164);
+    return finalizeSignup(admin, user, e164);
   }
 
-  console.log("[signup] verifyPhoneOtp attempt", {
-    phone: e164,
-    token: parsed.data.token,
-  });
-  const { error } = await supabase.auth.verifyOtp({
-    phone: e164,
-    token: parsed.data.token,
-    type: "phone_change",
-  });
-  if (error) {
-    // Production fallback: Supabase SSR can fail to write the refreshed session
-    const admin = createAdminClient();
-    const {
-      data: { user: freshUser },
-    } = await admin.auth.admin.getUserById(user.id);
-    if (freshUser?.phone === e164) {
-      console.log(
-        "[signup] verifyPhoneOtp: phone confirmed server-side despite SDK error — proceeding",
-        { phone: e164, sdkError: error.message },
-      );
-      return finalizeSignup(createAdminClient(), user, e164);
-    }
-    console.error("[signup] verifyPhoneOtp failed:", error);
-    return { ok: false, errorCode: mapAuthError(error.message) };
+  const result = await verifyPhoneCode(
+    {
+      admin,
+      verifier: createStatelessAnonClient(),
+      readSettings: readProjectAuthPhoneSettings,
+    },
+    user,
+    e164,
+    parsed.data.token,
+  );
+  if (result.ok) {
+    // Nouveau JWT (app_metadata.phone_verified) pour le middleware. Non
+    // bloquant : le middleware relit la base à défaut.
+    await supabase.auth.refreshSession().catch(() => undefined);
   }
-
-  return finalizeSignup(createAdminClient(), user, e164);
+  return result;
 }

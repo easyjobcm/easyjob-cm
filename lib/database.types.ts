@@ -472,6 +472,27 @@ export type Database = {
           },
         ]
       }
+      chat_request_log: {
+        Row: {
+          id: number
+          ip: string | null
+          requested_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: number
+          ip?: string | null
+          requested_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: number
+          ip?: string | null
+          requested_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       company_availability_alerts: {
         Row: {
           category_id: string | null
@@ -2386,6 +2407,20 @@ export type Database = {
           scheduled_start_at: string
           started_at: string
           status: Database["public"]["Enums"]["mission_status"]
+        }[]
+      }
+      consume_chat_quota: {
+        Args: {
+          p_ip?: string
+          p_ip_per_hour: number
+          p_user_id: string
+          p_user_per_day: number
+          p_user_per_hour: number
+        }
+        Returns: {
+          allowed: boolean
+          reason: string
+          retry_after_seconds: number
         }[]
       }
       contract_expected_status: {

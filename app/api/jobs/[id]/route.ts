@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { jobInputSchema } from "@/lib/validations/job";
@@ -11,6 +12,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json(
+        { error: "Job not found", code: "job_not_found" },
+        { status: 404 },
+      );
+    }
     const supabase = await createClient();
 
     const { data: job, error } = await supabase
@@ -33,8 +40,17 @@ export async function GET(
       .single();
 
     if (error) {
-      console.error("Error fetching job:", error);
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      // PGRST116 : aucune ligne visible (inexistante ou non publiée).
+      if (error.code !== "PGRST116") {
+        return internalErrorResponse("jobs.detail", error, {
+          code: "job_failed",
+          request,
+        });
+      }
+      return NextResponse.json(
+        { error: "Job not found", code: "job_not_found" },
+        { status: 404 },
+      );
     }
 
     // Check if user has already applied
@@ -80,11 +96,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error in job detail API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.detail", error, {
+      code: "job_failed",
+      request,
+    });
   }
 }
 
@@ -94,7 +109,7 @@ export async function GET(
  * mission ou un contrat existe.
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -122,15 +137,14 @@ export async function DELETE(
     const { data: deletedId, error } = await supabase.rpc("delete_job", {
       p_job_id: jobId.data,
     });
-    if (error) return jobWriteErrorResponse(error);
+    if (error) return jobWriteErrorResponse(error, "jobs.delete", request);
 
     return NextResponse.json({ deleted: deletedId });
   } catch (error) {
-    console.error("Error in delete job API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.delete", error, {
+      code: "job_write_failed",
+      request,
+    });
   }
 }
 
@@ -184,16 +198,15 @@ export async function PATCH(
       p_job_id: jobId.data,
       p_job: parsed.data,
     });
-    if (error) return jobWriteErrorResponse(error);
+    if (error) return jobWriteErrorResponse(error, "jobs.update", request);
 
     return NextResponse.json({
       job: { id: job.id, title: job.title, status: job.status },
     });
   } catch (error) {
-    console.error("Error in update job API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.update", error, {
+      code: "job_write_failed",
+      request,
+    });
   }
 }

@@ -4,6 +4,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { normalizeSignupLocale, normalizeSignupRole } from "./signup-role";
+import {
+  logServerError,
+  logServerWarning,
+} from "@/lib/observability/server-log";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 
@@ -50,7 +54,7 @@ export async function finalizeSignup(
     { onConflict: "id", ignoreDuplicates: true },
   );
   if (insertErr) {
-    console.error("[signup] users insert failed:", insertErr);
+    logServerError("auth.finalize_signup.users_insert", insertErr);
     return { ok: false, errorCode: "generic" };
   }
 
@@ -62,7 +66,7 @@ export async function finalizeSignup(
     .select("role, email")
     .single();
   if (updateErr || !row) {
-    console.error("[signup] users phone update failed:", updateErr);
+    logServerError("auth.finalize_signup.users_update", updateErr);
     return { ok: false, errorCode: "generic" };
   }
   const role = row.role;
@@ -75,7 +79,9 @@ export async function finalizeSignup(
   });
   if (metaErr) {
     // Non-fatal : le fallback DB du middleware prend le relais.
-    console.error("[signup] app_metadata update failed:", metaErr);
+    logServerError("auth.finalize_signup.app_metadata", metaErr, {
+      category: "auth",
+    });
   }
 
   if (role === "candidate") {
@@ -83,7 +89,7 @@ export async function finalizeSignup(
       .from("candidate_profiles")
       .upsert({ user_id: user.id }, { onConflict: "user_id" });
     if (error) {
-      console.error("[signup] candidate_profiles upsert failed:", error);
+      logServerError("auth.finalize_signup.candidate_profile", error);
       return { ok: false, errorCode: "generic" };
     }
   } else if (role === "company") {
@@ -91,7 +97,9 @@ export async function finalizeSignup(
       typeof meta.company_name === "string" ? meta.company_name : "";
     const niu = typeof meta.niu === "string" ? meta.niu : "";
     if (!companyName || !niu) {
-      console.error("[signup] company metadata missing", { companyName, niu });
+      logServerWarning("auth.finalize_signup", "company_metadata_missing", {
+        category: "validation",
+      });
       return { ok: false, errorCode: "generic" };
     }
     const { error } = await admin.from("company_profiles").upsert(
@@ -104,7 +112,7 @@ export async function finalizeSignup(
       { onConflict: "user_id" },
     );
     if (error) {
-      console.error("[signup] company_profiles upsert failed:", error);
+      logServerError("auth.finalize_signup.company_profile", error);
       return { ok: false, errorCode: "generic" };
     }
   }

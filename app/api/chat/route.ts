@@ -1,50 +1,69 @@
-import {
-  consumeStream,
-  convertToModelMessages,
-  streamText,
-  UIMessage,
-} from "ai";
+import { createGateway } from "ai";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { observedClientIp } from "@/lib/utils/observed-ip";
+import { requestIdFrom } from "@/lib/observability/server-log";
+import { handleChat } from "@/lib/chat/handler";
+import { CHAT_LIMITS, CHAT_MODEL } from "@/lib/chat/config";
 
+// Durée maximale de la fonction (s). Littéral exigé par Next.
 export const maxDuration = 30;
 
-const SYSTEM_PROMPT = `Tu es EasyBot, l'assistant virtuel d'EasyJob Cameroun. Tu aides les utilisateurs avec:
-
-**Pour les Candidats:**
-- Trouver des offres d'emploi temporaires (evenementiel, restauration, hotellerie, etc.)
-- Creer et optimiser leur profil
-- Comprendre le processus de candidature
-- Expliquer le systeme de pointage geolocalise
-- Aider avec les retraits Mobile Money (MTN MoMo, Orange Money)
-- Repondre aux questions sur les missions et contrats
-
-**Pour les Entreprises:**
-- Publier des offres d'emploi
-- Trouver des candidats qualifies
-- Expliquer le processus de validation des missions
-- Gerer les paiements
-
-**Informations importantes:**
-- Monnaie: Franc CFA (XAF)
-- Villes principales: Douala, Yaounde, Bafoussam, Garoua, Maroua
-- Paiement sous 48h apres validation de la mission
-- Frais de retrait: 2%
-- Montant minimum de retrait: 1000 XAF
-
-Reponds toujours en francais, de maniere amicale et professionnelle. Si tu ne connais pas la reponse, suggere de contacter le support a support@easyjob.cm.`;
+/**
+ * Fournisseur : passerelle Vercel AI. Clé `AI_GATEWAY_API_KEY`, ou jeton
+ * OIDC du projet sur Vercel. `EASYBOT_GATEWAY_URL` (facultatif) remplace
+ * l'URL de la passerelle, pour un fournisseur simulé en test local
+ * (docs/chatbot.md). Sans clé hors Vercel : 503, aucun appel.
+ */
+function chatModel() {
+  const apiKey = process.env.AI_GATEWAY_API_KEY;
+  if (!apiKey && process.env.VERCEL !== "1") return null;
+  const gateway = createGateway({
+    apiKey: apiKey || undefined,
+    baseURL: process.env.EASYBOT_GATEWAY_URL || undefined,
+  });
+  return gateway(CHAT_MODEL);
+}
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const supabase = await createClient();
 
-  const result = streamText({
-    model: "openai/gpt-5-mini",
-    system: SYSTEM_PROMPT,
-    messages: await convertToModelMessages(messages),
-    abortSignal: req.signal,
-    maxOutputTokens: 500,
-  });
-
-  return result.toUIMessageStreamResponse({
-    originalMessages: messages,
-    consumeSseStream: consumeStream,
+  return handleChat(req, {
+    getUserId: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      return user?.id ?? null;
+    },
+    readAccount: async (userId) => {
+      const { data } = await supabase
+        .from("users")
+        .select("role, is_active, phone_verified")
+        .eq("id", userId)
+        .maybeSingle();
+      return data;
+    },
+    consumeQuota: async (userId, ip) => {
+      const { data, error } = await createAdminClient().rpc(
+        "consume_chat_quota",
+        {
+          p_user_id: userId,
+          p_user_per_hour: CHAT_LIMITS.userPerHour,
+          p_user_per_day: CHAT_LIMITS.userPerDay,
+          p_ip_per_hour: CHAT_LIMITS.ipPerHour,
+          ...(ip ? { p_ip: ip } : {}),
+        },
+      );
+      if (error) throw error;
+      const row = data[0];
+      if (!row) throw new Error("consume_chat_quota returned no row");
+      return {
+        allowed: row.allowed,
+        reason: row.reason,
+        retryAfterSeconds: row.retry_after_seconds,
+      };
+    },
+    model: chatModel(),
+    clientIp: observedClientIp(req.headers),
+    requestId: requestIdFrom(req.headers),
   });
 }

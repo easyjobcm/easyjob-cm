@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { missionRefusal } from "@/lib/validations/mission";
@@ -9,7 +10,7 @@ import { missionRefusal } from "@/lib/validations/mission";
  * jamais la position du candidat.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -43,21 +44,19 @@ export async function GET(
           { status: refusal.status },
         );
       }
-      console.error("Job missions error:", error.code);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 },
-      );
+      return internalErrorResponse("jobs.missions", error, {
+        code: "mission_failed",
+        request,
+      });
     }
     return NextResponse.json(
       { missions: data },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("Job missions error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.missions", error, {
+      code: "mission_failed",
+      request,
+    });
   }
 }

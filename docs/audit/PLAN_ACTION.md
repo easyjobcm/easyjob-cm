@@ -14,7 +14,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
 | 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c, 7c-bis et 7d corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
-| 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
+| 8 | Hygiène auth, chatbot et journaux — **corrigé et vérifié localement, non déployé ; F-23 partiel** | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
 
@@ -292,6 +292,17 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Risques / retour arrière** : changement de modèle d'écriture (du client vers la RPC). Procéder par sous-lot, avec migration réversible et pages adaptées dans la même PR.
 
 ## Lot 8 — Hygiène auth, chatbot et journaux
+
+> **Statut (2026-11-08)** : réalisé sur `fix/lot-08-auth-chat-logs` (base `origin/main-dev`, 603da79, lot 7d intégré), **non commité, non déployé**. Détails : `AUDIT.md` §23.
+> - H-04 confirmé puis corrigé : seul un code accepté par Supabase Auth pour le compte de la session vérifie le téléphone ; reprise après réponse perdue sur preuve serveur (ligne `users` déjà vérifiée, ou confirmation Auth postérieure au dernier envoi quand Auth exige un code). F-12 : plus aucun code, numéro, jeton ni réponse brute dans les journaux d'authentification.
+> - F-13 : `next` réduit à un chemin interne (`safeInternalPath`), redirection construite sur l'origine, rôle d'inscription lu sur le chemin exact ; page `/auth/error`.
+> - F-15 : session et compte actif exigés ; limites de taille, de messages et de rôles ; modèle, instructions et budget imposés par le serveur ; quota par compte et par IP fiable, atomique en base (`consume_chat_quota`) ; prompt aligné sur les parcours livrés. Paramètres : `docs/chatbot.md`.
+> - F-23 (partiel) : journal JSON sûr (`lib/observability/server-log.ts`) et réponses 500 génériques avec code et identifiant de requête sur les routes d'auth, de chat, `app/api/jobs/**`, `categories` et `user`.
+> - Preuves `phone-verification`, `oauth-callback` et `chat-quota` ajoutées à `pnpm test:rls`.
+>
+> **Avant déploiement** : en lecture seule, `GET <projet>/auth/v1/settings` doit renvoyer `phone_autoconfirm: false` (confirmations SMS actives), sinon aucun numéro réel ne peut être vérifié (refus par défaut) ; ajouter `AI_GATEWAY_API_KEY` (ou activer l'OIDC Vercel) ; ne pas définir `EASYBOT_GATEWAY_URL` ; appliquer la migration `20261108120000_chat_quota.sql`.
+>
+> Reste ouvert : F-23 sur les autres routes (admin, profil, paiements, `[v0]`), absence d'outil de capture d'erreurs ; vérifications dépendant d'un fournisseur réel (SMS Twilio, Google, passerelle IA) : `AUDIT.md` §23.
 
 - **IDs** : F-12, F-13, F-15, F-23, H-04.
 - **Périmètre** :

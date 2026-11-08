@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { jobInputSchema } from "@/lib/validations/job";
 import { jobWriteErrorResponse } from "./job-write-response";
@@ -14,8 +15,12 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get("city");
     const category = searchParams.get("category");
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    // Pagination bornée : une valeur absente ou invalide reprend le défaut.
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1") || 1);
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "10") || 10),
+    );
     const offset = (page - 1) * limit;
 
     // Build query — colonnes explicites (jamais SELECT *)
@@ -44,7 +49,15 @@ export async function GET(request: NextRequest) {
       query = query.eq("category_id", category);
     }
     if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+      // Les séparateurs de filtre PostgREST (`,` `(` `)`) et les jokers sont
+      // retirés : la recherche reste un texte, jamais une syntaxe de filtre.
+      const term = search
+        .replace(/[,()*%\\]/g, " ")
+        .trim()
+        .slice(0, 100);
+      if (term) {
+        query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+      }
     }
 
     // Apply pagination
@@ -53,8 +66,10 @@ export async function GET(request: NextRequest) {
     const { data: jobs, error, count } = await query;
 
     if (error) {
-      console.error("Error fetching jobs:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse("jobs.list", error, {
+        code: "jobs_failed",
+        request,
+      });
     }
 
     return NextResponse.json({
@@ -67,11 +82,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error in jobs API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.list", error, {
+      code: "jobs_failed",
+      request,
+    });
   }
 }
 
@@ -108,17 +122,16 @@ export async function POST(request: NextRequest) {
     const { data: job, error } = await supabase.rpc("create_job", {
       p_job: parsed.data,
     });
-    if (error) return jobWriteErrorResponse(error);
+    if (error) return jobWriteErrorResponse(error, "jobs.create", request);
 
     return NextResponse.json(
       { job: { id: job.id, title: job.title, status: job.status } },
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error in create job API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("jobs.create", error, {
+      code: "job_write_failed",
+      request,
+    });
   }
 }

@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
+import { NextRequest, NextResponse } from "next/server";
 
 // Get current user profile
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
 
@@ -23,7 +24,10 @@ export async function GET() {
       .single();
 
     if (userError) {
-      return NextResponse.json({ error: userError.message }, { status: 500 });
+      return internalErrorResponse("user.read", userError, {
+        code: "user_failed",
+        request,
+      });
     }
 
     // Get profile based on role
@@ -54,10 +58,9 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching user:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return internalErrorResponse("user.read", error, {
+      code: "user_failed",
+      request,
+    });
   }
 }

@@ -1,4 +1,5 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/observability/server-log";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -61,7 +62,8 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Applicant photo error:", error);
+    // Jamais le chemin de l'objet ni le message du stockage.
+    logServerError("jobs.applicant_photo", error);
     return new NextResponse(null, { status: 500 });
   }
 }
