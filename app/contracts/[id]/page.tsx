@@ -33,6 +33,11 @@ import { useI18n } from "@/lib/i18n";
 import { formatDate, formatTime } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import type { Database } from "@/lib/database.types";
+import {
+  useAccountSuspended,
+  useLatestRequest,
+  useLiveRefresh,
+} from "@/lib/realtime/provider";
 
 type ContractRow =
   Database["public"]["Functions"]["get_contract"]["Returns"][number];
@@ -149,25 +154,43 @@ export default function ContractSignPage() {
       router.push("/auth/login");
       return null;
     }
+    // Erreur réseau ou serveur sur une relecture : le contrat affiché reste
+    // (seul un refus ou une absence le retire).
+    if (result.kind === "load" && contract) {
+      setLoading(false);
+      return contract;
+    }
     setContract(result.kind === "ok" ? result.contract : null);
     setLoadError(result.kind === "ok" ? null : result.kind);
     setLoading(false);
     return result.kind === "ok" ? result.contract : null;
   }
 
-  /** Relit l'état enregistré (après une signature ou sur « Réessayer »). */
-  const loadContract = async () => applyLoad(await fetchContract(contractId));
+  const latest = useLatestRequest();
+  const suspended = useAccountSuspended();
+
+  /**
+   * Relit l'état enregistré (après une signature, sur « Réessayer » ou sur
+   * signal). Seule la dernière lecture lancée modifie l'écran ; l'appelant
+   * reçoit toujours le contrat relu.
+   */
+  const loadContract = async () => {
+    const token = latest.begin();
+    const result = await fetchContract(contractId);
+    if (!latest.isLatest(token)) {
+      return result.kind === "ok" ? result.contract : null;
+    }
+    return applyLoad(result);
+  };
 
   useEffect(() => {
-    let active = true;
-    fetchContract(contractId).then((result) => {
-      if (active) applyLoad(result);
-    });
-    return () => {
-      active = false;
-    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadContract();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractId]);
+
+  // Signature de l'autre partie, mission démarrée, compte suspendu.
+  useLiveRefresh(["contracts", "missions", "account"], loadContract);
 
   const handleSign = async () => {
     if (!contract || !accepted || signingRef.current) return;
@@ -586,10 +609,15 @@ export default function ContractSignPage() {
                   <Button
                     className="w-full"
                     onClick={() => setConfirmOpen(true)}
-                    disabled={!accepted || signing}
+                    disabled={!accepted || signing || suspended}
                   >
                     {signError ? tc.retry : tc.sign}
                   </Button>
+                  {suspended && (
+                    <p className="mt-2 text-xs text-destructive">
+                      {t.realtime.actionUnavailable}
+                    </p>
+                  )}
                 </motion.div>
                 <p className="text-xs text-muted-foreground">
                   {tc.separateSteps}

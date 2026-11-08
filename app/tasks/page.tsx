@@ -38,7 +38,7 @@ import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateShort } from "@/lib/utils/profile-status";
 import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
-import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
+import { useAccountSuspended, useLiveRefresh } from "@/lib/realtime/provider";
 import {
   isProfileLockGroup,
   type ProfileLockGroup,
@@ -122,7 +122,16 @@ export default function TasksPage() {
   const updateRequests = data?.updateRequests ?? [];
   const [openRequestId, setOpenRequestId] = React.useState<string | null>(null);
 
-  useRealtimeCandidateSync("/api/tasks");
+  // Compte suspendu : les actions sont retirées (refusées en base de toute
+  // façon : start_mission, submit_completion_code, submit_mission_review).
+  const suspended = useAccountSuspended();
+
+  // Missions, contrats, candidatures, offres et demandes de mise à jour du
+  // profil : relecture sur signal, reconnexion ou retour au premier plan.
+  useLiveRefresh(
+    ["missions", "contracts", "applications", "jobs", "profile"],
+    () => mutate(),
+  );
 
   // Horloge locale recalée sur le serveur : les tâches apparaissent à H−15
   // et à l'heure de fin sans recharger la page.
@@ -338,7 +347,11 @@ export default function TasksPage() {
                 doualaTime(m.scheduled_start_at, locale),
               ),
               <motion.div whileTap={{ scale: 0.97 }}>
-                <Button size="sm" onClick={() => setStartTarget(m)}>
+                <Button
+                  size="sm"
+                  onClick={() => setStartTarget(m)}
+                  disabled={suspended}
+                >
                   {tt.start}
                 </Button>
               </motion.div>,
@@ -373,6 +386,7 @@ export default function TasksPage() {
               size="sm"
               variant={endReached(m) ? "default" : "outline"}
               onClick={() => setCodeTarget(m)}
+              disabled={suspended}
             >
               {tt.validate}
             </Button>
@@ -389,7 +403,11 @@ export default function TasksPage() {
           tt.review,
           tt.reviewHint,
           <motion.div whileTap={{ scale: 0.97 }}>
-            <Button size="sm" onClick={() => setReviewTarget(m)}>
+            <Button
+              size="sm"
+              onClick={() => setReviewTarget(m)}
+              disabled={suspended}
+            >
               {tt.review}
             </Button>
           </motion.div>,
@@ -545,7 +563,7 @@ export default function TasksPage() {
             <motion.div whileTap={{ scale: 0.98 }}>
               <Button
                 onClick={() => void confirmStart()}
-                disabled={starting}
+                disabled={starting || suspended}
                 data-testid="start-confirm"
               >
                 {starting ? tt.starting : tt.startConfirm}

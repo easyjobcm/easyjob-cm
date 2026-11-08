@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { UpgradeCandidateClient } from "./upgrade-candidate-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function UpgradeCandidatePage() {
   const supabase = await createClient();
@@ -34,10 +35,13 @@ export default async function UpgradeCandidatePage() {
     .single();
 
   return (
-    <UpgradeCandidateClient
-      role={userData.role}
-      averageRating={candidateProfile?.average_rating ?? 0}
-      premiumUntil={candidateProfile?.premium_until ?? null}
-    />
+    <>
+      <LiveRefresh keys={["subscription", "profile"]} />
+      <UpgradeCandidateClient
+        role={userData.role}
+        averageRating={candidateProfile?.average_rating ?? 0}
+        premiumUntil={candidateProfile?.premium_until ?? null}
+      />
+    </>
   );
 }

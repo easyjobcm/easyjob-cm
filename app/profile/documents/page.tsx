@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { licenseCategorySchema } from "@/lib/validations/skill-documents";
 import { DocumentsPageClient } from "./documents-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * Page « Mes documents » (T4, SRS §6.14.3) : liste unique et exhaustive de
@@ -62,12 +63,15 @@ export default async function DocumentsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <DocumentsPageClient
-      initialDocuments={(documents ?? []).map((doc) => ({
-        ...doc,
-        license_category:
-          licenseCategorySchema.safeParse(doc.license_category).data ?? null,
-      }))}
-    />
+    <>
+      <LiveRefresh keys={["profile"]} />
+      <DocumentsPageClient
+        initialDocuments={(documents ?? []).map((doc) => ({
+          ...doc,
+          license_category:
+            licenseCategorySchema.safeParse(doc.license_category).data ?? null,
+        }))}
+      />
+    </>
   );
 }

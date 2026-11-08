@@ -20,6 +20,8 @@ import {
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { frozenPayByApplication } from "@/lib/utils/mission-pay";
+import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
+import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 
 interface Mission {
   id: string;
@@ -45,24 +47,26 @@ export default function MissionsListPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  async function loadMissions() {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const latest = useLatestRequest();
 
+  async function loadMissions() {
+    const token = latest.begin();
+    const supabase = createClient();
+    const user = await readSessionUser(supabase);
+    if (user === undefined) return;
     if (!user) {
-      router.push("/login?redirect=/missions");
+      router.push("/auth/login?next=/missions");
       return;
     }
 
     // Get candidate profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("candidate_profiles")
       .select("id")
       .eq("user_id", user.id)
       .single();
 
+    if (isNetworkError(profileError)) return;
     if (!profile) {
       router.push("/onboarding/candidate");
       return;
@@ -90,6 +94,7 @@ export default function MissionsListPage() {
       .select("application_id, contract_data")
       .eq("candidate_id", profile.id);
     const payByApplication = frozenPayByApplication(contracts);
+    if (!latest.isLatest(token)) return;
 
     if (missionsData) {
       setMissions(
@@ -110,6 +115,8 @@ export default function MissionsListPage() {
     loadMissions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useLiveRefresh(["missions", "contracts", "jobs"], loadMissions);
 
   const formatDate = (date: string) => {
     const d = new Date(date);

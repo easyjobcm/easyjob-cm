@@ -65,6 +65,20 @@ export function getCompanyPlanPermissions(
   };
 }
 
+/**
+ * Premium candidat effectif (lot 7d), miroir de `my_account_state` : rôle
+ * `candidate_premium` ET `premium_until` dans le futur.
+ */
+export function isCandidatePremiumActive(
+  role: string | null | undefined,
+  premiumUntil: string | null | undefined,
+  nowMs: number,
+): boolean {
+  if (role !== "candidate_premium" || !premiumUntil) return false;
+  const end = Date.parse(premiumUntil);
+  return Number.isFinite(end) && end > nowMs;
+}
+
 export function isPlanAtLeast(
   plan: CompanyPlan,
   minimum: CompanyPlan,

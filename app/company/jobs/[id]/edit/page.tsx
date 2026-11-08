@@ -14,6 +14,12 @@ import { createClient } from "@/lib/supabase/client";
 import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
 import { getPlanLimits } from "@/lib/utils/profile-status";
 import { canEditJob, JOB_PUBLISHED_STATUS } from "@/lib/utils/job-status";
+import {
+  useAccountState,
+  useLatestRequest,
+  useLiveRefresh,
+} from "@/lib/realtime/provider";
+import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 
 type EditState =
   | { kind: "loading" }
@@ -23,69 +29,93 @@ type EditState =
 /**
  * Correction d'une offre par son entreprise. L'écran n'est qu'un confort :
  * `update_job` refuse en base les offres non modifiables.
+ *
+ * Lot 7d : les droits sont réévalués sur signal (offre modérée, retirée ou
+ * pourvue, plan échu, compte suspendu), y compris formulaire ouvert. Tant
+ * que la modification reste permise, la saisie en cours est conservée.
  */
 export default function EditJobPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useI18n();
   const tj = t.companyJobs;
-  const [state, setState] = React.useState<EditState>({ kind: "loading" });
+  const account = useAccountState();
+  const latest = useLatestRequest();
+  // undefined : en cours de lecture ; null : offre introuvable.
+  const [job, setJob] = React.useState<
+    | (JobFormInitial & {
+        status: string | null;
+        positions_filled: number | null;
+      })
+    | null
+    | undefined
+  >(undefined);
+
+  const loadJob = React.useCallback(async () => {
+    const token = latest.begin();
+    const supabase = createClient();
+    const user = await readSessionUser(supabase);
+    if (user === undefined) return;
+    if (!user) {
+      router.push(`/auth/login?next=/company/jobs/${id}/edit`);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(
+        `id, title, description, job_type, start_date, end_date,
+         start_time, end_time, positions_available, positions_filled,
+         mission_pay_per_candidate, required_skills, urgency, status`,
+      )
+      .eq("id", id)
+      .maybeSingle();
+    // Réseau indisponible : la saisie et l'état affiché sont conservés.
+    if (isNetworkError(error)) return;
+    if (latest.isLatest(token)) setJob(data ?? null);
+  }, [id, router, latest]);
 
   React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push(`/login?redirect=/company/jobs/${id}/edit`);
-        return;
-      }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadJob();
+  }, [loadJob]);
 
-      const [{ data: company }, { data: job }] = await Promise.all([
-        supabase
-          .from("company_profiles")
-          .select("subscription_plan")
-          .eq("user_id", user.id)
-          .single(),
-        supabase
-          .from("jobs")
-          .select(
-            `id, title, description, job_type, start_date, end_date,
-             start_time, end_time, positions_available, positions_filled,
-             mission_pay_per_candidate, required_skills, urgency, status`,
-          )
-          .eq("id", id)
-          .maybeSingle(),
-      ]);
-      if (cancelled) return;
+  useLiveRefresh(["jobs", "applications", "subscription"], loadJob);
 
-      if (!job) {
-        setState({ kind: "blocked", message: tj.errors.job_not_found });
-        return;
-      }
-      const { directEdit } = getPlanLimits(
-        normalizeCompanyPlan(company?.subscription_plan),
-      );
-      if (!canEditJob(job, directEdit)) {
-        const message =
-          job.status !== JOB_PUBLISHED_STATUS
-            ? tj.errors.job_not_editable
-            : directEdit
-              ? tj.errors.job_has_selected_candidates
-              : tj.errors.job_locked_plan;
-        setState({ kind: "blocked", message });
-        return;
-      }
-      setState({ kind: "ready", job });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, router, tj]);
+  // Plan effectif connu seulement après lecture de l'état du compte.
+  const state: EditState = (() => {
+    if (job === undefined || account === null) return { kind: "loading" };
+    if (job === null)
+      return { kind: "blocked", message: tj.errors.job_not_found };
+    if (!account.is_active) {
+      return { kind: "blocked", message: tj.errors.account_suspended };
+    }
+    const { directEdit } = getPlanLimits(
+      normalizeCompanyPlan(account.company?.effective_plan ?? "free"),
+    );
+    if (!canEditJob(job, directEdit)) {
+      const message =
+        job.status !== JOB_PUBLISHED_STATUS
+          ? tj.errors.job_not_editable
+          : directEdit
+            ? tj.errors.job_has_selected_candidates
+            : tj.errors.job_locked_plan;
+      return { kind: "blocked", message };
+    }
+    return { kind: "ready", job };
+  })();
 
-  if (state.kind === "ready") return <JobForm initialJob={state.job} />;
+  // Première version modifiable : le formulaire n'est pas réinitialisé par
+  // une relecture tant que la modification reste permise.
+  const [initialJob, setInitialJob] = React.useState<JobFormInitial | null>(
+    null,
+  );
+  if (state.kind === "ready" && initialJob === null) {
+    setInitialJob(state.job);
+  }
+
+  if (state.kind === "ready") {
+    return <JobForm initialJob={initialJob ?? state.job} />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

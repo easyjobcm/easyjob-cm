@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AvailabilityClient } from "./availability-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function AvailabilityPage() {
   const supabase = await createClient();
@@ -42,13 +43,16 @@ export default async function AvailabilityPage() {
     : { data: [] };
 
   return (
-    <AvailabilityClient
-      maxTravelDistanceKm={candidateProfile?.max_travel_distance_km ?? 10}
-      initialDays={(availability ?? []).map((a) => ({
-        day_of_week: a.day_of_week,
-        start_time: a.start_time.slice(0, 5),
-        end_time: a.end_time.slice(0, 5),
-      }))}
-    />
+    <>
+      <LiveRefresh keys={["profile"]} />
+      <AvailabilityClient
+        maxTravelDistanceKm={candidateProfile?.max_travel_distance_km ?? 10}
+        initialDays={(availability ?? []).map((a) => ({
+          day_of_week: a.day_of_week,
+          start_time: a.start_time.slice(0, 5),
+          end_time: a.end_time.slice(0, 5),
+        }))}
+      />
+    </>
   );
 }

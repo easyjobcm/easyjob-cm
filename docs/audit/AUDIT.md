@@ -43,7 +43,7 @@ Ces constats ne permettent pas de déclarer l'application prête pour un usage p
 | Schéma / migrations | 22 migrations SQL, dont une baseline de 2 400 lignes extraite de la production (`20260526130000_remote_baseline.sql`) et un dossier `_archive`. Types générés dans `lib/database.types.ts`, **avec un doublon obsolète** `database.types.ts` à la racine. | `supabase/migrations/` |
 | Stockage fichiers | Bucket privé `candidate-documents` (limite de taille et types MIME), politiques par préfixe `user_id` | `20260902100000_candidate_documents_storage.sql`, `20260903100000_*` |
 | Auth / rôles | Email + mot de passe, OTP email, OTP SMS (`phone_change`), Google OAuth optionnel. Rôles `candidate(_premium)`, `company(_premium)`, `admin_support/ops/founder`, portés par `public.users.role` et copiés dans `app_metadata.role`. Pas de multi-organisation (une entreprise = un utilisateur). | `lib/actions/auth.ts`, `lib/supabase/middleware.ts`, `is_admin_user()` |
-| Temps réel / async | Realtime sur `candidate_profiles` (`lib/hooks/use-realtime-sync.ts`). pg_cron `cleanup-unconfirmed-signups` toutes les 15 min s'il est disponible. Aucun job applicatif ni file d'attente. | migrations `20260605…`, `20260529100000…` |
+| Temps réel / async | ~~Realtime sur `candidate_profiles` (`lib/hooks/use-realtime-sync.ts`).~~ Depuis le lot 7d (§22) : signaux Realtime Broadcast privés émis par trigger, fournisseur client `lib/realtime/provider.tsx`. pg_cron `cleanup-unconfirmed-signups` toutes les 15 min s'il est disponible. Aucun job applicatif ni file d'attente. | migrations `20260605…`, `20261107150000…`, `20260529100000…` |
 | Notifications | Table `notifications`, écrite par les RPC et routes admin, lue par `/api/notifications`. Ni push ni SMS métier. | `app/api/notifications/` |
 | Intégrations | Twilio (SMS Auth, configuré côté Supabase), SMTP Supabase. **LLM via Vercel AI SDK** (`/api/chat`, modèle `openai/gpt-5-mini` via la passerelle IA). Mobile Money : code présent mais **non utilisé** (`lib/payments/mobile-money.ts`, importé nulle part). | `.env.example`, `app/api/chat/route.ts` |
 | Tests | Vitest 3 : 7 fichiers, 125 tests de fonctions pures. Scripts `scripts/proof-*.ts` : preuves d'intégration manuelles contre Supabase local, **absentes de la CI**. | `tests/`, `scripts/`, `ci.yml` |
@@ -118,7 +118,7 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-07 | P1 | **Corrigé et vérifié localement : contrats (lot 7b, §19) et missions (lot 7c, §20).** Constat d'origine : `contracts` et `missions` : les politiques UPDATE des parties ne restreignent pas les colonnes. Le statut du contrat est calculé dans le navigateur et la signature est stockée en data-URL. L'entreprise peut modifier `payment_status`, `platform_fee`, `actual_*_time`, `validated_at` de ses missions. | baseline:2005 (contracts), 1949 (missions) ; `app/contracts/[id]/page.tsx:229-262` | Un candidat peut passer un contrat à `completed` sans signature de l'entreprise, ou modifier `contract_data`. Une entreprise peut modifier les heures ou les statuts de paiement. Le contrat n'a aucune valeur probante (pas d'horodatage serveur, d'IP ni d'empreinte). | RPC `sign_contract` (horodatage, IP et rôle côté serveur, transition contrôlée) et RPC de validation des heures. Retirer l'UPDATE direct ou le limiter par trigger. | Tests de transition : signature unilatérale → `candidate_signed` seulement ; modification de `contract_data` par une partie refusée. |
 | F-08 | P1 | **Corrigé localement (lot 3, §12) : `next` 16.4.3.** Constat d'origine, rectifié au §12 : Next.js **16.2.6** : avis critiques publiés (RCE dans l'Image Optimizer pour SVG/AVIF, RCE `use cache`, RCE `next/og`) et hauts (contournement Proxy/middleware avec Turbopack, SSRF, DoS Server Actions). | `pnpm audit` ; `package.json` | Applicabilité non démontrée : l'application n'utilise pas `next/image`, `next/og` ni `use cache`, mais l'endpoint `/_next/image` existe par défaut, et le Proxy est utilisé pour l'authentification. Mise à jour peu coûteuse. | Monter `next` et `eslint-config-next` sur la dernière version 16.x qui corrige tous les avis listés (> 16.4.0 selon l'audit), puis relancer `pnpm audit`. | `pnpm audit --prod` sans avis `next` critique ou haut ; build, lint et tests verts. |
 | F-09 | P1 | **Corrigé et vérifié localement (lot 6, §17).** Constat d'origine : publication d'offre bloquée. (a) L'UI insère l'offre directement (`status: "pending_review"`) en contournant `/api/jobs` POST, qui contrôle la vérification de l'entreprise et le statut `is_active`. (b) Aucune politique ne permet à l'admin de **lire** ou de **modifier** une offre non `active` : le tableau de bord admin et la route `moderate` (session admin) agissent sur 0 ligne et renvoient pourtant un succès. (c) L'entreprise peut aussi passer elle-même son offre à `active` (politique FOR ALL). | `app/company/jobs/new/page.tsx:134-155` ; `app/api/jobs/route.ts:193` ; politiques jobs baseline:1932 et `20260908120000_*:38` ; `app/api/admin/jobs/[id]/moderate/route.ts:46-55` ; `app/admin/dashboard/page.tsx:16-23` | Le parcours honnête bloque : l'offre n'est jamais publiée. Le parcours malveillant contourne la modération. | Un seul chemin de création (route serveur), une RPC `moderate_job` admin avec audit, un trigger qui interdit à l'entreprise de modifier `status` hors brouillon, et un statut unique (`pending_moderation` **ou** `pending_review`). | Test bout en bout : création → visible dans la file admin → approbation → visible par les candidats ; passage direct à `active` par l'entreprise refusé. |
-| F-10 | P1 | **Sélection (lot 7a, §18), contrat (7b, §19), début et confirmation par code (7c, §20) corrigés et vérifiés localement ; paiement ouvert (lot distinct), temps réel (7d).** Constat d'origine : cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
+| F-10 | P1 | **Sélection (lot 7a, §18), contrat (7b, §19), début et confirmation par code (7c, §20) corrigés et vérifiés localement ; temps réel (7d, §22) corrigé et vérifié localement ; paiement ouvert (lot distinct).** Constat d'origine : cycle mission incomplet. Aucun code ne crée de `missions`, `contracts` ni `payments` après la sélection. Le pointage candidat fait un `UPDATE missions` alors qu'**aucune politique UPDATE candidat** n'existe : 0 ligne modifiée, pas d'erreur, l'UI affiche « Pointage enregistré ». Les erreurs d'insertion de `mission_check_ins` sont ignorées. La distance (500 m) est contrôlée seulement dans le navigateur. `positions_filled` est incrémenté en lecture puis écriture (perte en cas de concurrence). La notification de sélection annoncée n'est pas envoyée. | `app/company/jobs/[id]/page.tsx:140-185` ; `app/missions/[id]/page.tsx:159-275` ; absence de politique : liste des politiques baseline | Le parcours central de la plateforme (sélection → mission → pointage → validation → paiement) ne fonctionne pas, et ce qui existe se falsifie facilement. | RPC transactionnelles `select_candidate` (crée mission et contrat, incrémente de façon atomique avec verrou, notifie), `check_in` et `check_out` (distance calculée côté serveur, idempotence par type). Voir le plan, lot 5. | Test d'intégration du parcours complet, plus un test de concurrence sur la dernière place. |
 
 ### P2 — Fiabilité, sécurité secondaire, maintenance
 
@@ -1159,7 +1159,7 @@ Avant déploiement, vérifier aussi qu'aucune candidature n'a plusieurs missions
 
 - F-10, hors sélection : signature du contrat (7b), pointage et validation des heures (7c), paiement (lot distinct). Les politiques UPDATE de `missions` et `contracts` restent ouvertes jusqu'à ces lots.
 - Annulation d'une sélection et réparation d'une sélection sans mission : sans chemin applicatif (support, pénalités).
-- Notification enregistrée en base seulement : ni push ni SMS (SRS §6.6). Pas de temps réel : lot 7d.
+- Notification enregistrée en base seulement : ni push ni SMS (SRS §6.6). ~~Pas de temps réel : lot 7d.~~ Temps réel : §22.
 - Sélection multi-jours par sous-offre journalière : non implémentée (décomposition absente).
 - `app/company/jobs/[id]` : boutons « Contacter » et « Contrat » sans action (préexistants) ; onglets serrés à 390 px (mise en page existante en quatre colonnes) ; avatar sans initiales quand il n'y a pas de photo (composant existant).
 - Validation administrative des entreprises : toujours absente (§16).
@@ -1271,7 +1271,7 @@ Pile dédiée : sur ce poste, Windows réserve les ports 54268-54667 (Hyper-V). 
 - Contenu du contrat : la durée effective, la rémunération nette, les conditions d'annulation et l'identité civile ne sont pas dans `contract_data` (SRS §6.7). Les clauses `simple-v1` et `formal-v1` reprennent le texte existant, sans validation juridique (§11.1). PDF non implémenté.
 - Langue affichée au moment de la signature non enregistrée (les deux langues sont couvertes par l'empreinte).
 - Rappel à 24 h, annulation et remboursement à 48 h sans signature (US-CONT-02) : non implémentés ; aucun chemin ne produit `rejected` ou `expired`.
-- Notification en base seulement ; pas de temps réel (lot 7d).
+- Notification en base seulement ; ~~pas de temps réel (lot 7d)~~ temps réel : §22.
 - IP : enregistrée seulement sur Vercel. Non vérifié sur un déploiement réel ; absente en local et sur tout autre hébergeur. Derrière un proxy d'entreprise, Vercel n'en transmet pas l'adresse d'origine. Une signature faite par appel direct à `sign_contract` n'a jamais d'IP.
 - Composant `Dialog` partagé sans `role="dialog"` : ajouté au seul dialogue du contrat.
 - Page mission : nom de l'entreprise toujours lu par l'embed `company_profiles` (illisible pour le candidat, §18) : lot 7c. **Corrigé au lot 7c (§20).**
@@ -1366,7 +1366,7 @@ Le code n'apparaît jamais dans `get_mission`, `candidate_tasks`, les réponses 
 - ~~Le montant affiché reste le taux horaire de l'offre.~~ Traité au lot 7c-bis (§21) : montant fixe par candidat pour la mission.
 - Blocage de la mission suivante si la note manque après 48 h (SRS §5.1) : non appliqué.
 - Missions de plusieurs jours : une seule mission par sélection (premier jour), §18.
-- Temps réel : lot 7d. CI distante non observée. Script navigateur local, hors dépôt.
+- ~~Temps réel : lot 7d.~~ Traité au §22. CI distante non observée. Script navigateur local, hors dépôt.
 
 ## 21. Suivi — Lot 7c-bis : montant fixe par candidat pour la mission (2026-11-07)
 
@@ -1418,8 +1418,116 @@ Aucune conversion : un taux horaire ne se convertit pas en forfait sans la duré
 
 ### Limites restantes
 
-- Versement Mobile Money, frais facturés à l'entreprise, abonnements, fourchette négociable et temps réel : lots distincts.
+- Versement Mobile Money, frais facturés à l'entreprise, abonnements et fourchette négociable : lots distincts. Temps réel : traité au §22.
 - `payments.hourly_rate` et `hours_worked` (table du lot paiement) gardent l'ancien vocabulaire.
 - Missions de plusieurs jours : le montant vaut pour la mission sélectionnée (une mission par sélection, §18). Il n'existe pas de forfait par jour.
 - Un contrat antérieur à 7c-bis (aucun sur le distant) n'a pas de `pay_basis` : il afficherait « — » plutôt qu'un montant réinterprété.
 - Libellés codés en dur hors dictionnaire (formulaire, maquette de l'accueil), antérieurs au lot : lot 9.
+
+## 22. Suivi — Lot 7d : mises à jour en temps réel de l'application (2026-11-08)
+
+Branche `feat/lot-07d-app-realtime`, base `origin/main-dev` (520b907, lot 7c-bis intégré). **Réalisé et vérifié localement sur la pile dédiée, non commité, non déployé.** Migration : `supabase/migrations/20261107150000_app_realtime_signals.sql`.
+
+### État avant correction
+
+- Un seul hook Realtime (`use-realtime-sync`) : `postgres_changes` sur `missions` et `job_applications`, côté candidat, pour Tâches et Mes jobs. Les deux tables étaient publiées en `REPLICA IDENTITY FULL` : les lignes complètes (colonnes héritées comprises) partaient vers le navigateur.
+- Aucun autre écran ne se mettait à jour : suspension, rôle, plan, vérifications, modération, sélection, signature, début, code et avis n'étaient visibles qu'après un rechargement. La cloche interrogeait le serveur toutes les 60 s.
+- L'échéance d'un plan entreprise n'avait aucun effet : `update_job` lisait `subscription_plan` sans `subscription_expires_at`. Le premium candidat suivait trois règles différentes (rôle seul sur le profil, date seule pour le matching, les deux sur `/upgrade/candidate`).
+- Plusieurs chargements de page appelaient `getUser()` (appel réseau) et redirigeaient vers `/login` (route inexistante) en cas d'échec : sur un réseau coupé, l'écran se perdait.
+
+### Modèle retenu : signal puis relecture
+
+- **Émission en base.** Des triggers `AFTER … FOR EACH ROW` sur 18 tables appellent `realtime.send` avec un signal `{d: domaine, r: identifiant | null}`, dédupliqué par transaction (canal, domaine, ressource). Le signal part au commit ; une transaction annulée n'émet rien. Une erreur d'envoi ne fait jamais échouer l'écriture métier.
+- **Trois canaux privés**, autorisés par RLS sur `realtime.messages` (extension `broadcast`) :
+  - `user:<auth.uid>` : la seule session de ce compte, même suspendue (elle doit apprendre sa suspension ou la perte d'un rôle, y compris quand elle ne lit plus la ligne qu'elle consultait) ;
+  - `admin` : administrateurs actifs, **domaine seul, sans identifiant** ;
+  - `jobs:public` : comptes actifs, identifiant d'offre seulement, émis quand une offre est ou était visible (`active`).
+- **Aucune émission depuis un client** : pas de politique INSERT. `realtime.send` est `SECURITY INVOKER`, donc refusé en session ; `rt_send` et les fonctions `rt_*` sont révoquées ; le schéma `realtime` n'est pas exposé par l'API. Un canal public homonyme n'atteint pas le canal privé.
+- **Publication `postgres_changes`** : `missions` et `job_applications` sont retirées, `REPLICA IDENTITY` rétablie à `DEFAULT`.
+- **Client** (`lib/realtime/provider.tsx`, monté une fois dans le layout racine) : une connexion par onglet ; canal personnel toujours ouvert, canal admin pour un admin actif, canal des offres seulement tant qu'un écran d'offres l'écoute. Les écrans déclarent ce qu'ils écoutent (`useLiveRefresh`, `<LiveRefresh>` pour une page serveur) et relisent leurs données autorisées. Les signaux rapprochés sont regroupés (300 ms). Un signal mal formé est ignoré (Zod) et n'est jamais affiché.
+- **Droits** : la base les revérifie à chaque opération protégée (RPC existantes). Realtime ne sert qu'à mettre l'interface à jour.
+
+### Droits et abonnements
+
+- **Suspension** (`admin_set_user_active`) : bandeau « Votre compte est suspendu » ; actions retirées (candidature, publication, sélection, refus, signature, début, code, avis) ; canal des offres refusé et fermé ; lecture de ses propres informations conservée (règle SRS : la suspension bloque les actions, pas la lecture ; aucune ligne ne devient illisible). Une action partie d'un écran pas encore à jour est refusée en base (`account_suspended`).
+- **Rôle et grade** : relecture du layout admin (grade, boutons) ; à la perte du rôle admin, canal admin fermé, cache SWR admin vidé, sortie de `/admin`. Un canal refusé (`Unauthorized`) déclenche une relecture de l'état du compte.
+- **Changement de compte** : canaux fermés, cache SWR vidé, rechargement complet (aucun état mémoire de l'ancien compte ne survit) ; la déconnexion dans un onglet ramène les autres onglets à la connexion. Page restaurée depuis le cache arrière : rechargée.
+- **Plans** : `company_effective_plan(plan, expires_at)` rend « free » une fois l'échéance passée, sans écriture SQL ; `update_job` l'applique. `my_account_state()` renvoie rôle, statut, plan stocké et effectif, échéance, renouvellement, premium effectif et l'heure du serveur. Le client programme une minuterie sur l'heure du serveur, retire le droit localement à l'échéance (jamais n'en accorde), puis relit. Annulation en fin de période (`auto_renew = false`) : plan conservé jusqu'à la date de fin. Premium candidat : rôle `candidate_premium` **et** `premium_until` futur (règle de `/upgrade/candidate`, appliquée aussi au profil).
+
+### Réseau mobile et rappels
+
+- **Reprise** : à chaque (ré)abonnement réussi d'un canal, au retour du réseau (`online`) et au retour au premier plan après 10 s, tous les écrans relisent (« * »). Les suppressions et retraits d'accès manqués sont donc récupérés ; les événements ne sont pas rejoués.
+- **Hors ligne** (`navigator.onLine === false`) : aucune relecture n'est lancée. Les chargements maison lisent la session locale (`readSessionUser`) et ne retirent rien sur une erreur réseau ; seul un refus ou une absence réelle retire un contenu.
+- **Réponses anciennes** : `useLatestRequest` (chargements maison) et SWR n'appliquent que la dernière lecture lancée.
+- **Doublons** : l'ancien hook est supprimé ; une seule connexion par onglet ; un signal par transaction et ressource.
+- **Tâches** : l'onglet Réseau montre que le recalage toutes les 5 s est une minuterie locale (aucune requête, voir les mesures) ; elle est conservée. L'heure du serveur sert de référence (décalage mesuré à chaque lecture).
+
+### Matrice de suivi : changement → destinataires → écrans → test exécuté
+
+Canal : `U` = `user:<uid>`, `A` = `admin`, `P` = `jobs:public`. Preuve : `pnpm test:rls realtime` (Z, B, C, P, J, M, N, R, S, X). Navigateur : script local hors dépôt, écrans ouverts sans rechargement (S1 à S5).
+
+| Changement (écriture réelle) | Destinataires (canal, domaine) | Écrans relus | Test exécuté |
+|---|---|---|---|
+| Suspension, réactivation (`admin_set_user_active`, routes admin) | U compte ciblé `account` + `notifications` ; A `account` | Bandeau, actions retirées (détail d'offre, candidatures, publication, contrat, Tâches), canal des offres fermé ; listes et fiche admin | B1-B5 ; S1.1-S1.5 |
+| Rôle, grade (clé service, aucun écran) | U `account` ; A `account` | Layout admin (grade, boutons), sortie de `/admin`, cache admin vidé | B6-B9 |
+| `is_verified`, téléphone, locale (`recompute_user_verification`, inscription) | U `account` ; A `account` | Détail d'offre (accès à la candidature), profil | même trigger que B2, B6 |
+| Plan entreprise : activation, changement, statut, annulation (clé service) | U `subscription` (tous les onglets) ; A `subscription` | Profil entreprise (plan, avantages, échéance), liste des offres (modification directe), page de modification | C1-C3 ; S2.1 |
+| Échéance d'un plan, sans écriture | minuterie locale puis `my_account_state` | Mêmes écrans ; action périmée refusée | C4-C5 ; S2.2-S2.4 ; tests unitaires |
+| Premium candidat (rôle, `premium_until`) | U `subscription` | Profil candidat, `/upgrade/candidate` | C6-C7 |
+| Profil candidat : onboarding, progression, identité, CNI, MoMo, étoiles | U `profile` ; A `profile` | Profil, édition, paiement, détail d'offre ; admin candidats, CNI, MoMo, fiche | P1 ; M5 (étoiles) |
+| Compétences, permis et justificatifs, liens, disponibilités, demandes de mise à jour, expirations | U `profile` ; A `profile` | Compétences, documents, disponibilités, Tâches ; admin justificatifs, demandes | P2-P5 ; S3.1 |
+| Vérification et onboarding entreprise | U `profile` ; A `profile` | Formulaire d'offre (publication bloquée), tableau de bord, profil ; admin entreprises | P6-P7 |
+| Création, modification, nouvelle soumission d'offre (`create_job`, `update_job`) | U entreprise `jobs` ; U candidats ayant postulé `jobs` ; A `jobs` ; P si visible avant ou après | Listes et détail entreprise, file admin, listes et détails candidats | J1-J2, C3, J11 ; S3.2 |
+| Modération (`moderate_job`) | U entreprise ; A ; P si approuvée | Idem | J3-J4 ; S3.3 |
+| Retrait de publication : modification Pro (`active` → `pending_review`), suppression (`delete_job`) | P `jobs` ; U entreprise et candidats | L'offre quitte les listes ouvertes ; détail ouvert → page introuvable | C3/J11, J12 ; S3.4 |
+| Candidature, retrait (`apply_to_job`, `withdraw_job_application`) | U candidat et entreprise `applications` ; A `applications` | Mes jobs, Tâches, détail d'offre ; candidatures, tableau de bord ; admin | J5, J7, R1 |
+| Présélection, refus (écriture entreprise en session) | U candidat `applications` | Mes jobs, Tâches | J6, J8 |
+| Sélection (`select_candidate`) | U candidat : candidature, mission, contrat, notification ; U entreprise : idem et `jobs` (places) ; P (places) | Tâches, Mes jobs, Missions ; candidatures (deux onglets) ; compteurs de places | J9-J10 ; S4.1 |
+| Signature de chaque partie (`sign_contract`) | U les deux parties `contracts` | Contrat, Tâches, candidatures | M1-M2 ; S4.2 |
+| Début de mission (`start_mission`) | U les deux parties `missions` | Candidatures (statut), mission, Tâches | M3 ; S4.3 |
+| Confirmation par code (`submit_completion_code`, tentatives) | U les deux parties `missions` | Idem ; le code ne circule jamais | M4, X2 ; S4.3-S4.4 |
+| Évaluations, étoiles (`submit_mission_review`, trigger de note) | U les deux parties `missions` ; U évalué `profile` | Tâches, candidatures, profils | M5 |
+| Montant de la mission | relu dans le contrat après signal | Mission, contrat | M6 |
+| Notification créée, lue (RPC, routes admin, `PATCH /api/notifications`) | U propriétaire `notifications` | Cloche (compteur), page Notifications, tous les onglets du compte | N1-N2, B2, J9 |
+| Coupure réseau, reconnexion, premier plan | client : relecture complète | Tous les écrans abonnés | R1-R2 ; S4.3 |
+| Déconnexion, changement de compte | client : canaux fermés, cache vidé, rechargement | Tous | S1 (preuve) ; S5.1-S5.4 |
+
+Écritures sans parcours applicatif (aucune écriture aujourd'hui, donc rien à diffuser) : `payments` (lot paiement), `job_favorites` (favori non enregistré : `TODO` dans le détail d'offre), `company_favorite_candidates`, `job_templates`, `company_availability_alerts`, `disputes`, `cancellation_penalties`.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm test:rls realtime` (nouvelle preuve, vraies WebSocket) | ✅ 54/54. Autorisation (Z1-Z6), comptes (B1-B9), abonnements (C1-C7), profils (P1-P7), offres (J1-J12), missions (M1-M6), notifications (N1-N2), reconnexion (R1-R2), changement de compte (S1), confidentialité (X1-X2 : plus de 240 messages reçus, tous de la forme `{d, r, id}` ; aucun code de fin, numéro MoMo, IP de signature, chemin CNI, e-mail ni texte privé) |
+| Navigateur, Chrome headless 390×844, écrans ouverts sans rechargement | ✅ 24/24. S1 : l'admin suspend l'entreprise pendant qu'elle consulte une candidature, boîte de sélection ouverte ; bandeau et bouton désactivé en 0,7 à 1,8 s ; sélection envoyée avec l'ancienne session → 403 `account_suspended`. S2 : Pro activé puis échu dans deux onglets ; retour au gratuit 0,3 s après l'échéance sans écriture SQL ; modification directe refusée (`job_locked_plan`) ; lien de modification retiré. S3 : justificatif validé par l'admin ; offre créée (file admin), approuvée (apparaît chez deux candidats), supprimée (disparaît des listes et du détail ouverts). S4 : sélection, tâche de signature, signatures ; coupure réseau côté entreprise (WebSocket fermée, requêtes bloquées) pendant le début et le code ; état « mission confirmée » retrouvé moins de 0,1 s après le retour du réseau. S5 : connexion de K1 par le formulaire dans deux onglets, déconnexion (l'autre onglet revient à la connexion), connexion de K3 : aucun contenu de K1 à l'écran, aucune trame vers ou depuis son canal. Aucun rechargement manuel |
+| `pnpm test:rls` complet, pile dédiée | ✅ 23/23 preuves (dont `realtime` 54/54, `job-moderation` 36, `contract-signing` 45, `mission-time-tracking` 30). Un premier passage avait échoué sur `job-moderation` (coupure TCP `ECONNRESET` vers l'application, pas une assertion) ; il est repassé sans échec après réapplication de la migration finale |
+| `vitest run` | ✅ 281 tests, 18 fichiers (dont 17 tests `realtime-signals` : signaux, regroupement, échéances, premium, garde des réponses anciennes) |
+| `tsc --noEmit`, `eslint`, `prettier --check .`, `pnpm build`, types régénérés | ✅ ; types identiques au schéma de la pile ; contrôles négatifs : politique de lecture ouverte → 4 échecs (Z2, Z4, B3, S1) ; trigger des contrats désactivé → 3 échecs (J9, M1, M2) |
+
+### Mesures réseau observées (onglet Réseau, CDP)
+
+Six écrans ouverts en même temps, 45 s sans action, après 3 s de stabilisation :
+
+| Écran | WebSocket | Canaux | Requêtes HTTP | Trames envoyées / reçues |
+|---|---|---|---|---|
+| Candidat `/jobs` | 1 | `user:<uid>`, `jobs:public` | 0 | 2 / 2 |
+| Candidat `/tasks` | 1 | `user:<uid>` | 0 | 2 / 2 |
+| Candidat `/my-jobs` | 1 | `user:<uid>` | 0 | 2 / 2 |
+| Entreprise `/company/jobs/[id]` | 1 | `user:<uid>` | 0 | 2 / 2 |
+| Entreprise `/company/dashboard` | 1 | `user:<uid>` | 0 | 2 / 2 |
+| Admin `/admin/dashboard` | 1 | `user:<uid>`, `admin` | 0 | 2 / 2 |
+
+Les seules trames au repos sont les battements de cœur Realtime. Le recalage toutes les 5 s de Tâches n'envoie aucune requête : c'est une minuterie locale, conservée. Avant le lot, la cloche interrogeait le serveur toutes les 60 s ; ce n'est plus le cas. Ouverture d'un écran : une lecture initiale, puis une relecture complète au premier abonnement du canal (événements survenus entre la lecture et l'abonnement). Sur les navigations suivantes, le canal est déjà ouvert : aucune relecture supplémentaire. Signal reçu : une relecture par écran concerné, regroupée sur 300 ms (une sélection, soit cinq signaux, donne une seule relecture).
+
+Plan Supabase Free (200 connexions Realtime simultanées, 2 millions de messages par mois) : une connexion par onglet ouvert ; au repos, seuls les battements de cœur Realtime (environ un toutes les 25 s, non comptés comme messages). Un signal compte un message par destinataire connecté. Exemple : une sélection émet cinq signaux au candidat, cinq à l'entreprise et un sur le canal public par candidat connecté qui écoute un écran d'offres. Le canal public n'est ouvert que sur les écrans d'offres ; c'est le poste à surveiller si le nombre de candidats connectés en même temps augmente.
+
+### Limites restantes
+
+- **Canal admin déjà ouvert après rétrogradation** : sur cette version de Realtime (v2.130), aucun signal n'y a été reçu après la perte du rôle (B9). Ce comportement n'est pas garanti par le code : la charge utile admin ne porte de toute façon que le domaine, et le client ferme ce canal à la relecture de l'état.
+- **Suspension** : la lecture des données propres reste possible (règle SRS) ; aucune donnée ne devient inaccessible, il n'y a donc rien à purger à ce titre.
+- **Hors ligne non signalé** : si le navigateur ne passe pas `navigator.onLine` à `false`, une relecture déclenchée pendant la coupure échoue sans rien retirer ; la reprise relit tout.
+- **Notifications push, SMS, rappels planifiés** (H−15, fin prévue, J−30/J−7 des documents), expiration automatique des offres et blocage à 48 h : non implémentés (pas de tâche planifiée). Les rappels de Tâches ne s'affichent que sur une page ouverte.
+- **Abonnements** : aucun parcours d'activation, de changement, de renouvellement Mobile Money, de délai de régularisation ni d'essai Pro ; quotas d'offres actives non appliqués (SRS §6.11). Le lot Free/Premium et le paiement en dépendent.
+- **Écrans d'onboarding** : ils n'écoutent que la suspension (`account`), pour ne pas perturber la saisie en cours.
+- Script navigateur local, hors dépôt (`puppeteer-core` n'est pas une dépendance directe). CI distante non observée.
+- **Limite de connexions de la pile locale** : 30 connexions par IP sur 5 minutes. Enchaîner la suite et le script navigateur peut la dépasser ; il suffit d'attendre.

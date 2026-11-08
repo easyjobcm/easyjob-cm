@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 type MomoStatus = "pending" | "verified" | "rejected";
 
@@ -67,6 +68,8 @@ export function MomoAdminClient({
   filterUserId,
 }: MomoAdminClientProps) {
   const router = useRouter();
+  // Lot 7d : Comptes MoMo soumis, vérifiés ou refusés ailleurs (relecture serveur).
+  useLiveRefresh(["admin:profile"], () => router.refresh());
   const { t } = useI18n();
   const [selected, setSelected] = React.useState<MomoProfile | null>(null);
 

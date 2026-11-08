@@ -37,6 +37,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import type { Database, Tables } from "@/lib/database.types";
+import {
+  useAccountSuspended,
+  useLatestRequest,
+  useLiveRefresh,
+} from "@/lib/realtime/provider";
+import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -103,23 +109,40 @@ export default function CompanyJobDetailPage() {
     name: string;
   } | null>(null);
 
+  const suspended = useAccountSuspended();
+  const latest = useLatestRequest();
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  async function loadData() {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  // Candidature déposée ou retirée, signature, début, code, avis, places,
+  // compte suspendu : l'écran relit ce qu'il a le droit de voir.
+  useLiveRefresh(
+    ["applications", "jobs", "contracts", "missions", "account"],
+    () => loadData(),
+  );
 
+  /**
+   * Relit l'offre, les candidatures, les contrats et les missions, puis les
+   * applique ensemble. Seule la dernière lecture lancée est appliquée ; une
+   * ressource refusée ou disparue est retirée de l'écran (seule une erreur
+   * réseau conserve l'affichage précédent).
+   */
+  async function loadData() {
+    const token = latest.begin();
+    const supabase = createClient();
+    // Session locale : hors ligne, l'écran garde son état au lieu de
+    // rediriger vers la connexion.
+    const user = await readSessionUser(supabase);
+    if (user === undefined) return;
     if (!user) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
 
-    const { data: jobData } = await supabase
+    const { data: jobData, error: jobError } = await supabase
       .from("jobs")
       .select(
         "id, title, city, quartier, start_date, start_time, end_time, positions_available, positions_filled",
@@ -127,28 +150,19 @@ export default function CompanyJobDetailPage() {
       .eq("id", jobId)
       .single();
 
-    if (jobData) setJob(jobData);
-
     const res = await fetch(`/api/jobs/${jobId}/applications`).catch(
       () => null,
     );
-    if (res?.ok) {
-      const body = (await res.json()) as { applications: Application[] };
-      setApplications(body.applications);
-    }
+    const nextApplications: Application[] | null = res?.ok
+      ? ((await res.json()) as { applications: Application[] }).applications
+      : res
+        ? []
+        : null;
 
-    const { data: contractRows } = await supabase
+    const { data: contractRows, error: contractsError } = await supabase
       .from("contracts")
       .select("id, application_id, status")
       .eq("job_id", jobId);
-    setContracts(
-      new Map(
-        (contractRows ?? []).map((c) => [
-          c.application_id,
-          { id: c.id, status: c.status },
-        ]),
-      ),
-    );
 
     const missionsRes = await fetch(`/api/jobs/${jobId}/missions`, {
       cache: "no-store",
@@ -162,7 +176,43 @@ export default function CompanyJobDetailPage() {
         .filter((m) => m.application_id)
         .map((m) => [m.application_id as string, m]),
     );
-    setMissions(byApplication);
+    if (!latest.isLatest(token)) return byApplication;
+    // Lecture interrompue par le réseau : rien n'est retiré de l'écran ; la
+    // reprise (retour du réseau, reconnexion) relira tout.
+    if (
+      isNetworkError(jobError) ||
+      isNetworkError(contractsError) ||
+      !res ||
+      !missionsRes
+    ) {
+      setLoading(false);
+      return byApplication;
+    }
+
+    setJob(jobData ?? null);
+    if (nextApplications !== null) {
+      setApplications(nextApplications);
+      // Boîte de dialogue ouverte sur une candidature retirée ou traitée
+      // ailleurs : elle se ferme.
+      setSelectedApplication((cur) =>
+        cur &&
+        nextApplications.some(
+          (a) =>
+            a.application_id === cur.application_id && a.status === cur.status,
+        )
+          ? cur
+          : null,
+      );
+    }
+    setContracts(
+      new Map(
+        (contractRows ?? []).map((c) => [
+          c.application_id,
+          { id: c.id, status: c.status },
+        ]),
+      ),
+    );
+    if (missionsRes) setMissions(byApplication);
 
     setLoading(false);
     return byApplication;
@@ -493,32 +543,33 @@ export default function CompanyJobDetailPage() {
                           </div>
                         )}
 
-                        {(app.status === "pending" ||
-                          app.status === "shortlisted") && (
-                          <div className="flex items-center gap-2 mt-3">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedApplication(app);
-                                setActionType("select");
-                              }}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              {ta.actions.select}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedApplication(app);
-                                setActionType("reject");
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              {ta.actions.reject}
-                            </Button>
-                          </div>
-                        )}
+                        {!suspended &&
+                          (app.status === "pending" ||
+                            app.status === "shortlisted") && (
+                            <div className="flex items-center gap-2 mt-3">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedApplication(app);
+                                  setActionType("select");
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                {ta.actions.select}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedApplication(app);
+                                  setActionType("reject");
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                {ta.actions.reject}
+                              </Button>
+                            </div>
+                          )}
 
                         {app.status === "selected" && (
                           <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -681,7 +732,7 @@ export default function CompanyJobDetailPage() {
 
       {/* Selection Dialog */}
       <Dialog
-        open={actionType === "select"}
+        open={actionType === "select" && selectedApplication !== null}
         onOpenChange={() => setActionType(null)}
       >
         <DialogContent>
@@ -698,12 +749,21 @@ export default function CompanyJobDetailPage() {
             <p className="text-sm text-muted-foreground">
               {isFull ? ta.errors.no_positions : ta.selectDialog.notice}
             </p>
+            {suspended && (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {t.realtime.actionUnavailable}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionType(null)}>
               {ta.cancel}
             </Button>
-            <Button onClick={handleSelectCandidate} disabled={processing}>
+            <Button
+              onClick={handleSelectCandidate}
+              disabled={processing || suspended}
+              data-testid="select-confirm"
+            >
               {processing ? ta.processing : ta.selectDialog.confirm}
             </Button>
           </DialogFooter>
@@ -712,7 +772,7 @@ export default function CompanyJobDetailPage() {
 
       {/* Rejection Dialog */}
       <Dialog
-        open={actionType === "reject"}
+        open={actionType === "reject" && selectedApplication !== null}
         onOpenChange={() => setActionType(null)}
       >
         <DialogContent>
@@ -739,7 +799,7 @@ export default function CompanyJobDetailPage() {
             <Button
               variant="destructive"
               onClick={handleRejectCandidate}
-              disabled={processing}
+              disabled={processing || suspended}
             >
               {processing ? ta.processing : ta.rejectDialog.confirm}
             </Button>

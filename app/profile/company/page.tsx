@@ -5,7 +5,9 @@ import {
   computeCompletion,
 } from "@/lib/utils/profile-completion";
 import { normalizeCompanyPlan } from "@/lib/utils/profile-status";
+import { accountStateSchema } from "@/lib/realtime/signals";
 import { CompanyProfileClient } from "./company-profile-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function CompanyProfilePage() {
   const supabase = await createClient();
@@ -67,9 +69,16 @@ export default async function CompanyProfilePage() {
     subscription?.plan ??
     companyProfile?.subscription_tier ??
     "free";
-  const plan = normalizeCompanyPlan(planRaw);
+  // Lot 7d : échéance appliquée (même règle que company_effective_plan).
   const subscriptionExpiresAt =
-    subscription?.expires_at ?? companyProfile?.subscription_expires_at ?? null;
+    companyProfile?.subscription_expires_at ?? subscription?.expires_at ?? null;
+  // Plan effectif calculé en base (heure du serveur), comme update_job.
+  const { data: accountRaw } = await supabase.rpc("my_account_state");
+  const accountState = accountStateSchema.safeParse(accountRaw);
+  const plan =
+    accountState.success && accountState.data.company
+      ? normalizeCompanyPlan(accountState.data.company.effective_plan)
+      : normalizeCompanyPlan(planRaw);
 
   // SRS v1.2 : l'essai est consommé dès que trial_ends_at est défini en DB
   const hasUsedTrial = !!companyProfile?.trial_ends_at;
@@ -78,28 +87,31 @@ export default async function CompanyProfilePage() {
   const completionPct = computeCompletion(criteria);
 
   return (
-    <CompanyProfileClient
-      user={{
-        role: userData.role,
-        phone: userData.phone ?? null,
-        email: userData.email ?? null,
-      }}
-      profile={
-        companyProfile
-          ? {
-              company_name: companyProfile.company_name,
-              city: companyProfile.city,
-              sector: companyProfile.sector,
-              logo_url: companyProfile.logo_url,
-            }
-          : null
-      }
-      completionPct={completionPct}
-      criteria={criteria}
-      plan={plan}
-      activeJobsCount={activeJobsCount}
-      subscriptionExpiresAt={subscriptionExpiresAt}
-      hasUsedTrial={hasUsedTrial}
-    />
+    <>
+      <LiveRefresh keys={["profile", "subscription", "account", "jobs"]} />
+      <CompanyProfileClient
+        user={{
+          role: userData.role,
+          phone: userData.phone ?? null,
+          email: userData.email ?? null,
+        }}
+        profile={
+          companyProfile
+            ? {
+                company_name: companyProfile.company_name,
+                city: companyProfile.city,
+                sector: companyProfile.sector,
+                logo_url: companyProfile.logo_url,
+              }
+            : null
+        }
+        completionPct={completionPct}
+        criteria={criteria}
+        plan={plan}
+        activeJobsCount={activeJobsCount}
+        subscriptionExpiresAt={subscriptionExpiresAt}
+        hasUsedTrial={hasUsedTrial}
+      />
+    </>
   );
 }

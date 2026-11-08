@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { isProfileLockGroup } from "@/lib/utils/profile-lock";
 import { CandidateProfileEditClient } from "./edit-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function CandidateProfileEditPage() {
   const supabase = await createClient();
@@ -49,35 +50,38 @@ export default async function CandidateProfileEditPage() {
     : { data: [] };
 
   return (
-    <CandidateProfileEditClient
-      profile={
-        candidateProfile ?? {
-          id: null,
-          first_name: "",
-          last_name: "",
-          date_of_birth: null,
-          city: "",
-          quartier: "",
-          bio: "",
-          latitude: null,
-          longitude: null,
-          profile_photo_url: null,
-          cni_front_url: null,
-          cni_back_url: null,
-          cni_selfie_url: null,
-          cni_verified: null,
-          cni_rejection_reason: null,
-          cni_expires_at: null,
+    <>
+      <LiveRefresh keys={["profile", "account"]} />
+      <CandidateProfileEditClient
+        profile={
+          candidateProfile ?? {
+            id: null,
+            first_name: "",
+            last_name: "",
+            date_of_birth: null,
+            city: "",
+            quartier: "",
+            bio: "",
+            latitude: null,
+            longitude: null,
+            profile_photo_url: null,
+            cni_front_url: null,
+            cni_back_url: null,
+            cni_selfie_url: null,
+            cni_verified: null,
+            cni_rejection_reason: null,
+            cni_expires_at: null,
+          }
         }
-      }
-      pendingUpdateRequests={(pendingRequests ?? []).map((r) => ({
-        id: r.id,
-        fields: Array.isArray(r.fields)
-          ? r.fields.filter(isProfileLockGroup)
-          : [],
-        reason: r.reason ?? "",
-        createdAt: r.created_at ?? "",
-      }))}
-    />
+        pendingUpdateRequests={(pendingRequests ?? []).map((r) => ({
+          id: r.id,
+          fields: Array.isArray(r.fields)
+            ? r.fields.filter(isProfileLockGroup)
+            : [],
+          reason: r.reason ?? "",
+          createdAt: r.created_at ?? "",
+        }))}
+      />
+    </>
   );
 }

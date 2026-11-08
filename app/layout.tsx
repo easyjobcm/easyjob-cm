@@ -7,6 +7,7 @@ import { SplashScreen } from "@/components/ui/splash-screen";
 import { PageTransition } from "@/components/layout/page-transition";
 import { CandidateTabBar } from "@/components/layout/candidate-tab-bar";
 import { Toaster } from "@/components/ui/toaster";
+import { RealtimeProvider } from "@/lib/realtime/provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -94,10 +95,12 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider>
           <I18nProvider>
-            <SplashScreen />
-            <PageTransition>{children}</PageTransition>
-            <CandidateTabBar />
-            <Toaster />
+            <RealtimeProvider>
+              <SplashScreen />
+              <PageTransition>{children}</PageTransition>
+              <CandidateTabBar />
+              <Toaster />
+            </RealtimeProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

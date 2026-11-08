@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PaymentClient } from "./payment-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function PaymentPage() {
   const supabase = await createClient();
@@ -36,12 +37,15 @@ export default async function PaymentPage() {
     .single();
 
   return (
-    <PaymentClient
-      momoProvider={candidateProfile?.momo_provider ?? null}
-      momoNumber={candidateProfile?.momo_number ?? null}
-      momoAccountName={candidateProfile?.momo_account_name ?? null}
-      momoVerified={candidateProfile?.momo_verified ?? false}
-      momoRejectReason={candidateProfile?.momo_reject_reason ?? null}
-    />
+    <>
+      <LiveRefresh keys={["profile"]} />
+      <PaymentClient
+        momoProvider={candidateProfile?.momo_provider ?? null}
+        momoNumber={candidateProfile?.momo_number ?? null}
+        momoAccountName={candidateProfile?.momo_account_name ?? null}
+        momoVerified={candidateProfile?.momo_verified ?? false}
+        momoRejectReason={candidateProfile?.momo_reject_reason ?? null}
+      />
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 interface DocumentRow {
   id: string;
@@ -56,6 +57,8 @@ export function SkillDocumentsAdminClient({
   filterUserId,
 }: SkillDocumentsAdminClientProps) {
   const router = useRouter();
+  // Lot 7d : Justificatifs déposés, validés ou refusés ailleurs (relecture serveur).
+  useLiveRefresh(["admin:profile"], () => router.refresh());
   const [search, setSearch] = React.useState("");
   const [viewing, setViewing] = React.useState<DocumentRow | null>(null);
 

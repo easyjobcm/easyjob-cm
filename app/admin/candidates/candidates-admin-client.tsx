@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * T8.4a — Vue centralisée des candidats (client).
@@ -201,6 +202,8 @@ export function CandidatesAdminClient({
       `/api/admin/candidates${debouncedQ ? `?q=${encodeURIComponent(debouncedQ)}` : ""}`,
     ).then((r) => (r.ok ? r.json() : null)),
   );
+  // Lot 7d : suspension, vérification, inscription ailleurs.
+  useLiveRefresh(["admin:account", "admin:profile"], () => mutate());
   const candidates = React.useMemo(() => data?.candidates ?? [], [data]);
 
   const grouped = React.useMemo(() => {

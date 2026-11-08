@@ -26,6 +26,7 @@ import { formatTime } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { doualaTime } from "@/lib/utils/douala-time";
 import type { Database } from "@/lib/database.types";
+import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
 
 type MissionRow =
   Database["public"]["Functions"]["get_mission"]["Returns"][number];
@@ -85,21 +86,30 @@ export default function MissionDetailPage() {
       router.push("/auth/login");
       return;
     }
+    // Erreur réseau ou serveur sur une relecture : la mission affichée reste.
+    if (result.kind === "load" && mission) {
+      setLoading(false);
+      return;
+    }
     setMission(result.kind === "ok" ? result.mission : null);
     setLoadError(result.kind === "ok" ? null : result.kind);
     setLoading(false);
   }
 
+  const latest = useLatestRequest();
+  const loadMission = async () => {
+    const token = latest.begin();
+    const result = await fetchMission(missionId);
+    if (latest.isLatest(token)) applyLoad(result);
+  };
+
   useEffect(() => {
-    let active = true;
-    fetchMission(missionId).then((result) => {
-      if (active) applyLoad(result);
-    });
-    return () => {
-      active = false;
-    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadMission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
+
+  useLiveRefresh(["missions", "contracts"], loadMission);
 
   const calendarDay = (day: string) =>
     new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {

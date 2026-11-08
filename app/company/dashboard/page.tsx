@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { LiveRefresh } from "@/lib/realtime/provider";
 import { CompanyDashboardClient } from "./company-dashboard-client";
 
 export default async function CompanyDashboardPage() {
@@ -102,16 +103,29 @@ export default async function CompanyDashboardPage() {
   }
 
   return (
-    <CompanyDashboardClient
-      user={userData}
-      profile={profile}
-      jobs={jobsWithCounts}
-      stats={{
-        totalJobs: totalJobs || 0,
-        activeJobs: activeJobs || 0,
-        totalApplications,
-        pendingApplications,
-      }}
-    />
+    <>
+      {/* Lot 7d : offres, candidatures, missions, plan et compte en direct. */}
+      <LiveRefresh
+        keys={[
+          "jobs",
+          "applications",
+          "missions",
+          "profile",
+          "subscription",
+          "account",
+        ]}
+      />
+      <CompanyDashboardClient
+        user={userData}
+        profile={profile}
+        jobs={jobsWithCounts}
+        stats={{
+          totalJobs: totalJobs || 0,
+          activeJobs: activeJobs || 0,
+          totalApplications,
+          pendingApplications,
+        }}
+      />
+    </>
   );
 }

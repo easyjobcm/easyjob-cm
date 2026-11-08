@@ -9,6 +9,7 @@ import { useJobs, useCategories } from "@/lib/hooks/use-data";
 import { useI18n } from "@/lib/i18n";
 import { Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 type JobListItem = {
   id: string;
@@ -63,6 +64,10 @@ export default function JobsPage() {
     category: categoryId,
     limit: 20,
   });
+
+  // Offre publiée, modifiée, complète ou retirée : la liste est relue (une
+  // offre qui n'est plus visible en disparaît).
+  useLiveRefresh(["public:jobs", "applications"], () => mutate());
 
   return (
     <AppShell>

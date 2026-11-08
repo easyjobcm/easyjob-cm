@@ -113,6 +113,14 @@ export function CandidateProfileEditClient({
   >(null);
   const [showReverifyModal, setShowReverifyModal] = React.useState(false);
   const [documents, setDocuments] = React.useState(profile);
+  // Relecture serveur (CNI validée ou refusée par l'admin) : les pièces
+  // affichées suivent le profil relu ; les champs en cours de saisie ne
+  // sont pas touchés.
+  const [seenProfile, setSeenProfile] = React.useState(profile);
+  if (seenProfile !== profile) {
+    setSeenProfile(profile);
+    setDocuments(profile);
+  }
   const [previews, setPreviews] = React.useState<
     Partial<Record<DocumentField, string>>
   >({});

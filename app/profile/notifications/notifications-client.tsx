@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 interface NotificationItem {
   id: string;
@@ -31,6 +32,8 @@ export function NotificationsClient() {
     "/api/notifications",
     fetcher,
   );
+  // Lot 7d : nouvelle notification ou lecture dans un autre onglet.
+  useLiveRefresh(["notifications"], () => mutate());
 
   const markRead = async (id: string) => {
     await fetch("/api/notifications", {

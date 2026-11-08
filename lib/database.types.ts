@@ -2351,6 +2351,10 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      company_effective_plan: {
+        Args: { p_expires_at: string; p_plan: string }
+        Returns: string
+      }
       company_job_applicants: {
         Args: { p_job_id: string }
         Returns: {
@@ -2690,12 +2694,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      my_account_state: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
         Returns: string
       }
       recompute_user_verification: {
         Args: { p_user_id: string }
+        Returns: undefined
+      }
+      rt_candidate_user: { Args: { p_candidate_id: string }; Returns: string }
+      rt_company_user: { Args: { p_company_id: string }; Returns: string }
+      rt_job_company_user: { Args: { p_job_id: string }; Returns: string }
+      rt_mission_parties: { Args: { p_mission_id: string }; Returns: string[] }
+      rt_send: {
+        Args: { p_domain: string; p_resource: string; p_topic: string }
+        Returns: undefined
+      }
+      rt_session_is_active: { Args: never; Returns: boolean }
+      rt_session_is_active_admin: { Args: never; Returns: boolean }
+      rt_signal_admin: { Args: { p_domain: string }; Returns: undefined }
+      rt_signal_public_jobs: { Args: { p_job_id: string }; Returns: undefined }
+      rt_signal_users: {
+        Args: { p_domain: string; p_resource: string; p_user_ids: string[] }
         Returns: undefined
       }
       select_candidate: {

@@ -19,6 +19,7 @@ import {
 } from "@/lib/validations/job";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { JOB_PENDING_STATUS } from "@/lib/utils/job-status";
+import { useAccountState } from "@/lib/realtime/provider";
 import {
   Briefcase,
   Calendar,
@@ -94,6 +95,16 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tj = t.companyJobs;
+  // Suspension ou retrait de la vérification pendant la saisie : l'envoi
+  // est retiré (le serveur le refuse de toute façon).
+  const account = useAccountState();
+  const publishBlocked = !account
+    ? null
+    : !account.is_active
+      ? t.realtime.actionUnavailable
+      : account.company && account.company.verification_status !== "verified"
+        ? tj.errors.company_not_verified
+        : null;
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = React.useState<Step>("basics");
   const [loading, setLoading] = React.useState(false);
@@ -880,10 +891,20 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
             <span>{submitError}</span>
           </p>
         )}
+        {publishBlocked && currentStep === "review" && (
+          <p
+            role="alert"
+            data-testid="publish-blocked"
+            className="mb-3 flex gap-2 text-sm text-destructive"
+          >
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>{publishBlocked}</span>
+          </p>
+        )}
         {currentStep === "review" ? (
           <Button
             onClick={handlePublish}
-            disabled={loading}
+            disabled={loading || publishBlocked !== null}
             className="w-full"
             size="lg"
           >

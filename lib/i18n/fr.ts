@@ -2081,6 +2081,15 @@ export const fr = {
     version: "v1.0.0",
   },
 
+  // Temps réel (lot 7d)
+  realtime: {
+    suspendedTitle: "Votre compte est suspendu.",
+    suspendedBody:
+      "Vous pouvez consulter vos informations, mais plus postuler, publier, sélectionner, signer ni démarrer de mission. Contactez le support.",
+    unavailable: "Ce contenu n'est plus disponible.",
+    actionUnavailable: "Action indisponible : compte suspendu.",
+  },
+
   // Chatbot
   chatbot: {
     name: "EasyBot",

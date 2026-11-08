@@ -35,6 +35,7 @@ const PROOFS = [
   "candidate-selection",
   "contract-signing",
   "mission-time-tracking",
+  "realtime",
   "admin-centralization",
   "admin-candidate-profile",
   "admin-cni",

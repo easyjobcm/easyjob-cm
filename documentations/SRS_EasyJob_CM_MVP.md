@@ -579,6 +579,8 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 - En cas d'échec de paiement, l'entreprise est notifiée et a 3 jours pour régulariser avant suspension des avantages.
 - Les avantages premium sont activés immédiatement après paiement confirmé.
 
+> **Décision produit du 2026-11-08 (lot 7d), droits effectifs des plans actuels :** le plan entreprise stocké (`company_profiles.subscription_plan`) ne vaut que jusqu'à `subscription_expires_at` ; au-delà, les droits sont ceux du plan Gratuit, sans écriture en base (calcul `company_effective_plan`, appliqué par `update_job` pour la modification directe des offres actives). Une échéance vide signifie « sans fin ». Une annulation en fin de période (`auto_renew = false`) conserve le plan jusqu'à la date de fin. Le premium candidat est actif si le rôle est `candidate_premium` **et** `premium_until` est dans le futur. Les écrans ouverts basculent à l'échéance (minuterie sur l'heure du serveur, puis relecture). **Dépendances manquantes**, à traiter dans les lots Free/Premium et paiement : aucun parcours d'activation, de changement de plan, de renouvellement automatique Mobile Money, de délai de régularisation de 3 jours ni d'essai Pro de 14 jours n'existe ; les plans ne sont aujourd'hui écrits que par la clé service. Les quotas d'offres actives (2 / 5) et la mise en avant Starter ne sont pas appliqués.
+
 ---
 
 ### 6.12 Dashboard admin
@@ -640,6 +642,7 @@ beaucoup d'utilisateurs, se repérer vite d'un seul écran).
   404 ; idempotent si même état. Écrit `audit_logs`
   (`suspend_user`/`activate_user`, acteur = admin réel) + **notification**
   `system` (« Compte suspendu » / « Compte réactivé »).
+- **Écrans ouverts (lot 7d, 2026-11-08)** : la suspension et la réactivation s'affichent sans rechargement chez la personne concernée (bandeau « Votre compte est suspendu », actions retirées : candidature, publication, sélection, refus, signature, début, code de fin, avis) ; la lecture de ses propres informations reste possible. Une action envoyée depuis un écran pas encore à jour est refusée par la base (`account_suspended`). Un changement de rôle ou de grade admin s'applique de la même façon ; la perte du rôle admin vide le cache admin et fait quitter `/admin`.
 - **Gates de suspension** : candidat `is_active = false` →
   `POST /api/jobs/[id]/apply` et `POST /api/jobs` (candidature / création de
   mission côté entreprise) retournent **403 `code: "account_suspended"`** —
@@ -1250,6 +1253,8 @@ metadata{}, ip_address, created_at
 
 - Les pages consultées restent accessibles en lecture partielle si la connexion est coupée.
 - Les formulaires affichent un message clair en cas de perte de connexion avant soumission.
+
+> **Décision technique du 2026-11-08 (lot 7d), mises à jour en direct :** un changement fait dans une autre session (autre utilisateur, autre onglet, admin, serveur) est visible sans rechargement sur les écrans ouverts. La base émet par Realtime un signal minimal (domaine et identifiant, jamais de donnée) sur un canal privé ; l'écran relit ensuite ce à quoi il a droit. À la reconnexion, au retour au premier plan et au retour du réseau, les écrans relisent tout : les événements manqués ne sont pas rejoués, l'état affiché est celui de la base, suppressions et retraits d'accès compris. Une seule connexion WebSocket par onglet, aucune interrogation périodique du serveur au repos. Les droits sont toujours revérifiés par la base à chaque opération : un écran pas encore à jour ne peut rien obtenir de plus. Les notifications push, SMS et e-mail restent hors du MVP actuel.
 
 ---
 

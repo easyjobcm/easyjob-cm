@@ -5,6 +5,7 @@ import {
   computeCompletion,
 } from "@/lib/utils/profile-completion";
 import { CandidateProfileClient } from "./candidate-profile-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function CandidateProfilePage() {
   const supabase = await createClient();
@@ -74,55 +75,58 @@ export default async function CandidateProfilePage() {
       : computeCompletion(criteria);
 
   return (
-    <CandidateProfileClient
-      user={{
-        role: userData.role,
-        phone: userData.phone ?? null,
-        email: userData.email ?? null,
-      }}
-      profile={
-        candidateProfile
-          ? {
-              first_name: candidateProfile.first_name,
-              last_name: candidateProfile.last_name,
-              average_rating: candidateProfile.average_rating,
-              city: candidateProfile.city,
-              quartier: candidateProfile.quartier,
-              premium_until: candidateProfile.premium_until ?? null,
-              profile_photo_url: candidateProfile.profile_photo_url ?? null,
-              cni_verified: candidateProfile.cni_verified ?? null,
-              cni_front_url: candidateProfile.cni_front_url ?? null,
-              cni_back_url: candidateProfile.cni_back_url ?? null,
-              cni_selfie_url: candidateProfile.cni_selfie_url ?? null,
-            }
-          : null
-      }
-      gate={
-        candidateProfile
-          ? {
-              first_name: candidateProfile.first_name,
-              last_name: candidateProfile.last_name,
-              date_of_birth: candidateProfile.date_of_birth,
-              cni_verified: candidateProfile.cni_verified ?? null,
-              cni_expires_at: candidateProfile.cni_expires_at ?? null,
-              momo_verified: candidateProfile.momo_verified,
-            }
-          : {
-              first_name: null,
-              last_name: null,
-              date_of_birth: null,
-              cni_verified: null,
-              cni_expires_at: null,
-              momo_verified: false,
-            }
-      }
-      skills={skills}
-      completionPct={completionPct}
-      sandboxLevel={sandboxLevel}
-      criteria={criteria}
-      availableDays={availableDays}
-      onboardingStatus={candidateProfile?.onboarding_status ?? null}
-      totalMissions={candidateProfile?.total_missions ?? 0}
-    />
+    <>
+      <LiveRefresh keys={["profile", "subscription", "account", "missions"]} />
+      <CandidateProfileClient
+        user={{
+          role: userData.role,
+          phone: userData.phone ?? null,
+          email: userData.email ?? null,
+        }}
+        profile={
+          candidateProfile
+            ? {
+                first_name: candidateProfile.first_name,
+                last_name: candidateProfile.last_name,
+                average_rating: candidateProfile.average_rating,
+                city: candidateProfile.city,
+                quartier: candidateProfile.quartier,
+                premium_until: candidateProfile.premium_until ?? null,
+                profile_photo_url: candidateProfile.profile_photo_url ?? null,
+                cni_verified: candidateProfile.cni_verified ?? null,
+                cni_front_url: candidateProfile.cni_front_url ?? null,
+                cni_back_url: candidateProfile.cni_back_url ?? null,
+                cni_selfie_url: candidateProfile.cni_selfie_url ?? null,
+              }
+            : null
+        }
+        gate={
+          candidateProfile
+            ? {
+                first_name: candidateProfile.first_name,
+                last_name: candidateProfile.last_name,
+                date_of_birth: candidateProfile.date_of_birth,
+                cni_verified: candidateProfile.cni_verified ?? null,
+                cni_expires_at: candidateProfile.cni_expires_at ?? null,
+                momo_verified: candidateProfile.momo_verified,
+              }
+            : {
+                first_name: null,
+                last_name: null,
+                date_of_birth: null,
+                cni_verified: null,
+                cni_expires_at: null,
+                momo_verified: false,
+              }
+        }
+        skills={skills}
+        completionPct={completionPct}
+        sandboxLevel={sandboxLevel}
+        criteria={criteria}
+        availableDays={availableDays}
+        onboardingStatus={candidateProfile?.onboarding_status ?? null}
+        totalMissions={candidateProfile?.total_missions ?? 0}
+      />
+    </>
   );
 }

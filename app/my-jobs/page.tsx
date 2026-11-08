@@ -22,7 +22,7 @@ import { MissionPay } from "@/components/jobs/mission-pay";
 import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
-import { useRealtimeCandidateSync } from "@/lib/hooks/use-realtime-sync";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 type TabType = "applied" | "booked" | "completed";
 
@@ -117,9 +117,11 @@ type Mission = MyJobsData["missions"][number];
 export default function MyJobsPage() {
   const { locale } = useTranslation();
   const [activeTab, setActiveTab] = React.useState<TabType>("applied");
-  const { data, isLoading } = useSWR("/api/my-jobs", fetcher);
+  const { data, isLoading, mutate } = useSWR("/api/my-jobs", fetcher);
 
-  useRealtimeCandidateSync("/api/my-jobs");
+  useLiveRefresh(["applications", "missions", "contracts", "jobs"], () =>
+    mutate(),
+  );
 
   const tabs: { id: TabType; label: string; labelEn: string }[] = [
     { id: "applied", label: "Candidatures", labelEn: "Applied" },

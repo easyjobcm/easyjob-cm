@@ -21,6 +21,8 @@ import { type Criterion } from "@/lib/utils/profile-completion";
 import { type CompanyPlan, getPlanLimits } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
+import { useAccountState } from "@/lib/realtime/provider";
+import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
 
 interface CompanyProfileClientProps {
   user: {
@@ -80,13 +82,22 @@ export function CompanyProfileClient({
   profile,
   completionPct,
   criteria: _criteria,
-  plan,
+  plan: initialPlan,
   activeJobsCount,
-  subscriptionExpiresAt,
+  subscriptionExpiresAt: initialExpiresAt,
   hasUsedTrial,
 }: CompanyProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  // Lot 7d : plan effectif relu en direct (activation, changement, échéance
+  // sur l'heure du serveur) ; rendu serveur en attendant.
+  const account = useAccountState();
+  const plan: CompanyPlan = account?.company
+    ? normalizeCompanyPlan(account.company.effective_plan)
+    : initialPlan;
+  const subscriptionExpiresAt = account?.company
+    ? account.company.expires_at
+    : initialExpiresAt;
   // SRS v1.2 : la source de vérité est company_profiles.subscription_plan, jamais role.
   const isPaidPlan = plan !== "free";
   const premium = isPaidPlan; // alias visuel pour orbes/glow
@@ -230,15 +241,17 @@ export function CompanyProfileClient({
             </div>
 
             <div className="mt-4 flex flex-col items-center gap-2 text-center">
-              {plan === "free" ? (
-                <StatusPill
-                  label={planLabel}
-                  Icon={Briefcase}
-                  variant="neutral"
-                />
-              ) : (
-                <PlanBadge plan={plan} label={planLabel} />
-              )}
+              <div data-testid="company-plan" data-plan={plan}>
+                {plan === "free" ? (
+                  <StatusPill
+                    label={planLabel}
+                    Icon={Briefcase}
+                    variant="neutral"
+                  />
+                ) : (
+                  <PlanBadge plan={plan} label={planLabel} />
+                )}
+              </div>
 
               <motion.h1
                 initial={{ opacity: 0, y: 10 }}

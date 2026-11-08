@@ -44,6 +44,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useAccountState,
+  useLatestRequest,
+  useLiveRefresh,
+} from "@/lib/realtime/provider";
+import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -83,7 +89,14 @@ export default function CompanyJobsPage() {
   const tj = t.companyJobs;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [directEdit, setDirectEdit] = useState(false);
+  // Plan effectif (échéance comprise, heure du serveur) : la modification
+  // directe n'est proposée que si elle est connue et en cours de validité.
+  const account = useAccountState();
+  const directEdit = getPlanLimits(
+    normalizeCompanyPlan(account?.company?.effective_plan ?? "free"),
+  ).directEdit;
+  const suspended = account !== null && !account.is_active;
+  const latest = useLatestRequest();
   const [activeTab, setActiveTab] = useState("active");
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -106,31 +119,31 @@ export default function CompanyJobsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  async function loadJobs() {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  // Modération, places, candidatures, suppression ailleurs ; plan.
+  useLiveRefresh(["jobs", "applications", "subscription"], loadJobs);
 
+  async function loadJobs() {
+    const token = latest.begin();
+    const supabase = createClient();
+    const user = await readSessionUser(supabase);
+    if (user === undefined) return;
     if (!user) {
-      router.push("/login?redirect=/company/jobs");
+      router.push("/auth/login?next=/company/jobs");
       return;
     }
 
     // Get company profile
-    const { data: company } = await supabase
+    const { data: company, error: companyError } = await supabase
       .from("company_profiles")
-      .select("id, subscription_plan")
+      .select("id")
       .eq("user_id", user.id)
       .single();
 
+    if (isNetworkError(companyError)) return;
     if (!company) {
       router.push("/onboarding/company");
       return;
     }
-    setDirectEdit(
-      getPlanLimits(normalizeCompanyPlan(company.subscription_plan)).directEdit,
-    );
 
     // Get jobs with application counts
     const { data: jobsData } = await supabase
@@ -143,6 +156,7 @@ export default function CompanyJobsPage() {
       )
       .eq("company_id", company.id)
       .order("created_at", { ascending: false });
+    if (!latest.isLatest(token)) return;
 
     if (jobsData) {
       // Transform data to include application count
@@ -268,12 +282,14 @@ export default function CompanyJobsPage() {
               {tj.total.replace("{count}", String(jobs.length))}
             </p>
           </div>
-          <Button asChild>
-            <Link href="/company/jobs/new">
-              <Plus className="h-4 w-4 mr-2" />
-              {tj.newJob}
-            </Link>
-          </Button>
+          {!suspended && (
+            <Button asChild>
+              <Link href="/company/jobs/new">
+                <Plus className="h-4 w-4 mr-2" />
+                {tj.newJob}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -420,7 +436,7 @@ export default function CompanyJobsPage() {
                               {tj.actions.viewApplications}
                             </Link>
                           </DropdownMenuItem>
-                          {canEditJob(job, directEdit) && (
+                          {!suspended && canEditJob(job, directEdit) && (
                             <DropdownMenuItem asChild>
                               <Link href={`/company/jobs/${job.id}/edit`}>
                                 <Edit className="h-4 w-4 mr-2" />

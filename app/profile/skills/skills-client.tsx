@@ -110,7 +110,14 @@ export function SkillsPageClient({
   const supabase = React.useMemo(() => createClient(), []);
 
   const [skills, setSkills] = React.useState<SkillRow[]>(initialSkills);
-  const [documents] = React.useState<DocumentRow[]>(initialDocuments);
+  // Relecture serveur (vérification admin, autre onglet) : l'état suit les
+  // nouvelles props.
+  const [seenSkills, setSeenSkills] = React.useState(initialSkills);
+  if (seenSkills !== initialSkills) {
+    setSeenSkills(initialSkills);
+    setSkills(initialSkills);
+  }
+  const documents: DocumentRow[] = initialDocuments;
   const [query, setQuery] = React.useState("");
   const [certifySkill, setCertifySkill] = React.useState<SkillRow | null>(null);
   const [uploadSkill, setUploadSkill] = React.useState<SkillRow | null>(null);

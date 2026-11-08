@@ -19,6 +19,7 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { UpdateRequestModal } from "@/components/admin/update-request-modal";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * T8.5 — Revue des mises à jour de profil (client).
@@ -81,6 +82,8 @@ export function UpdateRequestsAdminClient({
     "/api/admin/profile-update-requests",
     fetchRequests,
   );
+  // Lot 7d : demandes créées ou complétées ailleurs.
+  useLiveRefresh(["admin:profile"], () => mutate());
 
   const requests = data?.requests ?? [];
   const counts = SECTIONS.reduce<Record<SectionKey, number>>(

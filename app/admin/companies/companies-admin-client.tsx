@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * T8.4a — Vue centralisée des entreprises (client).
@@ -136,6 +137,8 @@ export function CompaniesAdminClient({
         `/api/admin/companies${debouncedQ ? `?q=${encodeURIComponent(debouncedQ)}` : ""}`,
       ).then((r) => (r.ok ? r.json() : null)),
   );
+  // Lot 7d : suspension, vérification, inscription ailleurs.
+  useLiveRefresh(["admin:account", "admin:profile"], () => mutate());
   const companies = React.useMemo(() => data?.companies ?? [], [data]);
 
   const grouped = React.useMemo(() => {

@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 22 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 23 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -126,8 +126,20 @@ pnpm exec supabase db reset --workdir $stack   # restauration
 
 `mission-time-tracking` crée des offres du jour en heure de Douala (00:00-23:59) et une offre du lendemain pour le refus « trop tôt ».
 
+Pour le temps réel (lot 7d), autoriser la lecture de tous les canaux privés reproduit le suivi de l'activité d'un tiers :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "create policy neg_rt on realtime.messages for select to authenticated using (true);"
+pnpm test:rls realtime   # attendu : 4 échecs (Z2, Z4, B3, S1 : canaux d'un tiers, admin, des offres et d'un compte déconnecté rejoints), code de sortie 1
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "drop policy neg_rt on realtime.messages;"
+```
+
+Désactiver un trigger de signal fait échouer les assertions du domaine concerné : `alter table public.contracts disable trigger trg_rt_contracts;` → 3 échecs (J9, M1, M2). Le réactiver ensuite (`enable trigger`).
+
+`realtime` ouvre de vraies connexions WebSocket vers Realtime (une par session, plus un second onglet pour l'entreprise et pour un candidat). Elle attend l'échéance réelle d'un plan (environ 15 s) et d'un premium (environ 5 s), et simule une coupure réseau en fermant brutalement la WebSocket d'une session : `realtime-js` rejoint alors le canal de lui-même. Comptes marqués `proofRealtime`.
+
 **Ports réservés par Windows.** Si `supabase start` échoue avec « ports are not available » et que `netsh interface ipv4 show excludedportrange protocol=tcp` montre une plage réservée couvrant 544xx, décaler les ports dans `$stack/supabase/config.toml` (copie temporaire, par exemple 554xx) et adapter le contrôle `pile inattendue` de l'étape 3.
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) et §20 (début de mission, code de fin et évaluations). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations) et §22 (temps réel). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.

@@ -29,6 +29,7 @@ import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { UpdateRequestModal } from "@/components/admin/update-request-modal";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * T8.4b — Profil candidat complet (client).
@@ -240,6 +241,11 @@ export function CandidateProfileAdminClient({
   );
   const updateRequests: ProfileUpdateRequestRow[] =
     requestsData?.requests ?? [];
+  // Lot 7d : profil, documents, suspension et demandes modifiés ailleurs.
+  useLiveRefresh(["admin:profile", "admin:account"], () => {
+    void mutate();
+    void mutateRequests();
+  });
   const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
 
   const genderLabel = c?.identity.gender

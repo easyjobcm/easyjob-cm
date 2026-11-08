@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import type { UserRole } from "@/components/layout/bottom-nav";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * T8.1 — Layout admin : guard de rôle unique + navigation basse.
@@ -42,6 +43,8 @@ export default async function AdminLayout({
 
   return (
     <>
+      {/* Lot 7d : rôle ou grade modifié → relecture (garde ci-dessus). */}
+      <LiveRefresh keys={["account"]} />
       <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {children}
       </div>

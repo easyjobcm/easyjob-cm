@@ -6,6 +6,7 @@ import { Bell } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
 import { cn, formatDate } from "@/lib/utils";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 interface NotificationItem {
   id: string;
@@ -31,16 +32,28 @@ export function NotificationBell({ className }: { className?: string }) {
   const tn = t.profile.notificationCenter;
   const [open, setOpen] = React.useState(false);
 
+  // Lot 7d : plus d'interrogation toutes les 60 s. Le compteur est relu sur
+  // signal (création, lecture dans un autre onglet), à la reconnexion et au
+  // retour au premier plan.
   const { data: countData, mutate: mutateCount } = useSWR<{ count: number }>(
     "/api/notifications/unread-count",
     fetcher,
-    { refreshInterval: 60_000, revalidateOnFocus: true },
+    { revalidateOnFocus: false },
   );
   const unreadCount = countData?.count ?? 0;
 
-  const { data: listData, error: listError } = useSWR<{
+  const {
+    data: listData,
+    error: listError,
+    mutate: mutateList,
+  } = useSWR<{
     notifications: NotificationItem[];
   }>(open ? "/api/notifications" : null, fetcher);
+
+  useLiveRefresh(["notifications"], () => {
+    void mutateCount();
+    if (open) void mutateList();
+  });
 
   const markRead = async (id: string) => {
     await fetch("/api/notifications", {

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
 import { useI18n } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/profile-status";
+import { useAccountState, useServerNow } from "@/lib/realtime/provider";
+import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
 
 interface UpgradeCandidateClientProps {
   role: string;
@@ -19,17 +21,23 @@ interface UpgradeCandidateClientProps {
 export function UpgradeCandidateClient({
   role,
   averageRating,
-  premiumUntil,
+  premiumUntil: initialPremiumUntil,
 }: UpgradeCandidateClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tr = t.profile.upgradePremium;
 
-  const isPremiumRole = role === "candidate_premium";
-  const isActive =
-    isPremiumRole && !!premiumUntil && new Date(premiumUntil) > new Date();
-  const isExpired =
-    isPremiumRole && !!premiumUntil && new Date(premiumUntil) <= new Date();
+  // Lot 7d : état relu en direct (échéance sur l'heure du serveur).
+  const account = useAccountState();
+  const serverNow = useServerNow();
+  const premiumUntil = account?.candidate
+    ? account.candidate.premium_until
+    : initialPremiumUntil;
+  const isPremiumRole = (account?.role ?? role) === "candidate_premium";
+  const isActive = account?.candidate
+    ? account.candidate.premium
+    : isCandidatePremiumActive(role, premiumUntil, serverNow());
+  const isExpired = isPremiumRole && !!premiumUntil && !isActive;
 
   const statusLabel = isActive
     ? tr.statusActive.replace("{date}", formatDateShort(premiumUntil!, locale))

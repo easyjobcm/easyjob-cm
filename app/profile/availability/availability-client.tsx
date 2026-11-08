@@ -52,16 +52,28 @@ export function AvailabilityClient({
   const { t } = useI18n();
   const tp = t.profile.availabilityPage;
 
-  const [selectedDays, setSelectedDays] = React.useState<
-    Record<number, { start_time: string; end_time: string }>
-  >(() => {
+  const toMap = (days: typeof initialDays) => {
     const map: Record<number, { start_time: string; end_time: string }> = {};
-    for (const d of initialDays) {
+    for (const d of days) {
       map[d.day_of_week] = { start_time: d.start_time, end_time: d.end_time };
     }
     return map;
-  });
+  };
+  const [selectedDays, setSelectedDays] = React.useState<
+    Record<number, { start_time: string; end_time: string }>
+  >(() => toMap(initialDays));
   const [maxDistance, setMaxDistance] = React.useState(maxTravelDistanceKm);
+  // Enregistrement depuis un autre onglet : l'écran reprend la version
+  // enregistrée.
+  const [seen, setSeen] = React.useState({ initialDays, maxTravelDistanceKm });
+  if (
+    seen.initialDays !== initialDays ||
+    seen.maxTravelDistanceKm !== maxTravelDistanceKm
+  ) {
+    setSeen({ initialDays, maxTravelDistanceKm });
+    setSelectedDays(toMap(initialDays));
+    setMaxDistance(maxTravelDistanceKm);
+  }
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [error, setError] = React.useState("");

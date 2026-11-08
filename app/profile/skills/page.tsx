@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { licenseCategorySchema } from "@/lib/validations/skill-documents";
 import { SkillsPageClient } from "./skills-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 /**
  * Page « Mes compétences » (T3) : compétences + justificatifs (absorbe
@@ -64,14 +65,17 @@ export default async function SkillsPage() {
   ]);
 
   return (
-    <SkillsPageClient
-      candidateId={candidateProfile.id}
-      initialSkills={skills ?? []}
-      initialDocuments={(documents ?? []).map((doc) => ({
-        ...doc,
-        license_category:
-          licenseCategorySchema.safeParse(doc.license_category).data ?? null,
-      }))}
-    />
+    <>
+      <LiveRefresh keys={["profile"]} />
+      <SkillsPageClient
+        candidateId={candidateProfile.id}
+        initialSkills={skills ?? []}
+        initialDocuments={(documents ?? []).map((doc) => ({
+          ...doc,
+          license_category:
+            licenseCategorySchema.safeParse(doc.license_category).data ?? null,
+        }))}
+      />
+    </>
   );
 }

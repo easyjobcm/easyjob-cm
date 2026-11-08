@@ -18,6 +18,7 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 type CniStatus = "pending" | "verified" | "rejected";
 
@@ -81,6 +82,8 @@ export function CniAdminClient({
   filterUserId,
 }: CniAdminClientProps) {
   const router = useRouter();
+  // Lot 7d : CNI soumises, validées ou refusées ailleurs (relecture serveur).
+  useLiveRefresh(["admin:profile"], () => router.refresh());
   const { t } = useI18n();
   const [selected, setSelected] = React.useState<CniProfile | null>(null);
 

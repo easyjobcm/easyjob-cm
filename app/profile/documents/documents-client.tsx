@@ -110,7 +110,8 @@ export function DocumentsPageClient({
   const tsk = t.profile.skillDocuments;
   const tsp = t.profile.skills;
 
-  const [documents] = React.useState<DocumentRow[]>(initialDocuments);
+  // Suit les props : une relecture serveur (validation admin) met la liste à jour.
+  const documents: DocumentRow[] = initialDocuments;
   const [viewing, setViewing] = React.useState<DocumentRow | null>(null);
   const [viewUrl, setViewUrl] = React.useState<string | null>(null);
   const [viewLoadingId, setViewLoadingId] = React.useState<string | null>(null);
@@ -300,6 +301,8 @@ export function DocumentsPageClient({
                           </div>
                           {/* Statut effectif — expiré détecté au vol (SRS §6.14). */}
                           <span
+                            data-testid="doc-status"
+                            data-status={status}
                             className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${S.className}`}
                           >
                             <S.icon className="h-4 w-4" />

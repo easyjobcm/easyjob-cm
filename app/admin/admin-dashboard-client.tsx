@@ -31,6 +31,7 @@ import { motion } from "framer-motion";
 import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
+import { useLiveRefresh } from "@/lib/realtime/provider";
 
 interface AdminDashboardClientProps {
   pendingJobs: Array<{
@@ -68,6 +69,11 @@ export function AdminDashboardClient({
   stats,
 }: AdminDashboardClientProps) {
   const router = useRouter();
+  // Lot 7d : File de modération et compteurs (relecture serveur).
+  useLiveRefresh(
+    ["admin:jobs", "admin:applications", "admin:account", "admin:profile"],
+    () => router.refresh(),
+  );
   const { t, locale } = useI18n();
   const [selectedJob, setSelectedJob] = React.useState<PendingJob | null>(null);
   const [moderating, setModerating] = React.useState(false);

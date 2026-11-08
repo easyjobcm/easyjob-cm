@@ -2049,6 +2049,15 @@ export const en: TranslationKeys = {
     version: "v1.0.0",
   },
 
+  // Realtime (lot 7d)
+  realtime: {
+    suspendedTitle: "Your account is suspended.",
+    suspendedBody:
+      "You can still view your information, but you can no longer apply, publish, select, sign or start a mission. Please contact support.",
+    unavailable: "This content is no longer available.",
+    actionUnavailable: "Action unavailable: account suspended.",
+  },
+
   // Chatbot
   chatbot: {
     name: "EasyBot",

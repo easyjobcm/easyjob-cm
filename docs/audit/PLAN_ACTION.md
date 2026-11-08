@@ -13,7 +13,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 5 | Typer les clients Supabase — **corrigé et vérifié localement, non déployé** | F-14 | Refactoring ciblé | Moyen |
 | 5b | Droits d'écriture des entreprises — **corrigé et vérifié localement, non déployé** | F-41 | Sécurité | Petit |
 | 6 | Publication et modération des offres — **corrigé et vérifié localement, non déployé** | F-09 | Fonctionnel et sécurité | Moyen |
-| 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c et 7c-bis corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
+| 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c, 7c-bis et 7d corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes | F-18, F-19, F-28 | UX | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
@@ -271,9 +271,20 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Critères** : 3 places à 10 000 F CFA ⇒ chaque contrat porte 10 000 XAF ; aucun calcul ne multiplie le forfait par la durée ou par le nombre de places ; un montant nul, négatif ou fractionnaire est refusé par la RPC comme par le formulaire.
 
 ### 7d — Temps réel (Realtime)
+
+> **Statut (2026-11-08)** : réalisé sur `feat/lot-07d-app-realtime` (base `origin/main-dev`, 520b907, lot 7c-bis intégré), **non commité, non déployé**. Détails et matrice « changement → destinataires → écrans → test » : `AUDIT.md` §22.
+> - Signal minimal `{d, r}` émis par trigger (18 tables) sur trois canaux privés autorisés par RLS (`user:<uid>`, `admin` sans identifiant, `jobs:public`) ; aucune émission possible depuis un client ; `missions` et `job_applications` retirées de `postgres_changes`.
+> - Fournisseur client unique : une connexion par onglet, écrans abonnés par domaine, relecture regroupée, reprise complète à la reconnexion, au premier plan et au retour du réseau, purge au changement de compte.
+> - Droits : suspension, rôle et plan revérifiés en base ; plan effectif à échéance (`company_effective_plan`, appliqué par `update_job`) ; `my_account_state` et minuterie sur l'heure du serveur.
+> - Preuve `realtime` ajoutée à `pnpm test:rls` ; parcours navigateur sur écrans ouverts.
+>
+> **Avant déploiement** : vérifier en lecture seule la publication (`select tablename from pg_publication_tables where pubname = 'supabase_realtime';`, attendu : aucune ligne pour `missions` et `job_applications` après migration) et que l'autorisation Realtime des canaux privés est active sur le projet distant.
+>
+> **Dépendances manquantes (SRS)** : notifications push, SMS et e-mail ; tâches planifiées (rappels H−15 et fin prévue hors page ouverte, J−30 et J−7 des documents, expiration des offres 2 h avant, blocage à 48 h) ; parcours d'abonnement (activation, changement, renouvellement Mobile Money, régularisation sous 3 jours, essai Pro 14 jours, quotas d'offres actives) pour les lots Free/Premium et paiement ; favoris (`job_favorites`, `company_favorite_candidates`), modèles d'offre, alertes de disponibilité et litiges, sans écriture applicative aujourd'hui.
+
 - **IDs** : suite de F-10 (retour immédiat des statuts de sélection, de contrat et de mission).
-- **Périmètre** : abonnements Realtime aux changements de candidature, de mission et de contrat, limités par RLS aux parties concernées ; reprise de l'état à la reconnexion, sans dépendre des événements manqués.
-- **Critères** : une mise à jour apparaît entre deux sessions autorisées (entreprise et candidat) ; une entreprise tierce ne reçoit aucun événement ; après reconnexion, l'état affiché est celui de la base.
+- **Périmètre** (élargi le 2026-11-08) : tous les parcours opérationnels dont un changement doit apparaître dans une autre session, un autre onglet ou un écran ouvert : comptes et droits, abonnements actuels, profils et vérifications, offres et candidatures, missions, contrats et évaluations, notifications. Reprise de l'état à la reconnexion, sans dépendre des événements manqués.
+- **Critères** : une mise à jour apparaît entre deux sessions autorisées ; un tiers ne reçoit ni ne simule aucun événement ; après reconnexion, l'état affiché est celui de la base ; une action envoyée depuis un écran périmé est refusée par la base.
 
 - **Hors lot 7** : abonnements payants, paiements, corrections exceptionnelles par le support (annulation d'une sélection, réparation d'une sélection sans mission) ; chacun à cadrer dans un lot distinct.
 - **Exclusions du lot 7** : paiement Mobile Money réel (lot distinct à cadrer : fournisseur, webhooks signés, idempotence, rapprochement), sanctions automatiques, niveaux sandbox automatiques.

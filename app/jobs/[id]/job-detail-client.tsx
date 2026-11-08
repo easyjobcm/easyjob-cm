@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import type { EssentialKey } from "@/lib/utils/profile-completion";
 import { formatDate, formatTime } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
+import { useAccountSuspended, useLiveRefresh } from "@/lib/realtime/provider";
 import {
   MapPin,
   Clock,
@@ -89,6 +90,29 @@ export function JobDetailClient({
   // Pré-rempli côté serveur (page) ; le POST renvoie la liste à jour.
   const [missingEssentials, setMissingEssentials] = React.useState(
     initialMissingEssentials,
+  );
+  // Relecture serveur (router.refresh) : l'état local suit les nouvelles
+  // props (candidature retirée ou refusée ailleurs, profil vérifié…).
+  const [seenProps, setSeenProps] = React.useState({
+    userApplication,
+    initialMissingEssentials,
+  });
+  if (
+    seenProps.userApplication !== userApplication ||
+    seenProps.initialMissingEssentials !== initialMissingEssentials
+  ) {
+    setSeenProps({ userApplication, initialMissingEssentials });
+    setHasApplied(!!userApplication);
+    setMissingEssentials(initialMissingEssentials);
+  }
+
+  const suspended = useAccountSuspended();
+  // Offre retirée, modifiée ou complète ; candidature ; vérification du
+  // profil : la page serveur est relue (une offre devenue invisible mène à
+  // la page introuvable).
+  useLiveRefresh(
+    ["public:jobs", "jobs", "applications", "profile", "account"],
+    () => router.refresh(),
   );
 
   const te = t.profile.essential;
@@ -523,14 +547,23 @@ export function JobDetailClient({
             </Button>
           </>
         ) : (
-          <Button
-            onClick={() => setShowConfirmModal(true)}
-            className="w-full"
-            size="lg"
-          >
-            {locale === "fr" ? "Postuler maintenant" : "Apply now"}
-            <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
+          <>
+            <Button
+              onClick={() => setShowConfirmModal(true)}
+              className="w-full"
+              size="lg"
+              disabled={suspended}
+              data-testid="job-apply"
+            >
+              {locale === "fr" ? "Postuler maintenant" : "Apply now"}
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+            {suspended && (
+              <p className="mt-2 text-center text-xs text-destructive">
+                {t.realtime.actionUnavailable}
+              </p>
+            )}
+          </>
         )}
       </div>
 

@@ -30,7 +30,8 @@ import {
   getCandidateCompletionCtaHref,
   type Criterion,
 } from "@/lib/utils/profile-completion";
-import { isCandidatePremium } from "@/lib/utils/profile-status";
+import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
+import { useAccountState, useServerNow } from "@/lib/realtime/provider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 
@@ -152,7 +153,17 @@ export function CandidateProfileClient({
   const te = t.profile.essential;
   const tpe = t.profile.photo;
   const tsk = t.profile.skillsOverview;
-  const premium = isCandidatePremium(user.role);
+  // Lot 7d : premium effectif relu en direct (rôle ET échéance future,
+  // heure du serveur) ; rendu serveur en attendant.
+  const account = useAccountState();
+  const serverNow = useServerNow();
+  const premium = account?.candidate
+    ? account.candidate.premium
+    : isCandidatePremiumActive(
+        user.role,
+        profile?.premium_until ?? null,
+        serverNow(),
+      );
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = React.useState(false);
   const essentials = React.useMemo(

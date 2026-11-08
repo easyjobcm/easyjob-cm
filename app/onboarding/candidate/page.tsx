@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { OnboardingClient } from "./onboarding-client";
+import { LiveRefresh } from "@/lib/realtime/provider";
 
 export default async function CandidateOnboardingPage() {
   const supabase = await createClient();
@@ -81,11 +82,14 @@ export default async function CandidateOnboardingPage() {
   }
 
   return (
-    <OnboardingClient
-      user={userData}
-      profile={profile}
-      categories={categories || []}
-      verifiedLicenseCategories={verifiedLicenseCategories}
-    />
+    <>
+      <LiveRefresh keys={["account"]} />
+      <OnboardingClient
+        user={userData}
+        profile={profile}
+        categories={categories || []}
+        verifiedLicenseCategories={verifiedLicenseCategories}
+      />
+    </>
   );
 }

@@ -47,6 +47,13 @@ export function PaymentClient({
   const [error, setError] = React.useState("");
   const [currentNumber, setCurrentNumber] = React.useState(momoNumber);
   const [currentProvider, setCurrentProvider] = React.useState(momoProvider);
+  // Relecture serveur (vérification ou refus par l'admin, autre onglet).
+  const [seen, setSeen] = React.useState({ momoNumber, momoProvider });
+  if (seen.momoNumber !== momoNumber || seen.momoProvider !== momoProvider) {
+    setSeen({ momoNumber, momoProvider });
+    setCurrentNumber(momoNumber);
+    setCurrentProvider(momoProvider);
+  }
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
 
