@@ -138,7 +138,6 @@ const COMPLETE_PROFILE: ProfileInsert = {
   onboarding_step: 5,
   // Valeur cohérente avec les données : la base la recalcule après le lot.
   profile_completion_pct: 70,
-  sandbox_level: 0,
 };
 
 async function makeCandidate(
@@ -296,7 +295,8 @@ async function proveProfiles() {
   const fresh = await makeAccount("a-fresh", "candidate");
 
   const attempts: [string, Partial<ProfileRow>][] = [
-    ["sandbox_level → 3", { sandbox_level: 3 }],
+    // Lot 9b : le nombre d'avis n'est écrit que par le trigger d'évaluation.
+    ["review_count → 40", { review_count: 40 }],
     [
       "premium_until → +1 an",
       { premium_until: new Date(Date.now() + 365 * 864e5).toISOString() },
@@ -313,8 +313,6 @@ async function proveProfiles() {
     ["total_missions → 99", { total_missions: 99 }],
     ["no_show_count → 0", { no_show_count: 0 }],
     ["average_rating → 5", { average_rating: 5 }],
-    ["is_sandbox → false", { is_sandbox: false }],
-    ["sandbox_missions_completed → 10", { sandbox_missions_completed: 10 }],
     ["momo_verified → true", { momo_verified: true }],
     ["cni_expires_at → 2099", { cni_expires_at: "2099-01-01" }],
     ["user_id → autre compte", { user_id: fresh.id }],
@@ -341,7 +339,8 @@ async function proveProfiles() {
   // A2 — création falsifiée (compte candidat sans profil).
   const sf = await sessionFor(fresh.email);
   const forged: Partial<ProfileInsert>[] = [
-    { sandbox_level: 3 },
+    { review_count: 5 },
+    { average_rating: 5 },
     { premium_until: "2099-01-01T00:00:00Z" },
     { driving_license_verified: true },
     { profile_completion_pct: 100 },
@@ -372,7 +371,9 @@ async function proveProfiles() {
   const { data: created, error: createErr } = await sf
     .from("candidate_profiles")
     .insert({ user_id: fresh.id, onboarding_step: 1 })
-    .select("id, onboarding_status, profile_completion_pct, sandbox_level")
+    .select(
+      "id, onboarding_status, profile_completion_pct, average_rating, review_count",
+    )
     .single();
   if (!created) {
     report("A3 INSERT légitime (onboarding) accepté", false, createErr);
@@ -384,7 +385,8 @@ async function proveProfiles() {
     !createErr &&
       created.onboarding_status === "in_progress" &&
       created.profile_completion_pct === (await expectedPct(created.id)) &&
-      created.sandbox_level === 0,
+      Number(created.average_rating) === 0 &&
+      created.review_count === 0,
     { createErr, created },
   );
 
@@ -579,7 +581,6 @@ async function proveProfiles() {
   const { error: adminErr } = await svc
     .from("candidate_profiles")
     .update({
-      sandbox_level: 2,
       premium_until: "2099-01-01T00:00:00Z",
       driving_license_verified: true,
     })
@@ -588,7 +589,7 @@ async function proveProfiles() {
   report(
     "A8 service_role (opération d'administration) peut écrire les colonnes protégées",
     !adminErr &&
-      adminRow?.sandbox_level === 2 &&
+      adminRow?.premium_until?.startsWith("2099-01-01") === true &&
       adminRow.driving_license_verified === true,
     adminErr,
   );
@@ -616,9 +617,6 @@ async function proveApplications() {
   const jobFull = await makeJob(coA.companyId, {
     positions_available: 1,
     positions_filled: 1,
-  });
-  const jobSandbox = await makeJob(coA.companyId, {
-    sandbox_level_required: 2,
   });
   const jobLicense = await makeJob(coA.companyId, {
     required_documents: ["driving_license"],
@@ -653,14 +651,21 @@ async function proveApplications() {
   // B2 — candidature valide via la RPC.
   const { data: app, error: applyErr } = await applyRpc(sOk, job);
   const persisted = await applicationsFor(job, ok.profileId);
+  const { data: okRep } = await svc
+    .from("candidate_profiles")
+    .select("average_rating, review_count")
+    .eq("id", ok.profileId)
+    .single();
   report(
-    "B2 apply_to_job valide : 1 ligne pending persistée",
+    "B2 apply_to_job valide (compte sans avis, lot 9b) : 1 ligne pending persistée",
     !applyErr &&
       app?.status === "pending" &&
       persisted.length === 1 &&
       persisted[0].status === "pending" &&
-      persisted[0].id === app?.id,
-    { applyErr, persisted },
+      persisted[0].id === app?.id &&
+      okRep?.review_count === 0 &&
+      Number(okRep?.average_rating) === 0,
+    { applyErr, persisted, okRep },
   );
   const { data: jobAfter } = await svc
     .from("jobs")
@@ -701,7 +706,6 @@ async function proveApplications() {
     ["complétude < 60 %", incomplete, job, "profile_incomplete"],
     ["offre non active (draft)", ok, jobDraft, "job_not_available"],
     ["offre inexistante", ok, crypto.randomUUID(), "job_not_found"],
-    ["niveau Sandbox insuffisant", ok, jobSandbox, "sandbox_level_too_low"],
     ["offre complète", ok, jobFull, "no_positions"],
     ["permis requis absent", ok, jobLicense, "document_requirement"],
     ["casier judiciaire requis absent", ok, jobCasier, "document_requirement"],
@@ -1241,7 +1245,7 @@ async function proveVerificationLocks() {
   const reqAtomic = await makeRequest(so, ops.id, cand.profileId, ["identity"]);
   const { error: mixedErr } = await s
     .from("candidate_profiles")
-    .update({ first_name: "Awa", sandbox_level: 3 })
+    .update({ first_name: "Awa", review_count: 3 })
     .eq("id", cand.profileId);
   const afterMixed = await readProfile(cand.profileId);
   report(

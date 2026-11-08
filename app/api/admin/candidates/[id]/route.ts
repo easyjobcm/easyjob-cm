@@ -58,7 +58,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
        momo_provider, momo_number, momo_account_name, momo_verified,
        momo_reject_reason, momo_verified_at,
        total_missions, completed_missions, no_show_count,
-       reliability_score, average_rating, sandbox_level,
+       reliability_score, average_rating, review_count,
        premium_until, onboarding_status,
        created_at, updated_at`,
     )
@@ -195,7 +195,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         no_show_count: profile.no_show_count ?? 0,
         reliability_score: profile.reliability_score ?? 0,
         average_rating: profile.average_rating ?? 0,
-        sandbox_level: profile.sandbox_level ?? 0,
+        review_count: profile.review_count ?? 0,
         premium_until: profile.premium_until ?? null,
         onboarding_status: profile.onboarding_status ?? null,
         created_at: profile.created_at ?? null,

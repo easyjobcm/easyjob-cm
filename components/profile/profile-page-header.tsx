@@ -6,12 +6,6 @@ import { motion } from "framer-motion";
 import { Star, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface SandboxBadge {
-  icon: string;
-  label: string;
-  color: string;
-}
-
 interface ProfilePageHeaderProps {
   initial: string;
   displayName: string;
@@ -19,7 +13,6 @@ interface ProfilePageHeaderProps {
   averageRating?: number;
   totalMissions?: number;
   missionsLabel?: string;
-  sandboxBadge?: SandboxBadge | null;
   editHref?: string;
 }
 
@@ -30,7 +23,6 @@ export function ProfilePageHeader({
   averageRating = 0,
   totalMissions,
   missionsLabel,
-  sandboxBadge,
   editHref = "/profile/edit",
 }: ProfilePageHeaderProps) {
   const starsCount = Math.min(5, Math.round(averageRating));
@@ -42,38 +34,11 @@ export function ProfilePageHeader({
         <div
           className="flex h-20 w-20 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-primary/60 text-2xl font-bold text-white"
           style={{
-            boxShadow: sandboxBadge
-              ? `0 8px 24px ${sandboxBadge.color}40, 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)`
-              : "0 4px 16px rgba(0,0,0,0.12)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
           }}
         >
           {initial}
         </div>
-
-        {sandboxBadge && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{
-              delay: 0.4,
-              type: "spring",
-              stiffness: 400,
-              damping: 15,
-            }}
-            className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1"
-            style={{
-              background: `linear-gradient(135deg, ${sandboxBadge.color}cc 0%, ${sandboxBadge.color} 100%)`,
-              boxShadow: `0 6px 16px ${sandboxBadge.color}55, 0 2px 6px ${sandboxBadge.color}35, inset 0 1px 0 rgba(255,255,255,0.22)`,
-            }}
-          >
-            <span className="text-[11px] leading-none">
-              {sandboxBadge.icon}
-            </span>
-            <span className="text-[10px] font-bold tracking-wide text-white">
-              {sandboxBadge.label}
-            </span>
-          </motion.div>
-        )}
       </div>
 
       {/* Info */}

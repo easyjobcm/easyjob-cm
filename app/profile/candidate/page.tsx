@@ -41,7 +41,7 @@ export default async function CandidateProfilePage() {
        profile_photo_url, bio,
        cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_expires_at,
        momo_verified, total_missions, completed_missions,
-       sandbox_level, profile_completion_pct, premium_until, onboarding_status`,
+       review_count, profile_completion_pct, premium_until, onboarding_status`,
     )
     .eq("user_id", user.id)
     .single();
@@ -63,7 +63,6 @@ export default async function CandidateProfilePage() {
 
   const skills = candidateSkills ?? [];
   const availableDays = (candidateAvailability ?? []).map((a) => a.day_of_week);
-  const sandboxLevel = candidateProfile?.sandbox_level ?? 0;
   const criteria = computeCandidateCriteria(
     candidateProfile ?? {},
     skills.length,
@@ -90,6 +89,7 @@ export default async function CandidateProfilePage() {
                 first_name: candidateProfile.first_name,
                 last_name: candidateProfile.last_name,
                 average_rating: candidateProfile.average_rating,
+                review_count: candidateProfile.review_count,
                 city: candidateProfile.city,
                 quartier: candidateProfile.quartier,
                 premium_until: candidateProfile.premium_until ?? null,
@@ -122,7 +122,6 @@ export default async function CandidateProfilePage() {
         }
         skills={skills}
         completionPct={completionPct}
-        sandboxLevel={sandboxLevel}
         criteria={criteria}
         availableDays={availableDays}
         onboardingStatus={candidateProfile?.onboarding_status ?? null}

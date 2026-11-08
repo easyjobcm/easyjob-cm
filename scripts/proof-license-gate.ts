@@ -195,7 +195,6 @@ async function createTestCandidate(
       onboarding_step: onboardingStep,
       onboarding_status: onboardingStep > 4 ? "completed" : "in_progress",
       profile_completion_pct: 60,
-      sandbox_level: 0,
     })
     .select("id")
     .single();

@@ -79,7 +79,6 @@ export function applyRefusalFeedback(
       };
     case "job_not_found":
     case "job_not_available":
-    case "sandbox_level_too_low":
     case "no_positions":
       return { title, description: d.refusals[refusal.code], action: browse };
     case "profile_incomplete":

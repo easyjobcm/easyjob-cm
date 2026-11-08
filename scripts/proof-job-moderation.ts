@@ -233,7 +233,6 @@ async function createEligibleCandidate(userId: string): Promise<string> {
       onboarding_status: "completed",
       onboarding_step: 6,
       profile_completion_pct: 100,
-      sandbox_level: 1,
     })
     .select("id")
     .single();
@@ -659,6 +658,40 @@ async function main() {
       [p4Err?.message, p4bErr?.message],
     );
 
+    // Lot 9b : le niveau Sandbox minimum n'existe plus. Un client qui
+    // l'envoie encore est refusé à la création comme à la modification.
+    const vCountBeforeP5 = await countJobs(coV);
+    const { error: p5Create } = await V.client.rpc("create_job", {
+      p_job: { ...JOB_BODY, sandbox_level_required: 3 },
+    });
+    const { error: p5Update } = p3Job
+      ? await V.client.rpc("update_job", {
+          p_job_id: p3Job.id,
+          p_job: {
+            ...JOB_BODY,
+            title: "Titre modifié avec ancien niveau",
+            sandbox_level_required: 2,
+          },
+        })
+      : { error: null };
+    const { data: p5Row } = p3Job
+      ? await serviceClient
+          .from("jobs")
+          .select("title")
+          .eq("id", p3Job.id)
+          .single()
+      : { data: null };
+    report(
+      "P5 : create_job et update_job avec sandbox_level_required → invalid_job_data sur le champ, aucune offre créée ni modifiée",
+      p5Create?.message === "invalid_job_data" &&
+        p5Create.details === "sandbox_level_required" &&
+        p5Update?.message === "invalid_job_data" &&
+        p5Update.details === "sandbox_level_required" &&
+        (await countJobs(coV)) === vCountBeforeP5 &&
+        p5Row?.title === "Inventaire preuve L7c-bis",
+      [p5Create?.details, p5Update?.details, p5Row],
+    );
+
     // ── B. Écritures directes ───────────────────────────────────
     const vCountBeforeB1 = await countJobs(coV);
     const { data: b1Rows, error: b1Err } = await V.client
@@ -725,7 +758,6 @@ async function main() {
         positions_filled: 9,
         urgency_fee: 0,
         currency: "XAF",
-        sandbox_level_required: 0,
       },
     );
     await expectUpdateRefused(

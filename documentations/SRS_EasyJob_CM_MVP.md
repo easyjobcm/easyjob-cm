@@ -118,7 +118,7 @@ Assurance mission automatisée, expansion multi-pays (Côte d'Ivoire, Sénégal)
 - [x] Paiement sécurisé par mission sans portefeuille permanent (Mobile Money MTN/Orange)
 - [x] Remboursement automatique du surplus à l'entreprise
 - [x] Système de délai de paiement candidat selon profil (premium + note)
-- [x] Système Sandbox (niveaux de confiance progressifs, configurable admin)
+- ~~[x] Système Sandbox (niveaux de confiance progressifs, configurable admin)~~ Retiré le 2026-11-08 (lot 9b, §5.2) : la réputation affichée est la note des évaluations de missions.
 - [x] Sanctions automatiques pour absences et annulations tardives
 - [x] Abonnements entreprise et candidat premium
 - [x] Dashboard admin complet avec 3 niveaux d'accès
@@ -180,18 +180,27 @@ Pour éviter qu'un candidat ne contrevienne aux informations personnelles et doc
 - **Garde-fou RLS** : la RLS garantit (1) que le candidat ne peut lire que ses propres demandes `pending`, (2) que seul un admin `admin_ops/admin_founder` peut créer/annuler une demande, (3) que le candidat ne peut la clôturer qu'en `done`. Le serveur reste la source de vérité (masquage client = confort seulement, jamais le seul contrôle).
 - **UI admin d'initiation** : incluse en **T8** (refonte dashboard admin) ; l'endpoint `POST /api/admin/profile-update-requests` est disponible depuis T2.
 
-### 5.2 Système Sandbox (niveaux candidat)
+### 5.2 Système Sandbox (niveaux candidat) — retiré
 
-Les seuils ci-dessous sont les **valeurs initiales configurables** depuis le dashboard `admin_founder`. Ils peuvent être modifiés à tout moment sans redéploiement.
+**Décision produit du 2026-11-08 (lot 9b) :** les niveaux Sandbox (Nouveau, Confirmé, Fiable, Expert), le niveau minimum des offres, le « mode Sandbox » (missions d'initiation) et leurs seuils configurables sont **supprimés**. Les étoiles issues des évaluations de missions (§6.9, note de 1 à 5, moyenne au dixième) sont le **seul indicateur de réputation affiché**, avec le nombre d'avis pris en compte : « 4,5/5 · 2 avis », ou « Pas encore d'avis ».
 
-| Niveau | Condition de déblocage (valeurs initiales) | Types d'offres accessibles |
-|---|---|---|
-| Niveau 0 — Nouveau | Inscription validée | Missions faible risque (distribution de flyers, aide logistique simple) |
-| Niveau 1 — Confirmé | 1 mission réussie + note >= 3.5/5 | Missions intermédiaires (accueil, assistance vente) |
-| Niveau 2 — Fiable | 3 missions réussies + note >= 4/5 + profil >= 80% | Missions à responsabilité (caissier, gestion de stock) |
-| Niveau 3 — Expert | 10 missions + note >= 4.5/5 + badge vérifié | Toutes missions, priorisation dans le matching |
+- Un compte sans avis peut postuler à sa première mission. Aucun seuil d'étoiles n'est exigé pour postuler, la note ne classe pas les candidats et aucun ancien niveau n'a été converti en note.
+- Restent exigés pour postuler : compte actif, inscription terminée, profil ≥ 60 %, identité vérifiée (§6.6), offre publiée avec des places disponibles, documents requis valides (dont le permis) et justificatifs des compétences.
+- Le score de fiabilité (`reliability_score`, jamais calculé) n'est plus montré aux entreprises ; il reste visible en lecture sur la fiche admin.
+- Migration `20261108130000_remove_sandbox_levels.sql` ; suivi : `docs/audit/AUDIT.md` §25.
 
-> **Badge vérifié (Niveau 3)** — voir décision formalisée en §11.11 : le badge vérifié désigne exclusivement l'**identité vérifiée** (CNI validée par un admin, `cni_verified = verified`). La vérification de compétences par documents (§6.14) n'élargit pas cette condition tant qu'une évolution du Sandbox n'est pas explicitement validée par `admin_founder`.
+Texte d'origine (supprimé le 2026-11-08), pour mémoire :
+
+> Les seuils ci-dessous sont les **valeurs initiales configurables** depuis le dashboard `admin_founder`. Ils peuvent être modifiés à tout moment sans redéploiement.
+>
+> | Niveau | Condition de déblocage (valeurs initiales) | Types d'offres accessibles |
+> |---|---|---|
+> | Niveau 0 — Nouveau | Inscription validée | Missions faible risque (distribution de flyers, aide logistique simple) |
+> | Niveau 1 — Confirmé | 1 mission réussie + note >= 3.5/5 | Missions intermédiaires (accueil, assistance vente) |
+> | Niveau 2 — Fiable | 3 missions réussies + note >= 4/5 + profil >= 80% | Missions à responsabilité (caissier, gestion de stock) |
+> | Niveau 3 — Expert | 10 missions + note >= 4.5/5 + badge vérifié | Toutes missions, priorisation dans le matching |
+>
+> > **Badge vérifié (Niveau 3)** — voir décision formalisée en §11.11 : le badge vérifié désigne exclusivement l'**identité vérifiée** (CNI validée par un admin, `cni_verified = verified`). La vérification de compétences par documents (§6.14) n'élargit pas cette condition tant qu'une évolution du Sandbox n'est pas explicitement validée par `admin_founder`.
 
 ### 5.3 Règles de paiement candidat
 
@@ -233,7 +242,7 @@ Une offre doit obligatoirement contenir les éléments suivants :
 - **Équipement demandé au candidat** (ex : chaussures fermées, tenue noire).
 - **Équipement mis à disposition par l'entreprise** (ex : tablier, badge).
 - **Avantages** (optionnels) : repas offert, remboursement de taxi, prime de présence, etc.
-- **Niveau Sandbox minimum requis** (déterminé automatiquement par l'IA selon le type de mission).
+- ~~**Niveau Sandbox minimum requis** (déterminé automatiquement par l'IA selon le type de mission).~~ Retiré (lot 9b, §5.2) : une offre ne peut plus exiger de niveau.
 - **Type de mission** (temporaire / permanent) — déterminé automatiquement par l'IA.
 - **Instruction de ponctualité** : message automatique rappelant aux candidats d'être présents **30 minutes avant le début** de la mission.
 
@@ -366,7 +375,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 
 **Étapes :**
 1. Description libre de la mission (texte court).
-2. L'IA génère automatiquement : titre, catégorie, type de mission (temporaire/permanent), niveau Sandbox minimum requis, compétences requises, description structurée, durée de pause obligatoire.
+2. L'IA génère automatiquement : titre, catégorie, type de mission (temporaire/permanent), ~~niveau Sandbox minimum requis~~ (retiré, lot 9b), compétences requises, description structurée, durée de pause obligatoire.
 3. L'entreprise complète et valide : lieu (adresse + référence populaire + photo optionnelle + lien map), date(s), durée journalière, nombre de personnes par jour, salaire par jour et par personne.
 4. **L'IA valide le salaire** : cohérence avec la durée effective de travail et les standards du marché camerounais. Un avertissement est affiché si le montant semble incohérent ou insuffisant.
 5. Définition des documents requis (optionnel).
@@ -399,12 +408,14 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 | Critère | Poids |
 |---|---|
 | Compétences correspondantes | 30% |
-| Niveau Sandbox | 20% |
+| ~~Niveau Sandbox~~ (retiré, lot 9b) | ~~20%~~ |
 | Note moyenne | 15% |
 | Complétude du profil | 10% |
 | Disponibilité déclarée | 10% |
 | Proximité géographique (GPS domicile -> lieu de mission) | 10% |
 | Statut premium | 5% |
+
+> **Décision produit du 2026-11-08 (lot 9b) :** le critère « Niveau Sandbox » disparaît. Les six autres critères gardent leurs proportions, ramenées sur 100 (`lib/matching/ai-matching.ts`). La note reste un critère pondéré parmi d'autres, sans seuil ni tri dédié ; un candidat sans avis reçoit la valeur neutre prévue pour « nouveau candidat ».
 
 **Priorité aux anciens travailleurs :**
 - Les candidats ayant déjà travaillé pour l'entreprise avec une note satisfaisante sont **priorisés** et affichés avec un **badge distinctif** visible par l'entreprise.
@@ -414,7 +425,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Le score de pertinence est visible par l'entreprise (ex : 87% de correspondance).
 - Les raisons du classement sont affichées (ex : "Compétences : caisse ✓ | Distance : 3 km | Déjà travaillé ici ✓").
 - Le candidat peut voir son positionnement dans une offre (ex : "Vous êtes dans le top 10").
-- L'entreprise peut filtrer par niveau Sandbox, distance, disponibilité.
+- L'entreprise peut filtrer par ~~niveau Sandbox,~~ distance, disponibilité (niveau retiré, lot 9b).
 
 ---
 
@@ -424,13 +435,13 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 
 **Flux candidat :**
 1. Consultation de l'offre (ou de la sous-offre journalière).
-2. Vérification automatique des prérequis (profil complet ≥ 60%, **champs essentiels**, niveau Sandbox, documents valides et non expirés). Les champs essentiels (identité complète, CNI vérifiée non expirée, Mobile Money vérifié) sont contrôlés côté serveur avant toute création de candidature. En cas d'échec, la candidature est refusée (HTTP 403), le candidat est notifié de la liste précise des critères manquants et redirigé vers la page de complétion.
+2. Vérification automatique des prérequis (profil complet ≥ 60%, **champs essentiels**, ~~niveau Sandbox~~ (retiré, lot 9b), documents valides et non expirés). Les champs essentiels (identité complète, CNI vérifiée non expirée, Mobile Money vérifié) sont contrôlés côté serveur avant toute création de candidature. En cas d'échec, la candidature est refusée (HTTP 403), le candidat est notifié de la liste précise des critères manquants et redirigé vers la page de complétion.
 3. Soumission de la candidature en un clic (sans message libre).
 4. Suivi du statut : **en attente** / **accepté** / **refusé**.
 
 **Flux entreprise :**
 1. Consultation des candidatures triées par score IA.
-2. Consultation du profil **partiel** du candidat : compétences, niveau Sandbox, note, badges, disponibilités, distance, expériences, historique avec l'entreprise. Les données personnelles sensibles (téléphone, email, CNI) ne sont **jamais visibles** pour l'entreprise.
+2. Consultation du profil **partiel** du candidat : compétences, ~~niveau Sandbox~~, note et nombre d'avis (lot 9b), badges, disponibilités, distance, expériences, historique avec l'entreprise. Les données personnelles sensibles (téléphone, email, CNI) ne sont **jamais visibles** pour l'entreprise.
 3. Les candidats ayant déjà travaillé pour cette entreprise avec une bonne note sont mis en avant avec un badge distinctif.
 4. Sélection d'un ou plusieurs candidats (jusqu'au nombre requis par journée).
 5. Déclenchement automatique de la génération du contrat.
@@ -595,12 +606,12 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 **Niveau `admin_ops` (haut cadre) :**
 - Tout `admin_support` +
 - KPIs temps réel : missions actives, CA du jour/mois, taux de conversion, alertes.
-- Gestion des utilisateurs : suspension, modification du niveau Sandbox, vérification manuelle CNI/NIU.
+- Gestion des utilisateurs : suspension, ~~modification du niveau Sandbox~~ (retiré, lot 9b), vérification manuelle CNI/NIU.
 - Modération des offres : approbation, rejet, demande de correction.
 - Suivi et intervention sur les missions en cours.
 - Gestion des litiges : décision, libération ou remboursement.
 - Gestion des abonnements et essais gratuits.
-- Paramètres dynamiques : seuils Sandbox, règles de matching, base de connaissances chatbot.
+- Paramètres dynamiques : ~~seuils Sandbox~~ (retirés, lot 9b), règles de matching, base de connaissances chatbot.
 
 **Niveau `admin_founder` (fondateur) :**
 - Tout `admin_ops` +
@@ -808,7 +819,7 @@ T8.5 livre la surface admin qui manque :
 **Capacités :**
 - Répondre aux FAQ (inscription, paiement, mission, litiges).
 - Guider l'onboarding étape par étape.
-- Expliquer le fonctionnement du Sandbox et des niveaux.
+- ~~Expliquer le fonctionnement du Sandbox et des niveaux.~~ (retiré, lot 9b) Expliquer les évaluations après mission.
 - Aider à publier une offre.
 - Expliquer les délais de paiement selon le profil du candidat.
 - Détecter les questions hors périmètre et escalader vers `admin_support`.
@@ -867,7 +878,7 @@ Après validation d'un justificatif, le candidat obtient uniquement :
 3. l'accès aux offres exigeant ce justificatif (si les autres conditions sont remplies) ;
 4. la prise en compte normale de la compétence dans le matching existant (§6.5), sans pondération additionnelle.
 
-Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyenne, n'augmente pas automatiquement le niveau Sandbox, n'accorde pas Premium, et ne modifie pas les pondérations du matching. Voir §11.11 pour la définition du "badge vérifié" du Sandbox Niveau 3, qui reste **distinct** de cette fonctionnalité.
+Cette validation n'ajoute **aucun point de score**, n'augmente pas la note moyenne, n'accorde pas Premium, et ne modifie pas les pondérations du matching. (Le niveau Sandbox et son « badge vérifié » du §11.11 ont été retirés au lot 9b.)
 
 **Confidentialité :**
 - Bucket Storage privé existant réutilisé (`candidate-documents`), policies RLS fondées sur `auth.uid()` pour le candidat propriétaire, plus une policy dédiée de lecture pour les administrateurs autorisés.
@@ -983,7 +994,7 @@ Inscription (email/SMS ou Google/Facebook + validation téléphone obligatoire)
     ↓
 Onboarding IA (profil, GPS domicile, CNI + selfie, MoMo au nom du candidat)
     ↓
-Consultation des offres (filtrées par niveau Sandbox, distance, disponibilité)
+Consultation des offres (filtrées par distance, disponibilité ; niveau Sandbox retiré, lot 9b)
     ↓
 Candidature en un clic (pour une offre ou une journée spécifique)
     ↓
@@ -1002,7 +1013,7 @@ Réception du paiement selon profil :
   - Premium OU note >= 4 : 50% en 48h + 50% en 7j
   - Aucun des deux : 100% en 7j
     ↓
-Montée de niveau Sandbox (si applicable)
+Note et nombre d'avis du profil mis à jour (lot 9b ; plus de niveau Sandbox)
 ```
 
 ### 7.2 Flux complet entreprise
@@ -1080,7 +1091,7 @@ momo_verified, momo_number, momo_provider, momo_name_match,
 momo_account_name, momo_reject_reason,
 momo_verified_by, momo_verified_at,   ← T6 : cycle de vie de la vérification MoMo — `momo_provider` ∈ (mtn, orange) ; `momo_account_name` = nom déclaré sur le compte (optionnel, ≤ 100) ; **validation admin MANUELLE** (pas de preuve de possession OTP au lancement — décision produit 2026-09-10) : l'admin `admin_ops`/`admin_founder` approuve ou refuse (motif requis ≥ 3 car) en confrontant le nom déclaré au nom CNI (comptes familiaux / au nom d'un tiers refusés), revue ≤ 24 h ; `momo_reject_reason` = motif de refus ; `momo_verified_by` / `momo_verified_at` écrits exclusivement par l'admin (RPC `apply_momo_verification`). Les 5 colonnes de vérification (`momo_verified`, `momo_name_match`, `momo_verified_by`, `momo_verified_at`, `momo_reject_reason`) sont **protégées par un trigger** (`easyjob.system_update`) : un candidat ne peut se marquer `momo_verified=true` — seules les fonctions SECURITY DEFINER (`candidate_update_momo`, `apply_momo_verification`) les écrivent.
 quartier, address, latitude, longitude, max_travel_distance_km,   ← T5 : alignement codebase (la base utilise latitude/longitude, pas home_gps_ ; `quartier` est saisi librement ou **auto-rempli par le GPS** depuis T5.1, `address` n'est pas collectée par l'UI candidat) ; T5.1 : les paires lat/lng sont **validées à l'intérieur de la zone de service** (≤ 20 km du centre de Douala ou de Yaoundé) — `latitude: null` / `longitude: null` = fallback « même ville ».
-sandbox_level, average_rating, total_missions,
+average_rating, review_count, total_missions,   ← lot 9b : sandbox_level supprimée ; review_count = nombre d'avis de average_rating
 profile_completion_pct, premium_until,
 created_at, updated_at
 ```
@@ -1106,7 +1117,7 @@ created_at, updated_at
 ```
 id, company_id, parent_job_id,
 title, description, category, required_skills[],
-required_documents[], sandbox_level_required,
+required_documents[],   ← lot 9b : sandbox_level_required supprimée
 job_type (temp/permanent), date, duration_hours,
 break_duration_minutes, effective_hours,
 location_address, location_lat, location_lng,
@@ -1308,6 +1319,8 @@ metadata{}, ip_address, created_at
 ---
 
 ### 11.2 — Seuils exacts du Sandbox
+
+> **Caduque depuis le 2026-11-08 (lot 9b)** : les niveaux Sandbox et leurs seuils sont supprimés (§5.2).
 
 **Décision : Option C appliquée (configurable admin + valeurs initiales basses).**
 - Seuils configurables depuis `admin_founder` sans redéploiement.
@@ -1525,6 +1538,8 @@ admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
 
 ### 11.11 — Définition du "badge vérifié" du Sandbox Niveau 3
 
+> **Caduque depuis le 2026-11-08 (lot 9b)** : le Niveau 3 n'existe plus (§5.2). Le badge « Compétence vérifiée » reste distinct et inchangé.
+
 **Question :** Le §5.2 exige un "badge vérifié" pour débloquer le Niveau 3, sans préciser sa nature exacte (identité vérifiée, compétence vérifiée, ou profil professionnel globalement vérifié).
 
 **Décision : Option A appliquée pour le MVP.**
@@ -1566,7 +1581,7 @@ Le MVP est considéré comme terminé et prêt pour le lancement si :
 - [ ] Le paiement bloqué fonctionne de bout en bout (blocage -> libération selon délai profil -> remboursement surplus automatique).
 - [ ] Le code de validation de mission fonctionne correctement.
 - [ ] Les évaluations sont enregistrées et visibles sur les profils, et impactent le délai de paiement.
-- [ ] Le système de niveaux Sandbox est configurable depuis `admin_founder` sans redéploiement.
+- ~~[ ] Le système de niveaux Sandbox est configurable depuis `admin_founder` sans redéploiement.~~ Retiré (lot 9b) : un candidat sans avis peut postuler ; la note et le nombre d'avis sont affichés.
 - [ ] Les sanctions (blocage, bannissement) sont déclenchées automatiquement selon les règles.
 - [ ] Les documents expirés sont détectés et notifiés automatiquement aux candidats.
 - [ ] L'admin peut gérer les utilisateurs, offres et litiges avec les 3 niveaux d'accès distincts.

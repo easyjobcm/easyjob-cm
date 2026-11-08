@@ -31,11 +31,14 @@ const FORBIDDEN: RegExp[] = [
   /géré automatiquement par easyjob|handled automatically by easyjob/i,
   /validez vos heures|arrival and departure check-in|heures retenues/i,
   /payées en mobile money|paid via mobile money/i,
-  // Progression Sandbox automatique : aucune fonction ne fait évoluer
-  // `candidate_profiles.sandbox_level` (lot 9, §24).
+  // Progression Sandbox automatique (lot 9, §24), puis niveaux Sandbox
+  // retirés (lot 9b, §25) : la réputation affichée est la note des avis.
   /progressez mission après mission|progress mission by mission/i,
   /montez en grade|level up/i,
   /\d+ missions? · \d/i,
+  /sandbox/i,
+  /niveau (minimum|de confiance|supérieur)|minimum level|trust level/i,
+  /score de fiabilité|reliability score/i,
 ];
 
 describe("promesses retirées (F-19)", () => {
@@ -48,6 +51,27 @@ describe("promesses retirées (F-19)", () => {
     const text = read(file);
     const hits = FORBIDDEN.filter((re) => re.test(text)).map(String);
     expect(hits).toEqual([]);
+  });
+
+  it("lot 9b : aucun niveau Sandbox ni score de fiabilité public dans le code", () => {
+    const files = ["app", "components", "lib", "hooks"]
+      .flatMap((d) => walk(d))
+      .filter((f) => /\.(ts|tsx)$/.test(f))
+      .map((f) => f.replace(/\\/g, "/"))
+      // Types générés ; mode bac à sable technique du fournisseur Mobile Money.
+      .filter(
+        (f) =>
+          f !== "lib/database.types.ts" && f !== "lib/payments/mobile-money.ts",
+      );
+    const levels =
+      /sandbox_level|sandboxLevel|SANDBOX_LEVELS|is_sandbox|sandbox_config|sandboxBadge/;
+    expect(files.filter((f) => levels.test(read(f)))).toEqual([]);
+    // reliability_score (jamais calculé) ne reste que sur l'écran admin.
+    expect(
+      files.filter(
+        (f) => !f.includes("/admin/") && /reliability_score/.test(read(f)),
+      ),
+    ).toEqual([]);
   });
 
   it("l'accueil n'affiche plus de compteurs d'utilisateurs sans source", () => {

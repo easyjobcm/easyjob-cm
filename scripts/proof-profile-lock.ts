@@ -314,7 +314,6 @@ async function main() {
     momo_verified: true,
     onboarding_status: "completed",
     profile_completion_pct: 100,
-    sandbox_level: 1,
   });
 
   const admin = await createTestUser(emailA, "admin_ops");

@@ -233,7 +233,6 @@ export function CompanyProfileClient({
               <div className="relative">
                 <ProfileAvatar3D
                   initial={initial}
-                  sandboxBadge={null}
                   size={100}
                   accentColor={planAccentColor}
                 />

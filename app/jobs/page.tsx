@@ -24,7 +24,6 @@ type JobListItem = {
   urgency: "normal" | "urgent" | "critical";
   positions_available: number;
   positions_filled: number;
-  is_sandbox?: boolean;
   company?: {
     company_name: string;
     logo_url?: string;

@@ -250,7 +250,6 @@ export type Database = {
           first_name: string | null
           gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
-          is_sandbox: boolean | null
           last_name: string | null
           latitude: number | null
           longitude: number | null
@@ -273,8 +272,7 @@ export type Database = {
           profile_photo_url: string | null
           quartier: string | null
           reliability_score: number | null
-          sandbox_level: number
-          sandbox_missions_completed: number | null
+          review_count: number
           total_missions: number | null
           updated_at: string | null
           user_id: string
@@ -301,7 +299,6 @@ export type Database = {
           first_name?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
-          is_sandbox?: boolean | null
           last_name?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -324,8 +321,7 @@ export type Database = {
           profile_photo_url?: string | null
           quartier?: string | null
           reliability_score?: number | null
-          sandbox_level?: number
-          sandbox_missions_completed?: number | null
+          review_count?: number
           total_missions?: number | null
           updated_at?: string | null
           user_id: string
@@ -352,7 +348,6 @@ export type Database = {
           first_name?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
-          is_sandbox?: boolean | null
           last_name?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -375,8 +370,7 @@ export type Database = {
           profile_photo_url?: string | null
           quartier?: string | null
           reliability_score?: number | null
-          sandbox_level?: number
-          sandbox_missions_completed?: number | null
+          review_count?: number
           total_missions?: number | null
           updated_at?: string | null
           user_id?: string
@@ -504,7 +498,6 @@ export type Database = {
           is_active: boolean | null
           min_rating: number | null
           quartier: string | null
-          sandbox_level_min: number | null
         }
         Insert: {
           category_id?: string | null
@@ -516,7 +509,6 @@ export type Database = {
           is_active?: boolean | null
           min_rating?: number | null
           quartier?: string | null
-          sandbox_level_min?: number | null
         }
         Update: {
           category_id?: string | null
@@ -528,7 +520,6 @@ export type Database = {
           is_active?: boolean | null
           min_rating?: number | null
           quartier?: string | null
-          sandbox_level_min?: number | null
         }
         Relationships: [
           {
@@ -1214,7 +1205,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number | null
           special_instructions: string | null
           start_time: string | null
           template_name: string
@@ -1233,7 +1223,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          sandbox_level_required?: number | null
           special_instructions?: string | null
           start_time?: string | null
           template_name: string
@@ -1252,7 +1241,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          sandbox_level_required?: number | null
           special_instructions?: string | null
           start_time?: string | null
           template_name?: string
@@ -1301,7 +1289,6 @@ export type Database = {
           expires_at: string | null
           id: string
           is_recurring: boolean | null
-          is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
@@ -1326,7 +1313,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -1356,7 +1342,6 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_recurring?: boolean | null
-          is_sandbox?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold?: string | null
           latitude?: number | null
@@ -1381,7 +1366,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          sandbox_level_required?: number
           selection_deadline?: string | null
           special_instructions?: string | null
           start_date: string
@@ -1411,7 +1395,6 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_recurring?: boolean | null
-          is_sandbox?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold?: string | null
           latitude?: number | null
@@ -1436,7 +1419,6 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
-          sandbox_level_required?: number
           selection_deadline?: string | null
           special_instructions?: string | null
           start_date?: string
@@ -1613,7 +1595,6 @@ export type Database = {
           created_at: string | null
           departure_validated: boolean | null
           id: string
-          is_sandbox: boolean | null
           job_id: string
           payment_first_tranche_at: string | null
           payment_second_tranche_at: string | null
@@ -1648,7 +1629,6 @@ export type Database = {
           created_at?: string | null
           departure_validated?: boolean | null
           id?: string
-          is_sandbox?: boolean | null
           job_id: string
           payment_first_tranche_at?: string | null
           payment_second_tranche_at?: string | null
@@ -1683,7 +1663,6 @@ export type Database = {
           created_at?: string | null
           departure_validated?: boolean | null
           id?: string
-          is_sandbox?: boolean | null
           job_id?: string
           payment_first_tranche_at?: string | null
           payment_second_tranche_at?: string | null
@@ -2028,56 +2007,6 @@ export type Database = {
           },
         ]
       }
-      sandbox_config: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          label_en: string
-          label_fr: string
-          level: number
-          min_missions: number
-          min_profile_pct: number | null
-          min_rating: number | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          label_en: string
-          label_fr: string
-          level: number
-          min_missions: number
-          min_profile_pct?: number | null
-          min_rating?: number | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          label_en?: string
-          label_fr?: string
-          level?: number
-          min_missions?: number
-          min_profile_pct?: number | null
-          min_rating?: number | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sandbox_config_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       sms_send_log: {
         Row: {
           id: number
@@ -2380,6 +2309,7 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: {
           application_id: string
+          average_rating: number
           completed_missions: number
           created_at: string
           distance_km: number
@@ -2388,8 +2318,7 @@ export type Database = {
           last_initial: string
           match_score: number
           rejection_reason: string
-          reliability_score: number
-          sandbox_level: number
+          review_count: number
           skills: string[]
           status: Database["public"]["Enums"]["application_status"]
         }[]
@@ -2467,7 +2396,6 @@ export type Database = {
           expires_at: string | null
           id: string
           is_recurring: boolean | null
-          is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
@@ -2492,7 +2420,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -2600,7 +2527,6 @@ export type Database = {
           expires_at: string | null
           id: string
           is_recurring: boolean | null
-          is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
@@ -2625,7 +2551,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -2685,7 +2610,6 @@ export type Database = {
           expires_at: string | null
           id: string
           is_recurring: boolean | null
-          is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
@@ -2710,7 +2634,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -2845,7 +2768,6 @@ export type Database = {
           expires_at: string | null
           id: string
           is_recurring: boolean | null
-          is_sandbox: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
@@ -2870,7 +2792,6 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
-          sandbox_level_required: number
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string

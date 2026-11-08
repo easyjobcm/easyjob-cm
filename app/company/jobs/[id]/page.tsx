@@ -44,6 +44,7 @@ import {
 } from "@/lib/realtime/provider";
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 import { plural } from "@/lib/i18n/plural";
+import { formatReputation, hasReviews } from "@/lib/utils/reputation";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -502,7 +503,7 @@ export default function CompanyJobDetailPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1">
                           {app.distance_km !== null && (
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
@@ -512,9 +513,25 @@ export default function CompanyJobDetailPage() {
                               )}
                             </span>
                           )}
-                          <span className="flex items-center gap-1">
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            {Number(app.reliability_score || 0).toFixed(1)}
+                          {/* Réputation : étoiles des évaluations de
+                              missions uniquement (lot 9b). */}
+                          <span
+                            className="flex items-center gap-1"
+                            data-testid="applicant-reputation"
+                          >
+                            <Star
+                              className={`h-3 w-3 ${
+                                hasReviews(app.review_count)
+                                  ? "fill-yellow-500 text-yellow-500"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                            {formatReputation(
+                              app.average_rating,
+                              app.review_count,
+                              locale,
+                              t.reputation,
+                            )}
                           </span>
                           <span>
                             {ta.missions.replace(

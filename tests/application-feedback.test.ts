@@ -19,7 +19,6 @@ const ROUTE_ENGLISH = [
   "Please complete your profile first",
   "Job not found",
   "Job is not available",
-  "Your sandbox level is too low",
   "No positions available",
   "Already applied to this job",
   "Failed to submit application",
@@ -34,7 +33,6 @@ const CODES = [
   ["account_suspended", 403],
   ["job_not_found", 404],
   ["job_not_available", 400],
-  ["sandbox_level_too_low", 403],
   ["no_positions", 400],
   ["already_applied", 400],
   ["application_failed", 500],
@@ -84,6 +82,17 @@ describe("applyRefusalFeedback", () => {
     const f = applyRefusalFeedback({ status: null }, fr.application, "/jobs/1");
     expect(f.description).toBe(fr.application.refusals.network);
     expect(f.action).toBeUndefined();
+  });
+
+  it("lot 9b : le refus pour niveau Sandbox n'existe plus", () => {
+    expect("sandbox_level_too_low" in fr.application.refusals).toBe(false);
+    expect("sandbox_level_too_low" in en.application.refusals).toBe(false);
+    const f = applyRefusalFeedback(
+      { status: 403, code: "sandbox_level_too_low" },
+      fr.application,
+      "/jobs/1",
+    );
+    expect(f.description).toBe(fr.application.refusals.generic);
   });
 
   it("code inconnu : message générique traduit", () => {

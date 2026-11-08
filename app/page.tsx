@@ -9,7 +9,6 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
   Briefcase,
   Users,
-  Shield,
   Star,
   Zap,
   ChevronRight,
@@ -24,9 +23,6 @@ import {
   Download,
   Menu,
   X as XIcon,
-  Sprout,
-  Crown,
-  type LucideIcon,
 } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { useTheme } from "@/lib/hooks/use-theme";
@@ -129,42 +125,6 @@ function Orb({
   );
 }
 
-// ─── 3D animated sandbox sticker ─────────────────────────────────────────────
-
-function SandboxSticker({
-  icon: Icon,
-  color,
-  delay = 0,
-}: {
-  icon: LucideIcon;
-  color: string;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      className="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center"
-      animate={{ y: [0, -8, 0], rotateZ: [0, 4, -4, 0] }}
-      transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay }}
-      style={{ transformStyle: "preserve-3d" }}
-    >
-      <div
-        className="absolute inset-0 rounded-2xl blur-xl"
-        style={{ background: color, opacity: 0.55 }}
-      />
-      <div
-        className="relative w-full h-full rounded-2xl flex items-center justify-center"
-        style={{
-          background: `linear-gradient(145deg, ${color}35, ${color}12)`,
-          border: `1.5px solid ${color}55`,
-          boxShadow: `0 6px 28px ${color}35, inset 0 1px 0 rgba(255,255,255,0.18)`,
-        }}
-      >
-        <Icon className="h-8 w-8" style={{ color }} />
-      </div>
-    </motion.div>
-  );
-}
-
 // ─── 3D tilt card ─────────────────────────────────────────────────────────────
 
 function TiltCard({
@@ -241,13 +201,6 @@ function Section({
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const sandboxLevels = [
-  { color: "#6B7280", glow: "#6B7280", icon: Sprout },
-  { color: "#2563EB", glow: "#2563EB", icon: BadgeCheck },
-  { color: "#7C3AED", glow: "#7C3AED", icon: Shield },
-  { color: "#D97706", glow: "#D97706", icon: Crown },
-];
-
 const featureConfig = [
   {
     key: "f1",
@@ -256,7 +209,7 @@ const featureConfig = [
     glow: "rgba(124,58,237,0.22)",
   },
   { key: "f2", Icon: FileText, color: "#06B6D4", glow: "rgba(6,182,212,0.18)" },
-  { key: "f3", Icon: Shield, color: "#059669", glow: "rgba(5,150,105,0.18)" },
+  { key: "f3", Icon: Star, color: "#059669", glow: "rgba(5,150,105,0.18)" },
   { key: "f4", Icon: Zap, color: "#F59E0B", glow: "rgba(245,158,11,0.18)" },
 ];
 
@@ -369,25 +322,11 @@ export default function WelcomePage() {
     },
   ];
   const activeSteps = activeTab === "candidate" ? candidateSteps : companySteps;
-  const sandboxNames = [
-    t("home.sandbox.l0Name"),
-    t("home.sandbox.l1Name"),
-    t("home.sandbox.l2Name"),
-    t("home.sandbox.l3Name"),
-  ];
-  const sandboxDescs = [
-    t("home.sandbox.l0Desc"),
-    t("home.sandbox.l1Desc"),
-    t("home.sandbox.l2Desc"),
-    t("home.sandbox.l3Desc"),
-  ];
-
   // Destinations existantes uniquement (lot 9) : les pages À propos, Blog,
   // Presse, Tarifs, Statut et Signalement n'existent pas.
   const navLinks = [
     { label: t("landing.nav.features"), href: "#features" },
     { label: t("landing.nav.howItWorks"), href: "#how" },
-    { label: t("landing.nav.sandbox"), href: "#sandbox" },
   ];
 
   const footerCols: { title: string; links: FooterLink[] }[] = [
@@ -396,7 +335,6 @@ export default function WelcomePage() {
       links: [
         { label: t("landing.nav.howItWorks"), href: "#how" },
         { label: t("landing.nav.features"), href: "#features" },
-        { label: t("landing.nav.sandbox"), href: "#sandbox" },
       ],
     },
     {
@@ -929,7 +867,7 @@ export default function WelcomePage() {
                 </div>
               </motion.div>
 
-              {/* Badge: sandbox expert */}
+              {/* Badge : avis après mission */}
               <motion.div
                 animate={{ x: [0, 5, 0], y: [0, -4, 0] }}
                 transition={{
@@ -946,12 +884,14 @@ export default function WelcomePage() {
                   boxShadow: "0 4px 16px rgba(217,119,6,0.15)",
                 }}
               >
-                <span className="text-xl">🏆</span>
+                <Star className="h-5 w-5 text-[#D97706] fill-[#D97706]" />
                 <div>
                   <p className="text-[9px] text-[#D97706] font-bold">
-                    {t("landing.mockup.expert")}
+                    {t("landing.mockup.reviewed")}
                   </p>
-                  <p className="text-[8px] text-white/35">4.9 ★</p>
+                  <p className="text-[8px] text-white/35">
+                    {t("landing.mockup.reviewedValue")}
+                  </p>
                 </div>
               </motion.div>
             </div>
@@ -1236,92 +1176,6 @@ export default function WelcomePage() {
                   </p>
                 </motion.div>
               </TiltCard>
-            ))}
-          </motion.div>
-        </Section>
-      </section>
-
-      {/* ═══════════════════════════════ SANDBOX ═══════════════════════════════ */}
-      <section
-        id="sandbox"
-        className={`relative py-24 px-4 ${isDark ? "bg-[#0D0618]" : "bg-white"} overflow-hidden transition-colors duration-300`}
-      >
-        <Section className="max-w-4xl mx-auto">
-          <motion.div variants={fadeUp} className="text-center mb-12">
-            <span className="text-[11px] font-bold uppercase tracking-[2px] text-[#7C3AED] block mb-3">
-              Sandbox
-            </span>
-            <h2
-              className="text-[28px] sm:text-[38px] font-extrabold mb-3"
-              style={isDark ? gradTitle : gradTitleLight}
-            >
-              {t("home.sandbox.title")}
-            </h2>
-            <p
-              className={`text-[14px] ${isDark ? "text-white/50" : "text-[#6B7280]"} max-w-md mx-auto`}
-            >
-              {t("home.sandbox.subtitle")}
-            </p>
-          </motion.div>
-
-          <motion.div
-            variants={staggerFast}
-            className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-          >
-            {sandboxLevels.map((level, i) => (
-              <motion.div
-                key={i}
-                variants={fadeUp}
-                whileHover={{ scale: 1.05, transition: { duration: 0.18 } }}
-                className="rounded-3xl p-5 text-center cursor-pointer relative overflow-hidden"
-                style={{
-                  background: `${level.glow}10`,
-                  border: `1px solid ${level.glow}30`,
-                  boxShadow: `0 8px 32px ${level.glow}12,inset 0 1px 0 rgba(255,255,255,0.04)`,
-                }}
-              >
-                <div
-                  className="absolute inset-0 rounded-3xl"
-                  style={{
-                    background: `radial-gradient(circle at 50% 20%, ${level.glow}18, transparent 60%)`,
-                  }}
-                />
-                <SandboxSticker
-                  icon={level.icon}
-                  color={level.glow}
-                  delay={i * 0.4}
-                />
-                <p
-                  className="text-[13px] font-bold mb-1 relative"
-                  style={{ color: level.color }}
-                >
-                  {sandboxNames[i]}
-                </p>
-                <p
-                  className={`text-[11px] ${isDark ? "text-white/42" : "text-[#6B7280]"} relative`}
-                >
-                  {sandboxDescs[i]}
-                </p>
-                <div className="mt-3 flex justify-center gap-1.5 relative">
-                  {[0, 1, 2, 3].map((dot) => (
-                    <div
-                      key={dot}
-                      className="rounded-full transition-all"
-                      style={{
-                        width: dot <= i ? 8 : 6,
-                        height: dot <= i ? 8 : 6,
-                        background:
-                          dot <= i
-                            ? level.color
-                            : isDark
-                              ? "rgba(255,255,255,0.08)"
-                              : "#E5E7EB",
-                        boxShadow: dot <= i ? `0 0 8px ${level.glow}` : "none",
-                      }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
             ))}
           </motion.div>
         </Section>

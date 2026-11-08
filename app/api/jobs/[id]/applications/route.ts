@@ -8,8 +8,8 @@ import { jobRefusal } from "@/lib/validations/job";
  * Candidatures d'une offre de l'entreprise connectée (F-16).
  *
  * La RPC `company_job_applicants` vérifie en base que l'offre appartient à
- * l'appelant et ne renvoie que le prénom, l'initiale du nom, des indicateurs
- * de fiabilité et les compétences. La photo est servie par
+ * l'appelant et ne renvoie que le prénom, l'initiale du nom, la note et le
+ * nombre d'avis des missions (lot 9b), les missions et les compétences. La photo est servie par
  * `…/applications/[applicationId]/photo`, sans chemin de stockage.
  */
 export async function GET(

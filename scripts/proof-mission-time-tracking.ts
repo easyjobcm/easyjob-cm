@@ -173,7 +173,6 @@ async function createCandidate(userId: string, firstName: string) {
       onboarding_status: "completed",
       onboarding_step: 6,
       profile_completion_pct: 100,
-      sandbox_level: 1,
     })
     .select("id")
     .single();
@@ -780,17 +779,26 @@ async function main() {
         afterReview.candidate_signed === false,
     );
 
+    // Avant la note de l'entreprise, l'avis donné par le candidat ne compte
+    // pas dans son propre nombre d'avis (lot 9b).
+    const { data: c1Before } = await serviceClient
+      .from("candidate_profiles")
+      .select("average_rating, review_count")
+      .eq("id", cand1)
+      .single();
     const cr = await review(A, m1.missionId, 4, "Ponctuelle");
+    const crAgain = await review(A, m1.missionId, 1);
     const revs1b = await reviews(m1.missionId);
     const { data: stars } = await serviceClient
       .from("candidate_profiles")
-      .select("id, average_rating")
+      .select("id, average_rating, review_count")
       .in("id", [cand1, cand2]);
     const starOf = new Map(
       (stars ?? []).map((s) => [s.id, Number(s.average_rating)]),
     );
+    const countOf = new Map((stars ?? []).map((s) => [s.id, s.review_count]));
     report(
-      "R5 l'entreprise note le candidat (facultatif) : étoiles du bon candidat seulement",
+      "R5 l'entreprise note le candidat (facultatif) : étoiles et nombre d'avis du bon candidat seulement, relance sans second avis",
       cr.status === 200 &&
         revs1b.length === 2 &&
         revs1b.some(
@@ -800,8 +808,18 @@ async function main() {
             r.reviewer_id === coA,
         ) &&
         starOf.get(cand1) === 4 &&
-        starOf.get(cand2) === 0,
-      Object.fromEntries(starOf),
+        starOf.get(cand2) === 0 &&
+        c1Before?.review_count === 0 &&
+        Number(c1Before?.average_rating) === 0 &&
+        (crAgain.body.review as { already_reviewed?: boolean })
+          ?.already_reviewed === true &&
+        countOf.get(cand1) === 1 &&
+        countOf.get(cand2) === 0,
+      {
+        stars: Object.fromEntries(starOf),
+        counts: Object.fromEntries(countOf),
+        before: c1Before,
+      },
     );
 
     const [rB, rC2, rAnon, rBad] = await Promise.all([

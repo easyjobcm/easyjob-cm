@@ -8,13 +8,11 @@ import {
   useSpring,
   animate,
 } from "framer-motion";
-import { type LucideIcon } from "lucide-react";
 
 interface ProfileAvatar3DProps {
   initial: string;
   /** URL (signée ou statique) de la photo de profil ; fallback initiales si absente ou en erreur. */
   photoUrl?: string | null;
-  sandboxBadge?: { icon: LucideIcon; label: string; color: string } | null;
   size?: number;
   /** Couleur d'accentuation — par défaut violet #7C3AED */
   accentColor?: string;
@@ -23,7 +21,6 @@ interface ProfileAvatar3DProps {
 export function ProfileAvatar3D({
   initial,
   photoUrl,
-  sandboxBadge,
   size = 96,
   accentColor,
 }: ProfileAvatar3DProps) {
@@ -58,7 +55,7 @@ export function ProfileAvatar3D({
     animate(rawY, 0, { type: "spring", stiffness: 200, damping: 25 });
   };
 
-  const color = accentColor ?? sandboxBadge?.color ?? "#7C3AED";
+  const color = accentColor ?? "#7C3AED";
 
   return (
     <div
@@ -145,33 +142,6 @@ export function ProfileAvatar3D({
           }}
         />
       </motion.div>
-
-      {/* Sandbox badge */}
-      {sandboxBadge && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0, y: 8 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{
-            delay: 0.5,
-            type: "spring",
-            stiffness: 400,
-            damping: 15,
-          }}
-          className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5"
-          style={{
-            background: `linear-gradient(135deg, ${color}cc, ${color})`,
-            boxShadow: `0 6px 16px ${color}55, inset 0 1px 0 rgba(255,255,255,0.22)`,
-          }}
-        >
-          {(() => {
-            const Icon = sandboxBadge.icon;
-            return <Icon className="h-3.5 w-3.5 text-white" />;
-          })()}
-          <span className="text-[10px] font-bold tracking-wide text-white">
-            {sandboxBadge.label}
-          </span>
-        </motion.div>
-      )}
     </div>
   );
 }

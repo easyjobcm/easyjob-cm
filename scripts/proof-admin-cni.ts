@@ -227,7 +227,6 @@ async function createProofUser(
         onboarding_step: 4,
         onboarding_status: "completed",
         profile_completion_pct: 70,
-        sandbox_level: 0,
       })
       .select("id")
       .single();

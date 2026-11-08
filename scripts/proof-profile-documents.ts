@@ -160,7 +160,6 @@ async function createTestCandidate(email: string): Promise<ProofUser> {
       onboarding_step: 4,
       onboarding_status: "completed",
       profile_completion_pct: 60,
-      sandbox_level: 0,
     })
     .select("id")
     .single();

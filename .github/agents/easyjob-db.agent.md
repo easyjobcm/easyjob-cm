@@ -21,11 +21,13 @@ Ne suppose jamais la structure — lis toujours depuis la source.
 
 ## Tables principales
 
+Niveaux Sandbox supprimés au lot 9b (2026-11-08) : ne pas réintroduire de niveau, de seuil d'étoiles pour postuler ni de classement par la note.
+
 ```
 users                  — Auth + rôles + sanctions (no_show_count, ban_expires_at)
-candidate_profiles     — sandbox_level (0-3), cni_*, momo_*, home_gps_*, premium_until
+candidate_profiles     — average_rating + review_count (avis de missions), cni_*, momo_*, home_gps_*, premium_until
 company_profiles       — niu, trust_score, subscription_tier
-jobs                   — parent_job_id (multi-jours), sandbox_level_required, break_duration_minutes
+jobs                   — parent_job_id (multi-jours), break_duration_minutes
 job_applications       — ai_score, has_worked_here_before, previous_rating
 missions               — contract_type, payment_status, payment_*_tranche_at
 contracts              — contract_type (simple|formal), signatures
@@ -34,7 +36,6 @@ reviews                — 1-5 étoiles, critères multiples
 disputes               — litiges + preuves + résolution
 subscriptions          — plans candidat et entreprise
 document_expirations   — CNI, permis, alertes 30j/7j/expiration
-sandbox_config         — seuils configurables sans redéploiement
 audit_logs             — actions admin uniquement (admin_founder)
 notifications          — push, sms, email
 otp_codes              — codes OTP téléphone
@@ -72,7 +73,7 @@ USING (
     AND role IN ('company', 'company_premium')
   )
 )
--- Ne retourner que : sandbox_level, average_rating, skills, city, latitude, longitude
+-- Ne retourner que : average_rating, review_count, skills, city (RPC company_job_applicants)
 -- Jamais : phone, cni_number, momo_number, cni_front_url, cni_back_url
 ;
 ```
@@ -82,7 +83,7 @@ USING (
 1. SQL ALTER TABLE avec les nouveaux champs et contraintes
 2. RLS policies pour les nouvelles tables
 3. Index manquants pour les performances
-4. Seed data si nécessaire (ex: sandbox_config, job_categories)
+4. Seed data si nécessaire (ex: job_categories)
 5. Rollback SQL en commentaire
 
 ## Types ENUM Supabase du projet

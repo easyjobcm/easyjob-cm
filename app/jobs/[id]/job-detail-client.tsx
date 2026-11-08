@@ -822,9 +822,7 @@ export function JobDetailClient({
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
               <p className="text-sm text-foreground">
-                {locale === "fr"
-                  ? "Une absence non justifiée peut affecter votre score de fiabilité."
-                  : "Unexcused absence may affect your reliability score."}
+                {t.application.availabilityNotice}
               </p>
             </div>
           </div>

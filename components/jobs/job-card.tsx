@@ -30,7 +30,6 @@ interface JobCardProps {
     urgency: "normal" | "urgent" | "critical";
     positions_available: number;
     positions_filled: number;
-    is_sandbox?: boolean;
     company?: {
       company_name: string;
       logo_url?: string;
@@ -79,13 +78,6 @@ export function JobCard({
           >
             <Zap className="inline-block w-3 h-3 mr-1" />
             {job.urgency === "critical" ? "Urgent!" : "Urgent"}
-          </div>
-        )}
-
-        {/* Sandbox badge */}
-        {job.is_sandbox && (
-          <div className="absolute top-0 left-0 px-2 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-br-xl">
-            Sandbox
           </div>
         )}
 

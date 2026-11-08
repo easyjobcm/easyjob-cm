@@ -16,6 +16,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 7 | Sélection → mission → contrat → pointage — **7a, 7b, 7c, 7c-bis et 7d corrigés et vérifiés localement, non déployés** | F-07, F-10, F-16, F-30 | Fonctionnel et sécurité | Grand (4 sous-lots) |
 | 8 | Hygiène auth, chatbot et journaux — **corrigé et vérifié localement, non déployé ; F-23 partiel** | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes — **corrigé et vérifié localement sur les parcours ciblés, non déployé ; F-19 et F-28 partiels** | F-18, F-19, F-28 | UX | Moyen |
+| 9b | Retrait des niveaux Sandbox, réputation par les avis — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-08 | Fonctionnel | Moyen |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
 
 ---
@@ -24,7 +25,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 
 - **Objectif** : savoir si les failles P0 et P1 sont présentes **et** si elles ont déjà été exploitées, ce qui détermine l'urgence du lot 1 et un éventuel nettoyage de données.
 - **IDs** : H-01, H-02, H-03.
-- **Périmètre** : requêtes `SELECT` sur `pg_policies`, `pg_trigger` (y compris les triggers sur `auth.users` qui appellent `handle_new_user`), `cron.job`, `app_metadata.role` des comptes admin ; comptages sur `users` (par rôle), `candidate_profiles` (`sandbox_level`, `premium_until`, `driving_license_verified`), `subscriptions` (`price = 0`), comptes admin sans téléphone.
+- **Périmètre** : requêtes `SELECT` sur `pg_policies`, `pg_trigger` (y compris les triggers sur `auth.users` qui appellent `handle_new_user`), `cron.job`, `app_metadata.role` des comptes admin ; comptages sur `users` (par rôle), `candidate_profiles` (`sandbox_level` — **avant le déploiement du lot 9b**, qui supprime la colonne —, `premium_until`, `driving_license_verified`), `subscriptions` (`price = 0`), comptes admin sans téléphone.
 - **Exclusions** : aucune écriture ni correction de données dans ce lot.
 - **Fichiers** : aucun. Consigner les résultats dans `docs/audit/AUDIT.md`, section 6.
 - **Dépendances** : aucune.
@@ -326,13 +327,24 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - Promesses retirées : paiement sous 48 h, séquestre, retrait Mobile Money, remplacement garanti, IA, essai gratuit, hors ligne, compteurs sans source ; écran des gains limité aux montants des contrats.
 > - Tests : `login-redirect`, `application-feedback`, `my-jobs`, `user-facing-claims` (promesses et liens internes), `company-role`, toast avec action ; essai navigateur 375 px FR/EN (script local hors dépôt).
 >
-> **Décisions produit attendues** : affichage des avantages d'abonnement non livrés (lot Free/Premium) ; mention « bientôt disponible » éventuelle ; renouvellement d'une candidature retirée ; progression Sandbox annoncée sur l'accueil.
+> **Décisions produit attendues** : affichage des avantages d'abonnement non livrés (lot Free/Premium) ; mention « bientôt disponible » éventuelle ; renouvellement d'une candidature retirée ; ~~progression Sandbox annoncée sur l'accueil~~ (tranché le 2026-11-08 : niveaux retirés, lot 9b).
 
 - **IDs** : F-18, F-19, F-28.
 - **Périmètre** : ~~remplacer `hooks/use-toast.ts` par un vrai composant (accessible, `aria-live`)~~ (fait au lot 2b, `AUDIT.md` §11 ; reste : textes des toasts en i18n), corriger `/login` en `/auth/login`, retirer ou marquer « bientôt disponible » les promesses non livrées (paiement 48 h, séquestre, remplacement garanti, IA, essai gratuit), passer les pages touchées par les lots 6 et 7 sur le dictionnaire i18n.
 - **Exclusions** : refonte visuelle.
 - **Dépendances** : à coordonner avec les lots 6 et 7 pour ne pas réécrire deux fois les mêmes pages. La partie « textes » peut partir tout de suite.
 - **Critères d'acceptation** : chaque erreur des parcours mission, contrat et offres est visible ; une relecture produit valide que chaque promesse correspond à une fonction livrée ; contrôle manuel à 375 px sur Android et iOS.
+- **Taille** : moyen.
+
+## Lot 9b — Retrait des niveaux Sandbox
+
+> **Statut (2026-11-08)** : réalisé sur `refactor/lot-09b-remove-sandbox-levels` (base `origin/main-dev`, 0db9384, lot 9 intégré), **non commité, non déployé**. Détails, preuves et limites : `AUDIT.md` §25.
+
+- **Décision produit** : les étoiles des évaluations de missions sont le seul indicateur de réputation affiché (« 4,5/5 · 2 avis » ou « Pas encore d'avis ») ; un compte sans avis peut postuler à sa première mission.
+- **Périmètre** : migration `20261108130000_remove_sandbox_levels.sql` (critère retiré de `apply_to_job`, `company_job_applicants` avec note et nombre d'avis, ancien champ refusé par `create_job` et `update_job`, `review_count` tenu par le trigger d'évaluation, colonnes Sandbox et `sandbox_config` supprimées) ; badges, widget, refus, matching, accueil et fiche admin ; « score de fiabilité » retiré des indicateurs publics.
+- **Exclusions** : seuil d'étoiles pour postuler, classement par la note, conversion des anciens niveaux ; compteurs `completed_missions` et `total_missions` (jamais incrémentés).
+- **Dépendances** : comptage H-02 du lot 0 sur `sandbox_level` à faire avant le déploiement.
+- **Critères d'acceptation** : upgrade depuis l'état du lot 9 (candidat sans avis accepté sur une offre de niveau élevé, refus du permis conservé, note existante conservée, premier avis compté une seule fois) ; `pnpm test:rls`, tests unitaires, typage, lint, formatage et build verts ; contrôle à 375 px en FR et EN.
 - **Taille** : moyen.
 
 ## Lot 10 — Documentation, consignes IA et nettoyage

@@ -240,7 +240,6 @@ async function createCandidate(
       onboarding_status: "completed",
       onboarding_step: 6,
       profile_completion_pct: 100,
-      sandbox_level: 1,
     })
     .select("id")
     .single();
@@ -971,8 +970,10 @@ async function main() {
       "first_name",
       "last_initial",
       "photo_url",
-      "sandbox_level",
-      "reliability_score",
+      // Lot 9b : note et nombre d'avis à la place du niveau Sandbox et du
+      // score de fiabilité.
+      "average_rating",
+      "review_count",
       "completed_missions",
       "skills",
     ].sort();

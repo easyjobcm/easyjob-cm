@@ -251,7 +251,6 @@ export const en: TranslationKeys = {
       statNoShows: "No-shows",
       statReliability: "Reliability",
       statRating: "Average rating",
-      statSandbox: "Sandbox level",
       premiumLabel: "Premium",
       premiumNone: "No Premium subscription",
       premiumUntil: "until",
@@ -585,6 +584,8 @@ export const en: TranslationKeys = {
       none: "No positions available",
     },
     confirmBefore: "Before applying, make sure you can attend this mission.",
+    availabilityNotice:
+      "Only apply if you are available at the stated times. If something comes up, let the company know as soon as possible.",
     status: {
       pending: {
         title: "Application sent",
@@ -642,8 +643,6 @@ export const en: TranslationKeys = {
         "Your account is suspended: you cannot apply. Contact support.",
       job_not_found: "This job is no longer available.",
       job_not_available: "This job no longer accepts applications.",
-      sandbox_level_too_low:
-        "This job requires a higher trust level. Complete more missions to access it.",
       no_positions: "All positions for this job are filled.",
       already_applied: "You have already applied to this job.",
       profile_incomplete:
@@ -897,23 +896,6 @@ export const en: TranslationKeys = {
         address: "City and address",
         legal: "RCCM / NIU number",
         contact: "Main contact",
-      },
-      sandbox: {
-        title: "Your Sandbox level",
-        current: "Current level",
-        unlockNext: "To reach the next level:",
-        level0: "New",
-        level1: "Confirmed",
-        level2: "Reliable",
-        level3: "Expert",
-        missions0: "Introductory missions",
-        missions1: "Intermediate missions",
-        missions2: "Responsible missions",
-        missions3: "All missions",
-        req_registered: "Registration validated",
-        req_m1_r35: "1 mission + rating ≥ 3.5★",
-        req_m3_r4_p80: "3 missions + rating ≥ 4★ + profile ≥ 80%",
-        req_m10_r45_verified: "10 missions + rating ≥ 4.5★ + verified badge",
       },
     },
     edit: {
@@ -1169,7 +1151,6 @@ export const en: TranslationKeys = {
     missionsCompleted: "missions completed",
     missionsPosted: "missions posted",
     statMissions: "Missions",
-    statScore: "Score",
     statSkills: "Skills",
     mySkills: "My skills",
     locationLabel: "Location",
@@ -2042,6 +2023,13 @@ export const en: TranslationKeys = {
     },
   },
 
+  // Reputation: star ratings from mission reviews (lot 9b).
+  reputation: {
+    noReviews: "No reviews yet",
+    summary: "{rating}/5 · {reviews}",
+    reviews: { one: "{count} review", other: "{count} reviews" },
+    ratingLabel: "Rating",
+  },
   days: {
     monday: "Mon",
     tuesday: "Tue",
@@ -2122,24 +2110,11 @@ export const en: TranslationKeys = {
       f2Title: "Digital Contract",
       f2Desc:
         "Each selection creates a contract that the company and the candidate sign electronically.",
-      f3Title: "Trust System",
+      f3Title: "Reviews after every mission",
       f3Desc:
-        "A job may require a minimum Sandbox level. Each candidate's level is assigned by the EasyJob team.",
+        "After each mission, the company and the candidate rate each other. The rating and number of reviews are visible before selection; a profile without reviews can still apply.",
       f4Title: "Targeted search",
       f4Desc: "Filter jobs by city and category, then apply in one click.",
-    },
-    sandbox: {
-      title: "A unique trust system",
-      subtitle:
-        "Every candidate starts at the New level. The level is assigned by the EasyJob team and does not change automatically. Some jobs require a minimum level to apply.",
-      l0Name: "New",
-      l0Desc: "Starting level",
-      l1Name: "Confirmed",
-      l1Desc: "Level 1",
-      l2Name: "Reliable",
-      l2Desc: "Level 2",
-      l3Name: "Expert",
-      l3Desc: "Level 3",
     },
     cta: {
       title: "Ready to start?",
@@ -2179,7 +2154,6 @@ export const en: TranslationKeys = {
       features: "Features",
       howItWorks: "How it works",
       about: "About",
-      sandbox: "Sandbox",
     },
     theme: { darkMode: "Dark mode", lightMode: "Light mode" },
     language: { french: "Français", english: "English" },
@@ -2196,7 +2170,8 @@ export const en: TranslationKeys = {
       applyOneClick: "Apply in 1 click",
       paymentReceived: "Contract signed",
       missionConfirmed: "Mission confirmed",
-      expert: "Expert",
+      reviewed: "Post-mission review",
+      reviewedValue: "4.9/5 · 12 reviews",
     },
     pwa: {
       title: "Install EasyJob CM on your device",

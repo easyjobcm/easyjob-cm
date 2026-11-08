@@ -1,11 +1,3 @@
-import {
-  type LucideIcon,
-  Sprout,
-  BadgeCheck,
-  Shield,
-  Crown,
-} from "lucide-react";
-
 export interface CandidateProfileForCompletion {
   first_name?: string | null;
   last_name?: string | null;
@@ -23,7 +15,6 @@ export interface CandidateProfileForCompletion {
   cni_expires_at?: string | null;
   momo_verified?: boolean | null;
   profile_completion_pct?: number;
-  sandbox_level?: number;
   average_rating?: number;
   completed_missions?: number | null;
 }
@@ -214,56 +205,3 @@ export function getCandidateCompletionCtaHref(
     ? `${base}?focus=${firstMissing.key}`
     : base;
 }
-
-export interface SandboxLevelConfig {
-  level: number;
-  icon: LucideIcon;
-  gradient: string;
-  color: string;
-  bgColor: string;
-  nameKey: "level0" | "level1" | "level2" | "level3";
-  requirementKey:
-    | "req_registered"
-    | "req_m1_r35"
-    | "req_m3_r4_p80"
-    | "req_m10_r45_verified";
-}
-
-export const SANDBOX_LEVELS: SandboxLevelConfig[] = [
-  {
-    level: 0,
-    icon: Sprout,
-    gradient: "from-gray-100 to-gray-200",
-    color: "#6B7280",
-    bgColor: "#F9FAFB",
-    nameKey: "level0",
-    requirementKey: "req_registered",
-  },
-  {
-    level: 1,
-    icon: BadgeCheck,
-    gradient: "from-blue-50 to-blue-100",
-    color: "#2563EB",
-    bgColor: "#EFF6FF",
-    nameKey: "level1",
-    requirementKey: "req_m1_r35",
-  },
-  {
-    level: 2,
-    icon: Shield,
-    gradient: "from-violet-50 to-violet-100",
-    color: "#7C3AED",
-    bgColor: "#F5F3FF",
-    nameKey: "level2",
-    requirementKey: "req_m3_r4_p80",
-  },
-  {
-    level: 3,
-    icon: Crown,
-    gradient: "from-amber-50 to-amber-100",
-    color: "#D97706",
-    bgColor: "#FFFBEB",
-    nameKey: "level3",
-    requirementKey: "req_m10_r45_verified",
-  },
-];

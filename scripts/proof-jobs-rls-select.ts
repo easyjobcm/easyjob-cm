@@ -320,7 +320,6 @@ async function main() {
       onboarding_status: "completed",
       onboarding_step: 6,
       profile_completion_pct: 100,
-      sandbox_level: 1,
     })
     .select("id")
     .single();

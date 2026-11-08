@@ -34,10 +34,6 @@ const APPLY_REFUSALS: Record<string, { status: number; error: string }> = {
   },
   job_not_found: { status: 404, error: "Job not found" },
   job_not_available: { status: 400, error: "Job is not available" },
-  sandbox_level_too_low: {
-    status: 403,
-    error: "Your sandbox level is too low for this job",
-  },
   no_positions: { status: 400, error: "No positions available" },
   already_applied: { status: 400, error: "Already applied to this job" },
 };

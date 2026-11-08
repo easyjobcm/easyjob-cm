@@ -252,7 +252,6 @@ export const fr = {
       statNoShows: "Absences",
       statReliability: "Fiabilité",
       statRating: "Note moyenne",
-      statSandbox: "Niveau Sandbox",
       premiumLabel: "Premium",
       premiumNone: "Aucun abonnement Premium",
       premiumUntil: "jusqu'au",
@@ -588,6 +587,8 @@ export const fr = {
     },
     confirmBefore:
       "Avant de postuler, assurez-vous de pouvoir vous présenter à cette mission.",
+    availabilityNotice:
+      "Postulez seulement si vous êtes disponible aux horaires indiqués. En cas d'empêchement, prévenez l'entreprise au plus tôt.",
     status: {
       pending: {
         title: "Candidature envoyée",
@@ -647,8 +648,6 @@ export const fr = {
         "Votre compte est suspendu : vous ne pouvez pas postuler. Contactez le support.",
       job_not_found: "Cette offre n'est plus disponible.",
       job_not_available: "Cette offre n'accepte plus de candidatures.",
-      sandbox_level_too_low:
-        "Cette offre demande un niveau de confiance plus élevé. Réalisez d'autres missions pour y accéder.",
       no_positions: "Toutes les places de cette offre sont pourvues.",
       already_applied: "Vous avez déjà postulé à cette offre.",
       profile_incomplete:
@@ -910,23 +909,6 @@ export const fr = {
         address: "Ville et adresse",
         legal: "Numéro RCCM / NIU",
         contact: "Contact principal",
-      },
-      sandbox: {
-        title: "Votre niveau Sandbox",
-        current: "Niveau actuel",
-        unlockNext: "Pour passer au niveau supérieur :",
-        level0: "Nouveau",
-        level1: "Confirmé",
-        level2: "Fiable",
-        level3: "Expert",
-        missions0: "Missions d'initiation",
-        missions1: "Missions intermédiaires",
-        missions2: "Missions à responsabilité",
-        missions3: "Toutes les missions",
-        req_registered: "Inscription validée",
-        req_m1_r35: "1 mission + note ≥ 3.5★",
-        req_m3_r4_p80: "3 missions + note ≥ 4★ + profil ≥ 80%",
-        req_m10_r45_verified: "10 missions + note ≥ 4.5★ + badge vérifié",
       },
     },
     edit: {
@@ -1193,7 +1175,6 @@ export const fr = {
     missionsCompleted: "missions réalisées",
     missionsPosted: "missions publiées",
     statMissions: "Missions",
-    statScore: "Score",
     statSkills: "Compétences",
     mySkills: "Mes compétences",
     locationLabel: "Localisation",
@@ -2081,6 +2062,13 @@ export const fr = {
     },
   },
 
+  // Réputation : étoiles des évaluations de missions (lot 9b).
+  reputation: {
+    noReviews: "Pas encore d'avis",
+    summary: "{rating}/5 · {reviews}",
+    reviews: { one: "{count} avis", other: "{count} avis" },
+    ratingLabel: "Note",
+  },
   days: {
     monday: "Lun",
     tuesday: "Mar",
@@ -2161,25 +2149,12 @@ export const fr = {
       f2Title: "Contrat digital",
       f2Desc:
         "Chaque sélection crée un contrat que l'entreprise et le candidat signent électroniquement.",
-      f3Title: "Système de confiance",
+      f3Title: "Avis après chaque mission",
       f3Desc:
-        "Une offre peut exiger un niveau Sandbox minimum. Le niveau de chaque candidat est attribué par l'équipe EasyJob.",
+        "Après chaque mission, l'entreprise et le candidat s'évaluent. La note et le nombre d'avis sont visibles avant la sélection ; un profil sans avis peut postuler.",
       f4Title: "Recherche ciblée",
       f4Desc:
         "Filtrez les offres par ville et par catégorie, puis postulez en un clic.",
-    },
-    sandbox: {
-      title: "Un système de confiance unique",
-      subtitle:
-        "Chaque candidat commence au niveau Nouveau. Le niveau est attribué par l'équipe EasyJob et n'évolue pas automatiquement. Certaines offres demandent un niveau minimum pour postuler.",
-      l0Name: "Nouveau",
-      l0Desc: "Niveau de départ",
-      l1Name: "Confirmé",
-      l1Desc: "Niveau 1",
-      l2Name: "Fiable",
-      l2Desc: "Niveau 2",
-      l3Name: "Expert",
-      l3Desc: "Niveau 3",
     },
     cta: {
       title: "Prêt à commencer ?",
@@ -2220,7 +2195,6 @@ export const fr = {
       features: "Fonctionnalités",
       howItWorks: "Comment ça marche",
       about: "À propos",
-      sandbox: "Sandbox",
     },
     theme: { darkMode: "Mode sombre", lightMode: "Mode clair" },
     language: { french: "Français", english: "English" },
@@ -2237,7 +2211,8 @@ export const fr = {
       applyOneClick: "Postuler en 1 clic",
       paymentReceived: "Contrat signé",
       missionConfirmed: "Mission confirmée",
-      expert: "Expert",
+      reviewed: "Avis après mission",
+      reviewedValue: "4,9/5 · 12 avis",
     },
     pwa: {
       title: "Installez EasyJob CM sur votre appareil",

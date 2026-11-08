@@ -30,6 +30,7 @@ import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { UpdateRequestModal } from "@/components/admin/update-request-modal";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { formatReputation } from "@/lib/utils/reputation";
 
 /**
  * T8.4b — Profil candidat complet (client).
@@ -118,7 +119,7 @@ interface CandidateProfilePayload {
       no_show_count: number;
       reliability_score: number;
       average_rating: number;
-      sandbox_level: number;
+      review_count: number;
       premium_until: string | null;
       created_at: string | null;
     };
@@ -532,11 +533,12 @@ export function CandidateProfileAdminClient({
             />
             <Stat
               label={cp.statRating}
-              value={String(c.stats.average_rating)}
-            />
-            <Stat
-              label={cp.statSandbox}
-              value={String(c.stats.sandbox_level)}
+              value={formatReputation(
+                c.stats.average_rating,
+                c.stats.review_count,
+                locale,
+                t.reputation,
+              )}
             />
             <Stat
               label={cp.premiumLabel}

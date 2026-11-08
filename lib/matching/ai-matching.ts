@@ -10,7 +10,6 @@ interface MatchResult {
   score: number;
   breakdown: {
     skills: number;
-    sandbox: number;
     rating: number;
     completion: number;
     availability: number;
@@ -53,7 +52,6 @@ export async function calculateMatchScore(
       score: 0,
       breakdown: {
         skills: 0,
-        sandbox: 0,
         rating: 0,
         completion: 0,
         availability: 0,
@@ -66,7 +64,6 @@ export async function calculateMatchScore(
 
   const breakdown = {
     skills: 0,
-    sandbox: 0,
     rating: 0,
     completion: 0,
     availability: 0,
@@ -169,18 +166,6 @@ export async function calculateMatchScore(
     breakdown.availability = 50; // Default
   }
 
-  // 2. Sandbox level (20% — SRS §6.5)
-  const candidateLevel: number = candidate.sandbox_level ?? 0;
-  const requiredLevel: number = job.sandbox_level_required ?? 0;
-  if (candidateLevel >= requiredLevel) {
-    breakdown.sandbox = Math.min(100, 50 + candidateLevel * 12);
-    if (candidateLevel >= 3) reasons.push("Candidat Expert (niveau 3)");
-    else if (candidateLevel >= 2) reasons.push("Candidat Fiable (niveau 2)");
-    else if (candidateLevel >= 1) reasons.push("Candidat Confirmé (niveau 1)");
-  } else {
-    breakdown.sandbox = 0;
-  }
-
   // 3. Average rating (15% — SRS §6.5)
   const avgRating: number = candidate.average_rating ?? 0;
   if (avgRating >= 4.5) {
@@ -203,15 +188,17 @@ export async function calculateMatchScore(
   if (completion >= 90) reasons.push("Profil très complet");
   else if (completion >= 60) reasons.push("Profil complet");
 
-  // Score pondéré selon SRS §6.5 : 30/20/15/10/10/10/5
+  // Pondérations SRS §6.5 sans le niveau Sandbox (20 %, retiré au lot 9b) :
+  // 30/15/10/10/10/5, ramenées sur 100 en gardant leurs proportions. La
+  // note n'est ni un seuil ni un critère de tri à part.
   const score = Math.round(
-    breakdown.skills * 0.3 +
-      breakdown.sandbox * 0.2 +
+    (breakdown.skills * 0.3 +
       breakdown.rating * 0.15 +
       breakdown.completion * 0.1 +
       breakdown.availability * 0.1 +
       breakdown.location * 0.1 +
-      breakdown.premium * 0.05,
+      breakdown.premium * 0.05) /
+      0.8,
   );
 
   return {
@@ -237,13 +224,11 @@ export async function findMatchingCandidates(
 
   if (!job) return [];
 
-  // Get candidates: completed onboarding, level suffisant pour cette offre
-  const sandboxRequired: number = job.sandbox_level_required ?? 0;
+  // Candidats ayant terminé leur inscription (aucun critère de niveau).
   const { data: candidates } = await supabase
     .from("candidate_profiles")
-    .select("id, city, sandbox_level")
+    .select("id, city")
     .eq("onboarding_status", "completed")
-    .gte("sandbox_level", sandboxRequired)
     .limit(100);
 
   if (!candidates || candidates.length === 0) return [];
@@ -268,31 +253,4 @@ export async function findMatchingCandidates(
     .filter((r) => r.score >= 30) // Minimum threshold
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-}
-
-// Recalcule average_rating après chaque mission validée
-// (appelé depuis la route de validation de mission)
-export async function updateReliabilityScore(
-  candidateId: string,
-): Promise<void> {
-  const supabase = await createClient();
-
-  // Récupère toutes les évaluations du candidat
-  const { data: reviews, error } = await supabase
-    .from("reviews")
-    .select("overall_rating")
-    .eq("reviewed_id", candidateId)
-    .eq("reviewer_type", "company");
-
-  if (error) throw error;
-  if (!reviews || reviews.length === 0) return;
-
-  const avg =
-    reviews.reduce((sum, r) => sum + r.overall_rating, 0) / reviews.length;
-
-  const { error: updateError } = await supabase
-    .from("candidate_profiles")
-    .update({ average_rating: Math.round(avg * 10) / 10 })
-    .eq("id", candidateId);
-  if (updateError) throw updateError;
 }

@@ -25,12 +25,16 @@ import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits
 import { PaymentDelayInfo } from "@/components/candidate/profile/payment-delay-info";
 import { Modal } from "@/components/ui/modal";
 import {
-  SANDBOX_LEVELS,
   checkEssentialCriteria,
   getCandidateCompletionCtaHref,
   type Criterion,
 } from "@/lib/utils/profile-completion";
 import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
+import {
+  formatRating,
+  formatReputation,
+  hasReviews,
+} from "@/lib/utils/reputation";
 import { useAccountState, useServerNow } from "@/lib/realtime/provider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
@@ -72,6 +76,7 @@ interface CandidateProfileClientProps {
     first_name?: string | null;
     last_name?: string | null;
     average_rating?: number | null;
+    review_count?: number | null;
     city?: string | null;
     quartier?: string | null;
     premium_until?: string | null;
@@ -96,7 +101,6 @@ interface CandidateProfileClientProps {
     verification_status: SkillVerificationStatus | string;
   }>;
   completionPct: number;
-  sandboxLevel: number;
   criteria: Criterion[];
   availableDays: number[];
   onboardingStatus: string | null;
@@ -142,7 +146,6 @@ export function CandidateProfileClient({
   gate,
   skills,
   completionPct,
-  sandboxLevel,
   criteria,
   availableDays,
   onboardingStatus,
@@ -202,20 +205,6 @@ export function CandidateProfileClient({
     };
   }, [profile?.profile_photo_url]);
 
-  const currentLevelConfig = SANDBOX_LEVELS[Math.min(sandboxLevel, 3)];
-  const sandboxNames = t.profile.completion.sandbox;
-  const levelNameMap: Record<string, string> = {
-    level0: sandboxNames.level0,
-    level1: sandboxNames.level1,
-    level2: sandboxNames.level2,
-    level3: sandboxNames.level3,
-  };
-  const sandboxBadge = {
-    icon: currentLevelConfig.icon,
-    label: levelNameMap[currentLevelConfig.nameKey],
-    color: premium ? "#7C3AED" : currentLevelConfig.color,
-  };
-
   const displayName =
     `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() ||
     user.phone ||
@@ -223,7 +212,16 @@ export function CandidateProfileClient({
   const initial = profile?.first_name?.[0] || user.phone?.[0] || "U";
   const contactInfo = user.phone || user.email || "";
   const averageRating = profile?.average_rating ?? 0;
-  const starsCount = Math.min(5, Math.round(averageRating));
+  const reviewCount = profile?.review_count ?? 0;
+  const rated = hasReviews(reviewCount);
+  // Sans avis, aucune étoile n'est remplie (pas de note par défaut).
+  const starsCount = rated ? Math.min(5, Math.round(averageRating)) : 0;
+  const reputationLabel = formatReputation(
+    averageRating,
+    reviewCount,
+    locale,
+    t.reputation,
+  );
 
   const stats = [
     {
@@ -232,8 +230,8 @@ export function CandidateProfileClient({
       color: premium ? "#7C3AED" : "#A78BFA",
     },
     {
-      value: averageRating > 0 ? averageRating.toFixed(1) : "0.0",
-      label: t.profile.statScore,
+      value: rated ? `${formatRating(averageRating, locale)}/5` : "—",
+      label: t.reputation.ratingLabel,
       color: "#22C55E",
     },
     {
@@ -356,7 +354,7 @@ export function CandidateProfileClient({
                   <ProfileAvatar3D
                     initial={initial}
                     photoUrl={photoUrl}
-                    sandboxBadge={sandboxBadge}
+                    accentColor={premium ? "#7C3AED" : "#6B7280"}
                     size={100}
                   />
                   {/* Overlay de clic + pastille caméra */}
@@ -375,8 +373,7 @@ export function CandidateProfileClient({
             </div>
 
             <div className="relative mt-4 flex flex-col items-center gap-2 text-center">
-              {/* Pill statut uniquement pour Premium — pour Standard,
-                  le badge Sandbox est déjà visible sur l'avatar 3D. */}
+              {/* Pill statut uniquement pour Premium. */}
               {premium && (
                 <PremiumBadge label={t.profile.status.candidatePremium} />
               )}
@@ -421,11 +418,12 @@ export function CandidateProfileClient({
                     />
                   </motion.div>
                 ))}
-                {averageRating > 0 && (
-                  <span className="ml-1 text-sm font-semibold text-white/80">
-                    {averageRating.toFixed(1)}
-                  </span>
-                )}
+                <span
+                  className="ml-1 text-sm font-semibold text-white/80"
+                  data-testid="candidate-reputation"
+                >
+                  {reputationLabel}
+                </span>
               </motion.div>
 
               <motion.p
@@ -497,7 +495,6 @@ export function CandidateProfileClient({
               role={user.role}
               completionPct={completionPct}
               criteria={criteria}
-              sandboxLevel={sandboxLevel}
               onboardingStatus={onboardingStatus}
             />
           </motion.div>

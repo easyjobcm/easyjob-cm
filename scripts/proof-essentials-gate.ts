@@ -172,7 +172,6 @@ async function createTestCandidate(
         onboarding_status: "completed",
         onboarding_step: 6,
         profile_completion_pct: 100,
-        sandbox_level: 1,
       }
     : {
         // "Complétude" 100 % mais AUCUN essentiel : identité partielle
@@ -201,7 +200,6 @@ async function createTestCandidate(
         onboarding_status: "completed",
         onboarding_step: 6,
         profile_completion_pct: 100,
-        sandbox_level: 1,
       };
   const { data: profile, error: profileErr } = await serviceClient
     .from("candidate_profiles")
