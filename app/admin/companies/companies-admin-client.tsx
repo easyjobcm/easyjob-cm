@@ -290,6 +290,15 @@ export function CompaniesAdminClient({
                 {tr.sectionSuspended}
               </span>
             )}
+            {c.company_id && (
+              <Link
+                href={`/admin/companies/${c.company_id}`}
+                className="ml-auto text-xs font-medium text-primary"
+                data-testid="admin-company-reputation-link"
+              >
+                {t.reputation.admin.openCompany}
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>

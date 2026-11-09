@@ -5,8 +5,10 @@ import { missionReviewSchema } from "@/lib/validations/mission";
 /**
  * Évaluation après réalisation (RPC `submit_mission_review`). La base déduit
  * le sens de la session (candidat → entreprise, entreprise → candidat),
- * n'accepte qu'une évaluation par auteur, mission et sens, et met à jour les
- * étoiles du profil évalué. Une relance renvoie l'évaluation d'origine.
+ * n'accepte qu'une évaluation par auteur, mission et sens, vérifie les motifs
+ * (obligatoires sous 3) et met à jour la réputation du profil évalué. Une
+ * relance renvoie l'évaluation d'origine. La réponse ne contient ni motifs ni
+ * commentaire.
  */
 export async function POST(
   request: NextRequest,
@@ -20,9 +22,12 @@ export async function POST(
       await request.json().catch(() => null),
     );
     if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message;
       const code =
-        parsed.error.issues[0]?.message === "comment_too_long"
-          ? "comment_too_long"
+        message === "comment_too_long" ||
+        message === "reasons_required" ||
+        message === "reasons_invalid"
+          ? message
           : "rating_invalid";
       return NextResponse.json({ error: code, code }, { status: 400 });
     }
@@ -31,6 +36,7 @@ export async function POST(
       p_mission_id: ctx.missionId,
       p_rating: parsed.data.rating,
       p_comment: parsed.data.comment ?? undefined,
+      p_reasons: parsed.data.reasons,
     });
     if (error)
       return missionRpcError(error, "Mission review error", "review_failed");

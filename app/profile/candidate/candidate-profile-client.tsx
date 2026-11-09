@@ -3,14 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import {
-  MapPin,
-  Star,
-  Edit2,
-  ShieldAlert,
-  Camera,
-  BadgeCheck,
-} from "lucide-react";
+import { MapPin, Edit2, ShieldAlert, Camera, BadgeCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { LangSwitch } from "@/components/ui/lang-switch";
@@ -30,11 +23,10 @@ import {
   type Criterion,
 } from "@/lib/utils/profile-completion";
 import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
-import {
-  formatRating,
-  formatReputation,
-  hasReviews,
-} from "@/lib/utils/reputation";
+import { ReputationStars } from "@/components/reputation/reputation-stars";
+import { ReputationProgressCard } from "@/components/reputation/reputation-progress-card";
+import { useMyReputation } from "@/components/reputation/use-my-reputation";
+import { formatStars, formatStarsNumber } from "@/lib/reputation/progress";
 import { useAccountState, useServerNow } from "@/lib/realtime/provider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
@@ -75,8 +67,6 @@ interface CandidateProfileClientProps {
   profile: {
     first_name?: string | null;
     last_name?: string | null;
-    average_rating?: number | null;
-    review_count?: number | null;
     city?: string | null;
     quartier?: string | null;
     premium_until?: string | null;
@@ -211,16 +201,14 @@ export function CandidateProfileClient({
     "—";
   const initial = profile?.first_name?.[0] || user.phone?.[0] || "U";
   const contactInfo = user.phone || user.email || "";
-  const averageRating = profile?.average_rating ?? 0;
-  const reviewCount = profile?.review_count ?? 0;
-  const rated = hasReviews(reviewCount);
-  // Sans avis, aucune étoile n'est remplie (pas de note par défaut).
-  const starsCount = rated ? Math.min(5, Math.round(averageRating)) : 0;
-  const reputationLabel = formatReputation(
-    averageRating,
-    reviewCount,
+  // Réputation EasyJob (lot 9c), calculée en base ; la moyenne des avis
+  // n'est plus affichée.
+  const { data: reputation } = useMyReputation();
+  const reputationStars = reputation?.stars ?? 0;
+  const reputationLabel = formatStars(
+    reputationStars,
     locale,
-    t.reputation,
+    t.reputation.stars,
   );
 
   const stats = [
@@ -230,8 +218,8 @@ export function CandidateProfileClient({
       color: premium ? "#7C3AED" : "#A78BFA",
     },
     {
-      value: rated ? `${formatRating(averageRating, locale)}/5` : "—",
-      label: t.reputation.ratingLabel,
+      value: `${formatStarsNumber(reputationStars, locale)}/5`,
+      label: t.reputation.statLabel,
       color: "#22C55E",
     },
     {
@@ -393,31 +381,11 @@ export function CandidateProfileClient({
                 transition={{ delay: 0.4 }}
                 className="flex items-center gap-1"
               >
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{
-                      delay: 0.45 + i * 0.07,
-                      type: "spring",
-                      stiffness: 500,
-                    }}
-                  >
-                    <Star
-                      className="h-4 w-4"
-                      style={{
-                        color:
-                          i < starsCount ? "#EAB308" : "rgba(255,255,255,0.25)",
-                        fill: i < starsCount ? "#EAB308" : "none",
-                        filter:
-                          i < starsCount
-                            ? "drop-shadow(0 1px 4px #EAB30880)"
-                            : "none",
-                      }}
-                    />
-                  </motion.div>
-                ))}
+                <ReputationStars
+                  stars={reputationStars}
+                  tone="light"
+                  testId="candidate-reputation-stars"
+                />
                 <span
                   className="ml-1 text-sm font-semibold text-white/80"
                   data-testid="candidate-reputation"
@@ -497,6 +465,13 @@ export function CandidateProfileClient({
               criteria={criteria}
               onboardingStatus={onboardingStatus}
             />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.11 }}
+          >
+            <ReputationProgressCard />
           </motion.div>
           {/* Essentiels manquants (identité / CNI / Mobile Money) : la
               postulation est bloquée côté serveur tant qu'ils sont incomplets. */}
@@ -672,11 +647,11 @@ export function CandidateProfileClient({
             </Card>
           </motion.div>
           {/* Délai de paiement (contenu adapté au statut) */}
-          <PaymentDelayInfo role={user.role} averageRating={averageRating} />
+          <PaymentDelayInfo role={user.role} averageRating={reputationStars} />
           {/* Différenciation Premium ↔ Standard */}
           {premium ? (
             <PremiumBenefits
-              averageRating={averageRating}
+              averageRating={reputationStars}
               premiumUntil={profile?.premium_until ?? null}
               locale={locale}
             />

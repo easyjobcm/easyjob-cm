@@ -14,6 +14,7 @@ import type { EssentialKey } from "@/lib/utils/profile-completion";
 import { formatDate, formatTime } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { useAccountSuspended, useLiveRefresh } from "@/lib/realtime/provider";
+import { ReputationStars } from "@/components/reputation/reputation-stars";
 import {
   MapPin,
   Clock,
@@ -56,7 +57,9 @@ interface JobDetailClientProps {
       logo_url?: string | null;
       sector?: string | null;
       description?: string | null;
-      [key: string]: string | null | undefined;
+      /** Réputation EasyJob de l'entreprise (étoiles seules, lot 9c). */
+      reputation_stars?: number | null;
+      [key: string]: string | number | null | undefined;
     };
     category?: {
       name_fr?: string;
@@ -628,6 +631,12 @@ export function JobDetailClient({
                         {job.company.sector}
                       </p>
                     )}
+                    <ReputationStars
+                      stars={job.company.reputation_stars}
+                      size="sm"
+                      className="mt-1"
+                      testId="company-reputation"
+                    />
                   </div>
                 </div>
                 {job.company.description && (

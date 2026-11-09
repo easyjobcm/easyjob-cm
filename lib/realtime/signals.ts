@@ -23,6 +23,8 @@ export const DOMAINS = [
   "missions",
   "contracts",
   "notifications",
+  // Lot 9c : réputation du compte (canal user:<uid> seulement) et écrans admin.
+  "reputation",
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];

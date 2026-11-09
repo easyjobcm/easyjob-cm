@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 26 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 27 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -147,10 +147,22 @@ Désactiver un trigger de signal fait échouer les assertions du domaine concern
 
 **Ports réservés par Windows.** Si `supabase start` échoue avec « ports are not available » et que `netsh interface ipv4 show excludedportrange protocol=tcp` montre une plage réservée couvrant 544xx, décaler les ports dans `$stack/supabase/config.toml` (copie temporaire, par exemple 554xx) et adapter le contrôle `pile inattendue` de l'étape 3.
 
+Pour la réputation (lot 9c), rouvrir la lecture des avis en session reproduit l'exposition des notes, motifs et commentaires :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "grant select on public.reviews to anon, authenticated; create policy neg_reviews_public on public.reviews for select using (true);"
+pnpm test:rls reputation   # attendu : 1 échec (P5 : avis lisibles), code de sortie 1
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "drop policy neg_reviews_public on public.reviews; revoke select on public.reviews from anon, authenticated;"
+```
+
+Désactiver `trg_reputation_reviews` (`alter table public.reviews disable trigger trg_reputation_reviews;`) fait échouer R1, R3, R4, R6 et P2 (5 échecs) ; le réactiver ensuite.
+
+`reputation` simule ce qu'aucun parcours ne produit encore : des manquements confirmés (insertions en clé service dans `reputation_incidents`) et l'écoulement du temps jusqu'à l'échéance d'un justificatif. Pour ce dernier, elle suspend `trg_reputation_candidate_documents` le temps de reculer `expires_at` et l'échéance mémorisée (aucun recalcul n'a lieu, comme quand l'heure tourne), puis le réactive, y compris en cas d'échec. Elle appelle ensuite `reputation_expiry_sweep` deux fois (idempotence) au lieu d'attendre pg_cron. Comptes marqués `proofReputation9c`.
+
 Pour la vérification du téléphone (lot 8), rétablir l'ancien repli « numéro relu = numéro demandé » dans `findPhoneProof` (`lib/auth/phone-verification.ts`, copie locale non commitée) reproduit H-04 : `pnpm test:rls phone-verification` → 2 échecs (H1 et H7 autoconfirm : code erroné → téléphone vérifié et profil créé). La preuve appelle le module directement : aucun build n'est nécessaire.
 
 Pour le quota d'EasyBot, recréer `consume_chat_quota` sur la pile dédiée sans ses deux `pg_advisory_xact_lock` (et avec un `perform pg_sleep(0.05);` en tête, qui élargit la fenêtre de course) fait passer plus de réservations que la limite : `pnpm test:rls chat-quota` → 3 échecs (C5, C6 ×2). Restauration : réexécuter `supabase/migrations/20261108120000_chat_quota.sql` sur la pile (`psql … < fichier`, idempotent).
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel), §26 (réputation EasyJob) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.

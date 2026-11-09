@@ -28,7 +28,10 @@ describe("completionCodeSchema", () => {
 
 describe("missionReviewSchema", () => {
   it("accepte une note entière de 1 à 5 et un commentaire facultatif", () => {
-    expect(missionReviewSchema.safeParse({ rating: 1 }).success).toBe(true);
+    // Lot 9c : une note < 3 exige un motif (tests/review-reasons.test.ts).
+    expect(
+      missionReviewSchema.safeParse({ rating: 1, reasons: ["late"] }).success,
+    ).toBe(true);
     expect(
       missionReviewSchema.safeParse({ rating: 5, comment: "Très bien" })
         .success,

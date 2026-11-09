@@ -89,7 +89,9 @@ export default async function CompanyProfilePage() {
 
   return (
     <>
-      <LiveRefresh keys={["profile", "subscription", "account", "jobs"]} />
+      <LiveRefresh
+        keys={["profile", "subscription", "account", "jobs", "reputation"]}
+      />
       <CompanyProfileClient
         user={{
           role: userData.role,

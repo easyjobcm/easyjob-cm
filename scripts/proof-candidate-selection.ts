@@ -970,11 +970,9 @@ async function main() {
       "first_name",
       "last_initial",
       "photo_url",
-      // Lot 9b : note et nombre d'avis à la place du niveau Sandbox et du
-      // score de fiabilité.
-      "average_rating",
-      "review_count",
-      "completed_missions",
+      // Lot 9c : réputation EasyJob en étoiles seules (ni moyenne, ni
+      // nombre d'avis, ni nombre de missions).
+      "reputation_stars",
       "skills",
     ].sort();
     const forbiddenStrings = [

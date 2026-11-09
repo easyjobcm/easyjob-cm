@@ -1739,10 +1739,125 @@ Migrations historiques inchangées. `lib/database.types.ts` régénéré depuis 
 ### Limites
 
 - **Production** : la requête de comptage H-02 sur `sandbox_level` (lot 0) doit être faite **avant** le déploiement ; la colonne n'existe plus ensuite (la migration journalise seulement les deux nombres).
-- `completed_missions` et `total_missions` ne sont incrémentés par aucun parcours : la liste des candidatures affiche « 0 missions » à côté de « 4/5 · 1 avis ». Non modifié ici.
+- ~~`completed_missions` et `total_missions` ne sont incrémentés par aucun parcours : la liste des candidatures affiche « 0 missions » à côté de « 4/5 · 1 avis ». Non modifié ici.~~ Lot 9c (§26) : `completed_missions` réécrit depuis les missions confirmées par code ; la liste n'affiche plus que les étoiles. `total_missions` reste non écrit.
 - Une note `average_rating` sans évaluation `mission_flow` (donnée héritée) n'est plus affichée : sans avis compté, l'écran indique « Pas encore d'avis ». La valeur reste en base.
 - La note des entreprises n'a pas de compteur d'avis (non affichée dans les parcours vérifiés).
 - Onglets de la liste des candidatures : libellés qui se chevauchent à 375 px (« Présélect. (0)Sélectionnées »), antérieur au lot.
 - Formulaire d'offre : seule l'étape 1/5 est capturée ; les quatre autres ont été relues dans le code (aucun champ de niveau).
-- `UserStories_EasyJob_CM_MVP.md` décrit encore la montée de niveau (lot 10, documentation).
+- ~~`UserStories_EasyJob_CM_MVP.md` décrit encore la montée de niveau (lot 10, documentation).~~ Lot 9c (§26) : épopée SAND marquée retirée, épopée EVAL réécrite.
 - Appareils Android et iOS réels non testés.
+
+## 26. Suivi — Lot 9c : réputation EasyJob en étoiles (candidats et entreprises) (2026-11-09)
+
+Branche `feat/lot-09c-reputation-stars`, base `origin/main-dev` (8195e4c, lot 9b intégré). **Réalisé et vérifié localement sur la pile dédiée `easyjob-proof`, non commité, non déployé.** Migration `20261109120000_reputation_stars.sql`.
+
+**Décision produit (2026-11-09)** : la moyenne des avis n'est plus l'indicateur affiché. Chaque profil a une réputation EasyJob de 0 à 5 étoiles par demi-étoiles, calculée en base. Les tiers ne voient que les étoiles ; les avis (note, motifs, commentaire) ne sont lisibles que par l'administration. SRS §5.2, §5.3 (note), §5.5, §6.2, §6.9, §6.14, §8.1 et user stories EVAL-01 à EVAL-05 mis à jour.
+
+### État avant le lot (lot 9b)
+
+| Élément | Constat |
+|---|---|
+| `reviews` | Policy « Anyone can view public reviews » (`is_public = true` par défaut) : note et commentaire de tous les avis lisibles par l'anonyme. |
+| Surfaces des tiers | `company_job_applicants` renvoyait `average_rating`, `review_count`, `completed_missions` ; l'écran affichait « 4/5 · 1 avis » ou « Pas encore d'avis ». `/api/matching` sélectionnait les mêmes colonnes. |
+| `completed_missions` | Jamais écrit (« 0 missions » affiché). |
+| Expiration des justificatifs | Dérivée à la lecture ; aucun envoi J−30, J−7 ni à l'échéance (`document_expirations` vide, aucun écrivain). |
+| Annulations, absences | Aucun parcours après sélection (`withdraw_job_application` ne vaut que pour une candidature `pending`, `delete_job` refuse une offre engagée) ; `cancellation_penalties`, `no_show_count` et `late_cancellation_count` jamais écrits. |
+| Contestation | Aucun parcours ; le support est l'adresse `support@easyjob.cm` ; `disputes` existe sans écran. |
+| pg_cron | Disponible et utilisé par trois purges (pile locale et Supabase). |
+
+### Règles implémentées
+
+| Catégorie | Candidat | Entreprise |
+|---|---|---|
+| Profil (½ à 50 %, 1 à 100 %) | `profile_completion_pct` existant | `company_profile_completion_pct` : mêmes critères et poids que `computeCompanyCriteria` (secteur 20, description > 20 caractères 20, logo 15, ville + adresse 15, RCCM ou NIU 15, nom + téléphone du contact 15) ; cohérence JS/SQL vérifiée (E1) |
+| Expérience et engagements (solde 0..20, ½ par 5 unités, max 2) | +1 par mission dont le code est consommé et la fin enregistrée | +1 par offre (sous-offres regroupées sous `parent_job_id`) dès qu'une mission est confirmée par code et que chaque sélection est résolue (mission confirmée, annulée ou absence) |
+| Manquements (application) | −5 par décision confirmée non annulée (annulation tardive, absence) | −5 par série de trois décisions en 90 jours |
+| Avis (4-5 → +1, 3 → 0, < 3 → −5) | solde 0..10, max 1 étoile | solde 0..20, max 2 étoiles |
+| Compétences (½ par compétence distincte, max 1) | justificatif lié `verified` et valide (règle d'expiration de `apply_to_job`) ; conduite : permis `verified`, valide, de catégorie couvrante (mapping de `has_verified_license_for`) | — |
+
+- **Avis admissible** : `origin = mission_flow`, mission confirmée par code, non invalidé par une contestation acceptée.
+- **Rejeu** : `compute_reputation` rejoue chaque solde dans l'ordre chronologique avec les bornes à chaque événement ; aucun cumul n'est stocké. Le résultat ne dépend que des sources (missions, codes, avis, litiges, incidents, documents).
+- **Projection** : `reputation_scores` (score et progression), écrite par `refresh_reputation` seul (triggers sur missions, candidatures, avis, litiges, incidents, profils, documents, liens et compétences), ligne verrouillée : une variation réelle ne produit qu'une notification. `average_rating` et `review_count` restent les données sources ; `completed_missions` est réécrit depuis les missions confirmées par code.
+- **Variations** : `reputation_changes` (gain ou baisse d'au moins ½, cause, motifs ou documents seulement, notification liée, accusé d'animation). Notification `system`, titre et texte dans la langue du compte, lien d'action dans `data.href`.
+- **Indépendance** : aucun lien avec l'abonnement ni le premium (E2) ; `apply_to_job` inchangée.
+- **Application et conditions séparées (revue du lot)** : la base applique une décision de manquement confirmée ; elle ne juge pas si le manquement est constitué. Les conditions pour prononcer une décision — délai d'annulation tardive (24 h candidat, 12 h entreprise, provisoires), offre partiellement pourvue, imputabilité, justificatif — ne sont pas encodées et sont à arbitrer (lot « Engagements et annulations », `PLAN_ACTION.md`). Le trigger `protect_reputation_incidents` ne vérifie que la cohérence des faits (`incident_mission_mismatch`, `incident_job_mismatch`, `incident_conflicts_with_completion`) ; `scheduled_start_at` et `occurred_at` sont informatifs.
+
+### Confidentialité
+
+- `reviews` : policy publique supprimée, `SELECT` retiré à `anon` et `authenticated` ; `is_public` vaut `false` par défaut et n'ouvre plus rien.
+- `company_job_applicants` : `reputation_stars` remplace `average_rating`, `review_count` et `completed_missions`. `company_public_profiles` : colonne `reputation_stars` (détail d'offre). `/api/matching` : colonnes de note retirées. Aucune surface tierce n'affiche moyenne, nombre d'avis, « Pas encore d'avis », motif ni commentaire : composant `ReputationStars` (`role="img"`, « Réputation EasyJob : 3,5 étoiles sur 5 »).
+- `reputation_scores` et `reputation_changes` : lecture du titulaire et des admins ; aucune écriture de session. `reputation_incidents` : aucun droit de session.
+- Realtime : nouveau domaine `reputation` sur `user:<uid>` du seul titulaire et sur `admin` ; charge utile `{ d, r }` (plus l'`id` technique du message) ; les entreprises des candidatures reçoivent `applications` sans identifiant, les offres publiques `jobs`.
+- Notification de baisse après un avis : motifs seulement, jamais l'auteur ni le commentaire.
+- Les étoiles des tiers sont recalculées à la lecture si une échéance est passée depuis le dernier calcul (`reputation_stars_for`).
+
+### Motifs et évaluation
+
+`submit_mission_review(uuid, int, text, text[])` : motifs de la partie évaluée (6 par côté), distincts, au moins un sous 3, aucun pour 4-5. Mêmes règles dans `missionReviewSchema` (route) et le dialogue (puces FR/EN, envoi bloqué sans motif sous 3). Le commentaire reste privé. **Changement de comportement** : une relance qui envoie une note < 3 sans motif est refusée en 400 par la route avant d'atteindre la reprise idempotente ; une relance avec le même contenu valide renvoie toujours l'évaluation d'origine.
+
+### Progression, notifications, animations
+
+- `GET /api/reputation` (`my_reputation`, calcul à la lecture) ; `ReputationProgressCard` sur `/profile/candidate` et `/profile/company` (ancre `#reputation`) : palier nommé, barre, action (« Encore 2 missions confirmées »), progression par catégorie, rappel d'échéance à J−30. L'action mise en avant est celle de la catégorie la plus avancée vers sa demi-étoile suivante.
+- `ReputationCelebration`, monté une fois dans `app/layout.tsx` : `POST /api/reputation/acknowledge` ne renvoie que les variations acquittées par cet appel ; seul cet onglet joue l'animation. Gain : carte festive brève ; baisse : carte discrète avec l'action (motifs + contestation par courriel au support, renouvellement, complétion du profil). `useReducedMotion` : aucune trajectoire ni particule.
+- Centre de notifications : lien « Voir » (`data.href`, chemin interne vérifié par `safeInternalPath`).
+- Reprise : scores initialisés avec `p_silent` (aucune notification ni variation).
+
+### Échéances
+
+`reputation_expiry_sweep()` planifiée par pg_cron toutes les 15 minutes (même garde que les purges existantes) : recalcul des profils dont `next_expiry_at` est passée (cause `document_expired`, notification persistante lue à la reconnexion), puis rappels J−30, J−7 et à l'expiration des justificatifs approuvés de `candidate_documents` via `document_expirations` (index unique par document, drapeaux, `skip locked`). Un document dont l'expiration a fait perdre des étoiles n'a pas de second avis. Même traitement pour la CNI vérifiée (revue du lot) : ligne `document_expirations` de type `cni` (écrite par `moderate_cni`, un index unique par candidat, doublons antérieurs retirés), alignée sur `cni_expires_at`, rappels remis à zéro quand la date change ; notification privée « CNI bientôt expirée » / « CNI expirée » vers `/profile/candidate/edit`. Le statut brut des documents n'est pas réécrit.
+
+### Administration et contestation
+
+- `GET /api/admin/reputation/[type]/[id]` (3 grades) : détail par catégorie, avis (note, auteur, mission, motifs, commentaire), impact rejoué (`admin_reputation_review_impacts`), contestation, manquements, variations.
+- `POST` : `admin_open_review_contest` (3 grades) crée un litige `review_contest` au nom de la partie évaluée ; `admin_resolve_review_contest` (`admin_ops`, `admin_founder`) : décision définitive, `audit_logs` (étoiles avant et après), recalcul dans la transaction, notification de la partie. Trigger : aucune écriture de session sur ces litiges ; la policy de lecture des litiges masque la contestation à l'auteur de l'avis.
+- Écrans : panneau sur `/admin/candidates/[id]` ; nouvelle fiche `/admin/companies/[id]` (lien « Réputation et avis » depuis la liste).
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Montée de version réelle : pile remise à l'état 9b (`db reset` sans la migration), données (candidat : 9 missions confirmées par code + 1 ancienne sans code, avis 5/5/2, `completed_missions = 0` ; entreprise : 10 offres, 10 avis de 5), puis `supabase migration up` sur cette base | ✅ candidat 1,5 (profil 1, 9 unités → ½, avis 5,5,2 → 0) ; entreprise 2 (offre sans code exclue, 9 avis admissibles → ½) ; `completed_missions` 0 → 9 ; **0 notification, 0 variation** ; tâche `reputation-expiry-sweep` planifiée ; types régénérés identiques |
+| `pnpm test:rls reputation` (nouvelle preuve, vraies sessions) | ✅ 60/60 après la revue (44 avant ; ajouts I et V ci-dessous) — N 8 → 9 → 10 missions (aucune variation à la 9e, un gain et une notification à la 10e) ; T deux onglets (un seul accusé), reconnexion, compte tiers ; O offre à 2 places comptée une fois après résolution ; R plafond d'expérience, gain, motifs refusés (route et RPC, motif de l'autre partie, motif sur 5), baisse avec motifs seuls, plafond des avis à chaque événement (10 − 5 = 5, et non 6) ; P étoiles seules (RPC, vue, API, lecture directe : avis refusés en 42501 pour l'anonyme, un tiers, un autre candidat et l'auteur), Realtime (titulaire seul, `{d, r}`) ; C contestation (support, refus à admin_support, décision ops, audit, rejeu déterministe d'un événement ancien, gain cause contest, 409 au second essai) ; L J−30 sans doublon, permis expiré sans autre permis valide, échéance lue par l'entreprise avant la tâche, tâche idempotente, utilisateur déconnecté, reconnexion, attestation valide sans permis, renouvellement en attente puis approuvé, diplôme sans échéance ; B aucune décision inférée, intégrité des faits, décision appliquée sans seuil (30 h, 13 h, 48 h, offre sans sélection), −5, plancher 0, annulation du support, trois décisions entreprise → un retrait (deux fois) ; E profil entreprise (SQL = JS), premium sans effet, écritures et fonctions internes fermées |
+| `pnpm test:rls`, même pile, build final | ✅ 27/27 preuves (dont `reputation` 44/44), même pile, après une montée de version réelle ; **après la revue (SQL modifié) : ✅ 27/27, dont `reputation` 60/60**, pile réinitialisée, types régénérés identiques |
+| Contrôle négatif (lecture des avis rouvertes en session) | ❌ détecté : lecture des avis rouverte en session (grant + policy) → 1 échec (P5), code de sortie 1 ; `trg_reputation_reviews` désactivé → 5 échecs (R1, R3, R4, R6, P2). Pile restaurée, privilège et policy revérifiés |
+| Navigateur : Chrome headless, 375 × 812 tactile, FR puis EN, vrais clics (script et captures hors dépôt) | ✅ 46/46, deux exécutions consécutives : profil candidat (étoiles et libellé accessible, « Prochain palier : 2,5 étoiles », « Encore 2 missions confirmées », statistique Missions = 8) ; 9e mission sans animation ; 10e mission : animation de gain dans **un seul** des deux onglets, progression mise à jour sans rechargement, rien au rechargement ; liste des candidats de l'entreprise : étoiles seules ; dialogue de notation : note 2 → 6 motifs du candidat, envoi bloqué sans motif ; baisse vue en direct par le candidat (carte discrète, « Motifs de l'avis : Retard. », « Contester auprès du support ») ; `prefers-reduced-motion` : félicitation sans particules ; détail d'offre (étoiles de l'entreprise) ; progression de l'entreprise ; liens d'action des notifications ; fiches admin candidat (avis, auteur, motifs, impact) et entreprise. Aucun défilement horizontal sur ces écrans, FR et EN |
+| `tsc --noEmit`, `eslint`, `prettier --check .`, `vitest run` (448 tests, dont `reputation-progress`, `review-reasons` : codes et libellés SQL = dictionnaires), `pnpm build` contre la pile dédiée | ✅ |
+
+Preuves adaptées : `candidate-selection` F3 (colonnes autorisées : `reputation_stars` au lieu de la note, du nombre d'avis et des missions) ; `mission-time-tracking` R3, R5, R6 (relances et tentatives de tiers avec une note valide sans motif, les refus attendus restant vérifiés).
+
+### Revue du lot (2026-11-09)
+
+| Point | Décision et mise en œuvre | Preuve |
+|---|---|---|
+| Sanctions | Séparation de l'**application** (une décision confirmée retire 5 unités ; entreprise : trois décisions en 90 jours → un retrait ; annulation par le support → solde rétabli) et des **conditions** pour prononcer la décision. Retirés du trigger `protect_reputation_incidents` : `incident_not_late` (24 h, 12 h) et `incident_without_selection`. Restent les seuls contrôles de cohérence : `incident_mission_mismatch`, `incident_job_mismatch` (nouveau), `incident_conflicts_with_completion`. Délais et offre partiellement pourvue : arbitrage inscrit au lot 9d (`PLAN_ACTION.md`). | B0 aucune décision créée par les parcours (missions sans code, avis négatifs, contestations, échéances) ; B1 refus de cohérence ; B2 décision appliquée pour une annulation 30 h avant le début ; B5 décisions sur une offre sans sélection, 13 h et 48 h avant le début : toutes appliquées, deux retraits pour six décisions |
+| CNI | **Existant** : `moderate_cni` écrit une ligne `document_expirations` de type `cni` à l'approbation, mais rien ne l'exploitait (aucun rappel). **Ajout** au traitement d'échéances : suivi aligné sur `cni_expires_at`, un index unique par candidat (doublons antérieurs retirés), rappels remis à zéro quand la date change, notifications privées (« CNI bientôt expirée » / « CNI expirée », lien `/profile/candidate/edit`). **Effet réel** : complétude inchangée (critère « CNI vérifiée », pas l'échéance) ; réputation inchangée (aucune catégorie, aucune unité de compétence). **Candidature** : refusée sur une offre qui exige la CNI ; **acceptée sinon**, car `users.is_verified` ignore l'échéance (écart avec le SRS §5.1, non corrigé : critères d'accès préservés, décision attendue). | I1 J−30, J−7 et expiration, un rappel chacun après deux passages ; I2 aucun rappel chez les autres comptes ; I3 complétude 100 %, mêmes étoiles qu'une CNI valide, aucune variation ; I4 403 `document_requirement` (`cni`, `expired`) ; constat I5 HTTP 200 ; I6 renouvellement : une ligne, rappels remis à zéro, candidature acceptée |
+| Mauvais avis | Baisse réelle de ½ étoile (2 → 1,5), FR et EN, deux motifs (`late`, `poor_quality`) et un commentaire identifiable ; candidat déconnecté pendant l'avis. | V1 deux envois simultanés puis une relance : un seul avis, un seul « nouveau », impact −5 compté une fois, une variation, une notification ; V2 texte exact : « Votre réputation EasyJob passe à 1,5 étoile après un avis : retard, travail non conforme. » / « Your EasyJob reputation drops to 1.5 stars after a review: late arrival, work not up to standard. » ; V3 après reconnexion, une notification et une variation en attente, sans commentaire, nom de l'auteur, identifiant de l'entreprise ni de l'avis dans `/api/notifications` et `/api/reputation` ; V4 un seul accusé pour deux sessions ; V5 avis complet (commentaire, auteur, mission, motifs, impact −5) pour `admin_ops` et `admin_support`, 403 pour un tiers |
+
+Contrôles : `pnpm test:rls` 27/27 ; `vitest` 448 tests ; `tsc`, `eslint`, `prettier --check .` verts. Application non modifiée par la revue (SQL, preuve et documentation seulement) : le build vérifié au navigateur reste valable.
+
+### Dépendances restantes
+
+- **Manquements** : aucun parcours ne produit de décision (annulation après sélection, constat d'absence, décision du support). `reputation_incidents` applique toute décision confirmée sans seuil ; aucune sanction n'est déduite. Conditions à arbitrer : lot « Engagements et annulations ».
+- **Déploiement** : vérifier que pg_cron est activé sur le projet Supabase et que `cron.job` contient `reputation-expiry-sweep` après la migration (sinon la notice « pg_cron non activé » apparaît et la tâche doit être planifiée à la main) ; surveiller le premier passage (envoi des J−30/J−7 en cours, pas d'historique au-delà de J−1). Relever avant le déploiement le nombre d'avis existants et vérifier qu'aucun client ne lit `reviews` directement.
+- **CNI expirée et candidature (écart constaté, décision attendue)** : refus seulement sur une offre qui exige le document `cni` (I4) ; sur une offre sans exigence, la candidature est acceptée (I5, HTTP 200), car `users.is_verified` ignore l'échéance alors que le SRS §5.1 fait de la « CNI vérifiée non expirée » un critère essentiel. Non modifié ici (critères d'accès préservés par le lot).
+- CNI et réputation : aucun effet (complétude fondée sur « CNI vérifiée », aucune unité de compétence) ; rappels J−30, J−7 et à l'expiration envoyés (revue du lot).
+- Délai de 48 h pour noter et modération automatique des commentaires : non implémentés.
+- `trust_score`, `late_cancellation_count`, `no_show_count`, `reliability_score` : toujours non calculés. `lib/matching/ai-matching.ts` lit encore `average_rating` côté serveur (aucune exposition).
+- Contestation : saisie par le support à partir d'un courriel ; pas de formulaire dans l'application.
+
+### Anciennes règles de paiement liées aux étoiles (pour le lot paiement)
+
+- SRS §5.3 : délai de versement selon « note ≥ 4 étoiles » combinée au premium (100 % en 48 h, 50/50, 7 jours).
+- SRS §5.3 et US-PAY-02 : annulation tardive du candidat → perte d'accès aux « missions de niveau supérieur » 7 jours et note moyenne affectée.
+- US-EVAL-02 (avant lot) : « moyenne ≥ 4 → délai de paiement accéléré » ; §6.9 (avant lot) : « les notes impactent le délai de paiement ».
+- Composants `PaymentDelayInfo`, `PremiumBenefits`, `/upgrade/candidate` : prop `averageRating` conservée mais ignorée (aucun délai implémenté).
+
+Ces règles reposent sur la moyenne et les niveaux, qui ne sont plus des indicateurs : à redéfinir sur la réputation EasyJob ou à abandonner.
+
+### Constats pendant la vérification
+
+- **Corrigé** : un signal arrivé pendant le chargement initial était perdu (`mutate()` de SWR réutilisait la requête en vol) ; le hook force désormais une nouvelle lecture.
+- **Corrigé** : la statistique « Missions » du profil candidat lisait `total_missions` (jamais écrit) ; elle lit `completed_missions`.
+- Dans un onglet en arrière-plan, la carte d'animation reste affichée jusqu'au retour sur l'onglet (minuteries et animations suspendues par le navigateur), puis se ferme normalement.
+- La félicitation de l'entreprise s'affiche par-dessus le haut d'un dialogue ouvert pendant 4,5 s (bouton de fermeture disponible).
+- Antérieur au lot (§25) : libellés des onglets de la liste des candidatures qui se chevauchent à 375 px (le script clique par le DOM).

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { ChevronLeft, Info } from "lucide-react";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { safeInternalPath } from "@/lib/auth/safe-redirect";
 
 interface NotificationItem {
   id: string;
@@ -15,6 +17,17 @@ interface NotificationItem {
   body: string;
   is_read: boolean;
   created_at: string;
+  data?: { href?: unknown } | null;
+}
+
+/** Lien d'action d'une notification : chemin interne uniquement (lot 9c). */
+function actionHref(n: NotificationItem): string | null {
+  const raw = n.data?.href;
+  if (typeof raw !== "string") return null;
+  const safe = safeInternalPath(raw, "");
+  if (!safe) return null;
+  const hash = raw.includes("#") ? raw.slice(raw.indexOf("#")) : "";
+  return /^#[a-z-]+$/.test(hash) ? `${safe}${hash}` : safe;
 }
 
 const fetcher = async (url: string) => {
@@ -99,9 +112,23 @@ export function NotificationsClient() {
                   )}
                 </div>
                 <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDate(n.created_at, locale)}
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(n.created_at, locale)}
+                  </p>
+                  {actionHref(n) && (
+                    <Link
+                      href={actionHref(n)!}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!n.is_read) void markRead(n.id);
+                      }}
+                      className="text-xs font-medium text-[#7C3AED]"
+                    >
+                      {tn.action}
+                    </Link>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

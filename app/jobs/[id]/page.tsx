@@ -26,7 +26,8 @@ export default async function JobDetailPage({ params }: PageProps) {
         logo_url, 
         city, 
         sector,
-        description
+        description,
+        reputation_stars
       ),
       category:job_categories(id, name_fr, name_en, icon)
     `,

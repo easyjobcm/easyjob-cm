@@ -31,6 +31,7 @@ import { formatDate } from "@/lib/utils";
 import { UpdateRequestModal } from "@/components/admin/update-request-modal";
 import { useLiveRefresh } from "@/lib/realtime/provider";
 import { formatReputation } from "@/lib/utils/reputation";
+import { ReputationAdminPanel } from "@/components/admin/reputation-admin-panel";
 
 /**
  * T8.4b — Profil candidat complet (client).
@@ -559,6 +560,9 @@ export function CandidateProfileAdminClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* Réputation EasyJob : avis complets, impact, contestations (lot 9c) */}
+      <ReputationAdminPanel subjectType="candidate" subjectId={c.profile_id} />
 
       {/* Mises à jour de profil (T8.5) */}
       <Card className="border-border">

@@ -180,14 +180,26 @@ Pour éviter qu'un candidat ne contrevienne aux informations personnelles et doc
 - **Garde-fou RLS** : la RLS garantit (1) que le candidat ne peut lire que ses propres demandes `pending`, (2) que seul un admin `admin_ops/admin_founder` peut créer/annuler une demande, (3) que le candidat ne peut la clôturer qu'en `done`. Le serveur reste la source de vérité (masquage client = confort seulement, jamais le seul contrôle).
 - **UI admin d'initiation** : incluse en **T8** (refonte dashboard admin) ; l'endpoint `POST /api/admin/profile-update-requests` est disponible depuis T2.
 
-### 5.2 Système Sandbox (niveaux candidat) — retiré
+### 5.2 Réputation EasyJob (remplace le système Sandbox)
 
-**Décision produit du 2026-11-08 (lot 9b) :** les niveaux Sandbox (Nouveau, Confirmé, Fiable, Expert), le niveau minimum des offres, le « mode Sandbox » (missions d'initiation) et leurs seuils configurables sont **supprimés**. Les étoiles issues des évaluations de missions (§6.9, note de 1 à 5, moyenne au dixième) sont le **seul indicateur de réputation affiché**, avec le nombre d'avis pris en compte : « 4,5/5 · 2 avis », ou « Pas encore d'avis ».
+**Décision produit du 2026-11-08 (lot 9b) :** les niveaux Sandbox (Nouveau, Confirmé, Fiable, Expert), le niveau minimum des offres, le « mode Sandbox » (missions d'initiation) et leurs seuils configurables sont **supprimés**.
 
-- Un compte sans avis peut postuler à sa première mission. Aucun seuil d'étoiles n'est exigé pour postuler, la note ne classe pas les candidats et aucun ancien niveau n'a été converti en note.
-- Restent exigés pour postuler : compte actif, inscription terminée, profil ≥ 60 %, identité vérifiée (§6.6), offre publiée avec des places disponibles, documents requis valides (dont le permis) et justificatifs des compétences.
-- Le score de fiabilité (`reliability_score`, jamais calculé) n'est plus montré aux entreprises ; il reste visible en lecture sur la fiche admin.
-- Migration `20261108130000_remove_sandbox_levels.sql` ; suivi : `docs/audit/AUDIT.md` §25.
+**Décision produit du 2026-11-09 (lot 9c) :** la réputation affichée n'est plus la moyenne des avis. Chaque candidat et chaque entreprise a une **réputation EasyJob** de 0 à 5 étoiles, par demi-étoiles, calculée en base (migration `20261109120000_reputation_stars.sql`, suivi `docs/audit/AUDIT.md` §26). Chaque catégorie est plafonnée séparément ; le total est la somme.
+
+| Catégorie | Candidat | Entreprise | Règle |
+|---|---|---|---|
+| Profil | 1 étoile | 1 étoile | Complétude ≥ 50 % → ½, 100 % → 1. Candidat : `profile_completion_pct` (§6.2). Entreprise : secteur 20, description de plus de 20 caractères 20, logo 15, ville et adresse 15, RCCM ou NIU 15, nom et téléphone du contact 15 (mêmes critères que l'écran de profil). |
+| Expérience et engagements | 2 étoiles | 2 étoiles | Solde de 0 à 20 unités ; 5/10/15/20 unités → ½/1/1½/2. Candidat : +1 par mission confirmée par le code de fin. Entreprise : +1 par offre réalisée (au moins une mission confirmée par code et toutes les sélections résolues), quel que soit le nombre de places, sous-offres regroupées. Un manquement confirmé retire 5 unités. |
+| Avis reçus | 1 étoile | 2 étoiles | Note 4 ou 5 → +1, 3 → 0, < 3 → −5. Solde de 0 à 10 (candidat) ou 0 à 20 (entreprise) ; 5 unités → ½ étoile. Seuls comptent les avis du parcours de mission, sur une mission confirmée par code, non invalidés par une contestation. |
+| Compétences vérifiées | 1 étoile | — | ½ par compétence distincte dont un justificatif lié est approuvé et valide ; deux justificatifs d'une même compétence comptent une fois. Compétence de conduite : permis approuvé, valide et de catégorie couvrante (§6.14.2). Validité : règle de la candidature (§6.14). Un renouvellement compte après approbation ; un diplôme sans échéance reste valable. |
+
+- **Rejeu déterministe.** Les soldes sont rejoués dans l'ordre chronologique des événements, avec les bornes appliquées à chaque événement. Une contestation acceptée sur un avis ancien, ou l'annulation d'un manquement par le support, donne le même résultat qu'un calcul complet.
+- **Manquements — application (implémentée).** Une décision de manquement confirmée (ligne non annulée de `reputation_incidents`) retire 5 unités d'expérience, au moment du fait, dans le rejeu. Pour l'entreprise, trois décisions en 90 jours donnent un seul retrait. L'annulation d'une décision par le support rétablit le solde. La base ne contrôle que la cohérence des faits (mission ou offre de la partie concernée ; pas d'absence sur une mission confirmée par code).
+- **Manquements — conditions pour prononcer une décision (à arbitrer, non implémentées).** Délai d'une annulation tardive (24 h pour le candidat et 12 h pour l'entreprise, repris du §5.3, provisoires), cas d'une offre partiellement pourvue, imputabilité, justificatif d'absence (§11.9). Aucun de ces seuils n'est encodé : ils ne déclenchent ni n'écartent aucune sanction. Ils seront appliqués par le parcours qui écrira la décision (lot « Engagements et annulations », `docs/audit/PLAN_ACTION.md`). Un code jamais saisi ou une correction du support ne sont pas des fautes. **Dépendance :** aucun parcours d'annulation ni de constat d'absence n'existe encore ; aucune sanction n'est déduite.
+- **Indépendance.** Le score ne dépend ni de l'abonnement ni du premium. Il ne conditionne pas la candidature : restent exigés le compte actif, l'inscription terminée, le profil ≥ 60 %, l'identité vérifiée (§6.6), une offre publiée avec des places disponibles, les documents requis valides (dont le permis) et les justificatifs des compétences.
+- **Confidentialité.** Un tiers ne voit que les étoiles graphiques, avec un libellé accessible (« Réputation EasyJob : 3,5 étoiles sur 5 »), jamais la moyenne, le nombre d'avis, les motifs ni les commentaires (§6.9).
+- **Données sources.** `average_rating` et `review_count` restent calculés comme données sources ; la réputation est une projection distincte (`reputation_scores`). `completed_missions` compte désormais les missions confirmées par code.
+- Le score de fiabilité (`reliability_score`, jamais calculé) n'est pas montré aux entreprises ; il reste visible en lecture sur la fiche admin.
 
 Texte d'origine (supprimé le 2026-11-08), pour mémoire :
 
@@ -211,6 +223,8 @@ Le délai de paiement dépend du profil du candidat, après validation de la mis
 | Candidat premium **ET** note >= 4 étoiles | **100%** du montant dans les **48h** |
 | Candidat premium **OU** note >= 4 étoiles (mais pas les deux) | **50%** dans les **48h** + **50%** dans les **7 jours** |
 | Ni premium, ni note >= 4 étoiles | **100%** du montant dans les **7 jours** |
+
+> **À revoir au lot paiement (lot 9c).** Les délais ci-dessus et la sanction « perd son accès aux missions de niveau supérieur » s'appuient sur l'ancienne note moyenne et sur les niveaux Sandbox, qui ne sont plus des indicateurs (§5.2). Aucun délai de versement n'est implémenté. Le seuil « 4 étoiles » devra être redéfini sur la réputation EasyJob, ou abandonné.
 
 **Règles complémentaires :**
 - En cas de litige non résolu sous 48h, le paiement est suspendu et escaladé vers `admin_ops`.
@@ -274,6 +288,8 @@ Un score de confiance entreprise est calculé à partir de :
 
 Le score est visible par les candidats sur la fiche entreprise.
 
+> **Décision du 2026-11-09 (lot 9c).** Ce score de confiance est remplacé par la réputation EasyJob de l'entreprise (§5.2) : profil, offres réalisées et engagements (dont les annulations tardives), avis reçus. Les candidats en voient les seules étoiles sur le détail des offres. La rapidité de validation et le ratio de litiges ne sont pas mesurés ; `trust_score` n'est pas calculé.
+
 ---
 
 ## 6. Fonctionnalités détaillées
@@ -326,7 +342,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 **Gestion des documents expirés :**
 - La plateforme surveille automatiquement les dates d'expiration (CNI, permis de conduire...).
-- Notifications envoyées : 30 jours avant, 7 jours avant, et à l'expiration.
+- Notifications envoyées : 30 jours avant, 7 jours avant, et à l'expiration. **Lot 9c :** tâche planifiée `reputation_expiry_sweep` (pg_cron, toutes les 15 minutes, idempotente via `document_expirations`) pour les justificatifs approuvés de `candidate_documents` et pour la CNI vérifiée (`cni_expires_at`, ligne `document_expirations` de type `cni` reprise de `moderate_cni`, rappels remis à zéro au renouvellement ; notification privée avec lien vers le profil). La CNI n'entre dans aucune catégorie de la réputation : son expiration ne change ni la complétude (critère « CNI vérifiée ») ni les étoiles. **Écart constaté (lot 9c) :** une CNI vérifiée mais expirée n'empêche la candidature que sur une offre qui exige le document `cni` ; `users.is_verified`, seul critère d'identité de la candidature, ignore l'échéance, contrairement au §5.1 (« CNI vérifiée non expirée »). Décision attendue.
 - Un document expiré est automatiquement marqué invalide. L'upload du document renouvelé relance la validation.
 - Tant qu'un document requis par une offre est expiré, le candidat ne peut pas postuler à cette offre.
 
@@ -518,25 +534,42 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 
 ### 6.9 Système d'évaluations
 
-**Description :** Avis réciproques après chaque mission.
+**Description :** avis réciproques après chaque mission confirmée par code. **Décision du 2026-11-09 (lot 9c) :** les avis ne sont plus publics. Ils alimentent la réputation EasyJob (§5.2), seule information visible des tiers, et restent consultables en entier par l'administration.
 
 **Flux :**
-1. Mission terminée et validée.
-2. Les deux parties reçoivent une notification pour évaluer.
-3. Délai : 48h pour soumettre l'évaluation.
-4. Passé 48h : rappel + blocage partiel (pas de nouvelle mission sans évaluation soumise).
+1. Le code de fin est accepté (§6.8).
+2. Le candidat note l'entreprise (obligatoire, tâche persistante) ; l'entreprise note le candidat (facultatif).
+3. La note est enregistrée une seule fois par auteur, mission et sens ; elle est immuable.
+4. La réputation de la partie évaluée est recalculée dans la même transaction.
+5. Délai de 48 h et blocage de la mission suivante : **non appliqués** (§5.1).
 
 **Structure de l'évaluation :**
-- Note globale (1 à 5 étoiles).
-- Critères spécifiques pour le candidat : ponctualité, compétence, communication, présentation.
-- Critères spécifiques pour l'entreprise : clarté des instructions, respect, conformité aux conditions de l'offre.
-- Commentaire libre (optionnel, modéré par l'IA avant publication).
+- Note globale de 1 à 5 étoiles.
+- **Motifs** proposés selon la partie évaluée, pour une note de 1 à 3, en FR/EN :
+  - candidat évalué : retard, départ anticipé, travail non conforme, consignes non respectées, comportement inapproprié, tenue ou équipement inadaptés ;
+  - entreprise évaluée : consignes peu claires, conditions différentes de l'offre, manque de respect, conditions de travail dangereuses, code de fin remis tardivement, tâches non prévues.
+  Au moins un motif est exigé pour une note inférieure à 3, et refusé pour 4 ou 5. La base vérifie que chaque motif correspond à la partie évaluée.
+- Commentaire libre (facultatif, 1000 caractères), réservé à l'examen administratif. ~~Critères détaillés (ponctualité, compétence…)~~ remplacés par les motifs. ~~Modération par l'IA~~ non implémentée : le commentaire n'est jamais publié.
+
+**Confidentialité :**
+- Aucune lecture de session sur `reviews` ; la policy « avis publics » est supprimée.
+- Les surfaces consultables par un tiers (liste des candidats d'une offre, détail d'offre, matching) et leurs réponses API/RPC ne renvoient que les étoiles. Les signaux temps réel ne portent qu'un domaine et un identifiant (§9.5, lot 7d), sur le canal du seul titulaire.
+- Une baisse due à un avis est notifiée au titulaire avec le seul résumé des motifs, jamais le commentaire ni l'auteur.
+
+**Progression et notifications :**
+- Espace personnel (candidat et entreprise) : prochain palier nommé (« Prochain palier : 3 étoiles »), barre de progression, action restante (« Encore 2 missions confirmées »), progression par catégorie.
+- Chaque variation réelle (au moins ½ étoile) crée une notification durable. Une courte animation de félicitations accompagne un gain ; une animation discrète avec l'action adaptée accompagne une baisse (motifs et contestation auprès du support, renouvellement d'un justificatif expiré, complétion du profil). `prefers-reduced-motion` respecté. L'animation n'est jouée qu'une fois, même avec plusieurs onglets ou après reconnexion (accusé enregistré en base).
+- À la reprise des données existantes, les scores sont initialisés sans notification.
+
+**Contestation (dashboard admin) :**
+- Fiches `/admin/candidates/[id]` et `/admin/companies/[id]` : détail par catégorie, chaque avis avec son auteur, sa mission, ses motifs, son commentaire et son impact sur le solde.
+- La contestation reçue par le support (support@easyjob.cm) est rattachée à l'avis par un admin (3 grades) : litige `disputes` de type `review_contest`. `admin_ops` ou `admin_founder` la tranche (acceptée : l'avis sort du calcul ; rejetée : il est maintenu). Décision définitive, tracée dans `audit_logs` avec les étoiles avant et après ; la partie qui conteste est notifiée.
 
 **Critères d'acceptation :**
 - Une évaluation soumise ne peut pas être modifiée.
-- Un commentaire offensant est automatiquement masqué et soumis à modération.
-- Les notes contribuent immédiatement au score de confiance et impactent le délai de paiement.
-- Les évaluations sont visibles publiquement sur les profils.
+- Une note inférieure à 3 sans motif est refusée côté client et côté serveur.
+- Un tiers n'obtient jamais la note, les motifs ni le commentaire d'un avis, par aucune API, RPC, lecture directe ou charge utile temps réel.
+- Les avis admissibles contribuent immédiatement à la réputation EasyJob. ~~Ils impactent le délai de paiement~~ : à redéfinir au lot paiement (§5.3).
 
 ---
 
@@ -861,7 +894,7 @@ T8.5 livre la surface admin qui manque :
 - Toute transition de statut est effectuée côté serveur. Un candidat ne peut jamais valider son propre document.
 
 **Expiration et remplacement :**
-- Réutilisation de la table `document_expirations` (alertes J-30 / J-7 / expiré), dont la contrainte de types est étendue au-delà de `cni`/`driving_license`.
+- Réutilisation de la table `document_expirations` (alertes J-30 / J-7 / expiré), dont la contrainte de types est étendue au-delà de `cni`/`driving_license`. **Lot 9c :** alertes envoyées par la tâche planifiée `reputation_expiry_sweep` ; la réputation des tiers tient compte de l'échéance dès qu'elle est atteinte (calcul à la lecture), puis la tâche enregistre la baisse et notifie le candidat. Le statut brut `candidate_documents.status` n'est toujours pas réécrit en `expired` : l'expiration reste dérivée de `expires_at`.
 - À expiration, le statut "Vérifiée" de la compétence repasse à "Justificatif expiré" ; seules les offres exigeant ce justificatif précis sont bloquées, jamais l'ensemble des candidatures du candidat.
 - Le remplacement d'un document relance une nouvelle vérification admin (statut "Vérification en attente").
 
@@ -1154,10 +1187,32 @@ created_at, updated_at
 
 **`reviews`**
 ```
-id, mission_id, reviewer_id, reviewee_id,
-reviewer_type (candidate/company),
-overall_rating, criteria_ratings{}, comment,
-is_moderated, created_at
+id, mission_id, reviewer_id, reviewer_type (candidate/company),
+reviewed_id, reviewed_type, overall_rating, comment,
+reasons[],      ← lot 9c : motifs (au moins un si note < 3)
+origin (mission_flow/legacy), is_public (sans effet, lecture fermée), created_at
+```
+
+**`reputation_scores`** (lot 9c — projection, écrite par `refresh_reputation` seul)
+```
+subject_type (candidate/company), subject_id, user_id, stars (0..5 par 0,5),
+profile_pct, profile_stars, experience_units, experience_stars,
+confirmed_count, breach_count, review_units, review_stars,
+skill_count, skill_stars, next_expiry_at, computed_at
+```
+
+**`reputation_changes`** (lot 9c — variations, notification et accusé d'animation)
+```
+id, subject_type, subject_id, user_id, from_stars, to_stars,
+direction (gain/loss), cause, details{reasons|documents|href},
+notification_id, acknowledged_at, created_at
+```
+
+**`reputation_incidents`** (lot 9c — décisions de manquement confirmées, appliquées sans seuil ; aucun producteur à ce jour)
+```
+id, subject_type, subject_id, kind (candidate_late_cancellation/candidate_no_show/company_late_cancellation),
+source (support_decision/cancellation_flow), mission_id, job_id,
+scheduled_start_at, occurred_at, decided_by, voided_at, voided_by, void_reason
 ```
 
 **`transactions`**

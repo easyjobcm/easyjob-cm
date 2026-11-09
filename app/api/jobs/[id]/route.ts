@@ -31,7 +31,8 @@ export async function GET(
           logo_url, 
           city, 
           sector,
-          description
+          description,
+          reputation_stars
         ),
         category:job_categories(id, name_fr, name_en, icon)
       `,

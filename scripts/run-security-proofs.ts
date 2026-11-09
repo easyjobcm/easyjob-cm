@@ -37,6 +37,7 @@ const PROOFS = [
   "candidate-selection",
   "contract-signing",
   "mission-time-tracking",
+  "reputation",
   "realtime",
   "chat-quota",
   "admin-centralization",

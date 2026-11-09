@@ -8,6 +8,7 @@ import { PageTransition } from "@/components/layout/page-transition";
 import { CandidateTabBar } from "@/components/layout/candidate-tab-bar";
 import { Toaster } from "@/components/ui/toaster";
 import { RealtimeProvider } from "@/lib/realtime/provider";
+import { ReputationCelebration } from "@/components/reputation/reputation-celebration";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -100,6 +101,7 @@ export default function RootLayout({
               <PageTransition>{children}</PageTransition>
               <CandidateTabBar />
               <Toaster />
+              <ReputationCelebration />
             </RealtimeProvider>
           </I18nProvider>
         </ThemeProvider>

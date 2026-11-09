@@ -69,9 +69,6 @@ export async function GET(request: NextRequest) {
           last_name,
           profile_photo_url,
           city,
-          average_rating,
-          review_count,
-          completed_missions,
           skills:candidate_skills(skill_name)
         `,
         )

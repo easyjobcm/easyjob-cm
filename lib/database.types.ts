@@ -871,9 +871,11 @@ export type Database = {
           id: string
           mission_id: string
           opened_by: string
+          outcome: string | null
           resolution: string | null
           resolved_at: string | null
           resolved_by: string | null
+          review_id: string | null
           status: string
           type: string
           updated_at: string
@@ -885,9 +887,11 @@ export type Database = {
           id?: string
           mission_id: string
           opened_by: string
+          outcome?: string | null
           resolution?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          review_id?: string | null
           status?: string
           type: string
           updated_at?: string
@@ -899,9 +903,11 @@ export type Database = {
           id?: string
           mission_id?: string
           opened_by?: string
+          outcome?: string | null
           resolution?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          review_id?: string | null
           status?: string
           type?: string
           updated_at?: string
@@ -926,6 +932,13 @@ export type Database = {
             columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
             referencedColumns: ["id"]
           },
         ]
@@ -1945,6 +1958,211 @@ export type Database = {
           },
         ]
       }
+      reputation_changes: {
+        Row: {
+          acknowledged_at: string | null
+          cause: string
+          created_at: string
+          details: Json
+          direction: string
+          from_stars: number
+          id: string
+          notification_id: string | null
+          subject_id: string
+          subject_type: string
+          to_stars: number
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          cause: string
+          created_at?: string
+          details?: Json
+          direction: string
+          from_stars: number
+          id?: string
+          notification_id?: string | null
+          subject_id: string
+          subject_type: string
+          to_stars: number
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          cause?: string
+          created_at?: string
+          details?: Json
+          direction?: string
+          from_stars?: number
+          id?: string
+          notification_id?: string | null
+          subject_id?: string
+          subject_type?: string
+          to_stars?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_changes_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_changes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_incidents: {
+        Row: {
+          created_at: string
+          decided_by: string | null
+          id: string
+          job_id: string | null
+          kind: string
+          mission_id: string | null
+          occurred_at: string
+          scheduled_start_at: string
+          source: string
+          subject_id: string
+          subject_type: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind: string
+          mission_id?: string | null
+          occurred_at: string
+          scheduled_start_at: string
+          source: string
+          subject_id: string
+          subject_type: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_by?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          mission_id?: string | null
+          occurred_at?: string
+          scheduled_start_at?: string
+          source?: string
+          subject_id?: string
+          subject_type?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_incidents_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_incidents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_incidents_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reputation_incidents_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reputation_scores: {
+        Row: {
+          breach_count: number
+          computed_at: string
+          confirmed_count: number
+          experience_stars: number
+          experience_units: number
+          next_expiry_at: string | null
+          profile_pct: number
+          profile_stars: number
+          review_stars: number
+          review_units: number
+          skill_count: number | null
+          skill_stars: number | null
+          stars: number
+          subject_id: string
+          subject_type: string
+          user_id: string
+        }
+        Insert: {
+          breach_count?: number
+          computed_at?: string
+          confirmed_count?: number
+          experience_stars?: number
+          experience_units?: number
+          next_expiry_at?: string | null
+          profile_pct?: number
+          profile_stars?: number
+          review_stars?: number
+          review_units?: number
+          skill_count?: number | null
+          skill_stars?: number | null
+          stars?: number
+          subject_id: string
+          subject_type: string
+          user_id: string
+        }
+        Update: {
+          breach_count?: number
+          computed_at?: string
+          confirmed_count?: number
+          experience_stars?: number
+          experience_units?: number
+          next_expiry_at?: string | null
+          profile_pct?: number
+          profile_stars?: number
+          review_stars?: number
+          review_units?: number
+          skill_count?: number | null
+          skill_stars?: number | null
+          stars?: number
+          subject_id?: string
+          subject_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           comment: string | null
@@ -1957,6 +2175,7 @@ export type Database = {
           overall_rating: number
           professionalism_rating: number | null
           punctuality_rating: number | null
+          reasons: string[]
           reviewed_id: string
           reviewed_type: string
           reviewer_id: string
@@ -1974,6 +2193,7 @@ export type Database = {
           overall_rating: number
           professionalism_rating?: number | null
           punctuality_rating?: number | null
+          reasons?: string[]
           reviewed_id: string
           reviewed_type: string
           reviewer_id: string
@@ -1991,6 +2211,7 @@ export type Database = {
           overall_rating?: number
           professionalism_rating?: number | null
           punctuality_rating?: number | null
+          reasons?: string[]
           reviewed_id?: string
           reviewed_type?: string
           reviewer_id?: string
@@ -2177,6 +2398,7 @@ export type Database = {
           description: string | null
           id: string | null
           logo_url: string | null
+          reputation_stars: number | null
           sector: string | null
         }
         Insert: {
@@ -2185,6 +2407,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           logo_url?: string | null
+          reputation_stars?: never
           sector?: string | null
         }
         Update: {
@@ -2193,12 +2416,17 @@ export type Database = {
           description?: string | null
           id?: string | null
           logo_url?: string | null
+          reputation_stars?: never
           sector?: string | null
         }
         Relationships: []
       }
     }
     Functions: {
+      acknowledge_reputation_changes: {
+        Args: { p_ids: string[] }
+        Returns: string[]
+      }
       admin_edit_candidate_identity: {
         Args: {
           p_date_of_birth: string
@@ -2207,6 +2435,29 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      admin_open_review_contest: {
+        Args: { p_note: string; p_review_id: string }
+        Returns: string
+      }
+      admin_reputation_review_impacts: {
+        Args: { p_subject_id: string; p_subject_type: string }
+        Returns: {
+          admissible: boolean
+          applied_delta: number
+          balance_after: number
+          nominal_delta: number
+          review_id: string
+        }[]
+      }
+      admin_resolve_review_contest: {
+        Args: { p_note: string; p_outcome: string; p_review_id: string }
+        Returns: {
+          dispute_id: string
+          outcome: string
+          stars_after: number
+          stars_before: number
+        }[]
       }
       admin_set_user_active: {
         Args: { p_active: boolean; p_user_id: string }
@@ -2309,8 +2560,6 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: {
           application_id: string
-          average_rating: number
-          completed_missions: number
           created_at: string
           distance_km: number
           first_name: string
@@ -2318,7 +2567,7 @@ export type Database = {
           last_initial: string
           match_score: number
           rejection_reason: string
-          review_count: number
+          reputation_stars: number
           skills: string[]
           status: Database["public"]["Enums"]["application_status"]
         }[]
@@ -2336,6 +2585,27 @@ export type Database = {
           scheduled_start_at: string
           started_at: string
           status: Database["public"]["Enums"]["mission_status"]
+        }[]
+      }
+      company_profile_completion_pct: {
+        Args: { p: Database["public"]["Tables"]["company_profiles"]["Row"] }
+        Returns: number
+      }
+      compute_reputation: {
+        Args: { p_at?: string; p_subject_id: string; p_subject_type: string }
+        Returns: {
+          breach_count: number
+          confirmed_count: number
+          experience_stars: number
+          experience_units: number
+          next_expiry_at: string
+          profile_pct: number
+          profile_stars: number
+          review_stars: number
+          review_units: number
+          skill_count: number
+          skill_stars: number
+          stars: number
         }[]
       }
       consume_chat_quota: {
@@ -2569,6 +2839,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      license_categories_for: {
+        Args: { p_required: string }
+        Returns: string[]
+      }
       mission_schedule_bounds: {
         Args: { p_date: string; p_end: string; p_start: string }
         Returns: {
@@ -2653,6 +2927,7 @@ export type Database = {
         }
       }
       my_account_state: { Args: never; Returns: Json }
+      my_reputation: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
         Returns: string
@@ -2660,6 +2935,58 @@ export type Database = {
       recompute_user_verification: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      refresh_reputation: {
+        Args: {
+          p_cause: string
+          p_details?: Json
+          p_silent?: boolean
+          p_subject_id: string
+          p_subject_type: string
+        }
+        Returns: number
+      }
+      reputation_company_offers: {
+        Args: { p_company_id: string }
+        Returns: {
+          offer_id: string
+          realized_at: string
+        }[]
+      }
+      reputation_document_valid: {
+        Args: { p_at: string; p_expires_at: string; p_status: string }
+        Returns: boolean
+      }
+      reputation_expiry_sweep: { Args: never; Returns: number }
+      reputation_half_stars: {
+        Args: { p_cap: number; p_units: number }
+        Returns: number
+      }
+      reputation_profile_stars: { Args: { p_pct: number }; Returns: number }
+      reputation_review_admissible: {
+        Args: { p_review_id: string }
+        Returns: boolean
+      }
+      reputation_review_delta: { Args: { p_rating: number }; Returns: number }
+      reputation_review_units: {
+        Args: { p_cap: number; p_reviewed_id: string; p_reviewed_type: string }
+        Returns: number
+      }
+      reputation_stars_for: {
+        Args: { p_subject_id: string; p_subject_type: string }
+        Returns: number
+      }
+      reputation_stars_text: {
+        Args: { p_locale: string; p_stars: number }
+        Returns: string
+      }
+      review_reason_label: {
+        Args: { p_code: string; p_locale: string }
+        Returns: string
+      }
+      review_reasons_for: {
+        Args: { p_reviewed_type: string }
+        Returns: string[]
       }
       rt_candidate_user: { Args: { p_candidate_id: string }; Returns: string }
       rt_company_user: { Args: { p_company_id: string }; Returns: string }
@@ -2739,7 +3066,12 @@ export type Database = {
         }[]
       }
       submit_mission_review: {
-        Args: { p_comment?: string; p_mission_id: string; p_rating: number }
+        Args: {
+          p_comment?: string
+          p_mission_id: string
+          p_rating: number
+          p_reasons?: string[]
+        }
         Returns: {
           already_reviewed: boolean
           created_at: string

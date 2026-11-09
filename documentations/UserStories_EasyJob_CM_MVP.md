@@ -64,9 +64,9 @@ AND    [résultat complémentaire]
 | MATCH | Matching & Candidature | Algorithme, scoring, candidature en un clic |
 | CONT | Contrat | Génération et signature électronique |
 | MISS | Suivi de mission | Statuts, code de validation, no-show |
-| EVAL | Évaluations | Avis réciproques, modération, impact score |
+| EVAL | Évaluations et réputation | Avis privés, réputation EasyJob en étoiles, contestation |
 | PAY | Paiement | Blocage, libération, remboursement, délais |
-| SAND | Sandbox | Niveaux de confiance, déblocage, sanctions |
+| SAND | Sandbox (retiré) | Supprimé (lot 9b) ; remplacé par la réputation EasyJob (US-EVAL-03) |
 | SUB | Abonnements | Plans candidat et entreprise |
 | ADMIN | Dashboard Admin | Gestion 3 niveaux, modération, KPIs |
 | BOT | Chatbot IA | Support automatisé, escalade humaine |
@@ -679,7 +679,7 @@ THEN le statut repasse à "verified" avec la nouvelle date d'expiration
 ```gherkin
 GIVEN je suis connecté en tant que candidat
 WHEN j'accède à la page "Mon profil"
-THEN je vois toutes mes informations, ma note moyenne, mes badges, ma complétude, mon niveau Sandbox
+THEN je vois toutes mes informations, ma réputation EasyJob et sa progression (US-EVAL-04), mes badges, ma complétude
 
 WHEN je modifie une information (compétences, disponibilités, photo, GPS domicile)
   AND je sauvegarde
@@ -1216,9 +1216,9 @@ WHEN j'accède à la liste des candidatures
 THEN chaque candidat est affiché avec :
   - Son score de pertinence en % (ex : "87% de correspondance")
   - Les raisons du classement (ex : "Compétences ✓ | Distance 3 km | Déjà travaillé ici ✓")
-  - Son niveau Sandbox, sa note moyenne, ses badges
+  - Sa réputation EasyJob en étoiles seules (ni moyenne, ni nombre d'avis, ni commentaire — lot 9c), ses badges
 
-WHEN je filtre par "Niveau Sandbox >= 2" ou "Distance < 5 km"
+WHEN je filtre par "Distance < 5 km" (filtre de niveau Sandbox retiré, lot 9b)
 THEN la liste est actualisée en temps réel selon mes filtres
 
 GIVEN un candidat a déjà travaillé pour mon entreprise avec une bonne note
@@ -1334,7 +1334,7 @@ THEN le candidat est notifié : "Votre candidature n'a pas été retenue"
 
 GIVEN j'accède au profil d'un candidat sélectionnable
 WHEN je consulte sa fiche
-THEN je vois uniquement ses informations professionnelles (compétences, Sandbox, note, historique)
+THEN je vois uniquement ses informations professionnelles (compétences, réputation EasyJob en étoiles)
   AND son numéro de téléphone, email et CNI ne sont jamais affichés
 ```
 
@@ -1576,7 +1576,9 @@ THEN le compteur no_show_count n'est pas incrémenté
 
 ---
 
-## ÉPIQUE 9 — EVAL : Évaluations
+## ÉPIQUE 9 — EVAL : Évaluations et réputation EasyJob
+
+> **Mise à jour du 2026-11-09 (lot 9c, SRS §5.2 et §6.9).** Les avis ne sont plus publics et aucune moyenne n'est affichée à un tiers. Chaque profil a une **réputation EasyJob** de 0 à 5 étoiles par demi-étoiles, calculée en base à partir des missions confirmées par code, des avis admissibles, du profil et, pour le candidat, des compétences vérifiées. Les tiers ne voient que les étoiles graphiques ; le titulaire voit sa progression ; l'administration voit les avis complets et tranche les contestations. Le délai de 48 h (blocage de la mission suivante) et la modération automatique des commentaires ne sont pas implémentés.
 
 ---
 
@@ -1585,10 +1587,10 @@ THEN le compteur no_show_count n'est pas incrémenté
 | Champ | Valeur |
 |---|---|
 | **ID** | US-EVAL-01 |
-| **Titre** | Soumission d'une évaluation par le candidat |
-| **Rôle** | candidat après validation de la mission |
-| **Action** | évaluer l'entreprise sur des critères spécifiques après la mission |
-| **Bénéfice** | contribuer à la transparence de la plateforme et aider les autres candidats |
+| **Titre** | Évaluation de l'entreprise par le candidat |
+| **Rôle** | candidat dont la fin de mission est confirmée par le code |
+| **Action** | noter l'entreprise de 1 à 5 étoiles, avec des motifs si la note est basse |
+| **Bénéfice** | signaler un problème précis à EasyJob sans exposer mon commentaire |
 | **Priorité** | P0 |
 | **Complexité** | S |
 | **Épique** | EVAL |
@@ -1597,26 +1599,25 @@ THEN le compteur no_show_count n'est pas incrémenté
 **Critères d'acceptation :**
 
 ```gherkin
-GIVEN ma mission est validée
-WHEN je reçois la notification d'évaluation
-  AND j'accède au formulaire
-THEN je peux noter l'entreprise de 1 à 5 étoiles sur :
-  clarté des instructions, respect du candidat, conformité aux conditions de l'offre
-  AND ajouter un commentaire libre optionnel
+GIVEN le code de fin de ma mission est accepté
+WHEN le dialogue « Notez l'entreprise » s'ouvre (tâche obligatoire jusqu'à la note)
+THEN je choisis une note de 1 à 5 étoiles
+  AND pour une note de 1 à 3, des motifs propres à l'entreprise me sont proposés
+      (consignes peu claires, conditions différentes de l'offre, manque de respect,
+       conditions de travail dangereuses, code de fin remis tardivement, tâches non prévues)
+  AND je peux ajouter un commentaire libre, lu seulement par l'équipe EasyJob
 
-WHEN je soumets l'évaluation
-THEN elle est sauvegardée et contribue immédiatement au score de confiance de l'entreprise
-  AND elle est visible publiquement sur la fiche de l'entreprise
+GIVEN je choisis une note inférieure à 3 sans motif
+WHEN j'envoie (interface, route ou appel direct à la base)
+THEN l'envoi est refusé : « Pour une note inférieure à 3, choisissez au moins un motif. »
 
-GIVEN je n'ai pas soumis mon évaluation après 48h
-WHEN j'essaie de postuler à une nouvelle offre
-THEN un message "Vous devez évaluer votre dernière mission avant de postuler" s'affiche
-  AND ma candidature est bloquée jusqu'à soumission de l'évaluation
+GIVEN j'envoie un motif réservé à l'évaluation d'un candidat, ou un motif avec une note de 4 ou 5
+THEN la base refuse l'évaluation (reasons_invalid)
 
-GIVEN mon commentaire contient des insultes ou propos offensants
-WHEN le commentaire est soumis
-THEN l'IA le masque automatiquement et le soumet à la modération de admin_ops
-  AND la note numérique est enregistrée normalement
+WHEN mon évaluation est enregistrée
+THEN elle est immuable et unique pour cette mission
+  AND la réputation EasyJob de l'entreprise est recalculée (US-EVAL-03)
+  AND ni ma note, ni mes motifs, ni mon commentaire ne sont visibles des autres utilisateurs
 ```
 
 ---
@@ -1626,10 +1627,10 @@ THEN l'IA le masque automatiquement et le soumet à la modération de admin_ops
 | Champ | Valeur |
 |---|---|
 | **ID** | US-EVAL-02 |
-| **Titre** | Soumission d'une évaluation par l'entreprise |
-| **Rôle** | entreprise après validation de la mission |
-| **Action** | évaluer le candidat sur des critères spécifiques après la mission |
-| **Bénéfice** | améliorer la qualité du vivier et aider les autres entreprises à recruter les bons profils |
+| **Titre** | Évaluation du candidat par l'entreprise |
+| **Rôle** | entreprise propriétaire d'une mission confirmée par code |
+| **Action** | noter le candidat de 1 à 5 étoiles (facultatif), avec des motifs si la note est basse |
+| **Bénéfice** | faire compter la qualité du travail dans la réputation du candidat |
 | **Priorité** | P0 |
 | **Complexité** | S |
 | **Épique** | EVAL |
@@ -1638,21 +1639,153 @@ THEN l'IA le masque automatiquement et le soumet à la modération de admin_ops
 **Critères d'acceptation :**
 
 ```gherkin
-GIVEN j'ai validé la fin de mission
-WHEN je reçois la notification d'évaluation
-THEN je peux noter le candidat de 1 à 5 étoiles sur :
-  ponctualité, compétence technique, communication, présentation
-  AND ajouter un commentaire optionnel
+GIVEN la mission est confirmée par le code
+WHEN j'ouvre « Noter le candidat »
+THEN je choisis une note de 1 à 5 étoiles
+  AND pour une note de 1 à 3, des motifs propres au candidat me sont proposés
+      (retard, départ anticipé, travail non conforme, consignes non respectées,
+       comportement inapproprié, tenue ou équipement inadaptés)
+  AND un motif au moins est exigé sous 3, côté client et côté serveur
+  AND je peux reporter la note (« Plus tard ») : elle ne bloque rien
 
-WHEN je soumets l'évaluation
-THEN la note contribue immédiatement à la moyenne du candidat
-  AND si la moyenne du candidat >= 4, le candidat bénéficiera d'un délai de paiement accéléré pour les futures missions
-  AND l'évaluation est visible publiquement sur le profil du candidat
+WHEN l'évaluation est enregistrée
+THEN la réputation du candidat est recalculée
+  AND si elle baisse, le candidat est notifié avec le seul résumé des motifs choisis
+      (jamais mon commentaire ni mon identité)
+```
 
-GIVEN l'évaluation est soumise
-WHEN le candidat consulte son profil
-THEN il voit la nouvelle évaluation avec la note et le commentaire (si non modéré)
-  AND son niveau Sandbox est recalculé si les conditions sont remplies
+---
+
+### US-EVAL-03
+
+| Champ | Valeur |
+|---|---|
+| **ID** | US-EVAL-03 |
+| **Titre** | Réputation EasyJob calculée en base |
+| **Rôle** | système |
+| **Action** | calculer un score de 0 à 5 étoiles par demi-étoiles, catégorie par catégorie |
+| **Bénéfice** | une réputation lisible, stable et identique sur tous les écrans |
+| **Priorité** | P0 |
+| **Complexité** | L |
+| **Épique** | EVAL |
+| **Dépend de** | US-EVAL-01, US-EVAL-02, US-MISS-03 |
+
+**Critères d'acceptation :**
+
+```gherkin
+GIVEN un candidat
+THEN son score additionne, chaque catégorie étant plafonnée séparément :
+  profil 1 étoile (complétude 50 % → ½, 100 % → 1)
+  expérience et engagements 2 étoiles (5/10/15/20 unités → ½/1/1½/2 ;
+    +1 par mission confirmée par code ; −5 par manquement confirmé ; solde 0..20)
+  avis reçus 1 étoile (4-5 → +1, 3 → 0, < 3 → −5 ; solde 0..10 ; 5 unités → ½)
+  compétences vérifiées 1 étoile (½ par compétence distincte dont un justificatif
+    approuvé est valide ; permis valide de la bonne catégorie pour la conduite)
+
+GIVEN une entreprise
+THEN son score additionne : profil 1 étoile (critères de complétude entreprise),
+  offres réalisées et engagements 2 étoiles (+1 par offre ayant au moins une mission
+  confirmée et toutes ses sélections résolues, quel que soit le nombre de places ;
+  trois décisions d'annulation confirmées en 90 jours → un seul retrait de 5),
+  avis reçus 2 étoiles (solde 0..20)
+
+GIVEN j'ai 8 missions confirmées par code
+WHEN la 9e est confirmée THEN mon score ne change pas
+WHEN la 10e est confirmée THEN je gagne ½ étoile d'expérience, une seule fois
+
+GIVEN un avis est invalidé après contestation, même ancien
+WHEN le score est recalculé
+THEN il est rejoué depuis les données sources dans l'ordre des événements, plafonds compris
+  AND le résultat est identique à un calcul complet (pas d'ajout ni de retrait naïf)
+
+GIVEN un justificatif approuvé atteint son échéance
+THEN les étoiles affichées aux tiers en tiennent compte immédiatement
+  AND une tâche planifiée (toutes les 15 min) enregistre la baisse et notifie le titulaire,
+      même s'il ne se connecte pas
+  AND un renouvellement ne compte qu'après son approbation ; un diplôme sans échéance reste valable
+
+GIVEN je suis candidat premium ou entreprise abonnée
+THEN mon score est le même que sans abonnement
+  AND les conditions pour postuler ne dépendent pas des étoiles
+
+GIVEN un manquement (annulation tardive, absence) n'a pas fait l'objet d'une décision enregistrée
+THEN aucune sanction n'est déduite (aucun parcours ne produit encore ces décisions)
+GIVEN une décision confirmée est enregistrée
+THEN elle retire 5 unités quel que soit le délai de l'annulation ou le remplissage de l'offre
+  # Les conditions pour prononcer la décision (24 h / 12 h provisoires, offre
+  # partiellement pourvue) sont à arbitrer : lot Engagements et annulations.
+```
+
+---
+
+### US-EVAL-04
+
+| Champ | Valeur |
+|---|---|
+| **ID** | US-EVAL-04 |
+| **Titre** | Progression privée, notifications et animations |
+| **Rôle** | candidat ou entreprise |
+| **Action** | suivre ma réputation et être prévenu de chaque variation |
+| **Bénéfice** | savoir exactement quoi faire pour gagner la prochaine demi-étoile |
+| **Priorité** | P1 |
+| **Complexité** | M |
+| **Épique** | EVAL |
+| **Dépend de** | US-EVAL-03 |
+
+**Critères d'acceptation :**
+
+```gherkin
+GIVEN j'ouvre mon espace personnel
+THEN je vois « Prochain palier : 2 étoiles » avec une barre et l'action restante
+     (« Encore 2 missions confirmées »)
+  AND la progression de chaque catégorie avec sa propre action
+
+WHEN mon score gagne au moins ½ étoile
+THEN une notification durable est créée et une courte animation de félicitations s'affiche
+WHEN mon score baisse
+THEN une animation discrète propose l'action adaptée :
+     motifs de l'avis et contestation auprès du support, renouvellement du justificatif expiré,
+     complétion du profil
+
+GIVEN deux onglets ouverts, ou une reconnexion après la variation
+THEN l'animation n'est jouée qu'une fois (accusé enregistré en base)
+GIVEN prefers-reduced-motion
+THEN aucune trajectoire animée n'est jouée
+GIVEN la reprise des données existantes
+THEN les scores sont initialisés sans notification ni animation historiques
+```
+
+---
+
+### US-EVAL-05
+
+| Champ | Valeur |
+|---|---|
+| **ID** | US-EVAL-05 |
+| **Titre** | Avis complets et contestation dans le dashboard admin |
+| **Rôle** | admin_support (lecture, rattachement), admin_ops et admin_founder (décision) |
+| **Action** | consulter un avis et trancher sa contestation |
+| **Bénéfice** | corriger une réputation injuste avec une décision tracée |
+| **Priorité** | P1 |
+| **Complexité** | M |
+| **Épique** | EVAL |
+| **Dépend de** | US-EVAL-03, US-ADMIN-01 |
+
+**Critères d'acceptation :**
+
+```gherkin
+GIVEN j'ouvre la fiche d'un candidat (/admin/candidates/[id]) ou d'une entreprise (/admin/companies/[id])
+THEN je vois le détail par catégorie et chaque avis reçu : note, auteur, mission, motifs,
+     commentaire et impact sur le solde (ou « Non compté »)
+
+GIVEN le support a reçu une contestation (support@easyjob.cm)
+WHEN admin_support la rattache à l'avis avec une note
+THEN un litige « review_contest » est créé au nom de la partie évaluée et l'action est auditée
+WHEN admin_ops ou admin_founder l'accepte ou la rejette, avec un motif
+THEN la décision est définitive et auditée (étoiles avant et après)
+  AND si elle est acceptée, l'avis sort du calcul et le score est recalculé
+  AND la partie qui conteste est notifiée de la décision
+GIVEN admin_support tente de trancher THEN la décision est refusée (403)
 ```
 
 ---
@@ -1738,11 +1871,16 @@ GIVEN une mission est annulée par le candidat à moins de 24h du début
 WHEN l'annulation est confirmée
 THEN 100% est remboursé à l'entreprise (hors frais)
   AND le candidat perd son accès aux missions de niveau supérieur pendant 7 jours et ca note moyenne est affectée négativement
+  # Lot 9c : règle à revoir au lot paiement. Les niveaux n'existent plus (lot 9b) ;
+  # une annulation tardive confirmée retire 5 unités d'expérience (US-EVAL-03) ;
+  # la note moyenne n'est plus un indicateur affiché.
 ```
 
 ---
 
 ## ÉPIQUE 11 — SAND : Système Sandbox
+
+> **Retiré (lot 9b, 2026-11-08).** Les niveaux Sandbox et leurs seuils sont supprimés ; aucune offre n'exige de niveau. La réputation EasyJob (US-EVAL-03) les remplace comme indicateur, sans conditionner l'accès aux offres. US-SAND-01 et US-SAND-02 sont conservées pour mémoire et ne sont pas à implémenter.
 
 ---
 

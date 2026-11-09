@@ -36,12 +36,12 @@ export default async function CandidateProfilePage() {
   const { data: candidateProfile } = await supabase
     .from("candidate_profiles")
     .select(
-      `id, first_name, last_name, date_of_birth, average_rating, city, quartier,
+      `id, first_name, last_name, date_of_birth, city, quartier,
        address, latitude, longitude, max_travel_distance_km,
        profile_photo_url, bio,
        cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_expires_at,
        momo_verified, total_missions, completed_missions,
-       review_count, profile_completion_pct, premium_until, onboarding_status`,
+       profile_completion_pct, premium_until, onboarding_status`,
     )
     .eq("user_id", user.id)
     .single();
@@ -76,7 +76,9 @@ export default async function CandidateProfilePage() {
 
   return (
     <>
-      <LiveRefresh keys={["profile", "subscription", "account", "missions"]} />
+      <LiveRefresh
+        keys={["profile", "subscription", "account", "missions", "reputation"]}
+      />
       <CandidateProfileClient
         user={{
           role: userData.role,
@@ -88,8 +90,6 @@ export default async function CandidateProfilePage() {
             ? {
                 first_name: candidateProfile.first_name,
                 last_name: candidateProfile.last_name,
-                average_rating: candidateProfile.average_rating,
-                review_count: candidateProfile.review_count,
                 city: candidateProfile.city,
                 quartier: candidateProfile.quartier,
                 premium_until: candidateProfile.premium_until ?? null,
@@ -125,7 +125,9 @@ export default async function CandidateProfilePage() {
         criteria={criteria}
         availableDays={availableDays}
         onboardingStatus={candidateProfile?.onboarding_status ?? null}
-        totalMissions={candidateProfile?.total_missions ?? 0}
+        // Lot 9c : missions confirmées par code (compteur réparé) ;
+        // total_missions n'est écrit par aucun parcours.
+        totalMissions={candidateProfile?.completed_missions ?? 0}
       />
     </>
   );

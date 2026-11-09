@@ -740,7 +740,9 @@ async function main() {
       .eq("id", coA)
       .single();
     const rv = await review(C1, m1.missionId, 5, "Accueil parfait");
-    const rvAgain = await review(C1, m1.missionId, 1);
+    // Relance avec une autre note valide (lot 9c : une note < 3 exige un
+    // motif) : l'évaluation d'origine est renvoyée.
+    const rvAgain = await review(C1, m1.missionId, 4);
     const revs1 = await reviews(m1.missionId);
     const { data: companyAfter } = await serviceClient
       .from("company_profiles")
@@ -787,7 +789,7 @@ async function main() {
       .eq("id", cand1)
       .single();
     const cr = await review(A, m1.missionId, 4, "Ponctuelle");
-    const crAgain = await review(A, m1.missionId, 1);
+    const crAgain = await review(A, m1.missionId, 5);
     const revs1b = await reviews(m1.missionId);
     const { data: stars } = await serviceClient
       .from("candidate_profiles")
@@ -823,9 +825,10 @@ async function main() {
     );
 
     const [rB, rC2, rAnon, rBad] = await Promise.all([
-      review(B, m1.missionId, 1),
-      review(C2, m1.missionId, 1),
-      review(null, m1.missionId, 1),
+      // Note valide sans motif : seul le droit de la session est en jeu.
+      review(B, m1.missionId, 4),
+      review(C2, m1.missionId, 4),
+      review(null, m1.missionId, 4),
       review(C1, m1.missionId, 6),
     ]);
     const forged = [

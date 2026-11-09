@@ -19,7 +19,6 @@ import {
   Calendar,
   Clock,
   Users,
-  Star,
   CheckCircle,
   XCircle,
   Phone,
@@ -44,7 +43,7 @@ import {
 } from "@/lib/realtime/provider";
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 import { plural } from "@/lib/i18n/plural";
-import { formatReputation, hasReviews } from "@/lib/utils/reputation";
+import { ReputationStars } from "@/components/reputation/reputation-stars";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -513,32 +512,13 @@ export default function CompanyJobDetailPage() {
                               )}
                             </span>
                           )}
-                          {/* Réputation : étoiles des évaluations de
-                              missions uniquement (lot 9b). */}
-                          <span
-                            className="flex items-center gap-1"
-                            data-testid="applicant-reputation"
-                          >
-                            <Star
-                              className={`h-3 w-3 ${
-                                hasReviews(app.review_count)
-                                  ? "fill-yellow-500 text-yellow-500"
-                                  : "text-muted-foreground"
-                              }`}
-                            />
-                            {formatReputation(
-                              app.average_rating,
-                              app.review_count,
-                              locale,
-                              t.reputation,
-                            )}
-                          </span>
-                          <span>
-                            {ta.missions.replace(
-                              "{count}",
-                              String(app.completed_missions || 0),
-                            )}
-                          </span>
+                          {/* Réputation EasyJob (lot 9c) : étoiles seules,
+                              sans moyenne, nombre d'avis ni motif. */}
+                          <ReputationStars
+                            stars={app.reputation_stars}
+                            size="sm"
+                            testId="applicant-reputation"
+                          />
                         </div>
 
                         {app.skills.length > 0 && (

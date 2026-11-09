@@ -17,7 +17,10 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 8 | Hygiène auth, chatbot et journaux — **corrigé et vérifié localement, non déployé ; F-23 partiel** | F-12, F-13, F-15, F-23, H-04 | Sécurité | Petit à moyen |
 | 9 | Retour utilisateur et textes — **corrigé et vérifié localement sur les parcours ciblés, non déployé ; F-19 et F-28 partiels** | F-18, F-19, F-28 | UX | Moyen |
 | 9b | Retrait des niveaux Sandbox, réputation par les avis — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-08 | Fonctionnel | Moyen |
+| 9c | Réputation EasyJob en étoiles — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-09 | Fonctionnel et confidentialité | Grand |
+| 9d | Détail d'offre mobile et Tâches — **prochain lot** | Décision produit CNI à confirmer (lot 9c) | Fonctionnel et UX | À préciser |
 | 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
+| — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
 
 ---
 
@@ -347,6 +350,28 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Critères d'acceptation** : upgrade depuis l'état du lot 9 (candidat sans avis accepté sur une offre de niveau élevé, refus du permis conservé, note existante conservée, premier avis compté une seule fois) ; `pnpm test:rls`, tests unitaires, typage, lint, formatage et build verts ; contrôle à 375 px en FR et EN.
 - **Taille** : moyen.
 
+## Lot 9c — Réputation EasyJob en étoiles
+
+> **Statut (2026-11-09)** : réalisé sur `feat/lot-09c-reputation-stars` (base `origin/main-dev`, 8195e4c, lot 9b intégré), **non commité, non déployé**. Règles, preuves et limites : `AUDIT.md` §26.
+
+- **Périmètre** : migration `20261109120000_reputation_stars.sql` (score de 0 à 5 par demi-étoiles, rejeu déterministe, avis privés, motifs, contestation auditée, échéances des justificatifs et de la CNI par pg_cron) ; étoiles seules pour les tiers ; progression privée, notifications et animations ; fiches admin candidat et entreprise.
+> **Avant déploiement** : vérifier que l'extension pg_cron est activée sur le projet et, après la migration, que `cron.job` contient `reputation-expiry-sweep` (`*/15 * * * *`) ; sinon la migration journalise « pg_cron non activé » et la tâche doit être planifiée à la main. Surveiller le premier passage (rappels J−30 et J−7 en cours, aucun historique au-delà de J−1).
+
+- **Exclusions** : production des décisions de manquement (futur lot « Engagements et annulations ») ; règles et délais de versement liés aux étoiles (lot paiement, « Hors plan ») ; formulaire de contestation dans l'application.
+- **Décisions ouvertes** :
+  - conditions des manquements (futur lot « Engagements et annulations ») ;
+  - CNI expirée et candidature : décision produit à confirmer au lot 9d.
+- **Critères d'acceptation** : `pnpm test:rls` complet (dont `reputation`), montée de version depuis le lot 9b sans notification, contrôle à 375 px en FR et EN.
+
+## Lot 9d — Détail d'offre mobile et Tâches
+
+> **Statut** : prochain lot. Périmètre détaillé à préciser.
+
+- **Décision produit à confirmer — CNI expirée et candidature** : aujourd'hui, une CNI vérifiée mais expirée n'empêche la candidature que sur une offre qui exige le document `cni` ; sur une offre sans exigence documentaire, la candidature est acceptée (constat I5 de la preuve `reputation`, HTTP 200). `apply_to_job` ne lit que `users.is_verified`, qui ignore l'échéance, alors que le SRS §5.1 fait de la « CNI vérifiée non expirée » un critère essentiel.
+  - **Proposition** : refuser en base toute candidature avec une CNI expirée, quelle que soit l'offre, et afficher un bouton « Renouveler ma CNI » qui mène à la tâche correspondante.
+  - **Test proposé** : CNI expirée + offre sans exigence documentaire → refus en base (RPC directe et route, aucune ligne `job_applications`) et bouton « Renouveler ma CNI » vers la tâche de renouvellement ; CNI renouvelée → candidature acceptée. Le constat I5 de `proof-reputation` devient alors une assertion.
+- **Dépendances** : lot 9c (rappels d'échéance de la CNI).
+
 ## Lot 10 — Documentation, consignes IA et nettoyage
 
 - **IDs** : F-22, F-27, F-29, F-25, F-26, F-31.
@@ -361,10 +386,25 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Critères d'acceptation** : chaque outil ou fichier cité dans les consignes existe ; `tsc`, `lint` et `build` verts après suppression du code mort.
 - **Taille** : petit.
 
+## Futur lot — Engagements et annulations (à numéroter)
+
+> **Statut** : à arbitrer avec le produit. Le lot 9c applique déjà une décision confirmée (−5 unités ; entreprise : trois décisions en 90 jours → un retrait ; annulation par le support → solde rétabli). Ce lot doit produire ces décisions.
+
+- **Arbitrages attendus** :
+  - délai d'une annulation tardive : 24 h pour le candidat et 12 h pour l'entreprise (SRS §5.3), à confirmer ; même délai ou non pour le regroupement par trois de l'entreprise ;
+  - offre partiellement pourvue : une annulation compte-t-elle si une partie seulement des places est pourvue, ou si aucune sélection n'a eu lieu ;
+  - imputabilité d'une annulation d'entreprise (motif, force majeure) ;
+  - absence : qui la constate, délai et forme du justificatif, validation (SRS §11.9) ;
+  - qui prononce la décision (support, parcours automatique) et comment elle est contestée.
+- **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement).
+- **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
+- **Dépendances** : lot 9c ; lot paiement pour les pénalités.
+- **Taille** : moyen.
+
 ---
 
 ## Hors plan (à cadrer séparément)
 
-- **Paiement Mobile Money** : choix du fournisseur ou agrégateur, webhooks signés avec protection contre le rejeu, idempotence, rapprochement et gestion des échecs partiels. Aucun code de production n'existe aujourd'hui.
+- **Paiement Mobile Money** : choix du fournisseur ou agrégateur, webhooks signés avec protection contre le rejeu, idempotence, rapprochement et gestion des échecs partiels. Aucun code de production n'existe aujourd'hui. À redéfinir dans ce lot : les délais de versement liés aux étoiles (SRS §5.3 : « premium et note ≥ 4 » → 48 h, 50/50 ou 7 jours), fondés sur l'ancienne note moyenne (`AUDIT.md` §26), et les pénalités financières des annulations (avec le futur lot « Engagements et annulations »).
 - **Données personnelles** : validation juridique (conservation des CNI, information des personnes, suppression ou export de compte, déclaration à l'autorité compétente). Cela produira des exigences techniques à planifier ensuite.
 - **Observabilité** : choisir un outil de capture d'erreurs seulement après le lot 8, si les logs Vercel ne suffisent pas.

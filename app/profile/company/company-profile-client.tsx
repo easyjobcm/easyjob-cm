@@ -11,6 +11,7 @@ import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
 import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
+import { ReputationProgressCard } from "@/components/reputation/reputation-progress-card";
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { PlanBadge } from "@/components/company/profile/plan-badge";
 import { UpgradeBanner } from "@/components/company/profile/upgrade-banner";
@@ -296,6 +297,15 @@ export function CompanyProfileClient({
                 />
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Réputation EasyJob (lot 9c), visible par le seul titulaire */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+          >
+            <ReputationProgressCard />
           </motion.div>
 
           {/* Compteur d'offres actives — limites visibles si standard */}
