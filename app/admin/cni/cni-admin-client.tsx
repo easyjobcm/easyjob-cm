@@ -243,7 +243,17 @@ function CniReviewModal({
           expires_at: action === "approve" && expiresAt ? expiresAt : undefined,
         }),
       });
-      if (!res.ok) throw new Error(t.admin.cni.actionFailed);
+      if (!res.ok) {
+        const body = ((await res.json().catch(() => null)) ?? {}) as {
+          code?: string;
+        };
+        setError(
+          body.code === "expiry_invalid"
+            ? t.admin.cni.expiryInvalid
+            : t.admin.cni.actionFailed,
+        );
+        return;
+      }
       onDone();
     } catch {
       setError(t.admin.cni.actionFailed);
@@ -355,8 +365,8 @@ function CniReviewModal({
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   {t.admin.cni.expiresAt}{" "}
-                  <span className="text-muted-foreground/70">
-                    (optionnel — défaut : date de naissance + 10 ans)
+                  <span className="block text-xs text-muted-foreground/70">
+                    {t.admin.cni.expiresHint}
                   </span>
                 </p>
                 <input

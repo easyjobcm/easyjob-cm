@@ -19,8 +19,10 @@
  *  D0. Ré-soumission des photos par le candidat (route
  *      `/api/profile/documents`) : le rejet les a purgées (T8.4c).
  *  D. API POST `/api/admin/cni` — approbation :
- *     - admin_ops → 200 ;
- *     - profile cni_verified='verified' + cni_expires_at = dob+10y ;
+ *     - lot 9d : sans date, le défaut dob+10y (2008) est déjà passé → 400
+ *       expiry_invalid, dossier inchangé ; date passée saisie → 400 ;
+ *     - admin_ops avec une date d'échéance future → 200 ;
+ *     - profile cni_verified='verified' + cni_expires_at = date saisie ;
  *     - ligne document_expirations (type 'cni') ;
  *     - notification 'document_status' (CNI vérifiée) ;
  *     - audit_logs (approve_cni, role admin_ops) ;
@@ -588,11 +590,42 @@ async function main() {
     );
 
     // ── D. POST /api/admin/cni — approbation ────────────────────
+    // Lot 9d : une approbation exige une date d'échéance non dépassée. Sans
+    // date, le défaut dob+10y (1998-06-15 → 2008-06-15) est refusé.
+    const noDate = await fetchJson("/api/admin/cni", "POST", cookiesR.cookies, {
+      profile_id: WprofileId,
+      action: "approve",
+    });
+    const pastDate = await fetchJson(
+      "/api/admin/cni",
+      "POST",
+      cookiesR.cookies,
+      { profile_id: WprofileId, action: "approve", expires_at: "2020-01-01" },
+    );
+    const stillPending = await serviceClient
+      .from("candidate_profiles")
+      .select("cni_verified, cni_expires_at")
+      .eq("id", WprofileId)
+      .single();
+    report(
+      "D1a (lot 9d) : approbation sans date (défaut 2008 passé) ou avec une date passée → 400 expiry_invalid, CNI toujours en attente",
+      noDate.status === 400 &&
+        noDate.json.code === "expiry_invalid" &&
+        pastDate.status === 400 &&
+        pastDate.json.code === "expiry_invalid" &&
+        stillPending.data?.cni_verified === "pending",
+      {
+        noDate: [noDate.status, noDate.json.code],
+        pastDate: [pastDate.status, pastDate.json.code],
+        profile: stillPending.data,
+      },
+    );
+
     const opsApprove = await fetchJson(
       "/api/admin/cni",
       "POST",
       cookiesR.cookies,
-      { profile_id: WprofileId, action: "approve" },
+      { profile_id: WprofileId, action: "approve", expires_at: "2034-06-15" },
     );
     report(
       "D1 : admin_ops POST approve → 200 + statut 'verified' retourné",
@@ -600,7 +633,7 @@ async function main() {
       { status: opsApprove.status, body: opsApprove.json },
     );
 
-    // dob 1998-06-15 → cni_expires_at attendu = 2008-06-15.
+    // Date saisie par l'admin (lot 9d).
     const approvedProfile = await serviceClient
       .from("candidate_profiles")
       .select(
@@ -609,9 +642,9 @@ async function main() {
       .eq("id", WprofileId)
       .single();
     report(
-      "D2 : profile après approve → cni_verified='verified' + cni_expires_at = dob+10y (2008-06-15)",
+      "D2 : profile après approve → cni_verified='verified' + cni_expires_at = date saisie (2034-06-15)",
       approvedProfile.data?.cni_verified === "verified" &&
-        approvedProfile.data?.cni_expires_at === "2008-06-15",
+        approvedProfile.data?.cni_expires_at === "2034-06-15",
       approvedProfile.data,
     );
 
@@ -636,9 +669,9 @@ async function main() {
       .eq("document_type", "cni")
       .limit(5);
     report(
-      "D4 : document_expirations — ligne type 'cni' présente (expiry = dob+10y)",
+      "D4 : document_expirations — ligne type 'cni' présente (date saisie)",
       (docExpirations.data ?? []).some(
-        (d) => d.document_type === "cni" && d.expires_at === "2008-06-15",
+        (d) => d.document_type === "cni" && d.expires_at === "2034-06-15",
       ),
       docExpirations.data,
     );

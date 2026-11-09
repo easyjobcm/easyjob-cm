@@ -26,7 +26,6 @@ import {
   Clock,
   Banknote,
   ChevronRight,
-  Check,
   AlertTriangle,
   Info,
   Users,
@@ -84,7 +83,6 @@ export type JobFormInitial = Pick<
   | "positions_available"
   | "mission_pay_per_candidate"
   | "required_skills"
-  | "urgency"
 >;
 
 /**
@@ -137,7 +135,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     customBenefit: "",
     // Payment : montant fixe par candidat pour la mission (XAF entiers)
     missionPay: initialJob ? String(initialJob.mission_pay_per_candidate) : "",
-    urgent: initialJob?.urgency === "urgent",
   });
 
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
@@ -225,7 +222,9 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         city: companyProfile.city,
         address: companyProfile.address || "",
         required_skills: formData.requirements,
-        urgency: formData.urgent ? "urgent" : "normal",
+        // Lot 9d : plus d'option « urgente » ; le badge est calculé à
+        // l'affichage (début à 24 h ou moins).
+        urgency: "normal",
       };
 
       const parsed = jobInputSchema.safeParse(payload);
@@ -687,55 +686,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                 <p>{t.pay.formExample}</p>
               </div>
             </div>
-
-            <Card
-              className={cn(
-                "cursor-pointer transition-all",
-                formData.urgent
-                  ? "border-warning bg-warning/5"
-                  : "border-border hover:border-warning/50",
-              )}
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, urgent: !prev.urgent }))
-              }
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle
-                    className={cn(
-                      "h-5 w-5",
-                      formData.urgent
-                        ? "text-warning"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">
-                      {locale === "fr"
-                        ? "Marquer comme urgent"
-                        : "Mark as urgent"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {locale === "fr"
-                        ? "Votre offre sera mise en avant"
-                        : "Your job will be highlighted"}
-                    </p>
-                  </div>
-                  <div
-                    className={cn(
-                      "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                      formData.urgent
-                        ? "border-warning bg-warning"
-                        : "border-muted-foreground",
-                    )}
-                  >
-                    {formData.urgent && (
-                      <Check className="h-4 w-4 text-warning-foreground" />
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 
@@ -754,11 +704,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                   <h3 className="font-semibold text-foreground">
                     {formData.title}
                   </h3>
-                  {formData.urgent && (
-                    <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full font-medium">
-                      URGENT
-                    </span>
-                  )}
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -813,7 +758,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                         amountClassName="text-primary"
                         testId="review-mission-pay"
                       />
-                      <p className="text-xs">{t.pay.flatNote}</p>
                     </div>
                   </div>
                 </div>

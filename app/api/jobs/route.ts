@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
       )
       .eq("status", JOB_PUBLISHED_STATUS)
       .gte("start_date", new Date().toISOString().split("T")[0])
-      .order("urgency", { ascending: false })
+      // Lot 9d : l'urgence est calculée à l'affichage (début à 24 h ou
+      // moins) ; l'ancienne option manuelle ne classe plus les offres.
       .order("published_at", { ascending: false });
 
     // Apply filters

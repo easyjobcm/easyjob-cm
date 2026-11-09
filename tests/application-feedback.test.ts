@@ -4,6 +4,7 @@ import { en } from "@/lib/i18n/en";
 import {
   applyRefusalFeedback,
   documentRequirementText,
+  essentialTaskHref,
 } from "@/lib/jobs/application-feedback";
 
 /**
@@ -69,7 +70,7 @@ describe("applyRefusalFeedback", () => {
       href: "/my-jobs",
     });
     expect(at("no_positions")?.href).toBe("/jobs");
-    expect(at("profile_incomplete")?.href).toBe("/profile/candidate/edit");
+    expect(at("profile_incomplete")?.href).toBe("/tasks?task=profile");
     expect(at("onboarding_incomplete")?.href).toBe("/onboarding/candidate");
     expect(at("not_authenticated")?.href).toBe("/auth/login?next=%2Fjobs%2F7");
     expect(at("account_suspended")?.href).toMatch(
@@ -115,7 +116,7 @@ describe("applyRefusalFeedback", () => {
       "/jobs/1",
     );
     expect(cni.description).toBe(en.application.documents.missingCni);
-    expect(cni.action?.href).toBe("/profile/documents");
+    expect(cni.action?.href).toBe("/tasks?task=cni");
 
     const skill = applyRefusalFeedback(
       {
@@ -131,7 +132,62 @@ describe("applyRefusalFeedback", () => {
       "/jobs/1",
     );
     expect(skill.description).toContain("« Électricité »");
-    expect(skill.action?.href).toBe("/profile/skill-documents");
+    expect(skill.action?.href).toBe(
+      `/tasks?task=${encodeURIComponent("document:diplome:Électricité")}`,
+    );
+  });
+
+  it("lot 9d : CNI expirée, message exact et tâche CNI (FR et EN)", () => {
+    const fr1 = applyRefusalFeedback(
+      { status: 403, code: "cni_expired", cniState: "expired" },
+      fr.application,
+      "/jobs/1",
+    );
+    expect(fr1.description).toBe(
+      "Votre CNI a expiré. Renouvelez-la pour postuler.",
+    );
+    expect(fr1.action).toEqual({
+      label: "Renouveler ma CNI",
+      href: "/tasks?task=cni",
+    });
+    const en1 = applyRefusalFeedback(
+      { status: 403, code: "cni_expired" },
+      en.application,
+      "/jobs/1",
+    );
+    expect(en1.description).toBe(en.application.cni.expired);
+    expect(en1.description).not.toBe(fr1.description);
+    expect(en1.action?.label).toBe(en.application.actions.renewCni);
+  });
+
+  it("lot 9d : renouvellement soumis → état et suivi ; refusé → renouveler", () => {
+    const pending = applyRefusalFeedback(
+      { status: 403, code: "cni_expired", cniState: "renewal_pending" },
+      fr.application,
+      "/jobs/1",
+    );
+    expect(pending.description).toBe(fr.application.cni.renewal_pending);
+    expect(pending.action).toEqual({
+      label: fr.application.actions.trackRenewal,
+      href: "/tasks?task=cni",
+    });
+    const rejected = applyRefusalFeedback(
+      { status: 403, code: "cni_expired", cniState: "renewal_rejected" },
+      fr.application,
+      "/jobs/1",
+    );
+    expect(rejected.description).toBe(fr.application.cni.renewal_rejected);
+    expect(rejected.action?.label).toBe(fr.application.actions.renewCni);
+  });
+
+  it("lot 9d : profil non vérifié → tâche du premier essentiel manquant", () => {
+    const f = applyRefusalFeedback(
+      { status: 403, code: "profile_not_verified", missing: ["momo", "cni"] },
+      fr.application,
+      "/jobs/1",
+    );
+    expect(f.action?.href).toBe("/tasks?task=momo");
+    expect(essentialTaskHref([])).toBe("/tasks");
   });
 });
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { UrgentBadge } from "@/components/jobs/urgent-badge";
+
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -65,7 +67,6 @@ type Job = Pick<
   | "positions_available"
   | "positions_filled"
   | "status"
-  | "urgency"
   | "created_at"
   | "rejection_reason"
 > & {
@@ -354,12 +355,8 @@ export default function CompanyJobsPage() {
                             {job.title}
                           </h3>
                           {getStatusBadge(job.status)}
-                          {job.urgency === "urgent" ||
-                          job.urgency === "critical" ? (
-                            <Badge variant="destructive" className="text-xs">
-                              {tj.urgent}
-                            </Badge>
-                          ) : null}
+                          {/* Lot 9d : règle H−24, plus l'ancien indicateur. */}
+                          <UrgentBadge className="text-xs" job={job} />
                         </div>
 
                         {job.status === "rejected" && job.rejection_reason && (

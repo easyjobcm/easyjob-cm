@@ -25,9 +25,14 @@
  *         visite (tâche planifiée idempotente, utilisateur déconnecté),
  *         renouvellement en attente puis approuvé, diplôme sans échéance.
  *      I. CNI : rappels J−30, J−7 et à l'expiration (dédupliqués, privés),
- *         sans effet sur la complétude ni la réputation ; candidature avec
- *         une CNI expirée (refus sur une offre qui l'exige ; constat I5
- *         sinon) ; renouvellement.
+ *         sans effet sur la complétude ni la réputation. Lot 9d : toute
+ *         nouvelle candidature exige une CNI en cours de validité (route et
+ *         RPC, offre avec ou sans document), limite exacte (valide à
+ *         00:00:00 UTC du jour d'échéance, expirée juste après) ;
+ *         renouvellement par le parcours produit (photos déverrouillées,
+ *         étoiles conservées), refus maintenu en attente, complément
+ *         demandé, approbation avec une date valide ; tâches et point
+ *         rouge (CNI, justificatif mémorisé après un refus).
  *      V. Mauvais avis (FR et EN) : ½ étoile perdue avec deux motifs et un
  *         commentaire identifiable, texte exact reçu, ni commentaire ni
  *         auteur côté utilisateur, avis complet pour l'admin, notification
@@ -53,6 +58,11 @@ import {
 } from "@/lib/utils/profile-completion";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import {
+  parseActionTasks,
+  pendingActionCount,
+  type MissionTaskState,
+} from "@/lib/tasks/candidate-tasks";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -185,7 +195,7 @@ async function waitFor(check: () => boolean, ms = 8000): Promise<boolean> {
 
 // ─── Asserts ─────────────────────────────────────────────────────
 let passCount = 0;
-/** Constat I5 (candidature avec CNI expirée), affiché en synthèse. */
+/** Statut I5 (candidature avec CNI expirée), rappelé en synthèse. */
 let observedExpiredCniApply: number | null = null;
 let failCount = 0;
 function report(name: string, ok: boolean, detail?: unknown) {
@@ -1432,7 +1442,11 @@ async function main() {
     // ══ I. Échéance de la CNI ═══════════════════════════════════════
     // Dates posées à la création (trigger protect_cni_verification : la
     // date n'est modifiable qu'en easyjob.system_update, comme moderate_cni).
-    const cniCandidate = async (key: string, expires: string) => {
+    const cniCandidate = async (
+      key: string,
+      expires: string | null,
+      status: "verified" | "pending" | "rejected" = "verified",
+    ) => {
       const uid = await createAccount(mail(key), "candidate");
       ids.push(uid);
       const { data, error } = await service
@@ -1450,8 +1464,15 @@ async function main() {
           profile_photo_url: `${uid}/photo.jpg`,
           max_travel_distance_km: 15,
           cni_number: `CNI9C${key}`,
-          cni_verified: "verified",
+          cni_verified: status,
           cni_expires_at: expires,
+          ...(status === "verified"
+            ? {}
+            : {
+                cni_front_url: `${uid}/f.png`,
+                cni_back_url: `${uid}/b.png`,
+                cni_selfie_url: `${uid}/s.png`,
+              }),
           momo_provider: "mtn",
           momo_number: "+237677009009",
           momo_verified: true,
@@ -1546,23 +1567,95 @@ async function main() {
     const IX = await realSession(mail("ix"));
     const jobPlain = await seedJob(coA, { positions: 3 });
     const jobCni = await seedJob(coA, { positions: 3 });
+    const jobDoc = await seedJob(coA, { positions: 3 });
     await service
       .from("jobs")
       .update({ required_documents: ["cni"] })
       .eq("id", jobCni);
+    await service
+      .from("jobs")
+      .update({ required_documents: ["casier_judiciaire"] })
+      .eq("id", jobDoc);
+    const appsOf = async (job: string, pid: string) =>
+      (
+        await service
+          .from("job_applications")
+          .select("id")
+          .eq("job_id", job)
+          .eq("candidate_id", pid)
+      ).data?.length ?? -1;
+    /** Appel direct de la RPC en session (PostgREST, JWT du candidat). */
+    const rpcApply = async (s: Session, job: string) => {
+      const r = await s.client.rpc("apply_to_job", { p_job_id: job });
+      let state: unknown = null;
+      try {
+        state = (JSON.parse(r.error?.details ?? "null") as { state?: unknown })
+          ?.state;
+      } catch {
+        state = null;
+      }
+      return { status: r.status, message: r.error?.message ?? null, state };
+    };
+    /** Tâches lues par la route, comme l'onglet Tâches et son point. */
+    const tasksOf = async (cookie: string) => {
+      const r = await http("GET", "/api/tasks", cookie);
+      const body = r.body as {
+        missions?: MissionTaskState[];
+        actions?: unknown;
+      };
+      const actions = parseActionTasks(body.actions);
+      return {
+        status: r.status,
+        actions,
+        cni: actions.find((a) => a.key === "cni") ?? null,
+        // Le point rouge de la barre d'onglets compte ces mêmes données
+        // (pendingActionCount, lot 9d), demandes de mise à jour en plus.
+        pending: pendingActionCount(
+          { missions: body.missions ?? [], actions, updateRequests: [] },
+          Date.now(),
+        ),
+      };
+    };
+    const uploadCni = async (cookie: string) => {
+      const statuses: number[] = [];
+      for (const field of ["cni_front_url", "cni_back_url", "cni_selfie_url"]) {
+        const bytes = new Uint8Array(64);
+        bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+        const form = new FormData();
+        form.append("field", field);
+        form.append(
+          "file",
+          new File([bytes], "cni.png", { type: "image/png" }),
+        );
+        const res = await appFetch(`${APP_URL}/api/profile/documents`, {
+          method: "POST",
+          headers: { Cookie: cookie },
+          body: form,
+        });
+        statuses.push(res.status);
+      }
+      return statuses;
+    };
+    const cniRow = async (pid: string) =>
+      (
+        await service
+          .from("candidate_profiles")
+          .select(
+            "cni_verified, cni_expires_at, cni_front_url, profile_completion_pct",
+          )
+          .eq("id", pid)
+          .single()
+      ).data;
+
+    // Décision produit du lot 9d : une CNI expirée refuse toute nouvelle
+    // candidature, avant les justificatifs exigés par l'offre.
     const applyCni = await http("POST", `/api/jobs/${jobCni}/apply`, IX.cookie);
     report(
-      "I4 CNI expirée : candidature refusée sur une offre qui exige la CNI (403 document_requirement, état expired), aucune ligne",
+      "I4 CNI expirée, offre qui exige la CNI : 403 cni_expired (état expired) avant les justificatifs, aucune ligne",
       applyCni.status === 403 &&
-        applyCni.body.code === "document_requirement" &&
-        JSON.stringify(applyCni.body).includes("expired") &&
-        (
-          await service
-            .from("job_applications")
-            .select("id")
-            .eq("job_id", jobCni)
-            .eq("candidate_id", ix.pid)
-        ).data?.length === 0,
+        applyCni.body.code === "cni_expired" &&
+        applyCni.body.state === "expired" &&
+        (await appsOf(jobCni, ix.pid)) === 0,
       applyCni.body,
     );
     const applyPlain = await http(
@@ -1570,27 +1663,164 @@ async function main() {
       `/api/jobs/${jobPlain}/apply`,
       IX.cookie,
     );
-    // Constat (pas une assertion) : la CNI non expirée est un critère
-    // essentiel du SRS (§5.1, §6.6), mais apply_to_job ne lit que
-    // users.is_verified, qui ignore l'échéance.
-    console.log(
-      `⚠️  I5 constat : CNI expirée, offre sans document exigé → HTTP ${applyPlain.status} (${
-        applyPlain.status === 200
-          ? "candidature acceptée"
-          : String(applyPlain.body.code)
-      })`,
+    const rpcPlain = await rpcApply(IX, jobPlain);
+    report(
+      "I5 CNI expirée, offre SANS document requis : refus par la route (403 cni_expired, état expired) et par appel direct à la RPC (HTTP 403, cni_expired), aucune candidature",
+      applyPlain.status === 403 &&
+        applyPlain.body.code === "cni_expired" &&
+        applyPlain.body.state === "expired" &&
+        rpcPlain.status === 403 &&
+        rpcPlain.message === "cni_expired" &&
+        rpcPlain.state === "expired" &&
+        (await appsOf(jobPlain, ix.pid)) === 0,
+      { route: applyPlain.body, rpc: rpcPlain },
     );
     observedExpiredCniApply = applyPlain.status;
 
-    // Renouvellement (comme moderate_cni) : nouvelle date, rappels remis
-    // à zéro, aucun nouvel avis tant que la date est lointaine.
-    execSql(
-      `do $$ begin
-         perform set_config('easyjob.system_update', 'on', true);
-         update public.candidate_profiles set cni_expires_at = '${day(400)}'
-         where id = '${ix.pid}';
-       end $$;`,
+    // Tâches : CNI à renouveler, et un justificatif mémorisé pour une offre
+    // (RPC appelée par la route après un refus documentaire).
+    const { data: ixBlocker } = await IX.client.rpc(
+      "record_application_blocker",
+      { p_job_id: jobDoc },
     );
+    const t0 = await tasksOf(IX.cookie);
+    const t0doc = t0.actions.find(
+      (a) => a.key === "document:casier_judiciaire:",
+    );
+    report(
+      "I7 tâches : CNI expirée (action « renouveler », échéance), justificatif exigé par l'offre (offre listée) ; 2 actions en attente → point rouge",
+      t0.status === 200 &&
+        t0.cni?.kind === "cni" &&
+        t0.cni.state === "expired" &&
+        t0.cni.action_required &&
+        t0.cni.expires_at === day(-1) &&
+        (ixBlocker as { state?: string } | null)?.state === "missing" &&
+        t0doc?.kind === "document" &&
+        t0doc.action_required &&
+        t0doc.jobs.some((j) => j.id === jobDoc) &&
+        t0.pending === 2,
+      { cni: t0.cni, doc: t0doc, pending: t0.pending },
+    );
+
+    // Renouvellement par le parcours produit : photos d'une CNI vérifiée
+    // expirée déverrouillées (identité toujours verrouillée), étoiles et
+    // complétude conservées.
+    const repBeforeRenewal = await score("candidate", ix.pid);
+    const changesBeforeRenewal = (await changesOf(ix.uid)).length;
+    const heardIx = await listen(await rtClient(mail("ix")), `user:${ix.uid}`);
+    if (heardIx.ok) closers.push(heardIx.h.close);
+    // Avant l'envoi : l'identité d'une CNI vérifiée (même expirée) reste
+    // verrouillée en base, sans demande admin.
+    const identityLocked = await IX.client
+      .from("candidate_profiles")
+      .update({ first_name: "Autre" })
+      .eq("id", ix.pid);
+    const uploads = await uploadCni(IX.cookie);
+    const afterUpload = await cniRow(ix.pid);
+    const t1 = await tasksOf(IX.cookie);
+    const heardProfile =
+      heardIx.ok &&
+      (await waitFor(() =>
+        heardIx.h.events.some((e) => (e as { d?: string }).d === "profile"),
+      ));
+    report(
+      "I8 renouvellement : 3 photos acceptées (CNI expirée déverrouillée), identité toujours verrouillée, CNI en attente, date d'échéance inchangée, complétude et étoiles conservées, signal Realtime « profile »",
+      uploads.every((s) => s === 200) &&
+        identityLocked.error?.message === "field_locked" &&
+        afterUpload?.cni_verified === "pending" &&
+        afterUpload.cni_expires_at === day(-1) &&
+        afterUpload.profile_completion_pct === 100 &&
+        Number((await score("candidate", ix.pid)).stars) ===
+          Number(repBeforeRenewal.stars) &&
+        (await changesOf(ix.uid)).length === changesBeforeRenewal &&
+        heardProfile,
+      { uploads, identity: identityLocked.error?.message, row: afterUpload },
+    );
+    const renewPlain = await http(
+      "POST",
+      `/api/jobs/${jobPlain}/apply`,
+      IX.cookie,
+    );
+    const renewRpc = await rpcApply(IX, jobPlain);
+    report(
+      "I9 renouvellement en attente : refus maintenu (route et RPC, état renewal_pending) ; la tâche CNI reste visible en suivi sans compter comme action, le justificatif garde le point allumé",
+      renewPlain.status === 403 &&
+        renewPlain.body.state === "renewal_pending" &&
+        renewRpc.message === "cni_expired" &&
+        renewRpc.state === "renewal_pending" &&
+        (await appsOf(jobPlain, ix.pid)) === 0 &&
+        t1.cni?.state === "renewal_pending" &&
+        !t1.cni.action_required &&
+        t1.pending === 1,
+      {
+        route: renewPlain.body,
+        rpc: renewRpc,
+        cni: t1.cni,
+        pending: t1.pending,
+      },
+    );
+
+    // Complément demandé : refus de la nouvelle pièce par un admin_ops.
+    const OPS = await realSession(mail("ops"));
+    const rejectRenewal = await http("POST", "/api/admin/cni", OPS.cookie, {
+      profile_id: ix.pid,
+      action: "reject",
+      rejection_reason: "Photo du verso illisible",
+    });
+    const t2 = await tasksOf(IX.cookie);
+    const rejectedApply = await http(
+      "POST",
+      `/api/jobs/${jobPlain}/apply`,
+      IX.cookie,
+    );
+    report(
+      "I10 complément demandé (renouvellement refusé) : la tâche CNI redevient une action avec le motif ; refus renewal_rejected",
+      rejectRenewal.status === 200 &&
+        t2.cni?.state === "renewal_rejected" &&
+        t2.cni.action_required &&
+        t2.cni.reason === "Photo du verso illisible" &&
+        t2.pending === 2 &&
+        rejectedApply.status === 403 &&
+        rejectedApply.body.state === "renewal_rejected",
+      { cni: t2.cni, pending: t2.pending, apply: rejectedApply.body },
+    );
+
+    // Nouvelle pièce, puis approbation : sans date (défaut 1996 + 10 ans,
+    // passé) ou avec une date passée, refusée ; avec la date de la pièce,
+    // acceptée et l'accès reprend.
+    const reUploads = await uploadCni(IX.cookie);
+    const approveNoDate = await http("POST", "/api/admin/cni", OPS.cookie, {
+      profile_id: ix.pid,
+      action: "approve",
+    });
+    const approve = await http("POST", "/api/admin/cni", OPS.cookie, {
+      profile_id: ix.pid,
+      action: "approve",
+      expires_at: day(400),
+    });
+    const t3 = await tasksOf(IX.cookie);
+    const approvedRow = await cniRow(ix.pid);
+    report(
+      "I11 approbation : refusée sans date valide (400 expiry_invalid), acceptée avec la date de la nouvelle pièce ; plus de tâche CNI, le justificatif restant garde le point",
+      reUploads.every((s) => s === 200) &&
+        approveNoDate.status === 400 &&
+        approveNoDate.body.code === "expiry_invalid" &&
+        approve.status === 200 &&
+        approvedRow?.cni_verified === "verified" &&
+        approvedRow.cni_expires_at === day(400) &&
+        approvedRow.profile_completion_pct === 100 &&
+        t3.cni === null &&
+        t3.pending === 1,
+      {
+        noDate: approveNoDate.body.code,
+        approve: approve.status,
+        row: approvedRow,
+        pending: t3.pending,
+      },
+    );
+
+    // Renouvellement approuvé : une seule ligne de suivi, date mise à jour,
+    // rappels remis à zéro, aucun nouvel avis tant que la date est lointaine.
     await service.rpc("reputation_expiry_sweep");
     const { data: ixRow } = await service
       .from("document_expirations")
@@ -1598,15 +1828,218 @@ async function main() {
       .eq("candidate_id", ix.pid)
       .eq("document_type", "cni");
     const reApply = await http("POST", `/api/jobs/${jobCni}/apply`, IX.cookie);
+    const rePlain = await http(
+      "POST",
+      `/api/jobs/${jobPlain}/apply`,
+      IX.cookie,
+    );
     report(
-      "I6 CNI renouvelée : une seule ligne de suivi, date mise à jour, rappels remis à zéro sans nouvel avis ; candidature acceptée sur l'offre qui exige la CNI",
+      "I6 CNI renouvelée : une seule ligne de suivi, date mise à jour, rappels remis à zéro sans nouvel avis ; candidatures acceptées (offre qui exige la CNI et offre sans document), étoiles conservées",
       (ixRow ?? []).length === 1 &&
         ixRow![0].expires_at === day(400) &&
         !ixRow![0].notified_30d &&
         !ixRow![0].notified_expired &&
         (await cniNotifs(ix.uid)).length === 1 &&
-        reApply.status === 200,
-      { row: ixRow, apply: reApply.status },
+        reApply.status === 200 &&
+        rePlain.status === 200 &&
+        Number((await score("candidate", ix.pid)).stars) ===
+          Number(repBeforeRenewal.stars),
+      { row: ixRow, apply: [reApply.status, rePlain.status] },
+    );
+
+    // Justificatif : déposé (en attente) → suivi, plus d'action, point
+    // éteint ; approuvé → candidature acceptée, tâche effacée.
+    const { data: casier } = await service
+      .from("candidate_documents")
+      .insert({
+        candidate_id: ix.pid,
+        document_type: "casier_judiciaire",
+        title: "Casier judiciaire",
+        storage_path: `${ix.uid}/casier.pdf`,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    const t4 = await tasksOf(IX.cookie);
+    const t4doc = t4.actions.find(
+      (a) => a.key === "document:casier_judiciaire:",
+    );
+    await service
+      .from("candidate_documents")
+      .update({ status: "verified" })
+      .eq("id", casier!.id);
+    const docApply = await http("POST", `/api/jobs/${jobDoc}/apply`, IX.cookie);
+    const t5 = await tasksOf(IX.cookie);
+    const { data: leftBlockers } = await service
+      .from("candidate_application_blockers")
+      .select("job_id")
+      .eq("candidate_id", ix.pid);
+    report(
+      "I12 justificatif déposé : tâche en suivi, aucune action, point éteint ; approuvé : candidature acceptée, tâche et mémorisation effacées",
+      t4doc?.state === "pending" &&
+        !t4doc.action_required &&
+        t4.pending === 0 &&
+        docApply.status === 200 &&
+        t5.actions.length === 0 &&
+        (leftBlockers ?? []).length === 0,
+      { doc: t4doc, pending: t4.pending, apply: docApply.status },
+    );
+
+    // Limite exacte : valide jusqu'à 00:00:00 UTC du jour d'échéance inclus,
+    // expirée juste après. Fonction de
+    // la base évaluée aux deux instants qui encadrent la limite, puis
+    // candidatures réelles avec une échéance aujourd'hui (UTC) et demain.
+    const utcDay = (n: number) =>
+      new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    execSql(
+      `do $$
+       declare p public.candidate_profiles;
+       begin
+         select * into p from public.candidate_profiles where id = '${ix.pid}';
+         p.cni_verified := 'verified';
+         p.cni_expires_at := date '2030-03-15';
+         if public.candidate_cni_state(p, timestamptz '2030-03-15 00:00:00+00') <> 'valid'
+            or public.candidate_cni_state(p, timestamptz '2030-03-15 00:00:00.000001+00') <> 'expired'
+            or public.candidate_cni_state(p, timestamptz '2030-03-14 23:59:59+00') <> 'valid' then
+           raise exception 'cni boundary';
+         end if;
+       end $$;`,
+    );
+    const ie0 = await cniCandidate("ie0", utcDay(0));
+    const ie1 = await cniCandidate("ie1", utcDay(1));
+    const IE0 = await realSession(mail("ie0"));
+    const IE1 = await realSession(mail("ie1"));
+    const jobEdge = await seedJob(coA, { positions: 3 });
+    const edge0 = await http("POST", `/api/jobs/${jobEdge}/apply`, IE0.cookie);
+    const edge1 = await http("POST", `/api/jobs/${jobEdge}/apply`, IE1.cookie);
+    report(
+      "I13 limite exacte (pg_cron non exécuté) : valide jusqu'à 00:00:00 UTC du jour d'échéance, expirée la microseconde suivante ; échéance aujourd'hui → 403 cni_expired, demain → candidature acceptée",
+      edge0.status === 403 &&
+        edge0.body.code === "cni_expired" &&
+        edge1.status === 200 &&
+        (await appsOf(jobEdge, ie0.pid)) === 0 &&
+        (await appsOf(jobEdge, ie1.pid)) === 1,
+      { today: [edge0.status, edge0.body.code], tomorrow: edge1.status },
+    );
+
+    // Refus documentaire par la route : l'offre est mémorisée pour la
+    // tâche ; la table n'est ni lisible ni modifiable en session.
+    const jobDoc2 = await seedJob(coA, { positions: 3 });
+    await service
+      .from("jobs")
+      .update({ required_documents: ["casier_judiciaire"] })
+      .eq("id", jobDoc2);
+    const docRefused = await http(
+      "POST",
+      `/api/jobs/${jobDoc2}/apply`,
+      IE1.cookie,
+    );
+    const t6 = await tasksOf(IE1.cookie);
+    const readOwn = await IE1.client
+      .from("candidate_application_blockers")
+      .select("job_id");
+    const writeOwn = await IE1.client
+      .from("candidate_application_blockers")
+      .insert({ candidate_id: ie1.pid, job_id: jobDoc2 });
+    report(
+      "I14 refus documentaire par la route : tâche « justificatif » avec l'offre, retrouvée par une nouvelle lecture (reconnexion) ; mémorisation fermée en session",
+      docRefused.status === 403 &&
+        docRefused.body.code === "document_requirement" &&
+        t6.actions.some(
+          (a) =>
+            a.kind === "document" &&
+            a.action_required &&
+            a.jobs.some((j) => j.id === jobDoc2),
+        ) &&
+        (await tasksOf((await realSession(mail("ie1"))).cookie)).pending ===
+          1 &&
+        !!readOwn.error &&
+        !!writeOwn.error,
+      {
+        refusal: docRefused.body.code,
+        tasks: t6.actions.map((a) => a.key),
+        read: readOwn.error?.code,
+        write: writeOwn.error?.code,
+      },
+    );
+
+    // Comptage avant déploiement : la requête documentée (AUDIT §27,
+    // PLAN_ACTION) doit désigner exactement les profils que la candidature
+    // refuse pour ce motif (cni_expired), y compris l'échéance du jour, et
+    // aucun profil sans date.
+    const COUNT_PREDICATE =
+      "cni_expires_at is not null and cni_expires_at::timestamp at time zone 'UTC' < now()";
+    const cases: [
+      string,
+      string | null,
+      "verified" | "pending" | "rejected",
+    ][] = [
+      ["ca", utcDay(-1), "verified"],
+      ["cb", utcDay(0), "verified"],
+      ["cc", utcDay(1), "verified"],
+      ["cd", null, "verified"],
+      ["ce", utcDay(-1), "pending"],
+      ["cf", utcDay(-1), "rejected"],
+      ["cg", null, "pending"],
+      ["ch", utcDay(30), "pending"],
+    ];
+    const jobCount = await seedJob(coA, { positions: 10 });
+    const outcomes: { key: string; pid: string; code: string }[] = [];
+    for (const [key, expires, status] of cases) {
+      const c = await cniCandidate(key, expires, status);
+      const S = await realSession(mail(key));
+      const r = await http("POST", `/api/jobs/${jobCount}/apply`, S.cookie);
+      outcomes.push({
+        key,
+        pid: c.pid,
+        code: r.status === 200 ? "ok" : String(r.body.code),
+      });
+    }
+    const refused = outcomes.filter((o) => o.code === "cni_expired");
+    let countMatches = true;
+    try {
+      execSql(
+        `do $$
+         declare v_counted uuid[]; v_expected uuid[] := array[${
+           refused.map((o) => `'${o.pid}'::uuid`).join(", ") || "null::uuid"
+         }]::uuid[];
+         begin
+           select coalesce(array_agg(cp.id order by cp.id), '{}') into v_counted
+           from public.candidate_profiles cp
+           where cp.id in (${outcomes.map((o) => `'${o.pid}'`).join(", ")})
+             and ${COUNT_PREDICATE};
+           if v_counted is distinct from (select coalesce(array_agg(x order by x), '{}')
+                                          from unnest(v_expected) x where x is not null) then
+             raise exception 'count mismatch';
+           end if;
+           -- Même ensemble que la fonction lue par apply_to_job.
+           if exists (select 1 from public.candidate_profiles cp
+                      where cp.id in (${outcomes.map((o) => `'${o.pid}'`).join(", ")})
+                        and (${COUNT_PREDICATE}) is distinct from
+                            (public.candidate_cni_state(cp, now())
+                               in ('expired', 'renewal_pending', 'renewal_rejected'))) then
+             raise exception 'state mismatch';
+           end if;
+           if position('candidate_cni_state(v_profile, now())' in
+                       pg_get_functiondef('public.apply_to_job(uuid)'::regprocedure)) = 0 then
+             raise exception 'apply_to_job predicate';
+           end if;
+         end $$;`,
+      );
+    } catch (e) {
+      countMatches = false;
+      console.error((e as Error).message);
+    }
+    report(
+      "I15 comptage avant déploiement : la requête (échéance non nulle et passée, UTC) désigne exactement les profils refusés cni_expired — échue hier ou aujourd'hui (vérifiée, renouvellement en attente ou refusé) — et aucun profil valide, sans date ou en première vérification ; même ensemble que candidate_cni_state, lue par apply_to_job",
+      countMatches &&
+        JSON.stringify(refused.map((o) => o.key).sort()) ===
+          JSON.stringify(["ca", "cb", "ce", "cf"]) &&
+        outcomes.find((o) => o.key === "cc")?.code === "ok" &&
+        outcomes.find((o) => o.key === "cd")?.code === "ok" &&
+        outcomes.find((o) => o.key === "cg")?.code === "profile_not_verified" &&
+        outcomes.find((o) => o.key === "ch")?.code === "profile_not_verified",
+      outcomes.map((o) => `${o.key}:${o.code}`),
     );
 
     // ══ V. Mauvais avis : texte reçu, confidentialité, reconnexion ═══
@@ -2055,7 +2488,7 @@ async function main() {
 
   if (observedExpiredCniApply !== null) {
     console.log(
-      `⚠️  Constat I5 : CNI expirée, offre sans document exigé → HTTP ${observedExpiredCniApply}`,
+      `I5 : CNI expirée, offre sans document exigé → HTTP ${observedExpiredCniApply} (attendu 403 depuis le lot 9d)`,
     );
   }
   console.log(`\n${passCount} passed, ${failCount} failed`);

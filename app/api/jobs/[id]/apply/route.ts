@@ -7,6 +7,7 @@ import {
   parseDocumentRequirementDetail,
 } from "@/lib/matching/skill-document-requirements";
 import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
+import { cniExpiredDetailSchema } from "@/lib/utils/cni-validity";
 
 // Les règles de candidature et de retrait sont appliquées en base par les
 // RPC `apply_to_job` et `withdraw_job_application` (migration
@@ -16,6 +17,12 @@ import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
 //
 // T8.3 — le gate de vérification porte sur `users.is_verified` (SRS §6.6 /
 // §11.5). `checkEssentialCriteria` ne sert qu'à lister les champs manquants.
+//
+// Lot 9d — une CNI expirée (ou un renouvellement non encore approuvé)
+// refuse toute nouvelle candidature : 403 `cni_expired` avec l'état du
+// renouvellement. Un refus documentaire mémorise l'offre
+// (`record_application_blocker`, recalcul en base) pour que la tâche reste
+// visible dans l'onglet Tâches après reconnexion.
 
 const jobIdSchema = z.string().uuid();
 
@@ -72,7 +79,7 @@ export async function POST(
     });
 
     if (error) {
-      return applyRefusalResponse(supabase, user.id, error);
+      return applyRefusalResponse(supabase, user.id, jobId.data, error);
     }
 
     // TODO: Send notification to company
@@ -91,6 +98,7 @@ export async function POST(
 async function applyRefusalResponse(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
+  jobId: string,
   error: RpcError,
 ) {
   const refusal = APPLY_REFUSALS[error.message];
@@ -104,6 +112,24 @@ async function applyRefusalResponse(
   if (error.message === "account_suspended") {
     return NextResponse.json(
       { error: "Votre compte est suspendu", code: "account_suspended" },
+      { status: 403 },
+    );
+  }
+
+  if (error.message === "cni_expired") {
+    let parsed: unknown = null;
+    try {
+      parsed = error.details ? JSON.parse(error.details) : null;
+    } catch {
+      parsed = null;
+    }
+    const detail = cniExpiredDetailSchema.safeParse(parsed);
+    return NextResponse.json(
+      {
+        error: "Your national ID card has expired",
+        code: "cni_expired",
+        state: detail.success ? detail.data.state : "expired",
+      },
       { status: 403 },
     );
   }
@@ -129,6 +155,13 @@ async function applyRefusalResponse(
   if (error.message === "document_requirement") {
     const detail = parseDocumentRequirementDetail(error.details);
     if (detail) {
+      // Tâche « justificatif » : l'échec de la mémorisation ne change pas
+      // la réponse (le refus reste exact), il est seulement journalisé.
+      const { error: recordError } = await supabase.rpc(
+        "record_application_blocker",
+        { p_job_id: jobId },
+      );
+      if (recordError) logServerError("jobs.apply.blocker", recordError);
       // `error` (français) conservé ; `code` et `requirement` permettent
       // à l'interface de traduire le refus (lot 9).
       return NextResponse.json(

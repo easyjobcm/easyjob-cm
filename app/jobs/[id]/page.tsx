@@ -4,6 +4,7 @@ import {
   checkEssentialCriteria,
   type EssentialKey,
 } from "@/lib/utils/profile-completion";
+import type { CniProfileFields } from "@/lib/utils/cni-validity";
 import { JobDetailClient } from "./job-detail-client";
 
 interface PageProps {
@@ -44,8 +45,10 @@ export default async function JobDetailPage({ params }: PageProps) {
     data: { user },
   } = await supabase.auth.getUser();
   let userApplication = null;
-  let isFavorite = false;
   let missingEssentials: EssentialKey[] = [];
+  // Lot 9d : champs CNI du candidat, pour afficher le refus « CNI
+  // expirée » avant de proposer la candidature (la base tranche).
+  let cni: CniProfileFields | null = null;
 
   if (user) {
     const { data: candidateProfile } = await supabase
@@ -53,12 +56,21 @@ export default async function JobDetailPage({ params }: PageProps) {
       .select(
         `id, onboarding_status, profile_completion_pct,
          first_name, last_name, date_of_birth,
-         cni_verified, cni_expires_at, momo_verified`,
+         cni_verified, cni_expires_at, momo_verified,
+         cni_front_url, cni_back_url, cni_selfie_url, cni_rejection_reason`,
       )
       .eq("user_id", user.id)
       .single();
 
     if (candidateProfile) {
+      cni = {
+        cni_verified: candidateProfile.cni_verified,
+        cni_expires_at: candidateProfile.cni_expires_at,
+        cni_front_url: candidateProfile.cni_front_url,
+        cni_back_url: candidateProfile.cni_back_url,
+        cni_selfie_url: candidateProfile.cni_selfie_url,
+        cni_rejection_reason: candidateProfile.cni_rejection_reason,
+      };
       // T8.3 — le gate est `users.is_verified` (source de vérité en base).
       // La liste `missing` reste informationnelle pour désactiver le
       // bouton + pointer les champs à compléter.
@@ -86,15 +98,6 @@ export default async function JobDetailPage({ params }: PageProps) {
         .single();
 
       userApplication = application;
-
-      const { data: favorite } = await supabase
-        .from("job_favorites")
-        .select("id")
-        .eq("job_id", id)
-        .eq("candidate_id", candidateProfile.id)
-        .single();
-
-      isFavorite = !!favorite;
     }
   }
 
@@ -102,9 +105,9 @@ export default async function JobDetailPage({ params }: PageProps) {
     <JobDetailClient
       job={job}
       userApplication={userApplication}
-      isFavorite={isFavorite}
       isLoggedIn={!!user}
       missingEssentials={missingEssentials}
+      cni={cni}
     />
   );
 }

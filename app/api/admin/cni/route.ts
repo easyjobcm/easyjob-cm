@@ -34,6 +34,8 @@ const RPC_ERROR_MAP: [RegExp, { code: string; status: number }][] = [
   ],
   [/identity incomplete/i, { code: "identity_incomplete", status: 400 }],
   [/reject reason required/i, { code: "reject_reason_required", status: 400 }],
+  // Lot 9d : une approbation exige une date d'échéance non dépassée.
+  [/cni_expiry_invalid/i, { code: "expiry_invalid", status: 400 }],
 ];
 
 /**

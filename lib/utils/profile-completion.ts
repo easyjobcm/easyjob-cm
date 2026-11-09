@@ -1,3 +1,4 @@
+import { cniDateExpired } from "./cni-validity";
 export interface CandidateProfileForCompletion {
   first_name?: string | null;
   last_name?: string | null;
@@ -110,12 +111,14 @@ export function computeCandidateCriteria(
     },
     {
       // CNI vérifiée (les photos sont supprimées après approbation, T8.4),
-      // sinon les trois photos soumises. Même règle en SQL :
-      // candidate_profile_completion_pct.
+      // en renouvellement (date d'échéance posée par l'approbation et
+      // passée, lot 9d), sinon les trois photos soumises. Même règle en
+      // SQL : candidate_profile_completion_pct.
       key: "cni",
       weight: 15,
       done:
         profile.cni_verified === "verified" ||
+        cniDateExpired(profile.cni_expires_at ?? null, Date.now()) ||
         !!(
           profile.cni_front_url &&
           profile.cni_back_url &&

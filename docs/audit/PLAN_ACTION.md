@@ -18,8 +18,8 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 9 | Retour utilisateur et textes — **corrigé et vérifié localement sur les parcours ciblés, non déployé ; F-19 et F-28 partiels** | F-18, F-19, F-28 | UX | Moyen |
 | 9b | Retrait des niveaux Sandbox, réputation par les avis — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-08 | Fonctionnel | Moyen |
 | 9c | Réputation EasyJob en étoiles — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-09 | Fonctionnel et confidentialité | Grand |
-| 9d | Détail d'offre mobile et Tâches — **prochain lot** | Décision produit CNI à confirmer (lot 9c) | Fonctionnel et UX | À préciser |
-| 10 | Documentation, consignes IA et nettoyage | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
+| 9d | Détail d'offre mobile, tâches et CNI en cours de validité — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-10 | Fonctionnel et UX | Moyen |
+| 10 | Documentation, consignes IA et nettoyage — **prochain lot** | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
 | — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
 
 ---
@@ -360,19 +360,22 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Exclusions** : production des décisions de manquement (futur lot « Engagements et annulations ») ; règles et délais de versement liés aux étoiles (lot paiement, « Hors plan ») ; formulaire de contestation dans l'application.
 - **Décisions ouvertes** :
   - conditions des manquements (futur lot « Engagements et annulations ») ;
-  - CNI expirée et candidature : décision produit à confirmer au lot 9d.
+  - ~~CNI expirée et candidature : décision produit à confirmer au lot 9d.~~ Tranché le 2026-11-10 (lot 9d).
 - **Critères d'acceptation** : `pnpm test:rls` complet (dont `reputation`), montée de version depuis le lot 9b sans notification, contrôle à 375 px en FR et EN.
 
-## Lot 9d — Détail d'offre mobile et Tâches
+## Lot 9d — Détail d'offre mobile, tâches et CNI en cours de validité
 
-> **Statut** : prochain lot. Périmètre détaillé à préciser.
+> **Statut (2026-11-10)** : réalisé sur `fix/lot-09d-offer-details-candidate-tasks` (base `origin/main-dev`, e6729f4, lot 9c intégré), **non commité, non déployé**. Règles, preuves et limites : `AUDIT.md` §27.
 
-- **Décision produit à confirmer — CNI expirée et candidature** : aujourd'hui, une CNI vérifiée mais expirée n'empêche la candidature que sur une offre qui exige le document `cni` ; sur une offre sans exigence documentaire, la candidature est acceptée (constat I5 de la preuve `reputation`, HTTP 200). `apply_to_job` ne lit que `users.is_verified`, qui ignore l'échéance, alors que le SRS §5.1 fait de la « CNI vérifiée non expirée » un critère essentiel.
-  - **Proposition** : refuser en base toute candidature avec une CNI expirée, quelle que soit l'offre, et afficher un bouton « Renouveler ma CNI » qui mène à la tâche correspondante.
-  - **Test proposé** : CNI expirée + offre sans exigence documentaire → refus en base (RPC directe et route, aucune ligne `job_applications`) et bouton « Renouveler ma CNI » vers la tâche de renouvellement ; CNI renouvelée → candidature acceptée. Le constat I5 de `proof-reputation` devient alors une assertion.
-- **Dépendances** : lot 9c (rappels d'échéance de la CNI).
+- **Décision produit (2026-11-10)** : toute nouvelle candidature exige une CNI vérifiée et en cours de validité, quelle que soit l'offre (contrôle en base dans `apply_to_job`, refus `cni_expired` en 403). L'accès reprend à l'approbation d'une pièce valide ; étoiles acquises conservées.
+- **Périmètre** : migration `20261110120000_cni_validity_candidate_tasks.sql` (état de la CNI, renouvellement des photos d'une CNI expirée, approbation avec une date valide, complétude conservée pendant le renouvellement, tâches `candidate_action_tasks`, offres mémorisées après un refus documentaire) ; refus menant à la tâche précise ; point rouge de l'onglet Tâches ; détail d'offre candidat et entreprise réorganisé ; option « urgente » retirée, badge calculé à 24 h.
+- **Exclusions** : frais de publication urgente et mise en avant (lot commercial) ; écrans entreprise hors détail (ancienne valeur `urgency`).
+> **Avant déploiement** : compter en lecture seule les CNI refusées pour échéance, avec la règle de la candidature (`select count(*) as refusees, count(*) filter (where cni_verified = 'verified') as expirees, count(*) filter (where cni_verified <> 'verified') as en_renouvellement from public.candidate_profiles where cni_expires_at is not null and cni_expires_at::timestamp at time zone 'UTC' < now();`, exactitude vérifiée par la preuve `reputation` I15) : ces candidats seront refusés dès la migration et devront renouveler leur CNI (beaucoup d'approbations antérieures portent la date par défaut « naissance + 10 ans »). Prévenir le support.
+- **Critères d'acceptation** : `pnpm test:rls` complet (dont `reputation` I4 à I14 et `admin-cni` D1a), tests unitaires, typage, lint, formatage et build verts ; contrôle à 375 px en FR et EN.
 
 ## Lot 10 — Documentation, consignes IA et nettoyage
+
+> **Statut** : prochain lot.
 
 - **IDs** : F-22, F-27, F-29, F-25, F-26, F-31.
 - **Périmètre** :

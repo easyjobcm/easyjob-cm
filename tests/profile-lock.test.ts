@@ -20,6 +20,23 @@ describe("lockedGroupsForCni", () => {
   it("verrouille les deux groupes quand le CNI est vérifié", () => {
     expect(lockedGroupsForCni("verified")).toEqual(PROFILE_LOCK_GROUPS);
   });
+
+  it("lot 9d : CNI vérifiée expirée → photos libres (renouvellement), identité verrouillée", () => {
+    const at = Date.parse("2026-11-10T00:00:00Z");
+    // Échéance le 10/11 : valide à 00:00:00.000 UTC pile, expirée 1 ms après.
+    expect(lockedGroupsForCni("verified", "2026-11-10", at)).toEqual(
+      PROFILE_LOCK_GROUPS,
+    );
+    expect(lockedGroupsForCni("verified", "2026-11-10", at + 1)).toEqual([
+      "identity",
+    ]);
+    expect(lockedGroupsForCni("verified", "2030-01-01", at)).toEqual(
+      PROFILE_LOCK_GROUPS,
+    );
+    expect(lockedGroupsForCni("verified", null, at)).toEqual(
+      PROFILE_LOCK_GROUPS,
+    );
+  });
 });
 
 describe("lockGroupForField", () => {

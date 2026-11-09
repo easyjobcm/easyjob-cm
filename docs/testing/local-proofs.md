@@ -159,10 +159,20 @@ Désactiver `trg_reputation_reviews` (`alter table public.reviews disable trigge
 
 `reputation` simule ce qu'aucun parcours ne produit encore : des manquements confirmés (insertions en clé service dans `reputation_incidents`) et l'écoulement du temps jusqu'à l'échéance d'un justificatif. Pour ce dernier, elle suspend `trg_reputation_candidate_documents` le temps de reculer `expires_at` et l'échéance mémorisée (aucun recalcul n'a lieu, comme quand l'heure tourne), puis le réactive, y compris en cas d'échec. Elle appelle ensuite `reputation_expiry_sweep` deux fois (idempotence) au lieu d'attendre pg_cron. Comptes marqués `proofReputation9c`.
 
+Pour la CNI en cours de validité (lot 9d), faire croire à la base que toute CNI est valide reproduit la candidature avec une CNI expirée :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "create or replace function public.candidate_cni_state(p public.candidate_profiles, p_at timestamptz) returns text language sql stable set search_path = '' as `$`$ select 'valid'::text `$`$;"
+pnpm test:rls reputation   # attendu : 6 échecs (I4, I5, I6, I7, I9, I10 : refus et tâches CNI), code de sortie 1
+Get-Content supabase/migrations/20261110120000_cni_validity_candidate_tasks.sql -Raw | docker exec -i supabase_db_easyjob-proof psql -U postgres -d postgres -v ON_ERROR_STOP=1   # restauration (migration idempotente)
+```
+
+Le bloc I de `reputation` simule ce qu'aucun parcours ne produit en quelques secondes : l'échéance d'une CNI (fixture créée avec une date passée) et le dépôt d'un casier judiciaire (insertion en clé service, puis approbation). Le renouvellement, le refus (complément) et l'approbation de la CNI passent par les vraies routes (`/api/profile/documents`, `/api/admin/cni` en session `admin_ops`). La limite exacte d'échéance est évaluée en base aux instants qui l'encadrent (`candidate_cni_state`), puis par deux candidatures réelles (échéance aujourd'hui et demain, en UTC).
+
 Pour la vérification du téléphone (lot 8), rétablir l'ancien repli « numéro relu = numéro demandé » dans `findPhoneProof` (`lib/auth/phone-verification.ts`, copie locale non commitée) reproduit H-04 : `pnpm test:rls phone-verification` → 2 échecs (H1 et H7 autoconfirm : code erroné → téléphone vérifié et profil créé). La preuve appelle le module directement : aucun build n'est nécessaire.
 
 Pour le quota d'EasyBot, recréer `consume_chat_quota` sur la pile dédiée sans ses deux `pg_advisory_xact_lock` (et avec un `perform pg_sleep(0.05);` en tête, qui élargit la fenêtre de course) fait passer plus de réservations que la limite : `pnpm test:rls chat-quota` → 3 échecs (C5, C6 ×2). Restauration : réexécuter `supabase/migrations/20261108120000_chat_quota.sql` sur la pile (`psql … < fichier`, idempotent).
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel), §26 (réputation EasyJob) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel), §26 (réputation EasyJob), §27 (CNI en cours de validité, tâches et détail d'offre) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.

@@ -165,6 +165,7 @@ Voir section 12.
 - Toute mission doit être contractualisée (contrat généré à la sélection). La signature n'est pas exigée avant le début du travail : voir la décision du 2026-11-06 au §6.7 (signature du candidat requise pour le paiement).
 - Le paiement doit être confirmé (fonds bloqués) avant que l'offre ne soit soumise à la modération admin.
 - Un candidat ne peut pas postuler à une offre si son profil est incomplet à moins de 60%. En plus du seuil de 60%, trois champs dits **essentiels** (identité complète, CNI vérifiée non expirée, compte Mobile Money vérifié) sont bloquants en propre : ils doivent être validés même si le pourcentage global atteint 60% (voir §6.2 et §6.6).
+- **Décision produit du 2026-11-10 (lot 9d), CNI en cours de validité :** toute **nouvelle** candidature exige une CNI vérifiée et non expirée, y compris sur une offre sans document requis. Contrôle en base dans `apply_to_job`, au moment de la candidature, sur `candidate_profiles.cni_expires_at` (colonne `date` ; convention inchangée : valide jusqu'à 00:00:00 UTC du jour d'échéance inclus, expirée juste après ; sans date, valide), indépendamment du passage de la tâche planifiée des rappels. Refus : code `cni_expired`, HTTP 403, avec l'état `expired` (pièce expirée), `renewal_pending` (nouvelle pièce soumise, en vérification) ou `renewal_rejected` (nouvelle pièce refusée, complément demandé). L'accès reprend à l'approbation d'une pièce dont la date d'échéance n'est pas dépassée ; `moderate_cni` refuse désormais une approbation sans date valide (`cni_expiry_invalid`), le défaut « naissance + 10 ans » étant passé pour un adulte. Candidatures, sélections, contrats et missions existants ne sont pas relus ; les étoiles acquises sont conservées (la CNI n'entre pas dans la réputation, et une CNI en renouvellement — date d'échéance passée — reste comptée dans la complétude).
 - Les évaluations sont obligatoires après chaque mission terminée (bloquantes pour la mission suivante si non soumises après 48h). **Décision produit du 2026-11-07 (lot 7c) :** la note de l'entreprise par le candidat est obligatoire (tâche « Noter l'entreprise » affichée dès l'acceptation du code de fin, jusqu'à la note) ; la note du candidat par l'entreprise est facultative et ne bloque aucune étape. Une seule évaluation par auteur, mission et sens. Le blocage de la mission suivante après 48 h n'est pas encore appliqué.
 
 #### 5.1.1 Verrouillage des informations vérifiées — mise à jour initiée par l'admin
@@ -172,7 +173,7 @@ Voir section 12.
 Pour éviter qu'un candidat ne contrevienne aux informations personnelles et documents **déjà vérifiés** (intégrité de l'identité vérifiée côté CNI), les données vérifiées sont **verrouillées** pour le candidat :
 
 - **Scope verrouillé** (si `cni_verified = verified`) : identité (`first_name`, `last_name`, `date_of_birth`) + documents CNI (recto/verso/selfie). Hors périmètre : bio, ville, quartier, géolocalisation, compétences, photo de profil, Mobile Money.
-- **Déverrouillage** : uniquement si un administrateur (`admin_ops` / `admin_founder`) a initié une **demande de mise à jour** (`profile_update_requests` en statut `pending` couvrant le groupe `identity` et/ou `cni_documents`).
+- **Déverrouillage** : uniquement si un administrateur (`admin_ops` / `admin_founder`) a initié une **demande de mise à jour** (`profile_update_requests` en statut `pending` couvrant le groupe `identity` et/ou `cni_documents`). **Lot 9d — renouvellement :** une CNI vérifiée dont la date d'échéance est passée libère ses photos (groupe `cni_documents`) sans demande ; l'identité reste verrouillée. L'envoi d'une photo repasse la CNI en `pending` (renouvellement soumis).
 - **Canaux d'information** : la demande se matérialise **à la fois** (1) en **notification** (centre `notifications`, type `document_status`) et (2) en **tâche** (page *Tâches*, carte dédiée + modal détaillant le motif de l'admin).
 - **Exécution** : le candidat ouvre la page *Modifier mes informations* ; les champs déverrouillés y sont actifs ; l'admin peut suivre le motif (colonne `reason`) ; la date d'initiation (colonne `created_at`) est tracée.
 - **Révérification obligatoire** : la résoumission d'un champ déverrouillé repasse `cni_verified` à `pending` (même mécanisme que T1 — SRS §6.2/§6.6). Le candidat ne peut pas contourner la révérification en changeant uniquement la DOB ou un nom partiel sans déclencher la ré-évaluation.
@@ -265,6 +266,7 @@ Une offre doit obligatoirement contenir les éléments suivants :
 - Toute offre détectée comme malveillante (fausse offre, arnaque, demande de frais de dossier) est automatiquement signalée à l'équipe admin et à l'entreprise pour correction. Elle ne sera jamais publiée sans correction validée.
 - Une offre expire automatiquement si elle n'est pas pourvue **2 heures avant** la date de début.
 - Une offre peut être marquée **"urgente"** : visible en premier dans les résultats. Option **gratuite pour les comptes premium**, **payante pour les comptes standard**.
+- **Décision produit du 2026-11-10 (lot 9d), urgence calculée :** l'option « urgente » est retirée du formulaire entreprise. Côté candidat (liste et détail), le badge « Urgente » (« Urgent » en anglais) s'affiche automatiquement pour une offre ouverte (publiée, au moins une place libre) dont le début est strictement futur et à 24 h ou moins ; il disparaît au début de l'offre. Dates et heures en heure de Douala (Africa/Douala) ; le badge bascule sur un écran déjà ouvert (minuterie sur l'heure du serveur). L'ancienne valeur `jobs.urgency` n'est plus affichée aux candidats ni utilisée pour classer la liste. Les frais de publication urgente et la mise en avant payante relèvent du lot commercial.
 - **Visibilité RLS** : une offre n'est lisible et postulable par un candidat qu'au statut `active` (après approbation admin). Les statuts `draft`, `pending_review`, `pending_moderation`, `rejected`, `filled`, `expired`, `cancelled` sont masqués aux candidats via la policy de lecture `jobs` (seul l'état `active`, ainsi que les offres de l'entreprise propriétaire, sont exposés). Cette règle est appliquée côté base (RLS), pas seulement côté frontend.
 
 **Gestion des offres multi-jours :**
@@ -342,7 +344,7 @@ Le score est visible par les candidats sur la fiche entreprise.
 
 **Gestion des documents expirés :**
 - La plateforme surveille automatiquement les dates d'expiration (CNI, permis de conduire...).
-- Notifications envoyées : 30 jours avant, 7 jours avant, et à l'expiration. **Lot 9c :** tâche planifiée `reputation_expiry_sweep` (pg_cron, toutes les 15 minutes, idempotente via `document_expirations`) pour les justificatifs approuvés de `candidate_documents` et pour la CNI vérifiée (`cni_expires_at`, ligne `document_expirations` de type `cni` reprise de `moderate_cni`, rappels remis à zéro au renouvellement ; notification privée avec lien vers le profil). La CNI n'entre dans aucune catégorie de la réputation : son expiration ne change ni la complétude (critère « CNI vérifiée ») ni les étoiles. **Écart constaté (lot 9c) :** une CNI vérifiée mais expirée n'empêche la candidature que sur une offre qui exige le document `cni` ; `users.is_verified`, seul critère d'identité de la candidature, ignore l'échéance, contrairement au §5.1 (« CNI vérifiée non expirée »). Décision attendue.
+- Notifications envoyées : 30 jours avant, 7 jours avant, et à l'expiration. **Lot 9c :** tâche planifiée `reputation_expiry_sweep` (pg_cron, toutes les 15 minutes, idempotente via `document_expirations`) pour les justificatifs approuvés de `candidate_documents` et pour la CNI vérifiée (`cni_expires_at`, ligne `document_expirations` de type `cni` reprise de `moderate_cni`, rappels remis à zéro au renouvellement ; notification privée avec lien vers le profil). La CNI n'entre dans aucune catégorie de la réputation : son expiration ne change ni la complétude (critère « CNI vérifiée ») ni les étoiles. ~~**Écart constaté (lot 9c) :** une CNI vérifiée mais expirée n'empêche la candidature que sur une offre qui exige le document `cni`.~~ **Corrigé au lot 9d** : toute nouvelle candidature exige une CNI en cours de validité (§5.1).
 - Un document expiré est automatiquement marqué invalide. L'upload du document renouvelé relance la validation.
 - Tant qu'un document requis par une offre est expiré, le candidat ne peut pas postuler à cette offre.
 
@@ -397,7 +399,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 5. Définition des documents requis (optionnel).
 6. Définition des équipements demandés et mis à disposition.
 7. Définition des avantages éventuels (repas, taxi, prime...).
-8. Option "Urgente" : gratuite pour les comptes premium, payante pour les comptes standard.
+8. ~~Option "Urgente" : gratuite pour les comptes premium, payante pour les comptes standard.~~ Retirée du formulaire (lot 9d) : badge calculé, voir §5.4.
 9. Prévisualisation + confirmation.
 10. **Paiement du montant bloqué** (voir section 6.10) : l'offre ne peut être soumise à l'admin sans confirmation du paiement.
 11. **Soumission à l'admin pour modération** : l'offre passe en statut "en attente de validation". Elle n'est pas visible par les candidats tant qu'elle n'est pas approuvée.
@@ -411,7 +413,7 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Toute offre détectée comme malveillante est automatiquement bloquée et signalée.
 - L'admin peut approuver, rejeter ou demander une correction avec commentaire.
 - Une offre approuvée est visible sur la plateforme dans les 2 minutes suivant l'approbation.
-- Une offre urgente approuvée apparaît en premier dans les résultats.
+- ~~Une offre urgente approuvée apparaît en premier dans les résultats.~~ Lot 9d : badge « Urgente » calculé (§5.4) ; classement par date de publication, la mise en avant relève du lot commercial.
 
 ---
 
@@ -471,6 +473,15 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 - Les données sensibles du candidat ne sont jamais exposées à l'entreprise.
 - **Lecture RLS de l'offre** : le candidat ne peut lire ni postuler qu'à une offre au statut `active`. Une offre non active est inexistante pour lui via RLS (HTTP 404 à la lecture) : la postulation d'un candidat exige donc une offre lisible, ce qui garantit qu'une offre jamais approuvée ne peut générer de candidature.
 - **Gate des champs essentiels** : la soumission est refusée (403) si l'identité complète, la CNI vérifiée non expirée ou le Mobile Money vérifié manque, même si la complétude globale est ≥ 60%. La réponse indique la liste des critères manquants. **Depuis T8.3** (`code: "profile_not_verified"`) : la décision repose sur le flag de synthèse `users.is_verified` (source de vérité en base, posé par `recompute_user_verification` — §11.5) ; le calcul client des champs manquants reste fourni en liste informationnelle pour guider le candidat, mais ne suffit plus à autoriser — le serveur lit le flag.
+- **CNI expirée (lot 9d)** : refus `cni_expired` (403) avant `profile_not_verified`, avec l'état du renouvellement (§5.1). Interface : « Votre CNI a expiré. Renouvelez-la pour postuler. » et bouton « Renouveler ma CNI » ; renouvellement soumis : état « en cours de vérification » et bouton « Consulter le suivi ».
+
+**Tâches du candidat (lot 9d) :**
+- Chaque refus que le candidat peut résoudre (profil incomplet, identité, téléphone, Mobile Money, CNI, justificatif exigé par l'offre) propose un bouton qui ouvre la tâche précise de l'onglet *Tâches* (`/tasks?task=<clé>`), mise en évidence avec son action disponible.
+- Les tâches sont recalculées en base à chaque lecture (`candidate_action_tasks`) : elles se retrouvent en ouvrant directement l'onglet ou après une reconnexion. Les justificatifs dépendent d'une offre : la route de candidature mémorise l'offre refusée (`candidate_application_blockers`, écrite par `record_application_blocker` après recalcul en base, jamais lisible en session) ; la tâche liste les offres concernées et disparaît quand la pièce est approuvée ou à la candidature.
+- Elles s'ajoutent aux tâches de mission (signature, début, code de fin, notation) et aux demandes de mise à jour du profil.
+- **Point rouge** sur l'icône *Tâches* de la barre d'onglets tant qu'au moins une action attend le candidat (libellé accessible « Tâches, une action vous attend »). Ouvrir l'onglet ne l'efface pas. Une pièce soumise en attente de vérification reste visible en suivi sans compter comme action, sauf si un complément est demandé (refus, demande de mise à jour). Mise à jour par les signaux Realtime existants (§9.5), à la reconnexion et au retour au premier plan.
+
+**Détail d'offre (lot 9d, mobile d'abord) :** ordre des informations : travail demandé (titre, catégorie, description), montant par candidat, lieu, date et horaires, exigences (compétences, justificatifs, tenue, instructions), puis action disponible (bouton principal fixé au-dessus de la barre d'onglets). La phrase explicative sur le forfait est retirée des vues candidat et entreprise ; le nombre de personnes recherchées reste affiché côté entreprise et n'apparaît plus dans le détail candidat. Le cœur (favori) est retiré du détail ; le partage est conservé (partage natif, sinon copie du lien).
 
 ---
 

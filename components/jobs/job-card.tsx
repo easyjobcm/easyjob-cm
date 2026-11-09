@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { MissionPay } from "@/components/jobs/mission-pay";
+import { useJobUrgent } from "@/lib/jobs/use-job-urgency";
 
 interface JobCardProps {
   job: {
@@ -27,7 +28,7 @@ interface JobCardProps {
     start_time: string;
     end_time: string;
     mission_pay_per_candidate: number;
-    urgency: "normal" | "urgent" | "critical";
+    status?: string | null;
     positions_available: number;
     positions_filled: number;
     company?: {
@@ -49,7 +50,9 @@ export function JobCard({
   showCompany = true,
   variant = "default",
 }: JobCardProps) {
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
+  // Lot 9d : badge calculé (début strictement futur et à 24 h ou moins).
+  const urgent = useJobUrgent(job);
 
   const categoryName =
     locale === "fr" ? job.category?.name_fr : job.category?.name_en;
@@ -66,18 +69,14 @@ export function JobCard({
           variant === "compact" && "p-3",
         )}
       >
-        {/* Urgency indicator */}
-        {job.urgency !== "normal" && (
+        {urgent && (
           <div
-            className={cn(
-              "absolute top-0 right-0 px-3 py-1 text-xs font-semibold rounded-bl-xl",
-              job.urgency === "critical"
-                ? "bg-destructive text-destructive-foreground"
-                : "bg-warning text-warning-foreground",
-            )}
+            className="absolute top-0 right-0 rounded-bl-xl bg-warning px-3 py-1 text-xs font-semibold text-warning-foreground"
+            data-testid="job-urgent-badge"
+            title={t.jobs.urgentLabel}
           >
-            <Zap className="inline-block w-3 h-3 mr-1" />
-            {job.urgency === "critical" ? "Urgent!" : "Urgent"}
+            <Zap className="mr-1 inline-block h-3 w-3" aria-hidden />
+            {t.jobs.urgentBadge}
           </div>
         )}
 

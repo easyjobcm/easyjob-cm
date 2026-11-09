@@ -163,6 +163,10 @@ export const fr = {
       noCni: "Ce candidat n'a pas encore soumis de CNI.",
       deletionNote:
         "Les photos seront supprimées du stockage privé après validation.",
+      expiresHint:
+        "Obligatoire si la date de naissance + 10 ans est déjà passée : saisissez la date d'échéance inscrite sur la pièce.",
+      expiryInvalid:
+        "Date d'échéance absente ou déjà passée : saisissez la date inscrite sur la nouvelle CNI.",
     },
     candidates: {
       title: "Candidats",
@@ -556,6 +560,7 @@ export const fr = {
   nav: {
     jobs: "Jobs",
     tasks: "Tâches",
+    tasksPending: "Tâches, une action vous attend",
     myJobs: "Mes Jobs",
     profile: "Profil",
   },
@@ -575,6 +580,39 @@ export const fr = {
     applied: "Candidature envoyée",
     deadline: "Date limite",
     spotsLeft: "places restantes",
+    urgentBadge: "Urgente",
+    urgentLabel: "Offre urgente : elle commence dans moins de 24 h",
+  },
+
+  // Détail d'une offre (lot 9d) : travail, montant, lieu, horaires,
+  // exigences, puis action.
+  jobDetail: {
+    work: "Travail demandé",
+    pay: "Montant par candidat",
+    location: "Lieu",
+    schedule: "Date et horaires",
+    dateRangeTo: "au",
+    duration: "{hours} h",
+    requirements: "Exigences",
+    requiredSkills: "Compétences",
+    requiredDocuments: "Justificatifs",
+    noRequirement: "Aucune exigence particulière.",
+    dressCode: "Tenue vestimentaire",
+    specialInstructions: "Instructions",
+    company: "À propos de l'entreprise",
+    openMap: "Ouvrir le lieu dans Google Maps",
+    share: "Partager l'offre",
+    shareCopied: "Lien de l'offre copié",
+    shareFailed: "Le lien n'a pas pu être copié.",
+    applyNow: "Postuler maintenant",
+    confirmTitle: "Confirmer votre candidature",
+    confirm: "Confirmer",
+    cancel: "Annuler",
+    close: "Fermer",
+    documentLabels: {
+      cni: "CNI",
+      driving_license: "permis de conduire",
+    },
   },
 
   // Candidature : état, refus de /apply et retrait (lot 9)
@@ -659,6 +697,15 @@ export const fr = {
       network:
         "Connexion impossible. Vérifiez votre connexion internet, puis réessayez.",
       generic: "La candidature n'a pas pu être envoyée. Réessayez.",
+      cni_expired: "Votre CNI a expiré. Renouvelez-la pour postuler.",
+    },
+    // Lot 9d : CNI expirée et renouvellement
+    cni: {
+      expired: "Votre CNI a expiré. Renouvelez-la pour postuler.",
+      renewal_pending:
+        "Votre nouvelle CNI est en cours de vérification. Vous pourrez postuler dès son approbation.",
+      renewal_rejected:
+        "Votre nouvelle CNI a été refusée. Envoyez une pièce conforme pour postuler.",
     },
     documents: {
       missingCni: "Cette offre exige une CNI vérifiée.",
@@ -689,6 +736,9 @@ export const fr = {
       myApplications: "Voir mes candidatures",
       support: "Contacter le support",
       tasks: "Ouvrir mes tâches",
+      renewCni: "Renouveler ma CNI",
+      trackRenewal: "Consulter le suivi",
+      openTask: "Ouvrir la tâche",
     },
   },
 
@@ -720,6 +770,71 @@ export const fr = {
     completed: "Terminées",
     upcoming: "À venir",
     discoverJobs: "Découvrir les jobs",
+    // Lot 9d : actions qui débloquent une candidature
+    actionsTitle: "Pour pouvoir postuler",
+    followUpBadge: "En cours de vérification",
+    actionBadge: "Action requise",
+    concernedJobs: "Offres concernées :",
+    profile: {
+      onboardingTitle: "Terminer votre inscription",
+      onboardingHint: "Quelques étapes restent à compléter.",
+      incompleteTitle: "Compléter votre profil",
+      incompleteHint:
+        "Votre profil est complété à {pct} % : 60 % sont nécessaires pour postuler.",
+      action: "Compléter mon profil",
+      onboardingAction: "Terminer mon inscription",
+    },
+    identity: {
+      title: "Renseigner votre identité",
+      hint: "Nom, prénom et date de naissance sont nécessaires pour postuler.",
+      action: "Renseigner mon identité",
+    },
+    phone: {
+      title: "Vérifier votre téléphone",
+      hint: "Un numéro vérifié est nécessaire pour postuler.",
+      action: "Vérifier mon numéro",
+    },
+    momo: {
+      missingTitle: "Ajouter votre Mobile Money",
+      missingHint:
+        "Un compte Mobile Money vérifié est nécessaire pour postuler.",
+      pendingTitle: "Mobile Money en cours de vérification",
+      pendingHint: "Vous serez notifié dès sa vérification.",
+      rejectedTitle: "Mobile Money refusé",
+      rejectedHint: "Corrigez votre compte Mobile Money pour postuler.",
+      action: "Gérer mon Mobile Money",
+      track: "Consulter le suivi",
+    },
+    cni: {
+      expiredTitle: "CNI expirée",
+      expiredHint: "Votre CNI a expiré le {date}. Renouvelez-la pour postuler.",
+      renewalPendingTitle: "Renouvellement de la CNI soumis",
+      renewalPendingHint:
+        "Votre nouvelle CNI est en cours de vérification. Vous pourrez postuler dès son approbation.",
+      renewalRejectedTitle: "Renouvellement de la CNI refusé",
+      renewalRejectedHint:
+        "Votre nouvelle CNI a été refusée. Envoyez une pièce conforme pour postuler.",
+      complementHint:
+        "Un complément vous est demandé sur votre CNI. Consultez la demande ci-dessus.",
+      missingTitle: "Envoyer votre CNI",
+      missingHint: "Recto, verso et selfie sont nécessaires pour postuler.",
+      pendingTitle: "CNI en cours de vérification",
+      pendingHint: "Vous serez notifié dès sa vérification.",
+      rejectedTitle: "CNI refusée",
+      rejectedHint: "Envoyez une pièce conforme pour postuler.",
+      reason: "Motif : {reason}",
+      renew: "Renouveler ma CNI",
+      send: "Envoyer ma CNI",
+      track: "Consulter le suivi",
+    },
+    document: {
+      missingTitle: "Ajouter un justificatif",
+      pendingTitle: "Justificatif en cours de vérification",
+      rejectedTitle: "Justificatif refusé",
+      expiredTitle: "Justificatif expiré",
+      action: "Gérer mes justificatifs",
+      track: "Consulter le suivi",
+    },
   },
 
   // My Jobs

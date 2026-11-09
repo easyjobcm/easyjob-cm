@@ -21,7 +21,7 @@ type JobListItem = {
   start_time: string;
   end_time: string;
   mission_pay_per_candidate: number;
-  urgency: "normal" | "urgent" | "critical";
+  status?: string | null;
   positions_available: number;
   positions_filled: number;
   company?: {

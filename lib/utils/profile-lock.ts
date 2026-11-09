@@ -10,6 +10,8 @@
  * côté serveur (routes) et côté client (afficher les champs verrouillés).
  */
 
+import { cniDateExpired } from "./cni-validity";
+
 /** Groupes de champs verrouillables (voir migration profile_update_requests). */
 export const PROFILE_LOCK_GROUPS = ["identity", "cni_documents"] as const;
 export type ProfileLockGroup = (typeof PROFILE_LOCK_GROUPS)[number];
@@ -27,8 +29,15 @@ export function isProfileLockGroup(value: string): value is ProfileLockGroup {
  */
 export function lockedGroupsForCni(
   cniVerified: string | null,
+  cniExpiresAt: string | null = null,
+  now: number = Date.now(),
 ): ProfileLockGroup[] {
-  return cniVerified === "verified" ? PROFILE_LOCK_GROUPS.slice() : [];
+  if (cniVerified !== "verified") return [];
+  // Lot 9d : une CNI vérifiée mais expirée garde l'identité verrouillée et
+  // libère ses photos pour le renouvellement (même règle que le trigger
+  // protect_verified_candidate_data).
+  if (cniDateExpired(cniExpiresAt, now)) return ["identity"];
+  return PROFILE_LOCK_GROUPS.slice();
 }
 
 /** Les champs identité couverts par le groupe `identity` (modifiables). */

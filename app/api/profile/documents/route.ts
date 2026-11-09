@@ -87,7 +87,7 @@ async function getAuthorizedCandidate() {
   const { data: profile } = await supabase
     .from("candidate_profiles")
     .select(
-      "id, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url, cni_verified",
+      "id, profile_photo_url, cni_front_url, cni_back_url, cni_selfie_url, cni_verified, cni_expires_at",
     )
     .eq("user_id", user.id)
     .single();
@@ -129,7 +129,8 @@ export async function POST(request: NextRequest) {
     const lock = evaluateProfileLock(
       [field as string],
       lockedGroupsForCni(
-        (profile as { cni_verified?: string | null }).cni_verified ?? null,
+        profile.cni_verified ?? null,
+        profile.cni_expires_at ?? null,
       ),
       requestedGroups,
     );

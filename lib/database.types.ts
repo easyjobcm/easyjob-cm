@@ -117,6 +117,39 @@ export type Database = {
           },
         ]
       }
+      candidate_application_blockers: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          job_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          job_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_application_blockers_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_application_blockers_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_availability: {
         Row: {
           candidate_id: string
@@ -2500,6 +2533,21 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      candidate_action_tasks: { Args: never; Returns: Json }
+      candidate_cni_state: {
+        Args: {
+          p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
+          p_at: string
+        }
+        Returns: string
+      }
+      candidate_document_blocker: {
+        Args: {
+          p_job_id: string
+          p_profile: Database["public"]["Tables"]["candidate_profiles"]["Row"]
+        }
+        Returns: Json
+      }
       candidate_profile_completion_pct: {
         Args: {
           p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
@@ -2936,6 +2984,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      record_application_blocker: { Args: { p_job_id: string }; Returns: Json }
       refresh_reputation: {
         Args: {
           p_cause: string

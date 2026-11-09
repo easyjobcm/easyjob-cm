@@ -2,10 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 /**
- * Tâches de mission du candidat connecté (RPC `candidate_tasks`, lot 7c) :
- * signature, début, fin et évaluation. Horaires prévus, débuts et fins
- * confirmés, et heure du serveur pour cadencer les rappels. Jamais le code
- * de fin.
+ * Tâches du candidat connecté :
+ *   missions  RPC `candidate_tasks` (lot 7c) : signature, début, fin et
+ *             évaluation. Horaires prévus, débuts et fins confirmés, et
+ *             heure du serveur pour cadencer les rappels. Jamais le code
+ *             de fin.
+ *   actions   RPC `candidate_action_tasks` (lot 9d) : profil, identité,
+ *             téléphone, Mobile Money, CNI et justificatifs qui bloquent
+ *             une candidature, recalculés à chaque lecture.
  */
 export async function GET() {
   try {
@@ -19,7 +23,11 @@ export async function GET() {
         { status: 401 },
       );
     }
-    const { data, error } = await supabase.rpc("candidate_tasks");
+    const [missions, actions] = await Promise.all([
+      supabase.rpc("candidate_tasks"),
+      supabase.rpc("candidate_action_tasks"),
+    ]);
+    const error = missions.error ?? actions.error;
     if (error) {
       console.error("Candidate tasks error:", error.code);
       return NextResponse.json(
@@ -28,7 +36,11 @@ export async function GET() {
       );
     }
     return NextResponse.json(
-      { missions: data },
+      {
+        missions: missions.data ?? [],
+        actions: actions.data ?? [],
+        server_now: new Date().toISOString(),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

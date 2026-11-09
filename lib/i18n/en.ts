@@ -163,6 +163,10 @@ export const en: TranslationKeys = {
       noCni: "This candidate has not submitted a CNI yet.",
       deletionNote:
         "Photos will be removed from private storage after verification.",
+      expiresHint:
+        "Required if date of birth + 10 years has already passed: enter the expiry date printed on the card.",
+      expiryInvalid:
+        "Expiry date missing or already passed: enter the date printed on the new ID card.",
     },
     candidates: {
       title: "Candidates",
@@ -552,6 +556,7 @@ export const en: TranslationKeys = {
   nav: {
     jobs: "Jobs",
     tasks: "Tasks",
+    tasksPending: "Tasks, an action is waiting for you",
     myJobs: "My Jobs",
     profile: "Profile",
   },
@@ -571,6 +576,37 @@ export const en: TranslationKeys = {
     applied: "Application sent",
     deadline: "Deadline",
     spotsLeft: "spots left",
+    urgentBadge: "Urgent",
+    urgentLabel: "Urgent job: it starts in less than 24 hours",
+  },
+
+  jobDetail: {
+    work: "Work required",
+    pay: "Amount per candidate",
+    location: "Location",
+    schedule: "Date and hours",
+    dateRangeTo: "to",
+    duration: "{hours} h",
+    requirements: "Requirements",
+    requiredSkills: "Skills",
+    requiredDocuments: "Supporting documents",
+    noRequirement: "No specific requirement.",
+    dressCode: "Dress code",
+    specialInstructions: "Instructions",
+    company: "About the company",
+    openMap: "Open the location in Google Maps",
+    share: "Share this job",
+    shareCopied: "Job link copied",
+    shareFailed: "The link could not be copied.",
+    applyNow: "Apply now",
+    confirmTitle: "Confirm your application",
+    confirm: "Confirm",
+    cancel: "Cancel",
+    close: "Close",
+    documentLabels: {
+      cni: "national ID card",
+      driving_license: "driving licence",
+    },
   },
 
   // Pay: fixed amount per candidate for the mission (XAF)
@@ -654,6 +690,14 @@ export const en: TranslationKeys = {
       network:
         "Cannot connect. Check your internet connection, then try again.",
       generic: "The application could not be sent. Please try again.",
+      cni_expired: "Your ID card has expired. Renew it to apply.",
+    },
+    cni: {
+      expired: "Your ID card has expired. Renew it to apply.",
+      renewal_pending:
+        "Your new ID card is being checked. You can apply as soon as it is approved.",
+      renewal_rejected:
+        "Your new ID card was rejected. Send a valid document to apply.",
     },
     documents: {
       missingCni: "This job requires a verified national ID card.",
@@ -683,6 +727,9 @@ export const en: TranslationKeys = {
       myApplications: "View my applications",
       support: "Contact support",
       tasks: "Open my tasks",
+      renewCni: "Renew my ID card",
+      trackRenewal: "View progress",
+      openTask: "Open the task",
     },
   },
   pay: {
@@ -710,6 +757,69 @@ export const en: TranslationKeys = {
     completed: "Completed",
     upcoming: "Upcoming",
     discoverJobs: "Discover jobs",
+    actionsTitle: "To be able to apply",
+    followUpBadge: "Being checked",
+    actionBadge: "Action required",
+    concernedJobs: "Jobs concerned:",
+    profile: {
+      onboardingTitle: "Finish signing up",
+      onboardingHint: "A few steps are left to complete.",
+      incompleteTitle: "Complete your profile",
+      incompleteHint:
+        "Your profile is {pct}% complete: 60% is needed to apply.",
+      action: "Complete my profile",
+      onboardingAction: "Finish signing up",
+    },
+    identity: {
+      title: "Enter your identity",
+      hint: "First name, last name and date of birth are needed to apply.",
+      action: "Enter my identity",
+    },
+    phone: {
+      title: "Verify your phone",
+      hint: "A verified number is needed to apply.",
+      action: "Verify my number",
+    },
+    momo: {
+      missingTitle: "Add your Mobile Money",
+      missingHint: "A verified Mobile Money account is needed to apply.",
+      pendingTitle: "Mobile Money being checked",
+      pendingHint: "You will be notified once it is verified.",
+      rejectedTitle: "Mobile Money rejected",
+      rejectedHint: "Correct your Mobile Money account to apply.",
+      action: "Manage my Mobile Money",
+      track: "View progress",
+    },
+    cni: {
+      expiredTitle: "ID card expired",
+      expiredHint: "Your ID card expired on {date}. Renew it to apply.",
+      renewalPendingTitle: "ID card renewal submitted",
+      renewalPendingHint:
+        "Your new ID card is being checked. You can apply as soon as it is approved.",
+      renewalRejectedTitle: "ID card renewal rejected",
+      renewalRejectedHint:
+        "Your new ID card was rejected. Send a valid document to apply.",
+      complementHint:
+        "Additional information is requested about your ID card. See the request above.",
+      missingTitle: "Send your ID card",
+      missingHint: "Front, back and selfie are needed to apply.",
+      pendingTitle: "ID card being checked",
+      pendingHint: "You will be notified once it is verified.",
+      rejectedTitle: "ID card rejected",
+      rejectedHint: "Send a valid document to apply.",
+      reason: "Reason: {reason}",
+      renew: "Renew my ID card",
+      send: "Send my ID card",
+      track: "View progress",
+    },
+    document: {
+      missingTitle: "Add a supporting document",
+      pendingTitle: "Supporting document being checked",
+      rejectedTitle: "Supporting document rejected",
+      expiredTitle: "Supporting document expired",
+      action: "Manage my documents",
+      track: "View progress",
+    },
   },
 
   // My Jobs

@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
 import { identitySchema, maxBirthDate } from "@/lib/validations/profile";
+import { cniState } from "@/lib/utils/cni-validity";
 import {
   evaluateProfileLock,
   lockedGroupsForCni,
@@ -143,14 +144,26 @@ export function CandidateProfileEditClient({
       ).lockedGroups.includes("identity"),
     [documents.cni_verified, requestedGroups],
   );
+  // Lot 9d : une CNI vérifiée mais expirée libère ses photos
+  // (renouvellement). Instant figé au montage.
+  const [mountedAt] = React.useState(() => Date.now());
   const cniDocsLocked = React.useMemo(
     () =>
       evaluateProfileLock(
         ["cni_front_url"],
-        lockedGroupsForCni(documents.cni_verified),
+        lockedGroupsForCni(
+          documents.cni_verified,
+          documents.cni_expires_at,
+          mountedAt,
+        ),
         requestedGroups,
       ).lockedGroups.includes("cni_documents"),
-    [documents.cni_verified, requestedGroups],
+    [
+      documents.cni_verified,
+      documents.cni_expires_at,
+      mountedAt,
+      requestedGroups,
+    ],
   );
 
   // Les messages Zod du serveur (`identitySchema`) sont des clés i18n,
@@ -461,6 +474,18 @@ export function CandidateProfileEditClient({
                 </div>
               </div>
             )}
+          {cniState(documents, mountedAt) === "expired" && (
+            <div
+              role="status"
+              data-testid="cni-expired-banner"
+              className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+            >
+              <ShieldAlert className="h-5 w-5 shrink-0 text-destructive" />
+              <p className="text-sm font-medium text-foreground">
+                {t.application.cni.expired}
+              </p>
+            </div>
+          )}
           <Card id="identity">
             <CardContent className="space-y-4 p-4">
               {identityLocked && (

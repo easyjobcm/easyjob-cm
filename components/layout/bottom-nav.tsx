@@ -3,8 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useTranslation } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
+import { usePendingTaskCount } from "@/lib/tasks/use-candidate-tasks";
 import {
   Home,
   ClipboardList,
@@ -107,7 +109,7 @@ interface BottomNavProps {
 
 export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
   const pathname = usePathname();
-  const { locale } = useTranslation();
+  const { locale, t } = useI18n();
 
   const normalizedRole: NormalizedUserRole = React.useMemo(() => {
     if (userRole === "company" || userRole === "company_premium")
@@ -121,6 +123,11 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
       return "admin";
     return "candidate";
   }, [userRole]);
+
+  // Point rouge des Tâches (lot 9d) : au moins une action attend le
+  // candidat. Recalculé sur signal Realtime, reconnexion et retour au
+  // premier plan ; ouvrir l'onglet ne l'efface pas.
+  const pendingTasks = usePendingTaskCount(normalizedRole === "candidate");
 
   const navItems = React.useMemo(() => {
     switch (normalizedRole) {
@@ -147,6 +154,7 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
                 pathname?.startsWith("/privacy") ||
                 pathname?.startsWith("/upgrade")));
           const Icon = item.icon;
+          const showDot = item.href === "/tasks" && pendingTasks > 0;
 
           // Special styling for the "Post" button in company nav
           const isPostButton = item.href === "/company/jobs/new";
@@ -170,6 +178,15 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
               key={item.href}
               href={item.href}
               aria-current={isActive ? "page" : undefined}
+              aria-label={showDot ? t.nav.tasksPending : undefined}
+              data-testid={item.href === "/tasks" ? "nav-tasks" : undefined}
+              data-pending={
+                item.href === "/tasks"
+                  ? showDot
+                    ? "true"
+                    : "false"
+                  : undefined
+              }
               className={cn(
                 "group flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-all",
                 isActive ? "text-primary" : "text-muted-foreground",
@@ -177,7 +194,7 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
             >
               <div
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-300",
+                  "relative flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-300",
                   isActive
                     ? "bg-primary/10 scale-110"
                     : "group-hover:bg-muted group-active:scale-95",
@@ -189,6 +206,15 @@ export function BottomNav({ userRole = "candidate" }: BottomNavProps) {
                     isActive && "scale-110",
                   )}
                 />
+                {showDot && (
+                  <motion.span
+                    aria-hidden
+                    data-testid="nav-tasks-dot"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-card"
+                  />
+                )}
               </div>
               <span
                 className={cn(

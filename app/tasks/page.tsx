@@ -1,22 +1,26 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import useSWR from "swr";
 import {
   Building2,
   Calendar,
   CheckCircle,
   ChevronRight,
   ClipboardList,
+  CreditCard,
+  FileText,
+  IdCard,
   FileEdit,
   FileSignature,
   KeyRound,
   Loader2,
+  Phone,
   Play,
   Star,
+  UserRound,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,103 +39,65 @@ import { CompletionCodeDialog } from "@/components/missions/completion-code-dial
 import { ReviewDialog } from "@/components/missions/review-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
-import { createClient } from "@/lib/supabase/client";
 import { formatDateShort } from "@/lib/utils/profile-status";
 import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
-import { useAccountSuspended, useLiveRefresh } from "@/lib/realtime/provider";
+import { useAccountSuspended } from "@/lib/realtime/provider";
+import type { ProfileLockGroup } from "@/lib/utils/profile-lock";
 import {
-  isProfileLockGroup,
-  type ProfileLockGroup,
-} from "@/lib/utils/profile-lock";
-import type { Database } from "@/lib/database.types";
-
-type TaskRow =
-  Database["public"]["Functions"]["candidate_tasks"]["Returns"][number];
-/** Colonnes que `candidate_tasks` peut renvoyer à null. */
-type MissionTask = Omit<
-  TaskRow,
-  "started_at" | "completed_at" | "contract_id" | "company_name"
-> & {
-  started_at: string | null;
-  completed_at: string | null;
-  contract_id: string | null;
-  company_name: string | null;
-};
-
-type TasksData = {
-  missions: MissionTask[];
-  /** Écart horloge serveur − navigateur, pour cadencer les rappels. */
-  clockOffset: number;
-  updateRequests: {
-    id: string;
-    fields: ProfileLockGroup[];
-    reason: string | null;
-    created_at: string | null;
-  }[];
-};
-
-const fetcher = async (): Promise<TasksData> => {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { missions: [], clockOffset: 0, updateRequests: [] };
-
-  const { data: profile } = await supabase
-    .from("candidate_profiles")
-    .select("id")
-    .eq("user_id", user.id)
-    .single();
-
-  const [tasksRes, requestsRes] = await Promise.all([
-    fetch("/api/tasks", { cache: "no-store" }).catch(() => null),
-    profile
-      ? supabase
-          .from("profile_update_requests")
-          .select("id, fields, reason, created_at")
-          .eq("candidate_id", profile.id)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as never[] }),
-  ]);
-  if (!tasksRes?.ok) throw new Error("tasks");
-  const body = (await tasksRes.json()) as { missions: MissionTask[] };
-  const serverNow = body.missions[0]?.server_now;
-
-  return {
-    missions: body.missions,
-    clockOffset: serverNow ? new Date(serverNow).getTime() - Date.now() : 0,
-    updateRequests: (requestsRes.data ?? []).map((r) => ({
-      ...r,
-      fields: r.fields.filter(isProfileLockGroup),
-    })),
-  };
-};
+  useCandidateTasks,
+  type MissionTask,
+} from "@/lib/tasks/use-candidate-tasks";
+import {
+  canStartMission,
+  missionEndReached,
+  type ActionTask,
+} from "@/lib/tasks/candidate-tasks";
+import { actionTaskView } from "@/lib/tasks/action-task-view";
 
 const ACTIVE = new Set(["pending", "confirmed"]);
 
+const ACTION_ICONS: Record<ActionTask["kind"], React.ReactNode> = {
+  profile: <UserRound className="h-5 w-5" />,
+  identity: <UserRound className="h-5 w-5" />,
+  phone: <Phone className="h-5 w-5" />,
+  momo: <CreditCard className="h-5 w-5" />,
+  cni: <IdCard className="h-5 w-5" />,
+  document: <FileText className="h-5 w-5" />,
+};
+
+/** Identifiant DOM d'une tâche d'action (clé encodée, sans « % »). */
+const actionDomId = (key: string) =>
+  `task-action-${encodeURIComponent(key).replace(/%/g, "_")}`;
+
 export default function TasksPage() {
+  // useSearchParams exige une frontière Suspense au rendu statique.
+  return (
+    <React.Suspense fallback={null}>
+      <TasksContent />
+    </React.Suspense>
+  );
+}
+
+function TasksContent() {
+  const searchParams = useSearchParams();
+  const focusKey = searchParams.get("task");
   const router = useRouter();
   const { toast } = useToast();
   const { t, locale } = useI18n();
   const tr = t.profile.profileUpdateRequests;
   const tm = t.mission;
   const tt = tm.tasks;
-  const { data, isLoading, error, mutate } = useSWR("/api/tasks", fetcher);
+  // Missions, contrats, candidatures, offres, profil et compte : relecture
+  // sur signal, reconnexion ou retour au premier plan (useCandidateTasks).
+  const { data, isLoading, error, mutate } = useCandidateTasks();
   const missions = React.useMemo(() => data?.missions ?? [], [data]);
+  const actions = React.useMemo(() => data?.actions ?? [], [data]);
   const updateRequests = data?.updateRequests ?? [];
   const [openRequestId, setOpenRequestId] = React.useState<string | null>(null);
 
   // Compte suspendu : les actions sont retirées (refusées en base de toute
   // façon : start_mission, submit_completion_code, submit_mission_review).
   const suspended = useAccountSuspended();
-
-  // Missions, contrats, candidatures, offres et demandes de mise à jour du
-  // profil : relecture sur signal, reconnexion ou retour au premier plan.
-  useLiveRefresh(
-    ["missions", "contracts", "applications", "jobs", "profile"],
-    () => mutate(),
-  );
 
   // Horloge locale recalée sur le serveur : les tâches apparaissent à H−15
   // et à l'heure de fin sans recharger la page.
@@ -143,14 +109,22 @@ export default function TasksPage() {
   }, []);
   const serverNow = now + offset;
 
-  const canStart = (m: MissionTask) =>
-    !m.started_at &&
-    ACTIVE.has(m.status ?? "") &&
-    serverNow >= new Date(m.start_available_at).getTime();
-  const endReached = (m: MissionTask) =>
-    !!m.started_at &&
-    !m.completed_at &&
-    serverNow >= new Date(m.scheduled_end_at).getTime();
+  const canStart = (m: MissionTask) => canStartMission(m, serverNow);
+  const endReached = (m: MissionTask) => missionEndReached(m, serverNow);
+
+  // Tâche visée par le lien d'un refus (?task=) : mise en évidence, puis
+  // focus sur son action, une fois la liste chargée.
+  const focusedOnce = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!focusKey || !data || focusedOnce.current === focusKey) return;
+    const el = document.getElementById(actionDomId(focusKey));
+    if (!el) return;
+    focusedOnce.current = focusKey;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.querySelector<HTMLElement>("[data-testid=task-action-button]")?.focus({
+      preventScroll: true,
+    });
+  }, [focusKey, data]);
 
   // Rappels quand une tâche devient disponible pendant que la page est
   // ouverte. À la réouverture, la tâche est simplement visible.
@@ -281,7 +255,79 @@ export default function TasksPage() {
       .join(" · ");
 
   const openRequest = updateRequests.find((r) => r.id === openRequestId);
-  const hasTasks = missions.length > 0 || updateRequests.length > 0;
+  const hasTasks =
+    missions.length > 0 || updateRequests.length > 0 || actions.length > 0;
+
+  const renderAction = (task: ActionTask) => {
+    const view = actionTaskView(task, t, locale);
+    const focused = task.key === focusKey;
+    return (
+      <div
+        key={task.key}
+        id={actionDomId(task.key)}
+        data-testid="task-action"
+        data-task-key={task.key}
+        data-action-required={task.action_required ? "true" : "false"}
+        className={`flex flex-col gap-3 rounded-xl border bg-card p-3 transition-shadow ${
+          focused ? "border-primary ring-2 ring-primary/40" : ""
+        }`}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 shrink-0 text-primary" aria-hidden>
+            {ACTION_ICONS[task.kind]}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-foreground">{view.title}</span>
+              <Badge
+                variant={task.action_required ? "default" : "outline"}
+                className={task.action_required ? "bg-primary" : ""}
+              >
+                {task.action_required
+                  ? t.tasks.actionBadge
+                  : t.tasks.followUpBadge}
+              </Badge>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">{view.hint}</p>
+            {view.reason && (
+              <p className="mt-1 text-xs text-destructive">
+                {t.tasks.cni.reason.replace("{reason}", view.reason)}
+              </p>
+            )}
+            {task.kind === "document" && task.jobs.length > 0 && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                <span>{t.tasks.concernedJobs} </span>
+                {task.jobs.map((j, i) => (
+                  <React.Fragment key={j.id}>
+                    {i > 0 && ", "}
+                    <Link
+                      href={`/jobs/${j.id}`}
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      {j.title}
+                    </Link>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <motion.div whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
+          <Button
+            size="sm"
+            variant={task.action_required ? "default" : "outline"}
+            className="w-full sm:w-auto"
+            asChild
+          >
+            <Link href={view.href} data-testid="task-action-button">
+              {view.label}
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden />
+            </Link>
+          </Button>
+        </motion.div>
+      </div>
+    );
+  };
 
   const taskRow = (
     key: string,
@@ -455,7 +501,7 @@ export default function TasksPage() {
     <AppShell>
       <div className="px-4 py-6">
         <h1 className="mb-6 text-2xl font-bold text-foreground">
-          {locale === "fr" ? "Tâches" : "Tasks"}
+          {t.nav.tasks}
         </h1>
 
         {isLoading ? (
@@ -487,6 +533,22 @@ export default function TasksPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {actions.length > 0 && (
+              <section aria-labelledby="tasks-actions-title">
+                <Card className="border-primary/30">
+                  <CardContent className="space-y-3 p-4">
+                    <h2
+                      id="tasks-actions-title"
+                      className="font-semibold text-foreground"
+                    >
+                      {t.tasks.actionsTitle}
+                    </h2>
+                    <div className="space-y-2">{actions.map(renderAction)}</div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
             {updateRequests.map((r) => (
               <Card key={r.id} className="border-primary/40 bg-primary/5">
                 <CardContent className="space-y-3 p-4">

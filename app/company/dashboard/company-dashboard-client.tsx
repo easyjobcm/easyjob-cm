@@ -1,5 +1,7 @@
 "use client";
 
+import { UrgentBadge } from "@/components/jobs/urgent-badge";
+
 import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,11 +34,12 @@ interface CompanyDashboardClientProps {
   jobs: Array<{
     id: string;
     status: string | null;
-    urgency?: string | null;
     title: string;
     start_date: string;
     city: string;
     start_time?: string | null;
+    positions_available?: number | null;
+    positions_filled?: number | null;
     mission_pay_per_candidate: number;
     applications?: Array<{
       count?: number;
@@ -225,13 +228,12 @@ export function CompanyDashboardClient({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {getStatusBadge(job.status)}
-                          {job.urgency !== "normal" && (
-                            <Badge
-                              variant="destructive"
+                          {/* Lot 9d : règle H−24, plus l'ancien indicateur. */}
+                          {job.start_time && (
+                            <UrgentBadge
                               className="text-[10px]"
-                            >
-                              {job.urgency === "critical" ? "URGENT" : "ASAP"}
-                            </Badge>
+                              job={{ ...job, start_time: job.start_time }}
+                            />
                           )}
                         </div>
                         <h3 className="font-medium text-foreground truncate">

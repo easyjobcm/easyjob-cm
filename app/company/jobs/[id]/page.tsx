@@ -44,6 +44,7 @@ import {
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 import { plural } from "@/lib/i18n/plural";
 import { ReputationStars } from "@/components/reputation/reputation-stars";
+import { MissionPay } from "@/components/jobs/mission-pay";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -56,6 +57,11 @@ type Job = Pick<
   | "end_time"
   | "positions_available"
   | "positions_filled"
+  | "description"
+  | "address"
+  | "mission_pay_per_candidate"
+  | "required_skills"
+  | "required_documents"
 >;
 
 /** Réponse de GET /api/jobs/[id]/missions (lot 7c ; null possibles). */
@@ -146,7 +152,7 @@ export default function CompanyJobDetailPage() {
     const { data: jobData, error: jobError } = await supabase
       .from("jobs")
       .select(
-        "id, title, city, quartier, start_date, start_time, end_time, positions_available, positions_filled",
+        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents",
       )
       .eq("id", jobId)
       .single();
@@ -412,23 +418,73 @@ export default function CompanyJobDetailPage() {
           {ta.back}
         </Button>
 
-        <h1 className="text-xl font-bold">{job.title}</h1>
+        {/* Lot 9d : travail demandé, montant par candidat, lieu, date et
+            horaires, exigences, puis candidatures (action). */}
+        <h1 className="break-words text-xl font-bold">{job.title}</h1>
+        {job.description && (
+          <p
+            className="mt-1 line-clamp-3 whitespace-pre-line text-sm text-muted-foreground"
+            data-testid="company-job-work"
+          >
+            {job.description}
+          </p>
+        )}
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5" />
-            {job.city}
-            {job.quartier ? `, ${job.quartier}` : ""}
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatDate(job.start_date)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            {formatTime(job.start_time)} - {formatTime(job.end_time)}
-          </span>
+        <div className="mt-3" data-testid="company-job-pay">
+          <p className="text-xs text-muted-foreground">{t.jobDetail.pay}</p>
+          <MissionPay
+            amount={job.mission_pay_per_candidate}
+            amountClassName="text-lg text-primary"
+          />
         </div>
+
+        <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+          <p className="flex items-start gap-1">
+            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span className="break-words">
+              {job.address ? `${job.address}, ` : ""}
+              {job.quartier ? `${job.quartier}, ` : ""}
+              {job.city}
+            </span>
+          </p>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" aria-hidden />
+              {formatDate(job.start_date)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              {formatTime(job.start_time)} - {formatTime(job.end_time)}
+            </span>
+          </p>
+        </div>
+
+        {((job.required_skills?.length ?? 0) > 0 ||
+          (job.required_documents?.length ?? 0) > 0) && (
+          <div className="mt-3" data-testid="company-job-requirements">
+            <p className="text-xs text-muted-foreground">
+              {t.jobDetail.requirements}
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(job.required_skills ?? []).map((skill) => (
+                <Badge key={skill} variant="secondary" className="text-xs">
+                  {skill}
+                </Badge>
+              ))}
+              {(job.required_documents ?? []).map((doc) => (
+                <Badge key={doc} variant="outline" className="text-xs">
+                  {(t.jobDetail.documentLabels as Record<string, string>)[
+                    doc
+                  ] ??
+                    (t.application.documents.labels as Record<string, string>)[
+                      doc
+                    ] ??
+                    t.application.documents.labels.autre}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-4 mt-3">
           <div className="flex items-center gap-1.5">
