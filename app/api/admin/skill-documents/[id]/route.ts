@@ -1,6 +1,8 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { skillDocumentModerateSchema } from "@/lib/validations/skill-documents";
+import { internalErrorResponse } from "@/lib/api/errors";
+import { logServerError, requestIdFrom } from "@/lib/observability/server-log";
 
 export async function POST(
   request: NextRequest,
@@ -20,6 +22,8 @@ export async function POST(
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   // Validation/refus réservé à admin_ops et admin_founder (US-ADMIN-05) —
@@ -70,9 +74,10 @@ export async function POST(
     .eq("id", id);
 
   if (updateError) {
-    return NextResponse.json(
-      { error: "Failed to update document" },
-      { status: 500 },
+    return internalErrorResponse(
+      "admin.skill_documents.moderate",
+      updateError,
+      { code: "admin_document_failed", request },
     );
   }
 
@@ -89,10 +94,12 @@ export async function POST(
   // Échec du recalcul = statut dérivé incohérent avec le document :
   // on stoppe avant audit/notification pour que l'action ne paraîsse pas
   // conclue sans mise à jour du statut.
-  if (recomputeResults.some((r) => r.error)) {
-    return NextResponse.json(
-      { error: "Failed to update skill verification status" },
-      { status: 500 },
+  const recomputeError = recomputeResults.find((r) => r.error)?.error;
+  if (recomputeError) {
+    return internalErrorResponse(
+      "admin.skill_documents.recompute",
+      recomputeError,
+      { code: "admin_document_failed", request },
     );
   }
 
@@ -121,10 +128,9 @@ export async function POST(
           .remove([document.storage_path]);
       }
     } catch (err) {
-      console.error(
-        "[skill-docs-admin] file removal failed (verdict kept):",
-        err,
-      );
+      logServerError("admin.skill_documents.remove_file", err, {
+        requestId: requestIdFrom(request.headers),
+      });
     }
   }
 

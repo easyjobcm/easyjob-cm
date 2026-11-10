@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { contractRefusal } from "@/lib/validations/contract";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Contrat vu par l'une de ses parties (RPC `get_contract`, lot 7b).
@@ -46,11 +47,10 @@ export async function GET(
           { status: refusal.status },
         );
       }
-      console.error("Contract read error:", error.code);
-      return NextResponse.json(
-        { error: "Internal server error", code: "contract_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("contracts.read", error, {
+        code: "contract_failed",
+        request: _request,
+      });
     }
 
     const contract = data[0];
@@ -65,10 +65,9 @@ export async function GET(
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("Contract read error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "contract_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("contracts.read", error, {
+      code: "contract_failed",
+      request: _request,
+    });
   }
 }

@@ -20,6 +20,7 @@
 export type ErrorCategory =
   | "database" // PostgREST / Postgres
   | "auth" // Supabase Auth (GoTrue)
+  | "storage" // Supabase Storage (téléversement, URL signée)
   | "provider" // fournisseur externe (LLM, SMS, paiement)
   | "validation"
   | "quota"
@@ -61,6 +62,7 @@ export function categorizeError(error: unknown): ErrorCategory {
   if (e.__isAuthError === true) return "auth";
   const name = typeof e.name === "string" ? e.name : "";
   if (name.startsWith("Auth")) return "auth";
+  if (name.startsWith("Storage")) return "storage";
   if (name.startsWith("AI_") || name.startsWith("Gateway")) return "provider";
   if (typeof e.code === "string" && /^(PGRST|[0-9A-Z]{5}$)/.test(e.code)) {
     return "database";
@@ -142,5 +144,66 @@ export function logServerWarning(
     reason: safeString(reason, BUSINESS_CODE),
     status: ctx.status,
     requestId: ctx.requestId ?? undefined,
+  });
+}
+
+// ── Rapports CSP (lot 10, F-25) ─────────────────────────────────────
+
+const CSP_DIRECTIVE = /^[a-z][a-z-]{1,39}$/;
+const CSP_KEYWORDS = new Set(["inline", "eval", "data", "blob", "self"]);
+const ID_SEGMENT = /^(?:[0-9a-f-]{16,}|\d{4,})$/i;
+
+/** Origine bloquée réduite à `schéma://hôte[:port]` ou à un mot-clé CSP. */
+export function cspBlockedSource(raw: unknown): string | undefined {
+  if (typeof raw !== "string" || raw.length === 0) return undefined;
+  const keyword = raw.replace(/:$/, "").toLowerCase();
+  if (CSP_KEYWORDS.has(keyword)) return keyword;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "data:" || url.protocol === "blob:"
+      ? url.protocol.slice(0, -1)
+      : url.origin === "null"
+        ? undefined
+        : url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Chemin de la page, sans requête ni fragment, identifiants masqués. */
+export function cspPagePath(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  try {
+    const { pathname } = new URL(raw);
+    return pathname
+      .split("/")
+      .map((s) => (ID_SEGMENT.test(s) ? ":id" : s))
+      .join("/")
+      .slice(0, 120);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Violation CSP signalée par un navigateur. Jamais l'URL complète (jetons
+ * d'URL signée, paramètres), l'extrait de script, l'agent utilisateur ni
+ * l'adresse IP : directive, origine bloquée, chemin masqué et disposition.
+ */
+export function logCspViolation(report: {
+  directive?: unknown;
+  blocked?: unknown;
+  page?: unknown;
+  disposition?: unknown;
+}): void {
+  write("warn", "security.csp_report", {
+    category: "validation",
+    directive: safeString(report.directive, CSP_DIRECTIVE),
+    blocked: cspBlockedSource(report.blocked),
+    page: cspPagePath(report.page),
+    disposition:
+      report.disposition === "enforce" || report.disposition === "report"
+        ? report.disposition
+        : undefined,
   });
 }

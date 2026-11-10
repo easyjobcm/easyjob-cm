@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { companyOnboardingSchema } from "@/lib/validations/company";
 import { detectDocumentMime, EXT_BY_MIME } from "@/lib/utils/file-type";
+import { logServerError, requestIdFrom } from "@/lib/observability/server-log";
 
 const BUCKET = "company-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -81,7 +82,9 @@ export async function PUT(request: NextRequest) {
       .from(BUCKET)
       .upload(uploadedPath, buffer, { contentType: mime, upsert: false });
     if (uploadError) {
-      console.error("[company-onboarding] upload failed:", uploadError.message);
+      logServerError("company.onboarding.upload", uploadError, {
+        requestId: requestIdFrom(request.headers),
+      });
       return NextResponse.json({ error: "upload_failed" }, { status: 500 });
     }
   }
@@ -111,7 +114,9 @@ export async function PUT(request: NextRequest) {
       await supabase.storage.from(BUCKET).remove([uploadedPath]);
     }
     if (saveError) {
-      console.error("[company-onboarding] save failed:", saveError.message);
+      logServerError("company.onboarding.save", saveError, {
+        requestId: requestIdFrom(request.headers),
+      });
     }
     return NextResponse.json(
       { error: saveError ? "save_failed" : "profile_not_found" },
@@ -129,10 +134,9 @@ export async function PUT(request: NextRequest) {
       .from(BUCKET)
       .remove(stale);
     if (removeError) {
-      console.error(
-        "[company-onboarding] stale document cleanup failed:",
-        removeError.message,
-      );
+      logServerError("company.onboarding.cleanup", removeError, {
+        requestId: requestIdFrom(request.headers),
+      });
     }
   }
 

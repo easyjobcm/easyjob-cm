@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   categorizeError,
@@ -97,6 +99,9 @@ describe("categorizeError / requestIdFrom", () => {
   it("catégorise sans lire le message", () => {
     expect(categorizeError({ code: "PGRST116" })).toBe("database");
     expect(categorizeError({ name: "AI_APICallError" })).toBe("provider");
+    expect(categorizeError({ name: "StorageApiError", status: 400 })).toBe(
+      "storage",
+    );
     expect(categorizeError(new Error("x"))).toBe("unexpected");
   });
 
@@ -131,5 +136,49 @@ describe("internalErrorResponse", () => {
       requestId: "cdg1::req",
     });
     expect(JSON.stringify(body)).not.toContain("secret_table");
+  });
+
+  it("journalise une incohérence de résultat sans objet d'erreur", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = internalErrorResponse("missions.start", null, {
+      code: "start_failed",
+      reason: "result_mismatch",
+    });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({
+      error: "Internal server error",
+      code: "start_failed",
+    });
+    const line = JSON.parse(String(spy.mock.calls[0][0]));
+    expect(line).toMatchObject({
+      level: "error",
+      op: "missions.start",
+      reason: "result_mismatch",
+      category: "unexpected",
+    });
+  });
+});
+
+// Lot 10 (F-23) : plus aucune route ne journalise d'objet ni de message brut.
+describe("routes : journal structuré seulement", () => {
+  const ROOT = path.resolve(__dirname, "..");
+  function walk(dir: string, out: string[] = []): string[] {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), {
+      withFileTypes: true,
+    })) {
+      const rel = path.join(dir, e.name);
+      if (e.isDirectory()) walk(rel, out);
+      else if (/\.tsx?$/.test(e.name)) out.push(rel);
+    }
+    return out;
+  }
+
+  it("aucun console.* dans app/api ni lib/api", () => {
+    const offenders = [...walk("app/api"), ...walk("lib/api")].filter((f) =>
+      /console\.(log|info|warn|error|debug)\(/.test(
+        fs.readFileSync(path.join(ROOT, f), "utf8"),
+      ),
+    );
+    expect(offenders).toEqual([]);
   });
 });

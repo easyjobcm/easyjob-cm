@@ -1,13 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const markReadSchema = z.object({
   id: z.string().uuid(),
 });
 
 /** Liste des notifications de l'utilisateur connecté (centre de notifications). */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,7 +27,10 @@ export async function GET() {
     .limit(50);
 
   if (listError) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return internalErrorResponse("notifications.list", listError, {
+      code: "notifications_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ notifications: data ?? [] });
@@ -57,7 +61,10 @@ export async function PATCH(request: NextRequest) {
     .eq("user_id", user.id);
 
   if (updateError) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return internalErrorResponse("notifications.mark_read", updateError, {
+      code: "notifications_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ ok: true });

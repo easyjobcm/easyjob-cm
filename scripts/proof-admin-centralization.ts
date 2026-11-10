@@ -443,6 +443,7 @@ async function main() {
     realClientFor(CO.email),
   ]);
 
+  const extraUsers: ProofUser[] = [];
   try {
     // ── A. Pages SSR ────────────────────────────────────────────────
     const a1 = await fetchHtml("/admin/candidates", Rsess.cookies);
@@ -741,7 +742,285 @@ async function main() {
         /verified/i.test(String(h4.json.error ?? "")),
       { status: h4.status, error: h4.json.error },
     );
+
+    // ── I. Admin suspendu (lot 10, AUDIT.md §28) ─────────────────────
+    // X : admin_ops dont la session est ouverte AVANT sa suspension. Le jeton
+    // reste valide (JWT non révoqué) : chaque garde doit relire is_active.
+    console.log("\n── I. Admin suspendu ──");
+    const X = await createProofUser(
+      "t84a.adminsuspended@example.com",
+      "admin_ops",
+      {
+        profile: false,
+      },
+    );
+    extraUsers.push(X);
+    const Xsess = await realClientFor(X.email);
+    const photoPath = W.storagePaths[0];
+    const coPage = `/admin/companies/${CO.companyId}`;
+    // Redirection d'un Server Component : 3xx, ou 200 avec le marqueur
+    // NEXT_REDIRECT une fois le flux commencé (même cas que A3).
+    const redirected = (r: { status: number; html: string }) =>
+      (r.status >= 300 && r.status < 400) || r.html.includes("NEXT_REDIRECT");
+
+    const readCandidate = async (c: DB) =>
+      c
+        .from("candidate_profiles")
+        .select("id, cni_number, momo_number")
+        .eq("id", W.profileId!);
+    const signedPhoto = async (c: DB) =>
+      c.storage.from(BUCKET).createSignedUrl(photoPath, 60);
+    const isActive = async (id: string) =>
+      (
+        await serviceClient
+          .from("users")
+          .select("is_active")
+          .eq("id", id)
+          .single()
+      ).data?.is_active;
+    const auditCount = async () =>
+      (
+        await serviceClient
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("actor_id", X.authUserId)
+      ).count ?? 0;
+    // Action autorisée à son grade : suspendre puis réactiver C1 (RPC directe).
+    const toggleC1 = async (c: DB) => {
+      const off = await c.rpc("admin_set_user_active", {
+        p_user_id: C1.authUserId,
+        p_active: false,
+      });
+      const offState = await isActive(C1.authUserId);
+      const on = await c.rpc("admin_set_user_active", {
+        p_user_id: C1.authUserId,
+        p_active: true,
+      });
+      return {
+        off: off.error?.message ?? null,
+        offState,
+        on: on.error?.message ?? null,
+      };
+    };
+
+    // I1 — admin actif : lecture sensible, Storage, action, route, page.
+    const i1r = await readCandidate(Xsess.client);
+    const i1s = await signedPhoto(Xsess.client);
+    const audit0 = await auditCount();
+    const i1a = await toggleC1(Xsess.client);
+    const audit1 = await auditCount();
+    const i1api = await fetchJson(
+      "/api/admin/candidates",
+      "GET",
+      Xsess.cookies,
+    );
+    const i1page = await fetchHtml("/admin/dashboard", Xsess.cookies);
+    const i1co = await fetchHtml(coPage, Xsess.cookies);
+    report(
+      "I1 : admin_ops actif → profil candidat (CNI, MoMo) lu en session, URL signée Storage, suspension/réactivation par RPC (2 audits), route 200, page 200",
+      i1r.data?.length === 1 &&
+        !!i1s.data?.signedUrl &&
+        i1a.off === null &&
+        i1a.offState === false &&
+        i1a.on === null &&
+        (await isActive(C1.authUserId)) === true &&
+        audit1 - audit0 === 2 &&
+        i1api.status === 200 &&
+        i1page.status === 200 &&
+        !redirected(i1page) &&
+        i1co.html.includes("Entreprise Preuve T84"),
+      {
+        rows: i1r.data?.length,
+        signed: !!i1s.data?.signedUrl,
+        action: i1a,
+        audits: audit1 - audit0,
+        api: i1api.status,
+        page: i1page.status,
+      },
+    );
+
+    // I2 — aucune session ne suspend un admin : RPC et route refusent.
+    const i2rpc = await Rsess.client.rpc("admin_set_user_active", {
+      p_user_id: X.authUserId,
+      p_active: false,
+    });
+    const i2api = await fetchJson(
+      "/api/admin/candidates",
+      "POST",
+      Rsess.cookies,
+      {
+        user_id: X.authUserId,
+        action: "suspend",
+      },
+    );
+    report(
+      "I2 : seconde session admin_ops → suspension d'un admin refusée (RPC « cannot modify admin account », route 403), X toujours actif",
+      /cannot modify admin account/.test(i2rpc.error?.message ?? "") &&
+        i2api.status === 403 &&
+        (await isActive(X.authUserId)) === true,
+      { rpc: i2rpc.error?.message, api: i2api.status, code: i2api.json.code },
+    );
+
+    // Suspension par le seul chemin existant : clé service (support,
+    // Studio). Le jeton de X n'est pas renouvelé.
+    await serviceClient
+      .from("users")
+      .update({ is_active: false })
+      .eq("id", X.authUserId);
+
+    // I3 — même jeton, compte suspendu.
+    const i3r = await readCandidate(Xsess.client);
+    const i3s = await signedPhoto(Xsess.client);
+    const auditBefore = await auditCount();
+    const i3a = await Xsess.client.rpc("admin_set_user_active", {
+      p_user_id: C1.authUserId,
+      p_active: false,
+    });
+    const c1After = await isActive(C1.authUserId);
+    const auditAfter = await auditCount();
+    const i3n = await Xsess.client.from("notifications").insert({
+      user_id: W.authUserId,
+      notification_type: "system",
+      title: "t84a-suspended-admin",
+      body: "ne doit pas exister",
+    });
+    const { count: i3nRows } = await serviceClient
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("title", "t84a-suspended-admin");
+    report(
+      "I3 : admin suspendu, jeton initial → lecture directe (is_admin_user) vide, URL signée refusée",
+      (i3r.data?.length ?? 0) === 0 && !i3s.data?.signedUrl,
+      {
+        rows: i3r.data?.length,
+        error: i3r.error?.code,
+        signed: !!i3s.data?.signedUrl,
+      },
+    );
+    report(
+      "I4 : admin suspendu → RPC admin_set_user_active refusée, C1 toujours actif, aucun audit ; insertion de notification refusée, aucune ligne",
+      !!i3a.error &&
+        c1After === true &&
+        auditAfter === auditBefore &&
+        !!i3n.error &&
+        i3nRows === 0,
+      {
+        rpc: i3a.error?.message,
+        c1After,
+        audits: auditAfter - auditBefore,
+        notif: i3n.error?.code,
+        rows: i3nRows,
+      },
+    );
+
+    // I5 — routes en clé service et pages après requireAdminPage().
+    const i5list = await fetchJson(
+      "/api/admin/candidates",
+      "GET",
+      Xsess.cookies,
+    );
+    const i5detail = await fetchJson(
+      `/api/admin/candidates/${W.authUserId}`,
+      "GET",
+      Xsess.cookies,
+    );
+    const i5co = await fetchJson("/api/admin/companies", "GET", Xsess.cookies);
+    const i5url = await fetchJson(
+      `/api/admin/profiles/${W.profileId}/photo-url`,
+      "GET",
+      Xsess.cookies,
+    );
+    const i5dash = await fetchHtml("/admin/dashboard", Xsess.cookies);
+    const i5coPage = await fetchHtml(coPage, Xsess.cookies);
+    const leaked = [i5list, i5detail, i5co, i5url].filter(
+      (r) => r.status === 200,
+    );
+    report(
+      "I5 : admin suspendu → routes admin en clé service refusées (liste, fiche, entreprises, URL signée), pages admin redirigées (NEXT_REDIRECT) sans données",
+      leaked.length === 0 &&
+        redirected(i5dash) &&
+        redirected(i5coPage) &&
+        !i5coPage.html.includes("Entreprise Preuve T84"),
+      {
+        list: i5list.status,
+        detail: i5detail.status,
+        companies: i5co.status,
+        photoUrl: i5url.status,
+        dashboard: [i5dash.status, i5dash.location],
+        companyPage: [i5coPage.status, i5coPage.location],
+      },
+    );
+
+    // I6 — ses propres données restent lisibles (état de suspension).
+    const ownRow = await Xsess.client
+      .from("users")
+      .select("id, role, is_active")
+      .eq("id", X.authUserId);
+    const ownState = await Xsess.client.rpc("my_account_state");
+    const state = (
+      Array.isArray(ownState.data) ? ownState.data[0] : ownState.data
+    ) as { is_active?: boolean; is_admin?: boolean } | null;
+    report(
+      "I6 : admin suspendu → sa ligne users et my_account_state lisibles (is_active=false)",
+      ownRow.data?.[0]?.is_active === false && state?.is_active === false,
+      { row: ownRow.data?.[0], state },
+    );
+
+    // I7 — un autre admin actif garde ses droits pendant ce temps.
+    const i7 = await readCandidate(Rsess.client);
+    const i7api = await fetchJson(
+      "/api/admin/candidates",
+      "GET",
+      Rsess.cookies,
+    );
+    report(
+      "I7 : admin_ops actif (R) pendant la suspension de X → lecture et route 200",
+      i7.data?.length === 1 && i7api.status === 200,
+      { rows: i7.data?.length, api: i7api.status },
+    );
+
+    // I8 — réactivation : même jeton, accès du grade restaurés.
+    await serviceClient
+      .from("users")
+      .update({ is_active: true })
+      .eq("id", X.authUserId);
+    const i8r = await readCandidate(Xsess.client);
+    const i8s = await signedPhoto(Xsess.client);
+    const i8a = await toggleC1(Xsess.client);
+    const i8api = await fetchJson(
+      "/api/admin/candidates",
+      "GET",
+      Xsess.cookies,
+    );
+    const i8page = await fetchHtml("/admin/dashboard", Xsess.cookies);
+    const i8co = await fetchHtml(coPage, Xsess.cookies);
+    report(
+      "I8 : réactivation → lecture, URL signée, action RPC, route et page de nouveau accessibles",
+      i8r.data?.length === 1 &&
+        !!i8s.data?.signedUrl &&
+        i8a.off === null &&
+        i8a.on === null &&
+        (await isActive(C1.authUserId)) === true &&
+        i8api.status === 200 &&
+        i8page.status === 200 &&
+        !redirected(i8page) &&
+        i8co.html.includes("Entreprise Preuve T84"),
+      {
+        rows: i8r.data?.length,
+        signed: !!i8s.data?.signedUrl,
+        action: i8a,
+        api: i8api.status,
+        page: i8page.status,
+      },
+    );
   } finally {
+    for (const u of extraUsers) await cleanUser(u);
+    await ignore(
+      serviceClient
+        .from("notifications")
+        .delete()
+        .eq("title", "t84a-suspended-admin"),
+    );
     await cleanUser(CO);
     await cleanUser(C1);
     await cleanUser(W);

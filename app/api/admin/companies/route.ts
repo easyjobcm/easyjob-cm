@@ -1,6 +1,7 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { userModerateSchema } from "@/lib/validations/admin-users";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T8.4a — API admin « Entreprises » (vue centralisée /admin/companies).
@@ -83,6 +84,8 @@ export async function GET(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -107,8 +110,10 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(5000);
   if (usersErr) {
-    console.error("[admin-companies] users query:", usersErr.message);
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.companies.list", usersErr, {
+      code: "admin_companies_failed",
+      request,
+    });
   }
 
   const userRows = users as Array<{
@@ -135,8 +140,10 @@ export async function GET(request: NextRequest) {
       userRows.map((u) => u.id),
     );
   if (profilesErr) {
-    console.error("[admin-companies] profiles query:", profilesErr.message);
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.companies.list", profilesErr, {
+      code: "admin_companies_failed",
+      request,
+    });
   }
 
   const profileByUser = new Map<string, CompanyProfileRow>();
@@ -188,6 +195,8 @@ export async function POST(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -221,11 +230,10 @@ export async function POST(request: NextRequest) {
         { status: matched[1].status },
       );
     }
-    console.error(
-      "[admin-companies] set-user-active rpc failed:",
-      rpcError.message,
-    );
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    return internalErrorResponse("admin.companies.set_active", rpcError, {
+      code: "admin_user_update_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ ok: true, is_active: active });

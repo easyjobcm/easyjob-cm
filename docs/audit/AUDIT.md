@@ -135,21 +135,21 @@ Les numéros de ligne renvoient au commit audité. « baseline » désigne `supa
 | F-19 | P2 | **Partiellement corrigé (lot 9, §24) : paiement sous 48 h, séquestre et montant bloqué, retrait Mobile Money, remplacement garanti, sélection par IA, essai gratuit et application hors ligne retirés ; autres avantages d'abonnement non livrés listés pour le lot Free/Premium.** Constat d'origine : les textes promettent des fonctions **absentes du code** : paiement 100 % en 48 h ou 50/50, « montant bloqué » et remboursements, « remplacement garanti », « l'IA sélectionne pour vous », « essai gratuit 7 jours ». Aucun paiement, séquestre ni IA de sélection n'est implémenté (`lib/matching/ai-matching.ts` est heuristique). | `lib/i18n/fr.ts:1151-1189, 1310, 1353-1371` ; `lib/payments/mobile-money.ts` non importé | Promesses commerciales non tenues, avec un risque de confiance et un risque juridique (droit de la consommation et règles de communication commerciale à faire valider). | Retirer ou marquer « bientôt » ce qui n'existe pas. | Relecture produit : chaque promesse correspond à une fonction livrée. |
 | F-20 | P2 | **Partie CI corrigée localement (lot 4, §13). Partie déploiement : configuration préparée et vérifiée localement (lot 4b, §14), non validée à distance ; sauvegarde reportée au point de contrôle avant les premiers utilisateurs.** Constat d'origine : CI et déploiement : Vitest **n'est pas exécuté en CI**. Le build ne dépend pas de `test-migrations`. `deploy.yml` utilise `supabase` et `vercel` en version `latest`. Aucune sauvegarde ou vérification n'est faite avant `db push` en production. Un « rollback » par tag redéploie l'application sans revenir sur la base. Le `db push` passe par le pooler 6543 (mode transaction), à vérifier. | `.github/workflows/ci.yml`, `deploy.yml` | Régressions non détectées, déploiements non reproductibles, migration destructive sans filet. | Ajouter `pnpm test`, figer les versions des CLI, faire dépendre le build de `test-migrations`, documenter la procédure de restauration (PITR ou sauvegarde) et l'utiliser avant `db push`. | La CI échoue si un test échoue ; versions figées. |
 | F-21 | P2 | **Corrigé localement (lot 4, §13) ; `contracts` couvert au lot 7b (§19), `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` au lot 7c (§20).** Constat d'origine : aucun test d'autorisation automatisé. Les scripts `scripts/proof-*.ts` couvrent une partie de la RLS mais restent manuels et hors CI. Aucune preuve n'existe pour `users.role`, `job_applications`, `contracts` et `missions`. | `scripts/`, `tests/`, `ci.yml` | Les failles F-01 à F-07 auraient été détectées par une suite RLS négative. | Suite RLS « accès interdits » exécutée en CI sur la pile Supabase locale, qui existe déjà dans `test-migrations`. | Job CI `rls-tests` vert, et rouge si une politique est relâchée. |
-| F-22 | P2 | Consignes IA obsolètes : `AGENTS.md` et les instructions Copilot imposent Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, et renvoient à `DESIGN_REFERENCE.md` et `COPILOT_INSTRUCTIONS.md`, qui n'existent pas. | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*` | Les agents génèrent du code incohérent avec le dépôt. | Aligner ces documents sur la stack réelle et sur les règles de sécurité de ce rapport (« jamais d'écriture directe sur une colonne porteuse de droits »). | Relecture : chaque outil cité existe. |
-| F-23 | P2 | **Partiellement corrigé (lot 8, §23) : journal structuré sûr et réponses génériques sur les routes d'auth, de chat, `app/api/jobs/**`, `categories` et `user` ; autres routes et outil de capture ouverts.** Constat d'origine : aucune observabilité : ni capture d'erreurs, ni journalisation structurée. Préfixes de log `[v0]` hérités. `error.message` Postgres renvoyé au client. | recherche négative ; `app/api/jobs/route.ts:81, 200` | Les incidents de production restent invisibles et des détails de schéma sont exposés. | Messages d'erreur génériques côté client. Un outil de capture d'erreurs léger, ou au minimum des logs structurés exploitables dans Vercel. | Une erreur serveur provoquée en préproduction est visible avec son contexte. |
+| F-22 | P2 | **Corrigé (lot 10, §28) : consignes centralisées dans `AGENTS.md`, chemins et outils vérifiés ; README réécrit.** Constat d'origine : consignes IA obsolètes : `AGENTS.md` et les instructions Copilot imposent Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, et renvoient à `DESIGN_REFERENCE.md` et `COPILOT_INSTRUCTIONS.md`, qui n'existent pas. | `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/*` | Les agents génèrent du code incohérent avec le dépôt. | Aligner ces documents sur la stack réelle et sur les règles de sécurité de ce rapport (« jamais d'écriture directe sur une colonne porteuse de droits »). | Relecture : chaque outil cité existe. |
+| F-23 | P2 | **Corrigé côté journaux (lots 8 et 10, §23 et §28) : toutes les routes `app/api/**` passent par le journal structuré, aucun `console.*` (test) ; outil de capture d'erreurs et alertes encore ouverts.** Constat d'origine : aucune observabilité : ni capture d'erreurs, ni journalisation structurée. Préfixes de log `[v0]` hérités. `error.message` Postgres renvoyé au client. | recherche négative ; `app/api/jobs/route.ts:81, 200` | Les incidents de production restent invisibles et des détails de schéma sont exposés. | Messages d'erreur génériques côté client. Un outil de capture d'erreurs léger, ou au minimum des logs structurés exploitables dans Vercel. | Une erreur serveur provoquée en préproduction est visible avec son contexte. |
 | F-24 | P2 | **Corrigé localement (lot 3, §12) : `zod` 4.6.7.** Constat d'origine : `zod` 4.4.3 : avis haut (épuisement mémoire sur collections volumineuses). Validation utilisée côté serveur. | `pnpm audit` | Déni de service ciblé possible sur les routes qui valident des tableaux. | Passer `zod` à ≥ 4.6.6. | `pnpm audit` sans avis `zod`. |
 
 ### P3 — Améliorations secondaires
 
 | ID | Prio | Constat | Preuve fichier | Correction minimale |
 |---|---|---|---|---|
-| F-25 | P3 | Pas de `Content-Security-Policy` (les autres en-têtes sont présents). | `next.config.ts` | CSP d'abord en `Report-Only`, puis appliquée. |
-| F-26 | P3 | `enforce_salary_lock` s'appuie sur `auth.jwt()->>'role'`, qui ne vaut jamais `admin_founder` : le verrou bloque aussi les admins (échec sans faille). | `20260604120000_srs_v12_plans_alignment.sql:213` | Utiliser `is_admin_user()` et le grade. |
-| F-27 | P3 | Code mort ou dupliqué : `database.types.ts` racine (1 893 lignes contre 2 463), `lib/types.ts` et `lib/types/index.ts`, `lib/payments/mobile-money.ts`, `_ensureUserAndProfile`, `handle_new_user()` (accordé à `anon`), `public/manifest.json` en plus de `app/manifest.ts`, `next-intl` installé sans être utilisé, `/api/payments/withdraw`. | fichiers cités | Supprimer après vérification par recherche. |
+| F-25 | P3 | **Première étape faite (lot 10, §28) : `Content-Security-Policy-Report-Only` et `/api/csp-report` ; passage en mode appliqué ouvert.** Constat d'origine : pas de `Content-Security-Policy` (les autres en-têtes sont présents). | `next.config.ts` | CSP d'abord en `Report-Only`, puis appliquée. |
+| F-26 | P3 | **Résolu au lot 7c-bis (§21) : trigger et fonction supprimés avec les colonnes de salaire ; vérifié en base au lot 10.** Constat d'origine : `enforce_salary_lock` s'appuie sur `auth.jwt()->>'role'`, qui ne vaut jamais `admin_founder` : le verrou bloque aussi les admins (échec sans faille). | `20260604120000_srs_v12_plans_alignment.sql:213` | Utiliser `is_admin_user()` et le grade. |
+| F-27 | P3 | **Corrigé (lots 5, 9b et 10, §28) ; `handle_new_user()` conservée jusqu'au lot 0.** Constat d'origine : code mort ou dupliqué : `database.types.ts` racine (1 893 lignes contre 2 463), `lib/types.ts` et `lib/types/index.ts`, `lib/payments/mobile-money.ts`, `_ensureUserAndProfile`, `handle_new_user()` (accordé à `anon`), `public/manifest.json` en plus de `app/manifest.ts`, `next-intl` installé sans être utilisé, `/api/payments/withdraw`. | fichiers cités | Supprimer après vérification par recherche. |
 | F-28 | P3 | **Partiellement corrigé (lot 9, §24) : parcours candidature, Mes jobs, gains, tableau de bord entreprise, accueil ; pluriels et accents des écrans vérifiés.** Constat d'origine : i18n incohérente : chaînes françaises en dur et sans accents dans les pages mission, contrat et offres entreprise, alors qu'un dictionnaire existe. | `app/missions/[id]/page.tsx`, `app/contracts/[id]/page.tsx`, `app/company/jobs/*` | Migrer ces pages vers le dictionnaire au fil des lots fonctionnels. |
-| F-29 | P3 | `.qwen/` (scripts d'intrusion, extraits du catalogue et des politiques SQL) n'est ni versionné ni ignoré. Un `git add .` le commiterait. Le rapport non versionné contient un email et un téléphone réels. | `git status` | **Traité le 2026-10-31** : `.qwen/` supprimé (aucune référence dans le projet). Reste à décider du sort du rapport non versionné. |
+| F-29 | P3 | **Clos (lot 10, §28) : rapport ignoré par `.gitignore` et `.git/info/exclude`, jamais versionné.** Constat d'origine : `.qwen/` (scripts d'intrusion, extraits du catalogue et des politiques SQL) n'est ni versionné ni ignoré. Un `git add .` le commiterait. Le rapport non versionné contient un email et un téléphone réels. | `git status` | **Traité le 2026-10-31** : `.qwen/` supprimé (aucune référence dans le projet). Reste à décider du sort du rapport non versionné. |
 | F-30 | P3 | **Partie mission corrigée localement (lot 7c, §20) : horaires prévus, début H−15, rappels et affichage en `Africa/Douala` ; autres écrans ouverts.** Constat d'origine : fuseau horaire : aucune référence à `Africa/Douala`. Dates formatées avec `new Date()` ou `toLocaleDateString` côté serveur (UTC sur Vercel) et côté client. | recherche `timeZone` : aucun résultat | Formater avec `timeZone: "Africa/Douala"` et stocker en `timestamptz`. À traiter avec le lot pointage. |
-| F-31 | P3 | Le layout admin sert de seule garde aux pages `app/admin/**`. Le risque est faible tant que ces pages utilisent la session (RLS) et non `createAdminClient`, ce qui est le cas aujourd'hui. | `app/admin/layout.tsx` | Garder la règle « pas de service_role dans les pages admin » ; recontrôler le rôle dans toute page qui en aurait besoin. |
+| F-31 | P3 | **Corrigé (lot 10, §28) : deux pages lisaient en clé service sans garde propre ; `requireAdminPage()` ajouté.** Constat d'origine : le layout admin sert de seule garde aux pages `app/admin/**`. Le risque est faible tant que ces pages utilisent la session (RLS) et non `createAdminClient`, ce qui est le cas aujourd'hui. | `app/admin/layout.tsx` | Garder la règle « pas de service_role dans les pages admin » ; recontrôler le rôle dans toute page qui en aurait besoin. |
 
 ---
 
@@ -1919,3 +1919,165 @@ Interface : sur le détail, « Votre CNI a expiré. Renouvelez-la pour postuler.
 - L'échéance écran ouvert n'a été vérifiée en navigateur qu'avec une heure du serveur simulée (minuit UTC ne peut pas être attendu) ; la décision réelle reste celle de la base à la candidature.
 - Modération admin (`app/admin/admin-dashboard-client.tsx`) : seul écran qui affiche encore l'ancien indicateur `urgency` (hors périmètre candidat et entreprise ; à aligner avec le lot commercial).
 - Antérieur au lot : `tests/user-facing-claims.test.ts` peut dépasser 5 s sous charge (parcours du dépôt) ; il passe seul.
+
+
+## 28. Suivi — Lot 10 : documentation, consignes, nettoyage, journaux, CSP et fiabilité des preuves (F-22, F-23, F-25, F-26, F-27, F-29, F-31) (2026-11-10)
+
+Branche `chore/lot-10-maintenance-docs`, base `origin/main-dev` (31b6c55, lot 9d intégré : tête de `origin/main-dev` vérifiée avant création). **Réalisé et vérifié localement, non commité, non déployé.** Une migration : `20261110130000_suspended_admin_guard.sql` (admin suspendu, ci-dessous). Stash `lint-staged automatic backup` et pile de développement non modifiés.
+
+### Documentation et consignes (F-22)
+
+- **README** réécrit court : démarrage Windows/PowerShell, cible de chaque base, variables, architecture, tests, liens vers les procédures. Versions renvoyées à `package.json`.
+- **`AGENTS.md`** : source unique des règles communes (réutilisation, textes FR/EN, clients Supabase typés, autorisations en base, Realtime privé, journaux, bases et tests). `.github/copilot-instructions.md` n'est plus qu'un renvoi ; `.github/instructions/*` (backend, base, interface) et `.github/agents/*` (4 agents) ne gardent que les règles de leur domaine. Retirés : Next 14, next-intl, next-pwa, Three.js, lottie, `src/app/[locale]`, `messages/*.json`, `DESIGN_REFERENCE.md`, `COPILOT_INSTRUCTIONS.md`, niveaux Sandbox, délais de paiement, pause automatique, outil `mcp__supabase` des agents. Liens, chemins, scripts `pnpm` et symboles cités vérifiés par script (seuls signalements : `packageManager`, `app/[locale]` cité comme inexistant, `pg_policies`).
+- **`pnpm env:target`** (nouveau, `scripts/show-target.ts`) : base visée par `.env.local` et la session (développement, preuve, autre pile locale, projet distant, valeur d'exemple), présence des clés sans valeur, incohérence entre URL client et serveur.
+
+### Parcours nouvel arrivant (copie isolée)
+
+Vérifié dans une copie de travail hors dépôt (worktree temporaire, `project_id` `easyjob-newcomer`, ports 545xx) pour ne toucher ni la pile de développement ni la pile de preuve, en suivant le README sous PowerShell : `pnpm install`, `Copy-Item .env.example .env.local`, `pnpm env:target` (valeur d'exemple), `pnpm bootstrap:local` (298 s), `pnpm env:target`, `pnpm dev -p 3200`, `Invoke-RestMethod /api/categories`, connexion. Défauts trouvés et corrigés :
+
+| Défaut | Correction |
+|---|---|
+| `bootstrap:local` générait les types vers `src/types/database.ts` (ancienne arborescence) : échec de la CLI en fin de script | Étape retirée (les types de référence sont `lib/database.types.ts`, régénérés depuis la pile de preuve et contrôlés par la CI) |
+| `bootstrap:local` réécrivait `.env.local` sans prévenir | Copie préalable dans `.env.local.remote.bak` si `.env.local` visait un projet distant ; cible affichée après écriture |
+| Le seed journalisait ses erreurs puis annonçait « Seed data created successfully » (code 0), y compris après `ECONNRESET` au premier passage | Étapes en échec listées, code de sortie 1 |
+| Seed non rejouable : comparaison `u.phone === phone` alors que Supabase Auth renvoie le numéro sans `+` (constat du lot 8) | Comparaison normalisée ; une relance sur base remplie échoue désormais explicitement (8 étapes listées) au lieu de mentir ; le README indique de réinitialiser d'abord |
+| Comptes du seed inutilisables : téléphone seul, alors que `/auth/login` est par email et mot de passe ; texte « connectez-vous avec ces numéros, code 123456 » faux | Email `seed-000N@easyjob.local` et mot de passe local (pile locale seulement, contrôle `isLocalUrl` existant), `phone_verified` posé ; connexion vérifiée : candidat `/jobs` 200, entreprise `/company/dashboard` 200, `/api/user` avec le bon rôle |
+| `pnpm bootstrap:local -- --skip-seed` (README) : pnpm 11 transmet `--` au script | README : `pnpm bootstrap:local --skip-seed` |
+| `Start-Process pnpm` (procédure des preuves) : « n'est pas une application Win32 valide » (PowerShell choisit le script sans extension) | `Start-Process pnpm.cmd … -PassThru` et arrêt par `taskkill /t` |
+
+Pile isolée arrêtée et supprimée (`supabase stop --no-backup`) ; worktree temporaire conservé hors dépôt (`%TEMP%\easyjob-newcomer`, à supprimer par `git worktree remove`).
+
+### Nettoyage (F-26, F-27, F-29)
+
+Chaque élément revérifié sur le HEAD (imports, scripts, routes, configuration, migrations, CI, documentation) :
+
+| Élément | Constat | Décision |
+|---|---|---|
+| `database.types.ts` racine | Absent | Déjà retiré au lot 5 |
+| `enforce_salary_lock` (F-26), ancien salaire journalier | Trigger et `prevent_salary_modification()` supprimés par `20261107120000_mission_pay_per_candidate.sql` ; aucun trigger `*salary*` sur la pile | Déjà résolu au lot 7c-bis |
+| `lib/payments/mobile-money.ts` | Importé nulle part ; implémente des **retraits** (hors MVP) ; journalisait la requête avec le numéro (`[v0] … Sandbox Payment`) | **Supprimé** ; variables `MOBILE_MONEY_SANDBOX`, `MTN_MOMO_*`, `ORANGE_MONEY_*` retirées de `.env.example`, du README, de la CI et de la procédure (plus aucun lecteur). Le futur lot paiement choisira son fournisseur ; l'ancien code reste dans l'historique Git |
+| `/api/payments/withdraw` | Répondait toujours 410 (et renvoyait le corps reçu) ; aucun appelant trouvé dans le dépôt (écrans, scripts, documentation, configuration Vercel). Un client externe authentifié n'est pas exclu par la session exigée, mais ne pouvait obtenir que ce 410 | **Supprimée** (404 au lieu de 410) |
+| `public/manifest.json` | Identique à `app/manifest.ts` ; plus lié par la page depuis juin 2026 (`898cb0e`) ; les navigateurs lisent le manifeste lié par la page | **Supprimé** |
+| `next-intl` | Installé, jamais importé, aucun plugin dans `next.config.ts` | **Retiré** (`pnpm remove`, arbre de dépendances seul) |
+| `ts-node` | Aucun script ni configuration ne l'utilise (scripts en `tsx`) | **Retiré** |
+| `lib/types.ts` / `lib/types/index.ts` | Pas un doublon : `lib/types.ts` réexporte les plans | Conservés ; exports morts retirés (`OTPCode`, `ApiResponse`, `SignUpFormData`, `OTPVerifyFormData`, `NavItem`, `User`, `CandidateProfile`, `CompanyProfile`, `PAYMENT_DELAY_RULES`, `CANCELLATION_PENALTY_RULES`) |
+| `computePaymentDelayMode` | Plus appelé (§24) | **Supprimé** |
+| `_ensureUserAndProfile`, `updateReliabilityScore` (F-36) | Absents | Déjà retirés (lots 1 et 9b) |
+| `handle_new_user()` | Neutralisée au lot 1 (rôle en liste blanche, `EXECUTE` réservé à `service_role`), rattachée à aucun trigger dans les migrations | **Conservée** : un trigger distant sur `auth.users` en dépendrait et un `drop function` ferait échouer `db push`. Lot 0 : vérifier `pg_trigger` sur `auth.users`, puis supprimer |
+| Scripts `pwa:*` (`pwa-asset-generator`) | Outil manuel qui produit `public/icons` | Conservés (vulnérabilités de développement déjà notées au lot 3) |
+| Rapport `security-report-2026-09-12.md` (F-29) | Ignoré par `.git/info/exclude` (local) ; jamais dans l'index ni dans l'historique (`git log --all`, stash compris) ; contenu non lu | Motif `/security-report-*.md` ajouté à `.gitignore` |
+
+Migrations historiques inchangées.
+
+### Journaux (F-23)
+
+- Toutes les routes `app/api/**` et `lib/api/mission-route.ts` passent par `internalErrorResponse` / `logServerError` : admin (candidats, fiche candidat, identité, CNI, entreprises, MoMo, URL signées, justificatifs, demandes de mise à jour, modération), profil (disponibilités, documents, identité, Mobile Money, justificatifs), sélection, contrats, missions, tâches, onboarding entreprise, matching (préfixes `[v0]`), notifications. Codes métier et refus inchangés ; les 500 deviennent `{ error: "Internal server error", code, requestId }` (aucun écran ne lisait le texte `error`, vérifié ; l'onboarding entreprise garde ses codes `upload_failed`/`save_failed`).
+- Erreurs silencieuses rendues visibles : la fiche candidat admin transformait une erreur de lecture en 404 ou en fiche partielle (désormais 500 journalisé) ; les 500 des routes profil n'étaient journalisés nulle part.
+- Catégorie `storage` ajoutée ; `reason: "result_mismatch"` pour un résultat de RPC incohérent sans objet d'erreur.
+- Test `tests/server-log.test.ts` : aucun `console.*` dans `app/api` ni `lib/api`.
+
+### CSP (F-25, première étape)
+
+`Content-Security-Policy-Report-Only` (`lib/security/csp.ts`, `next.config.ts`) et `POST /api/csp-report` (corps borné à 16 Kio par `readBodyWithLimit`, 10 rapports au plus, 204, exclu du Proxy, journal `security.csp_report` : directive, origine bloquée, chemin masqué ; jamais l'URL complète). Origines inventoriées : `'self'`, Supabase (HTTP et `ws`/`wss` Realtime, images et PDF signés), `nominatim.openstreetmap.org`, `blob:`, `data:`. Procédure de passage en mode appliqué : `docs/deployment/production.md` §7.
+
+### Pages admin (F-31)
+
+Deux pages lisaient en clé service en se fiant au seul layout : `/admin/dashboard` (noms d'entreprises) et `/admin/companies/[id]`. Le layout ne se réexécute pas à chaque navigation côté client : `requireAdminPage()` (`lib/auth/admin-page.ts`) contrôle désormais le rôle au point d'accès aux données (layout et ces deux pages). Les autres pages admin lisent en session (RLS) ou par les routes `/api/admin/*`, qui revérifient le rôle. Usages justifiés de la clé service (inventaire) : lectures admin agrégées de `users`/`company_profiles`/`missions` sans politique admin (`/api/admin/candidates`, `companies`, fiche candidat, réputation, noms d'entreprises du tableau de bord), URL signées du bucket privé, purge des fichiers CNI et justificatifs, signature de contrat avec IP observée (`sign_contract_observed`), quota EasyBot, photo de candidat pour l'entreprise, finalisation d'inscription et callback OAuth. Les mutations admin passent par des RPC en session (audit de l'administrateur réel).
+
+### Fiabilité des preuves
+
+**`job-moderation` bloquée pendant des heures (lot 9).** Cause reproduite : une coupure **pendant** une requête (`select pg_sleep(4)`, `docker pause` de la base de la pile de preuve 2 s après) laisse `supabase db query` en attente sans limite (toujours bloquée après 120 s). Une coupure avant la connexion échoue seule en 13 s. Les appels passaient par `cmd.exe` → `pnpm exec` → lanceur Node → binaire, sans `timeout`. Correction : `scripts/lib/db-query.ts` (binaire natif lancé sans shell, un seul processus, délai `PROOF_SQL_TIMEOUT_MS` de 60 s, erreur qui nomme la preuve et l'étape), utilisé par les 8 preuves qui interrogent Postgres ; runner : délai par preuve `PROOF_TIMEOUT_SECONDS` (600 s), arrêt de tout l'arbre de processus, synthèse avec code de sortie et dernière étape affichée. Aucune relance automatique, assertions inchangées.
+
+**Restes d'une preuve interrompue (trouvé en provoquant la panne).** Une preuve interrompue ne pouvait pas exécuter son `finally` : triggers temporaires laissés (`proof_l6_slow_*`, relance en échec « already exists »), et surtout `trg_protect_contract_writes` (`contract-signing`) ou `trg_reputation_candidate_documents` (`reputation`) pouvaient rester **désactivés** sur la pile de preuve, ce qui aurait pu masquer une régression aux exécutions suivantes. Les quatre preuves concernées retirent leurs restes et réactivent ces triggers au démarrage.
+
+**`user-facing-claims` au-delà de 5 s sous charge.** Le test relisait de façon synchrone environ 280 fichiers source quatre fois (lecture à froid : 233 ms par passage ; expressions régulières : 11 ms). Chaque fichier n'est plus lu qu'une fois : seul, 544 ms → 242 ms pour les trois tests concernés. Sous une charge CPU artificielle (32 workers), le test reste vers 1,5 s avant comme après : la famine CPU domine et le dépassement de 5 s n'a pas été reproduit. Délai par défaut de Vitest inchangé.
+
+### Admin suspendu (vérification de suivi, 2026-11-10)
+
+Scénario réel sur la pile `easyjob-proof`, intégré à la preuve `admin-centralization` (section I) et à `realtime` (B5b, B5c), donc exécuté en CI. X est un `admin_ops` connecté **avant** sa suspension ; son jeton n'est jamais renouvelé.
+
+**Suspension.** Aucune session ne peut suspendre un admin : `admin_set_user_active` refuse (`cannot modify admin account`), la route aussi (403 `admin_modification`), et `users.is_active` est fermé en écriture de session (lot 1). La suspension d'un admin passe donc par la clé service (support, Studio) : c'est ainsi que la preuve suspend X, après avoir vérifié le refus depuis une seconde session `admin_ops` (I2).
+
+**Constat avant correctif** (même scénario, I3 à I5 en échec) : avec son jeton initial, X suspendu lisait encore CNI et Mobile Money d'un candidat en lecture directe, créait une URL signée du bucket privé, **suspendait un candidat** par appel direct de `admin_set_user_active` (effet en base et ligne `audit_logs`), insérait une notification pour un tiers, obtenait 200 sur `/api/admin/candidates`, la fiche candidat, `/api/admin/companies` et l'URL signée de photo, et voyait les pages `/admin/dashboard` et `/admin/companies/[id]`. Seul le canal Realtime `admin` (`rt_session_is_active_admin`) et les RPC de contestation et de modération relisaient déjà `is_active`.
+
+**Correctif, au niveau qui accorde l'accès.**
+- Base, migration `20261110130000_suspended_admin_guard.sql` : `is_admin_user()` et `is_ops_admin_user()` exigent `is_active is not false` ; les deux politiques qui recopiaient le contrôle de rôle (`audit_logs_select_founder_only`, `cancellation_penalties_admin_select`) aussi. Toutes les politiques (tables et Storage) et RPC qui appellent ces fonctions en héritent. Inventaire des autres contrôles : `admin_open_review_contest`, `admin_resolve_review_contest`, `moderate_job`, `rt_session_is_active_admin` lisaient déjà `is_active` ; `admin_reputation_review_impacts` n'est accordée qu'à `service_role`.
+- Application : les 19 lectures du grade de session des routes `/api/admin/*` et `requireAdminPage()` filtrent `is_active is not false` ; un compte suspendu n'a plus de grade et chaque garde existante le refuse. `tests/admin-guard.test.ts` impose ce filtre à toute nouvelle lecture du grade dans une route admin (contrôle négatif : filtre retiré d'une route → échec).
+- Inchangé : lecture de ses propres données et `my_account_state` (I6) ; canal privé `user:<uid>`, par lequel arrive le signal de suspension (B5b).
+
+| Accès testé (jeton initial de X) | Avant | Après |
+|---|---|---|
+| Lecture directe `candidate_profiles` (CNI, MoMo) d'un candidat | 1 ligne | 0 ligne |
+| URL signée Storage `candidate-documents` | accordée | refusée |
+| RPC `admin_set_user_active` sur un candidat | candidat suspendu, 1 audit | `not authorized: admin only`, candidat actif, 0 audit |
+| Insertion `notifications` pour un tiers | 1 ligne | 42501, 0 ligne |
+| `GET /api/admin/candidates`, fiche candidat, `/api/admin/companies`, URL signée de photo | 200 (clé service) | 403 |
+| Pages `/admin/dashboard`, `/admin/companies/[id]` | rendues | `NEXT_REDIRECT` vers `/`, sans données |
+| Sa ligne `users`, `my_account_state` | lisibles | lisibles (`is_active: false`) |
+| Canal Realtime `user:<uid>` / `admin` | — | signal `account` reçu / nouveau canal `admin` refusé (B5b) |
+| Autre `admin_ops` actif pendant la suspension (I7) | — | lecture et route 200 |
+| Réactivation, même jeton (I8, B5c) | — | lecture, URL signée, RPC, route, pages et canal `admin` rétablis |
+
+Contrôles : migration appliquée par montée de version (`supabase migration up` sur la pile de preuve), types générés identiques ; `admin-centralization` 32/32 ; contrôle négatif (anciennes `is_admin_user` / `is_ops_admin_user` remises) : I3 et I4 en échec, code de sortie 1, migration réappliquée ; suite complète ci-dessous.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| Panne provoquée (procédure documentée : `PROOF_SQL_TIMEOUT_MS=15000`, `docker pause` 20 s après le départ de `job-moderation`) | ✅ échec en 271 s, I9 en échec, synthèse « dernière étape affichée : Error: supabase db query : … failed to connect to postgres », aucun processus `supabase` restant ; un trigger temporaire laissé, retiré par la relance, verte (1/1). Avant le correctif des restes : relance en échec (« trigger proof_l6_slow_job_delete already exists ») |
+| Délai du runner (`PROOF_TIMEOUT_SECONDS=8`, `reputation`) | ✅ arrêt à 9 s, « délai de 8 s dépassé, processus arrêtés ; dernière étape affichée : ✅ R0 … », aucun processus restant, relance verte |
+| `tests/proof-db-query.test.ts` | ✅ processus muet arrêté après le délai, étape nommée, processus vérifié mort ; code de sortie rendu sans reprise |
+| Erreurs provoquées (trigger temporaire sur un compte fictif, message contenant un faux numéro ; application construite, pile de preuve) | ✅ 11/11 : Mobile Money, disponibilités, suspension admin → 500 `{ error: "Internal server error", code, requestId }` ; journaux `profile.payment.save`, `profile.availability.save`, `admin.candidates.set_active` avec `code: "23505"`, `category: "database"`, identifiant de requête ; ni numéro ni message brut dans la réponse ou les journaux ; 400 de validation, `self_modification` (403) et refus d'un candidat (403) inchangés |
+| CSP, navigateur (Chrome headless 375 × 812, application construite, pile de preuve) | ✅ en-tête Report-Only seul ; connexion par le formulaire, WebSocket Realtime `ws://127.0.0.1:54421/realtime/v1/websocket`, photo envoyée puis affichée par URL signée : **aucune violation d'origine** (connect, img, frame, font, style). Violation volontaire (`fetch` tiers) : requête émise (rien n'est bloqué), rapport reçu, journal `{"directive":"connect-src","blocked":"https://tiers.example"}` sans le jeton de l'URL. **Seule violation réelle** : `script-src` `eval`, 45 fois, depuis un chunk qui contient Zod 4 (sonde `allowsEval` : `new Function("")` dans un `try/catch`, sans effet fonctionnel) |
+| `pnpm test:rls`, pile `easyjob-proof`, build de la branche | ✅ 27/27 (passage après les correctifs du lot) ; **après la migration admin suspendu : ✅ 27/27**, dont `admin-centralization` 32/32 et `realtime` 56/56 (B5b, B5c). Un passage intermédiaire a été interrompu par un arrêt de Docker Desktop (pile injoignable : `realtime` arrêtée par le délai de 600 s après B5b, puis `HeadersTimeout` d'Auth) ; Docker redémarré, volumes intacts, suite rejouée en entier |
+| `pnpm typecheck`, `pnpm exec eslint . --max-warnings=0`, `pnpm exec prettier --check .`, `pnpm test` (38 fichiers, 496 tests), `pnpm build` | ✅ |
+
+Un premier passage de la suite (27/27) a visé par erreur un ancien `next start` du lot 9d resté sur le port 3100 (le nouveau serveur avait échoué en `EADDRINUSE`) ; il n'est pas compté. La procédure locale vérifie désormais que le serveur lancé est toujours en vie (`$app.HasExited`) — à faire aussi à la main : un port déjà occupé fait viser un ancien build.
+
+### Statut de chaque constat
+
+| ID | Statut | Prochaine action si ouvert |
+|---|---|---|
+| F-01, F-02, F-03 | Résolus (lot 1) | Déploiement ; lot 0 (comptes élevés) |
+| F-04, F-05, F-06, F-11, F-17 | Résolus (lot 2) | Déploiement ; lot 0 (valeurs falsifiées) |
+| F-07 | Résolu (lots 7b, 7c) | — |
+| F-08, F-24 | Résolus (lot 3) | — |
+| F-09 | Résolu (lot 6) | — |
+| F-10 | Résolu sauf paiement (lots 7a à 7d) | Lot paiement (hors plan) |
+| F-12, F-13, F-15, H-04 | Résolus (lot 8) | Vérifications fournisseur réel (SMS, Google, passerelle IA) |
+| F-14 | Résolu (lot 5) | — |
+| F-16 | Résolu (lot 7a) | — |
+| F-18 | Résolu (lots 2b, 9) | Écrans hors parcours (§24) |
+| F-19 | Partiel (lot 9) | Avantages d'abonnement non livrés : lot Free/Premium |
+| F-20 | CI résolue (lot 4) ; déploiement préparé (lot 4b) | Validation à distance ; sauvegarde avant les premiers utilisateurs |
+| F-21 | Résolu (lots 4, 7) | — |
+| **F-22** | **Corrigé ici** | — |
+| **F-23** | **Corrigé ici côté journaux** | Outil de capture d'erreurs et alertes, si les journaux Vercel ne suffisent pas |
+| **F-25** | **Première étape faite ici** | Observer les rapports en production ; `z.config({ jitless: true })` côté client pour supprimer les rapports `eval` de Zod ; passer en `Content-Security-Policy` ; nonces ensuite |
+| **F-26** | Résolu au lot 7c-bis (vérifié ici) | — |
+| **F-27** | **Corrigé ici** (avec lots 5 et 9b) | `handle_new_user()` : lot 0 puis suppression |
+| F-28 | Partiel (lot 9) | Écrans hors parcours au fil des lots fonctionnels |
+| **F-29** | **Clos ici** | — |
+| F-30 | Partie mission résolue (lot 7c) | Autres écrans de dates |
+| **F-31** | **Corrigé ici**, y compris l'admin suspendu (migration `20261110130000`, routes et pages) | Lot 0 : compter les admins suspendus en production avant la migration |
+| F-32, F-33 | Résolus (lots 1, 4) | — |
+| F-34, F-35 | Résolus (lot 2) | — |
+| F-36 | Résolu (lot 9b) | — |
+| F-37 | Ouvert | `ON DELETE` de `selected_by` / `requested_by` : lot suppression de compte (données personnelles) |
+| F-38, F-39, F-40 | Résolus (lot 2b) | — |
+| F-41 | Résolu (lot 5b) | Validation administrative des entreprises : prochain lot produit |
+| F-42, F-43 | Résolus (lot 8) | — |
+| F-44 | Résolu par refus par défaut (lot 8) | Lot 0 : `phone_autoconfirm: false` en production |
+| H-01, H-02, H-03, H-05, H-06 | Ouvertes | Lot 0 (lecture seule) |
+
+### Constats pendant le lot
+
+- **Bouton Google non monté** : `components/auth/oauth-buttons.tsx` n'est rendu par aucune page ; la connexion Google n'est pas accessible depuis l'interface (le retour `/auth/callback` reste couvert par `oauth-callback`). Non modifié : décision produit (réafficher sur l'inscription ou retirer).
+- **Contournement du layout admin non démontré** : une requête RSC de candidat sur `/admin/dashboard` et `/admin/candidates`, avec un arbre de routeur déclarant le layout déjà rendu, a reçu une redirection (307) dans les deux cas. La garde ajoutée suit la consigne de Next.js (contrôle au point d'accès aux données) ; l'exposition réelle avant correctif n'est pas prouvée.
+- **Admin suspendu** : constaté puis corrigé (section « Admin suspendu » ci-dessus). Aucune session ne peut suspendre un admin : seule la clé service le permet.
+
+### Limites
+
+- Aperçu `blob:` de la photo non observé au navigateur (l'écran qui l'utilise, `/profile/candidate`, redirige un profil incomplet vers l'édition, qui envoie directement) ; l'origine est autorisée.
+- Rapports CSP en production non observés ; preview Vercel : le script `vercel.live` sera signalé.
+- Appareils Android et iOS réels non testés.

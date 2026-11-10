@@ -188,6 +188,7 @@ Une base vide ne signifie pas un projet vide. Avant toute reconstruction, invent
 - **Fixer la conservation et la protection.** Durée de rétention, chiffrement, accès restreint : les exports contiennent des données personnelles et des documents d'identité.
 - **Tester la restauration.** Restaurer au moins une fois vers un projet de test et vérifier les données, les fichiers et les connexions Auth. Une sauvegarde jamais restaurée n'est pas une sauvegarde vérifiée.
 - **Ordonner sauvegarde et `db push`.** Décider si une sauvegarde doit précéder chaque `db push` en production, et l'ajouter alors au workflow.
+- **Content-Security-Policy (lot 10, F-25).** L'en-tête est en `Content-Security-Policy-Report-Only` (`lib/security/csp.ts`, construit au build avec `NEXT_PUBLIC_SUPABASE_URL`) : rien n'est bloqué, les navigateurs signalent les violations à `/api/csp-report`, journalisées en `op: "security.csp_report"` (directive, origine bloquée, chemin masqué ; jamais l'URL complète). Observer ces lignes dans les journaux Vercel sur les parcours réels (connexion, Google, photos et documents, Realtime, EasyBot) et sur une preview (le script `vercel.live` de la barre d'outils des previews y sera signalé : attendu). Quand seules des violations comprises restent, passer la même politique en `Content-Security-Policy` (changer la clé dans `next.config.ts`), puis retirer `'unsafe-inline'` des scripts par des nonces (rendu dynamique, étape distincte).
 
 ## 8. Previews Vercel
 

@@ -1,6 +1,8 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { cniModerateSchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
+import { logServerError, requestIdFrom } from "@/lib/observability/server-log";
 
 /**
  * T8.3 — API admin CNI.
@@ -111,6 +113,8 @@ export async function GET(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -150,7 +154,10 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.cni.list", error, {
+      code: "admin_cni_failed",
+      request,
+    });
   }
 
   // Les chemins du bucket privé ne sont JAMAIS servis au client : on ne
@@ -187,6 +194,8 @@ export async function POST(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   // Mutation réservée à admin_ops / admin_founder (admin_support = RO).
@@ -229,8 +238,10 @@ export async function POST(request: NextRequest) {
         { status: matched[1].status },
       );
     }
-    console.error("[cni-admin] moderate rpc failed:", rpcError.message);
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+    return internalErrorResponse("admin.cni.moderate", rpcError, {
+      code: "admin_cni_failed",
+      request,
+    });
   }
 
   // T8.4c : purge IMMÉDIATE des fichiers CNI du bucket privé —
@@ -248,7 +259,10 @@ export async function POST(request: NextRequest) {
   try {
     await removeCniPhotos(profile_id);
   } catch (err) {
-    console.error("[cni-admin] photo removal failed (verdict kept):", err);
+    // Verdict conservé ; fichiers à purger à la main si l'échec persiste.
+    logServerError("admin.cni.remove_photos", err, {
+      requestId: requestIdFrom(request.headers),
+    });
   }
 
   return NextResponse.json({

@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# rapports d'audit locaux (données personnelles) : jamais versionnés
+/security-report-*.md

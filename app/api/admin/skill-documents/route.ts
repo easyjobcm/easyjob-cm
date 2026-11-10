@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -12,6 +13,8 @@ async function requireAdmin() {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   const adminRoles = ["admin_support", "admin_ops", "admin_founder"];
@@ -55,7 +58,10 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.skill_documents.list", error, {
+      code: "admin_documents_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ documents: data ?? [] });

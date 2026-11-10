@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { missionRefusal } from "@/lib/validations/mission";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -42,13 +43,15 @@ export async function missionRouteContext(
 }
 
 /**
- * Réponse à une erreur de RPC : refus métier connu, sinon 500. Seul le code
- * SQL est journalisé (jamais de paramètre ni de code de fin).
+ * Réponse à une erreur de RPC : refus métier connu, sinon 500 journalisé
+ * (`internalErrorResponse` : code SQL et identifiant de requête, jamais de
+ * paramètre ni de code de fin).
  */
 export function missionRpcError(
   error: { message?: string; code?: string; details?: string },
-  label: string,
+  op: string,
   fallbackCode: string,
+  request?: { headers: Pick<Headers, "get"> } | null,
 ): NextResponse {
   const refusal = missionRefusal(error.message);
   if (refusal) {
@@ -63,9 +66,5 @@ export function missionRpcError(
       { status: refusal.status },
     );
   }
-  console.error(`${label}:`, error.code);
-  return NextResponse.json(
-    { error: "Internal server error", code: fallbackCode },
-    { status: 500 },
-  );
+  return internalErrorResponse(op, error, { code: fallbackCode, request });
 }

@@ -29,12 +29,25 @@ type SeedUser = {
   locale: "fr" | "en";
 };
 
+// Connexion par email et mot de passe (seul mode de /auth/login). Pile
+// locale uniquement (contrôle isLocalUrl ci-dessus) : jamais de vrai compte.
+export const SEED_PASSWORD = "EasyJob-seed-local-1";
+export function seedEmail(phone: string): string {
+  return `seed-${phone.replace(/\D/g, "").slice(-4)}@easyjob.local`;
+}
+
 async function getOrCreateAuthUser(phone: string, role: SeedUser["role"]) {
+  const credentials = {
+    email: seedEmail(phone),
+    password: SEED_PASSWORD,
+    email_confirm: true,
+  };
   const { data: created, error: createError } =
     await supabase.auth.admin.createUser({
       phone,
+      ...credentials,
       user_metadata: { seed: true },
-      app_metadata: { role },
+      app_metadata: { role, phone_verified: true },
       phone_confirm: true,
     });
 
@@ -52,15 +65,42 @@ async function getOrCreateAuthUser(phone: string, role: SeedUser["role"]) {
     throw listError;
   }
 
-  const existing = usersPage.users.find((u) => u.phone === phone);
+  // Supabase Auth renvoie le numéro sans « + » (237…) : comparaison normalisée.
+  const digits = phone.replace(/^\+/, "");
+  const existing = usersPage.users.find(
+    (u) => (u.phone ?? "").replace(/^\+/, "") === digits,
+  );
   if (!existing) {
     throw (
       createError ?? new Error(`Unable to create/find auth user for ${phone}`)
     );
   }
+  // Compte d'un ancien seed (téléphone seul) : identifiants ajoutés.
+  const { error: updateError } = await supabase.auth.admin.updateUserById(
+    existing.id,
+    { ...credentials, app_metadata: { role, phone_verified: true } },
+  );
+  if (updateError) throw updateError;
 
   return existing.id;
 }
+
+// Étapes en échec : le seed se termine en erreur au lieu d'annoncer un succès.
+const failures: string[] = [];
+function fail(step: string, error: { code?: string; message?: string }) {
+  failures.push(step);
+  console.error(
+    `❌ ${step} : ${error.code ?? ""} ${error.message ?? ""}`.trim(),
+  );
+}
+
+export const SEED_ACCOUNTS: [string, string][] = [
+  ["+237690000001", "candidat, Jean Mbarga"],
+  ["+237690000002", "candidat, Marie Ngo Ndongo"],
+  ["+237690000003", "candidat, Paul Atangana"],
+  ["+237690000004", "entreprise, Restaurant Le Baobab"],
+  ["+237690000005", "entreprise, Hôtel Akwa Palace"],
+];
 
 async function seedTestData() {
   console.log("Starting seed process...");
@@ -182,7 +222,7 @@ async function seedTestData() {
       .select();
 
     if (catError) {
-      console.error("Error creating categories:", catError);
+      fail("categories", catError);
     } else {
       console.log(`Created ${insertedCategories?.length || 0} categories`);
     }
@@ -203,6 +243,7 @@ async function seedTestData() {
   const testUsers = authUserIds.map((u) => ({
     id: u.id,
     phone: u.phone,
+    email: seedEmail(u.phone),
     role: u.role,
     is_verified: true,
     phone_verified: true,
@@ -215,7 +256,7 @@ async function seedTestData() {
     .upsert(testUsers, { onConflict: "id" });
 
   if (usersError) {
-    console.error("Error creating users:", usersError);
+    fail("users", usersError);
   } else {
     console.log("Created test users");
   }
@@ -302,7 +343,7 @@ async function seedTestData() {
     .upsert(candidateProfiles, { onConflict: "user_id" });
 
   if (candError) {
-    console.error("Error creating candidate profiles:", candError);
+    fail("candidate profiles", candError);
   } else {
     console.log("Created candidate profiles");
   }
@@ -349,7 +390,7 @@ async function seedTestData() {
     .insert(candidateSkills);
 
   if (skillsError) {
-    console.error("Error creating skills:", skillsError);
+    fail("skills", skillsError);
   } else {
     console.log("Created candidate skills");
   }
@@ -412,7 +453,7 @@ async function seedTestData() {
     .upsert(companyProfiles, { onConflict: "user_id" });
 
   if (compError) {
-    console.error("Error creating company profiles:", compError);
+    fail("company profiles", compError);
   } else {
     console.log("Created company profiles");
   }
@@ -563,7 +604,7 @@ async function seedTestData() {
   const { error: jobsError } = await supabase.from("jobs").insert(jobs);
 
   if (jobsError) {
-    console.error("Error creating jobs:", jobsError);
+    fail("jobs", jobsError);
   } else {
     console.log("Created jobs");
   }
@@ -621,7 +662,7 @@ async function seedTestData() {
     .insert(applications);
 
   if (appError) {
-    console.error("Error creating applications:", appError);
+    fail("applications", appError);
   } else {
     console.log("Created job applications");
   }
@@ -678,7 +719,7 @@ async function seedTestData() {
     .insert(missions);
 
   if (missionsError) {
-    console.error("Error creating missions:", missionsError);
+    fail("missions", missionsError);
   } else {
     console.log("Created missions");
   }
@@ -708,7 +749,7 @@ async function seedTestData() {
     .insert(payments);
 
   if (paymentsError) {
-    console.error("Error creating payments:", paymentsError);
+    fail("payments", paymentsError);
   } else {
     console.log("Created payments");
   }
@@ -754,7 +795,7 @@ async function seedTestData() {
     .insert(reviews);
 
   if (reviewsError) {
-    console.error("Error creating reviews:", reviewsError);
+    fail("reviews", reviewsError);
   } else {
     console.log("Created reviews");
   }
@@ -797,20 +838,24 @@ async function seedTestData() {
     .insert(notifications);
 
   if (notifError) {
-    console.error("Error creating notifications:", notifError);
+    fail("notifications", notifError);
   } else {
     console.log("Created notifications");
   }
 
+  if (failures.length > 0) {
+    throw new Error(
+      `Seed incomplet : ${failures.length} étape(s) en échec (${failures.join(", ")}).`,
+    );
+  }
   console.log("\n✅ Seed data created successfully!");
-  console.log("\nTest accounts (numéros de téléphone):");
-  console.log("- Candidate 1: +237690000001 (Jean Mbarga)");
-  console.log("- Candidate 2: +237690000002 (Marie Ngo Ndongo)");
-  console.log("- Candidate 3: +237690000003 (Paul Atangana)");
-  console.log("- Company 1: +237690000004 (Restaurant Le Baobab)");
-  console.log("- Company 2: +237690000005 (Hôtel Akwa Palace)");
-  console.log("\nVous pouvez vous connecter avec ces numéros.");
-  console.log("Le code OTP de test est: 123456");
+  console.log(`\nComptes de test (mot de passe : ${SEED_PASSWORD}) :`);
+  for (const [phone, label] of SEED_ACCOUNTS) {
+    console.log(`- ${seedEmail(phone)} : ${label}`);
+  }
 }
 
-seedTestData().catch(console.error);
+seedTestData().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

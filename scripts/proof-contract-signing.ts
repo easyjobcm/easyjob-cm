@@ -46,13 +46,10 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import type { Database, Json } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -125,25 +122,9 @@ function report(name: string, ok: boolean, detail?: unknown) {
 
 // ─── SQL local (reprise simulée, pile dédiée) ────────────────────
 function execSql(sql: string) {
-  const tmp = path.join(
-    os.tmpdir(),
-    `proof-contract-signing-${Date.now()}.sql`,
-  );
-  fs.writeFileSync(tmp, sql, "utf-8");
-  const command = "pnpm exec supabase db query --output-format json";
-  const isWin = process.platform === "win32";
-  const args = isWin
-    ? ["/d", "/s", "/c", `${command} --db-url ${DB_URL} -f ${tmp}`]
-    : ["-c", `${command} --db-url '${DB_URL}' -f '${tmp}'`];
-  const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
-    encoding: "utf-8",
-    cwd: process.cwd(),
-  });
-  fs.rmSync(tmp, { force: true });
+  const r = runSupabaseQuery(DB_URL, sql, { proof: "contract-signing" });
   if (r.status !== 0) {
-    throw new Error(
-      `supabase db query : ${(r.stdout || r.stderr || "").slice(0, 300)}`,
-    );
+    throw new Error(`supabase db query : ${r.out.slice(0, 300)}`);
   }
   return r.stdout;
 }
@@ -359,6 +340,12 @@ const isHex64 = (v: unknown) =>
 // ─── Main ────────────────────────────────────────────────────────
 async function main() {
   await cleanStaleProofs();
+  // Exécution précédente interrompue (base coupée, délai dépassé) : son
+  // `finally` n'a pas pu s'exécuter. Restes retirés et protections
+  // réactivées AVANT toute assertion (lot 10).
+  execSql(
+    "alter table public.contracts enable trigger trg_protect_contract_writes",
+  );
 
   const suffix = Date.now();
   const mail = (k: string) => `l7b-${k}+${suffix}@proof.easyjob.cm`;

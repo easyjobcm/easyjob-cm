@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const BUCKET = "candidate-documents";
 
@@ -21,6 +22,8 @@ export async function GET(
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   const adminRoles = ["admin_support", "admin_ops", "admin_founder"];
@@ -43,10 +46,10 @@ export async function GET(
     .createSignedUrl(document.storage_path, 60);
 
   if (error || !data) {
-    return NextResponse.json(
-      { error: "Could not generate URL" },
-      { status: 500 },
-    );
+    return internalErrorResponse("admin.skill_documents.signed_url", error, {
+      code: "signed_url_failed",
+      request: _request,
+    });
   }
 
   return NextResponse.json(

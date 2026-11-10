@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { jobRefusal } from "@/lib/validations/job";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Sélection d'un candidat par l'entreprise (RPC `select_candidate`).
@@ -47,11 +48,10 @@ export async function POST(
           { status: refusal.status },
         );
       }
-      console.error("Selection error:", error);
-      return NextResponse.json(
-        { error: "Internal server error", code: "selection_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("applications.select", error, {
+        code: "selection_failed",
+        request: _request,
+      });
     }
 
     const selection = data[0];
@@ -61,19 +61,18 @@ export async function POST(
       !selection.mission_id ||
       !selection.contract_id
     ) {
-      console.error("Selection mismatch:", selection);
-      return NextResponse.json(
-        { error: "Internal server error", code: "selection_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("applications.select", null, {
+        code: "selection_failed",
+        request: _request,
+        reason: "result_mismatch",
+      });
     }
 
     return NextResponse.json({ selection });
   } catch (error) {
-    console.error("Selection error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", code: "selection_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("applications.select", error, {
+      code: "selection_failed",
+      request: _request,
+    });
   }
 }

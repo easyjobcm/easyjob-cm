@@ -1,6 +1,6 @@
 // Constantes et types liés aux plans entreprise (SRS v1.2).
-// Source unique de vérité pour les règles tarifaires, pénalités d'annulation
-// et délais de paiement.
+// Les pénalités d'annulation et les délais de versement du SRS ne sont pas
+// implémentés (lots « Engagements et annulations » et paiement).
 
 export type CompanyPlan = "free" | "starter" | "pro" | "business";
 
@@ -33,17 +33,4 @@ export const COMPANY_PLAN_FEES = {
     lateCancellationHours: 12,
     trialDays: 7,
   },
-} as const;
-
-export const CANCELLATION_PENALTY_RULES = {
-  free: { candidatePremiumPct: 25, easyjobPct: 25, companyRefundPct: 50 },
-  starter: { candidatePremiumPct: 25, easyjobPct: 25, companyRefundPct: 50 },
-  pro: { candidatePremiumPct: 25, easyjobPct: 0, companyRefundPct: 75 },
-  business: { candidatePremiumPct: 0, easyjobPct: 0, companyRefundPct: 100 },
-} as const;
-
-export const PAYMENT_DELAY_RULES = {
-  premiumAndHighRating: { pct1: 100, delay1: "48h", pct2: 0, delay2: null },
-  premiumOrHighRating: { pct1: 50, delay1: "48h", pct2: 50, delay2: "7d" },
-  standard: { pct1: 100, delay1: "7d", pct2: 0, delay2: null },
 } as const;

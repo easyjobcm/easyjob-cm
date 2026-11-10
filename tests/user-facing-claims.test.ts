@@ -14,7 +14,18 @@ import { describe, expect, it } from "vitest";
  */
 
 const ROOT = path.resolve(__dirname, "..");
-const read = (p: string) => fs.readFileSync(path.join(ROOT, p), "utf8");
+// Chaque fichier n'est lu qu'une fois : le parcours complet du dépôt
+// (environ 280 fichiers) était relu quatre fois de façon synchrone, et le
+// test dépassait parfois 5 s sous charge (lot 10).
+const cache = new Map<string, string>();
+const read = (p: string): string => {
+  let text = cache.get(p);
+  if (text === undefined) {
+    text = fs.readFileSync(path.join(ROOT, p), "utf8");
+    cache.set(p, text);
+  }
+  return text;
+};
 
 const FORBIDDEN: RegExp[] = [
   /payé en 48|100 ?% en 48|paiement sous 48|paid in 48|100 ?% within 48/i,
@@ -58,11 +69,8 @@ describe("promesses retirées (F-19)", () => {
       .flatMap((d) => walk(d))
       .filter((f) => /\.(ts|tsx)$/.test(f))
       .map((f) => f.replace(/\\/g, "/"))
-      // Types générés ; mode bac à sable technique du fournisseur Mobile Money.
-      .filter(
-        (f) =>
-          f !== "lib/database.types.ts" && f !== "lib/payments/mobile-money.ts",
-      );
+      // Types générés.
+      .filter((f) => f !== "lib/database.types.ts");
     const levels =
       /sandbox_level|sandboxLevel|SANDBOX_LEVELS|is_sandbox|sandbox_config|sandboxBadge/;
     expect(files.filter((f) => levels.test(read(f)))).toEqual([]);

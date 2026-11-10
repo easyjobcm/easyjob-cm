@@ -7,6 +7,7 @@ import {
   lockGroupForField,
 } from "@/lib/utils/profile-lock";
 import { pendingRequestedGroups } from "@/lib/utils/profile-lock-server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const BUCKET = "candidate-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -165,7 +166,10 @@ export async function POST(request: NextRequest) {
     .upload(path, buffer, { contentType: mime, upsert: false });
 
   if (uploadError) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return internalErrorResponse("profile.documents.upload", uploadError, {
+      code: "upload_failed",
+      request,
+    });
   }
 
   const isCniField = field !== "profile_photo_url";
@@ -193,7 +197,10 @@ export async function POST(request: NextRequest) {
         { status: 403 },
       );
     }
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.documents.save", updateError, {
+      code: "save_failed",
+      request,
+    });
   }
 
   if (previousPath && previousPath !== path) {
@@ -229,10 +236,10 @@ export async function GET(request: NextRequest) {
     .createSignedUrl(path, 60);
 
   if (error || !data) {
-    return NextResponse.json(
-      { error: "Could not generate URL" },
-      { status: 500 },
-    );
+    return internalErrorResponse("profile.documents.signed_url", error, {
+      code: "signed_url_failed",
+      request,
+    });
   }
 
   return NextResponse.json(

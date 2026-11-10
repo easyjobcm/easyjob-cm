@@ -1,202 +1,128 @@
 # EasyJob CM
 
-Plateforme de gig economy pour le Cameroun.
+Plateforme de missions temporaires au Cameroun (candidats, entreprises,
+administration). Next.js (App Router) et Supabase ; versions dans
+`package.json`.
 
-## Stack
+Consignes de code, emplacements et règles communes (développeurs et agents) :
+[AGENTS.md](AGENTS.md).
 
-- Next.js 16 (App Router)
-- TypeScript strict
-- Supabase
-- Tailwind CSS
+## Démarrage rapide (Windows, PowerShell)
 
-## Objectif du repo
-
-Ce projet est organise pour que:
-
-- le developpement quotidien se fasse sur une base Supabase locale;
-- la production utilise le projet Supabase cloud;
-- un nouveau membre puisse demarrer avec un minimum de commandes;
-- la CI valide le code, les migrations, les autorisations et le build a chaque pull request.
-
-## Pre-requis
-
-- Node.js 22.x (`engines.node`)
-- pnpm 11.1.3 (`packageManager`, version qui produit `pnpm-lock.yaml`)
-- Docker Desktop (pour Supabase local)
-- Git
-
-## 1. Installation locale, rapide
+Prérequis : Node.js et pnpm aux versions de `package.json` (`engines.node`,
+`packageManager`), Docker Desktop démarré, Git.
 
 ```powershell
-pnpm install
-Copy-Item .env.example .env.local
+pnpm install                       # installe aussi les hooks Git (Husky)
+Copy-Item .env.example .env.local  # si .env.local n'existe pas encore
+pnpm bootstrap:local               # pile Supabase locale + données fictives
+pnpm env:target                    # doit afficher « pile de développement locale »
+pnpm dev                           # http://localhost:3000
 ```
 
-Puis configurez `.env.local` selon votre cible:
+`pnpm bootstrap:local` :
 
-- dev local: `http://127.0.0.1:54321`
-- production: URL et cles du projet Supabase cloud
+- démarre la pile Supabase de développement (`easyjob-cm`, API
+  `127.0.0.1:54321`, Studio `:54323`, Mailpit `:54324`) ;
+- **réécrit** dans `.env.local` l'URL et les clés Supabase vers cette pile. Si
+  `.env.local` visait un projet distant, il est d'abord copié dans
+  `.env.local.remote.bak` ;
+- **réinitialise** la base de développement (migrations rejouées, données
+  effacées), puis charge les données fictives (`pnpm seed`).
+  `pnpm bootstrap:local --skip-seed` saute le seed.
 
-## 2. Demarrage local en une commande
+Connexion : les comptes du seed et leur mot de passe sont affichés à la fin
+du seed (`seed-0001@easyjob.local` candidat, `seed-0004@easyjob.local`
+entreprise…). Le seed suppose une base réinitialisée : sur une base déjà
+remplie il échoue et liste les étapes en cause (`pnpm supabase:reset` puis
+`pnpm seed`). Pour une nouvelle inscription, les emails arrivent dans
+Mailpit ; en développement, les numéros `+237600000000` et `+237699999999`
+acceptent le code `123456`.
 
-La voie la plus simple pour un nouveau membre:
+Vérification rapide :
 
 ```powershell
-pnpm bootstrap:local
+Invoke-RestMethod http://localhost:3000/api/categories | ConvertTo-Json -Depth 3
 ```
 
-Cette commande:
+## Quelle base ?
 
-- demarre Supabase local;
-- reinitialise la base locale;
-- injecte les donnees fictives;
-- affiche l'etat de la stack.
+| Cible | Adresse | Usage |
+|---|---|---|
+| Pile de développement `easyjob-cm` | `http://127.0.0.1:54321` | `pnpm dev`, seed, essais manuels |
+| Pile de preuve `easyjob-proof` | `http://127.0.0.1:54421`, hors du dépôt | `pnpm test:rls` seulement ; ses données sont effacées |
+| Projet distant | `https://<ref>.supabase.co` | Production (Vercel) ; jamais de seed ni de preuve |
 
-Option utile quand vous voulez aller plus vite sans donnees de test:
+`pnpm env:target` lit `.env.local` et la session, et indique la base visée
+sans afficher de clé. Les variables définies dans la session PowerShell
+(`$env:NEXT_PUBLIC_SUPABASE_URL`…) priment sur `.env.local` : c'est ainsi
+que la procédure de preuve relie l'application à sa pile.
 
-```powershell
-pnpm bootstrap:local -- --skip-seed
-```
+Variables (`.env.example`) :
 
-## 3. Commandes locales utiles
-
-Demarrer Supabase local:
-
-```powershell
-pnpm supabase:start
-```
-
-Repartir d'une base propre avec migrations locales:
-
-```powershell
-pnpm supabase:reset
-```
-
-Charger les donnees fictives:
-
-```powershell
-pnpm seed
-```
-
-Arreter la stack locale:
-
-```powershell
-pnpm supabase:stop
-```
-
-Verifier la connexion:
-
-```powershell
-Invoke-RestMethod -Uri http://localhost:3000/api/categories -Method GET | ConvertTo-Json -Depth 6
-```
-
-## 4. Supabase local: ce que vous voyez
-
-- Studio: `http://127.0.0.1:54323`
-- Mailpit: `http://127.0.0.1:54324`
-- MCP: `http://127.0.0.1:54321/mcp`
-
-## 5. Mode production
-
-En production, l'app Next.js pointe vers le projet Supabase cloud via:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL`
-
-Pour les operations serveur et seeds admin:
-
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-Configurer aussi les variables Mobile Money si activees:
-
-- `MOBILE_MONEY_SANDBOX`
-- `MTN_MOMO_API_KEY`
-- `MTN_MOMO_API_SECRET`
-- `MTN_MOMO_BASE_URL`
-- `MTN_MOMO_SUBSCRIPTION_KEY`
-- `ORANGE_MONEY_API_KEY`
-- `ORANGE_MONEY_MERCHANT_KEY`
-- `ORANGE_MONEY_BASE_URL`
-
-La mise en production (release, migrations puis Vercel), ses secrets et la
-reprise apres echec sont decrits dans
-[docs/deployment/production.md](docs/deployment/production.md). La version est
-incrementee dans la PR vers `main` :
-[preparer une version](docs/deployment/production.md#préparer-une-version).
-
-## 6. Onboarding d'un nouveau membre
-
-1. Cloner le repo.
-2. Lancer `pnpm install`.
-3. Copier `.env.example` vers `.env.local`.
-4. Demarrer Docker Desktop.
-5. Lancer `pnpm bootstrap:local`.
-6. Ouvrir l'app avec `pnpm dev`.
-
-## 7. CI GitHub Actions
-
-Le workflow `.github/workflows/ci.yml` s'execute sur chaque pull request et sur
-les pushs vers `main-dev` et `main`. Il n'utilise aucun secret. Sur une PR, un
-nouveau commit annule le run precedent ; un run de push n'est jamais annule, car
-le deploiement exige la reussite de la CI sur le commit exact du tag. Protections
-de branches recommandees :
-[docs/deployment/production.md](docs/deployment/production.md#9-release-et-protections-de-branches).
-
-| Job | Controles |
+| Variable | Rôle |
 |---|---|
-| `lint-and-types` | `pnpm install --frozen-lockfile`, `tsc --noEmit`, `eslint . --max-warnings=0`, `prettier --check .`, `pnpm test` |
-| `test-migrations` | Pile Supabase locale jetable (`scripts/init-proof-stack.ts`) : migrations, types generes compares a `lib/database.types.ts`, build de l'app reliee a cette pile, puis `pnpm test:rls` |
-| `build` | Build avec une configuration factice. Ne s'execute que si les deux jobs precedents reussissent. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (ou `…_PUBLISHABLE_KEY`) | Client navigateur et serveur ; écrites par `bootstrap:local` |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Opérations serveur en clé service et seed ; jamais côté client |
+| `NEXT_PUBLIC_APP_URL` | URL publique de l'application |
+| `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` | Connexion Google (facultative) |
+| `SUPABASE_AUTH_SMS_TWILIO_*` | SMS réels (production) |
+| `AI_GATEWAY_API_KEY` | EasyBot ([docs/chatbot.md](docs/chatbot.md)) ; sans clé, `/api/chat` répond 503 |
 
-Tests en local :
+Autres commandes de la pile de développement : `pnpm supabase:start`,
+`pnpm supabase:stop`, `pnpm supabase:reset` (efface les données),
+`pnpm seed`.
 
-```powershell
-pnpm test       # tests unitaires (Vitest)
-pnpm test:rls   # suite d'autorisation, sur la pile dediee (section 9)
+## Architecture
+
+```
+app/            pages (App Router) et routes HTTP app/api/**
+components/     ui/ (base) et composants par domaine
+lib/            supabase/ (clients typés), i18n/ (FR/EN), realtime/,
+                validations/ (Zod), api/ et observability/ (erreurs, journaux)
+supabase/       config.toml et migrations (schéma, RLS, RPC, triggers)
+scripts/        bootstrap, seed, preuves d'autorisation (proof-*.ts)
+tests/          tests unitaires Vitest
+docs/           audit, procédures de test et de déploiement
 ```
 
-## 8. Hooks Git (Husky)
+Le navigateur parle directement à Supabase : les droits sont appliqués en
+base (RLS, privilèges de colonnes, triggers, RPC). Détail et règles :
+[AGENTS.md](AGENTS.md).
 
-Les hooks Git sont geres par Husky et lint-staged. Ils sont installes
-automatiquement via le script `prepare` lors de `pnpm install`.
-
-Activation manuelle si besoin:
-
-```powershell
-pnpm install
-pnpm exec husky
-```
-
-Ce qui est execute:
-
-- **pre-commit**: `lint-staged` (ESLint + Prettier) uniquement sur les fichiers
-  modifies. Rapide, pas de build.
-- **pre-push**: `pnpm exec tsc --noEmit`, `pnpm exec eslint . --max-warnings=0`,
-  `pnpm exec prettier --check .`. Memes controles que la CI.
-
-Lancer manuellement les memes verifications:
+## Tests et contrôles
 
 ```powershell
-pnpm exec lint-staged        # controles pre-commit
-pnpm typecheck               # tsc --noEmit
-pnpm lint                    # eslint
-pnpm exec prettier --check . # format
+pnpm typecheck                 # tsc --noEmit
+pnpm lint                      # ESLint
+pnpm exec prettier --check .   # format
+pnpm test                      # tests unitaires (Vitest)
+pnpm build                     # build de production
+pnpm test:rls                  # suite d'autorisation, sur la pile de preuve
 ```
 
-Ne jamais contourner un echec avec `--no-verify`.
+`pnpm test:rls` écrit dans la base : il refuse toute cible non locale, ne lit
+jamais `.env.local`, et s'exécute sur une pile dédiée créée hors du dépôt,
+avec l'application construite pour cette pile :
+[docs/testing/local-proofs.md](docs/testing/local-proofs.md). Chaque preuve a
+un délai (`PROOF_TIMEOUT_SECONDS`, 600 s) et chaque requête SQL de preuve
+aussi (`PROOF_SQL_TIMEOUT_MS`, 60 s) ; un dépassement arrête les processus
+et indique l'étape.
 
-## 9. Suite d'autorisation (`pnpm test:rls`)
+Hooks Git (Husky) : `pre-commit` lance ESLint et Prettier sur les fichiers
+modifiés, `pre-push` le typage, le lint et le format. Ne pas les contourner
+(`--no-verify`).
 
-`pnpm test:rls` exécute à la suite les preuves `scripts/proof-*.ts` et échoue
-si une seule échoue (`pnpm test:rls admin-cni` pour une preuve isolée). Elles
-écrivent dans la base. Le code refuse toute cible non locale et ne lit jamais
-`.env.local`. Seule la procédure garantit l'usage de la pile dédiée, et non
-celle de développement :
-[docs/testing/local-proofs.md](docs/testing/local-proofs.md).
+CI (`.github/workflows/ci.yml`, chaque PR et push vers `main-dev` et `main`) :
+typage, lint, format et tests unitaires ; migrations rejouées sur une pile
+jetable, types générés comparés à `lib/database.types.ts`, build relié à
+cette pile et `pnpm test:rls` ; build final avec une configuration factice.
 
-## Notes utiles
+## Procédures
 
-- Ne jamais commiter `.env.local`.
-- Pour la commande PWA, le chemin correct du layout est `./app/layout.tsx` (pas `./src/app/layout.tsx`).
+- Preuves d'autorisation et contrôles négatifs : [docs/testing/local-proofs.md](docs/testing/local-proofs.md)
+- Mise en production, secrets, reprise : [docs/deployment/production.md](docs/deployment/production.md)
+- EasyBot : [docs/chatbot.md](docs/chatbot.md)
+- Audit et suivi des lots : [docs/audit/AUDIT.md](docs/audit/AUDIT.md), [docs/audit/PLAN_ACTION.md](docs/audit/PLAN_ACTION.md)
+
+Ne jamais commiter `.env.local`, ni ses copies `.env.local.*`.

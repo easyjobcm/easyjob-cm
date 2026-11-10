@@ -1223,6 +1223,37 @@ async function main() {
       reactivate.status === 200 && (await waitSignal(lE, mE, "account", idE)),
     );
 
+    // Admin suspendu (lot 10, AUDIT.md §28) : le signal privé de suspension
+    // arrive sur user:<uid>, le canal admin n'est plus accordé ; la
+    // réactivation le rend. Session et socket d'origine conservées.
+    const mSus = mark(lD);
+    await serviceClient
+      .from("users")
+      .update({ is_active: false })
+      .eq("id", idD);
+    const stSus = await accountState(D);
+    const susAdmin = await listen(D.rt, "admin");
+    if (susAdmin.ok) await susAdmin.l.close();
+    report(
+      "B5b : admin suspendu → (account) reçu sur son canal privé, relecture is_active = false, nouveau canal admin refusé",
+      (await waitSignal(lD, mSus, "account", idD)) &&
+        stSus?.is_active === false &&
+        !susAdmin.ok,
+      { is_active: stSus?.is_active, join: susAdmin.ok || susAdmin.error },
+    );
+    const mRe = mark(lD);
+    await serviceClient.from("users").update({ is_active: true }).eq("id", idD);
+    const stRe = await accountState(D);
+    const reJoin = await listen(D.rt, "admin");
+    if (reJoin.ok) await reJoin.l.close();
+    report(
+      "B5c : réactivation de l'admin → (account) reçu, is_active = true, canal admin de nouveau accordé",
+      (await waitSignal(lD, mRe, "account", idD)) &&
+        stRe?.is_active === true &&
+        reJoin.ok,
+      { is_active: stRe?.is_active, join: reJoin.ok || reJoin.error },
+    );
+
     // Grade puis rôle admin.
     let mDl = mark(lD);
     await serviceClient

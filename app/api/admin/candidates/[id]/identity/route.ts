@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { candidateIdentityEditSchema } from "@/lib/validations/admin-users";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T8.4b — Édition d'identité d'un candidat (page /admin/candidates/[id]).
@@ -48,6 +49,8 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   // Gate route : admin_founder uniquement. Le RPC le re-vérifie (défense
@@ -85,11 +88,10 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
         { status: matched[1].status },
       );
     }
-    console.error(
-      "[admin-candidates] edit-identity rpc failed:",
-      rpcError.message,
-    );
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    return internalErrorResponse("admin.candidates.edit_identity", rpcError, {
+      code: "admin_identity_failed",
+      request: _request,
+    });
   }
 
   return NextResponse.json({ ok: true });

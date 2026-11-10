@@ -1,16 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdminPage } from "@/lib/auth/admin-page";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import type { UserRole } from "@/components/layout/bottom-nav";
 import { LiveRefresh } from "@/lib/realtime/provider";
 
 /**
- * T8.1 — Layout admin : guard de rôle unique + navigation basse.
+ * T8.1 — Layout admin : garde de rôle et navigation basse.
  *
- * Toutes les pages `app/admin/**` passent ici : vérification de
- * connectivité ET du rôle admin (admin_support / admin_ops /
- * admin_founder) en UN SEUL endroit — les pages admin n'ont plus à
- * re-garder le rôle (elles peuvent faire confiance au layout).
+ * Premier contrôle du rôle admin (admin_support / admin_ops /
+ * admin_founder) au chargement de `app/admin/**`. Il ne
+ * suffit pas seul : une navigation côté client ne réexécute pas le layout.
+ * Toute page qui lit hors RLS (clé service) rappelle `requireAdminPage`
+ * avant sa lecture (audit F-31, `lib/auth/admin-page.ts`).
  *
  * La navigation basse admin (`adminNavItems` de `BottomNav`) est montée
  * ici, sur `/admin` et ses sous-pages (`/admin/momo`, `/admin/users`,
@@ -20,26 +20,7 @@ import { LiveRefresh } from "@/lib/realtime/provider";
 export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login?next=/admin");
-  }
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const adminRoles = ["admin_support", "admin_ops", "admin_founder"];
-  if (!userData?.role || !adminRoles.includes(userData.role)) {
-    redirect("/");
-  }
+  const { role } = await requireAdminPage("/admin");
 
   return (
     <>
@@ -48,7 +29,7 @@ export default async function AdminLayout({
       <div className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {children}
       </div>
-      <BottomNav userRole={userData.role as UserRole} />
+      <BottomNav userRole={role as UserRole} />
     </>
   );
 }

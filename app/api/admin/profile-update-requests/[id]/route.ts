@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { updateRequestActionSchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T8.5 — Actions admin sur une demande de mise à jour de profil
@@ -59,6 +60,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -78,8 +81,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   const { data: row, error: readErr } = await readRequest(id);
   if (readErr) {
-    console.error("[admin-profile-updates] read:", readErr.message);
-    return NextResponse.json({ error: "Read failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.read", readErr, {
+      code: "admin_update_request_failed",
+      request,
+    });
   }
   if (!row) {
     return NextResponse.json(
@@ -109,8 +114,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     .update({ status: nextStatus })
     .eq("id", id);
   if (updateErr) {
-    console.error("[admin-profile-updates] cancel update:", updateErr.message);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.cancel", updateErr, {
+      code: "admin_update_request_failed",
+      request,
+    });
   }
 
   // L'annulation déverrouille immédiatement (les champs restent verrouillés
@@ -163,6 +170,8 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -173,8 +182,10 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
 
   const { data: row, error: readErr } = await readRequest(id);
   if (readErr) {
-    console.error("[admin-profile-updates] read:", readErr.message);
-    return NextResponse.json({ error: "Read failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.read", readErr, {
+      code: "admin_update_request_failed",
+      request: _request,
+    });
   }
   if (!row) {
     return NextResponse.json(
@@ -213,8 +224,10 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     .delete()
     .eq("id", id);
   if (deleteErr) {
-    console.error("[admin-profile-updates] delete:", deleteErr.message);
-    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.delete", deleteErr, {
+      code: "admin_update_request_failed",
+      request: _request,
+    });
   }
 
   return NextResponse.json({ ok: true });

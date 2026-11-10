@@ -22,15 +22,12 @@
  *      ligne users créée avec le rôle de l'inscription, app_metadata intact.
  */
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
 
@@ -60,22 +57,9 @@ function report(name: string, ok: boolean, detail?: unknown) {
 }
 
 function execSql(sql: string) {
-  const tmp = path.join(os.tmpdir(), `proof-oauth-callback-${Date.now()}.sql`);
-  fs.writeFileSync(tmp, sql, "utf-8");
-  const command = "pnpm exec supabase db query --output-format json";
-  const isWin = process.platform === "win32";
-  const args = isWin
-    ? ["/d", "/s", "/c", `${command} --db-url ${DB_URL} -f ${tmp}`]
-    : ["-c", `${command} --db-url '${DB_URL}' -f '${tmp}'`];
-  const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
-    encoding: "utf-8",
-    cwd: process.cwd(),
-  });
-  fs.rmSync(tmp, { force: true });
+  const r = runSupabaseQuery(DB_URL, sql, { proof: "oauth-callback" });
   if (r.status !== 0)
-    throw new Error(
-      `supabase db query : ${(r.stdout || r.stderr || "").slice(0, 300)}`,
-    );
+    throw new Error(`supabase db query : ${r.out.slice(0, 300)}`);
 }
 
 const created: string[] = [];

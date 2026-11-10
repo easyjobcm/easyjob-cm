@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { missionRouteContext, missionRpcError } from "@/lib/api/mission-route";
 import { completionCodeSchema } from "@/lib/validations/mission";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Confirmation de réalisation par le code de fin (RPC
@@ -34,8 +35,9 @@ export async function POST(
     if (error) {
       return missionRpcError(
         error,
-        "Mission completion error",
+        "missions.complete",
         "completion_failed",
+        request,
       );
     }
 
@@ -61,11 +63,11 @@ export async function POST(
       );
     }
     if (row?.result !== "completed" || !row.completed_at) {
-      console.error("Mission completion mismatch");
-      return NextResponse.json(
-        { error: "Internal server error", code: "completion_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("missions.complete", null, {
+        code: "completion_failed",
+        request,
+        reason: "result_mismatch",
+      });
     }
     return NextResponse.json({
       completion: {
@@ -75,10 +77,9 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Mission completion error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "completion_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("missions.complete", error, {
+      code: "completion_failed",
+      request,
+    });
   }
 }

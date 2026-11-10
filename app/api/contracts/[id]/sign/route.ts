@@ -6,6 +6,7 @@ import {
   contractSignSchema,
 } from "@/lib/validations/contract";
 import { observedClientIp } from "@/lib/utils/observed-ip";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Signature d'un contrat par l'une de ses parties
@@ -79,11 +80,10 @@ export async function POST(
           { status: refusal.status },
         );
       }
-      console.error("Contract signing error:", error.code);
-      return NextResponse.json(
-        { error: "Internal server error", code: "signing_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("contracts.sign", error, {
+        code: "signing_failed",
+        request,
+      });
     }
 
     const signature = data[0];
@@ -92,19 +92,18 @@ export async function POST(
         ? signature.candidate_signed_at
         : signature?.company_signed_at;
     if (!signature || !signedAt) {
-      console.error("Contract signing mismatch");
-      return NextResponse.json(
-        { error: "Internal server error", code: "signing_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("contracts.sign", null, {
+        code: "signing_failed",
+        request,
+        reason: "result_mismatch",
+      });
     }
 
     return NextResponse.json({ signature });
   } catch (error) {
-    console.error("Contract signing error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "signing_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("contracts.sign", error, {
+      code: "signing_failed",
+      request,
+    });
   }
 }

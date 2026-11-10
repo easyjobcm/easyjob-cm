@@ -42,25 +42,6 @@ export function normalizeCompanyPlan(value?: string | null): CompanyPlan {
   }
 }
 
-/**
- * Calcule le délai de paiement applicable pour le candidat selon la règle SRS v1.1.
- * - premium + note >= 4★ → 48h (100%)
- * - premium OU note >= 4★ → 50% immédiat + 50% à 7j (split)
- * - sinon → 7 jours
- */
-export type PaymentDelayMode = "fast48h" | "split" | "standard7d";
-
-export function computePaymentDelayMode(
-  role: string,
-  averageRating: number,
-): PaymentDelayMode {
-  const premium = isCandidatePremium(role);
-  const wellRated = averageRating >= 4;
-  if (premium && wellRated) return "fast48h";
-  if (premium || wellRated) return "split";
-  return "standard7d";
-}
-
 export interface PlanLimits {
   jobsLimit: number | "unlimited";
   urgentIncluded: boolean;

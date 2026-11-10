@@ -21,6 +21,7 @@
     "supabase:reset": "npx supabase db reset --local --yes --no-seed",
     "seed": "npx tsx scripts/seed-test-data.ts",
     "bootstrap:local": "npx tsx scripts/bootstrap-local.ts",
+    "env:target": "tsx scripts/show-target.ts",
     "pwa:icons": "pwa-asset-generator ./public/logo-source.png ./public/icons --opaque false --background transparent --icon-only --padding 0 --favicon",
     "pwa:splash": "pwa-asset-generator ./public/logo-source.png ./public/icons --background #1A0A2E --theme-color #7C3AED --padding 20% --maskable --splash-only",
     "pwa:all": "pnpm pwa:icons && pnpm pwa:splash"
@@ -37,7 +38,6 @@
     "framer-motion": "^11.0.0",
     "lucide-react": "^1.16.0",
     "next": "16.4.3",
-    "next-intl": "^4.12.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.76.0",
@@ -58,7 +58,6 @@
     "pwa-asset-generator": "^8.1.4",
     "supabase": "2.117.0",
     "tailwindcss": "^4",
-    "ts-node": "^10.9.2",
     "tsx": "^4.22.3",
     "typescript": "^5",
     "vitest": "^4.1.12"

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { momoModerateSchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T6 — API admin Mobile Money (pour la future UI admin, planifiée en T8 —
@@ -58,6 +59,8 @@ export async function GET(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -93,7 +96,10 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.momo.list", error, {
+      code: "admin_momo_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ profiles: data ?? [] });
@@ -112,6 +118,8 @@ export async function POST(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   // Mutation réservée à admin_ops / admin_founder (admin_support = RO).
@@ -151,8 +159,10 @@ export async function POST(request: NextRequest) {
         { status: matched[1].status },
       );
     }
-    console.error("[momo-admin] moderate rpc failed:", rpcError.message);
-    return NextResponse.json({ error: "Verification failed" }, { status: 500 });
+    return internalErrorResponse("admin.momo.moderate", rpcError, {
+      code: "admin_momo_failed",
+      request,
+    });
   }
 
   return NextResponse.json({

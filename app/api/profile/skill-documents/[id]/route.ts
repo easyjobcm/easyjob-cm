@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const BUCKET = "candidate-documents";
 
@@ -74,10 +75,12 @@ export async function DELETE(
   // Le document est déjà supprimé, mais si le recalcul échoue le statut de
   // la compétence reste incohérent : on propage l'erreur pour que le client
   // le signale et réessaie à la prochaine action.
-  if (recomputeResults.some((r) => r.error)) {
-    return NextResponse.json(
-      { error: "Skill verification status could not be refreshed" },
-      { status: 500 },
+  const recomputeError = recomputeResults.find((r) => r.error)?.error;
+  if (recomputeError) {
+    return internalErrorResponse(
+      "profile.skill_documents.recompute",
+      recomputeError,
+      { code: "recompute_failed", request: _request },
     );
   }
 
