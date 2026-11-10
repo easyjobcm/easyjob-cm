@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildContentSecurityPolicy } from "./lib/security/csp";
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -22,6 +23,15 @@ const nextConfig: NextConfig = {
           {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            // Lot 10 (F-25) : première étape, rapports seulement. Origines
+            // et passage en mode appliqué : lib/security/csp.ts.
+            key: "Content-Security-Policy-Report-Only",
+            value: buildContentSecurityPolicy({
+              supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+              dev: process.env.NODE_ENV === "development",
+            }),
           },
         ],
       },

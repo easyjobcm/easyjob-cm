@@ -45,10 +45,6 @@
  *         sans effet, écritures et fonctions internes fermées.
  *   4. Nettoyage : comptes marqués proofReputation9c.
  */
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
@@ -63,6 +59,7 @@ import {
   pendingActionCount,
   type MissionTaskState,
 } from "@/lib/tasks/candidate-tasks";
+import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -82,22 +79,9 @@ const service: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
 });
 
 function execSql(sql: string) {
-  const tmp = path.join(os.tmpdir(), `proof-reputation-${Date.now()}.sql`);
-  fs.writeFileSync(tmp, sql, "utf-8");
-  const command = "pnpm exec supabase db query --output-format json";
-  const isWin = process.platform === "win32";
-  const args = isWin
-    ? ["/d", "/s", "/c", `${command} --db-url ${DB_URL} -f ${tmp}`]
-    : ["-c", `${command} --db-url '${DB_URL}' -f '${tmp}'`];
-  const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
-    encoding: "utf-8",
-    cwd: process.cwd(),
-  });
-  fs.rmSync(tmp, { force: true });
+  const r = runSupabaseQuery(DB_URL, sql, { proof: "reputation" });
   if (r.status !== 0) {
-    throw new Error(
-      `supabase db query : ${(r.stdout || r.stderr || "").slice(0, 300)}`,
-    );
+    throw new Error(`supabase db query : ${r.out.slice(0, 300)}`);
   }
 }
 
@@ -436,6 +420,12 @@ async function reputationNotifications(userId: string) {
 // ─── Main ────────────────────────────────────────────────────────
 async function main() {
   await cleanStaleProofs();
+  // Exécution précédente interrompue (base coupée, délai dépassé) : son
+  // `finally` n'a pas pu s'exécuter. Restes retirés et protections
+  // réactivées AVANT toute assertion (lot 10).
+  execSql(
+    "alter table public.candidate_documents enable trigger trg_reputation_candidate_documents",
+  );
   const suffix = Date.now();
   const mail = (k: string) => `l9c-${k}+${suffix}@proof.easyjob.cm`;
   const ids: string[] = [];

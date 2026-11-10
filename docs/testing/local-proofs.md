@@ -37,19 +37,23 @@ $env:NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = $env:ANON_KEY
 $env:SUPABASE_URL = $env:API_URL
 $env:SUPABASE_SERVICE_ROLE_KEY = $env:SERVICE_ROLE_KEY
 $env:NEXT_PUBLIC_APP_URL = "http://localhost:3100"
-$env:MOBILE_MONEY_SANDBOX = "true"
 # EasyBot : fournisseur SIMULÉ servi par proof-chat-quota (aucun appel LLM).
 $env:AI_GATEWAY_API_KEY = "proof-fake-key"
 $env:EASYBOT_GATEWAY_URL = "http://127.0.0.1:3199/v3/ai"
 if ($env:NEXT_PUBLIC_SUPABASE_URL -ne "http://127.0.0.1:54421") { throw "pile inattendue" }
 pnpm build
-Start-Process pnpm -ArgumentList "start", "-p", "3100" -NoNewWindow
+# pnpm.cmd : sous PowerShell, Start-Process pnpm vise le script sans
+# extension (« n'est pas une application Win32 valide »).
+$app = Start-Process pnpm.cmd -ArgumentList "start", "-p", "3100" -NoNewWindow -PassThru
+# Un ancien `next start` sur le même port ferait tester un ancien build.
+Start-Sleep 5; if ($app.HasExited) { throw "next start arrêté : port 3100 déjà occupé ?" }
 
 # 4. Exécuter la suite (ou une preuve : pnpm test:rls admin-cni).
 $env:NEXT_APP_URL = "http://localhost:3100"
 pnpm test:rls
 
-# 5. Arrêter l'application, puis supprimer la pile (conteneurs et données).
+# 5. Arrêter l'application (arbre cmd → node), puis supprimer la pile.
+taskkill /pid $app.Id /t /f
 pnpm exec supabase stop --workdir $stack --no-backup
 ```
 
@@ -62,6 +66,25 @@ Points d'attention :
 - **Retour OAuth sans Google.** `proof-oauth-callback` crée le vérificateur PKCE par `signInWithOAuth({ skipBrowserRedirect: true })` (aucune requête) et pose en base la ligne `auth.flow_state` que Supabase Auth écrirait au retour de Google.
 - **Codes SMS sans SMS.** `proof-phone-verification` pose en base ce que Supabase Auth écrit à l'envoi d'un code (`phone_change`, empreinte sha224, `phone_change_sent_at`), puis vérifie par l'API réelle. La pile est en autoconfirm (`[auth.sms] enable_confirmations = false`) : la preuve s'appuie sur ce réglage pour reproduire H-04, et simule le réglage de production (code exigé) pour la reprise après réponse perdue.
 - **Connexions keep-alive mortes.** `execSql` bloque Node plusieurs secondes (`spawnSync`) : la requête suivante vers l'application peut partir sur une connexion que Next a déjà fermée (`ECONNRESET` sous Windows, `UND_ERR_SOCKET` « other side closed » sous Linux). Les preuves passent par `scripts/lib/app-fetch.ts`, qui reprend une seule fois ces erreurs de socket, sans réponse HTTP. Une réponse HTTP, même 5xx, n'est jamais reprise.
+
+- **Échec borné (lot 10).** Chaque requête SQL de preuve passe par `scripts/lib/db-query.ts` : binaire natif de la CLI lancé sans shell, délai `PROOF_SQL_TIMEOUT_MS` (60 s par défaut), erreur qui nomme la preuve et l'étape (`étape « update public.jobs … »`), processus arrêté. Le runner donne à chaque preuve `PROOF_TIMEOUT_SECONDS` (600 s par défaut), arrête tout son arbre de processus au-delà, et la synthèse indique le code de sortie et la dernière ligne affichée. Aucune relance : une preuve hors délai est en échec.
+
+## Panne provoquée (vérifier l'échec borné)
+
+Sur la pile dédiée uniquement : suspendre la base pendant une preuve qui interroge Postgres, puis la reprendre.
+
+```powershell
+$env:PROOF_SQL_TIMEOUT_MS = "15000"
+Start-Job { Start-Sleep 20; docker pause supabase_db_easyjob-proof } | Out-Null
+pnpm test:rls job-moderation   # attendu : assertion en échec, étape nommée dans la synthèse, code de sortie 1
+docker unpause supabase_db_easyjob-proof
+Remove-Item env:PROOF_SQL_TIMEOUT_MS
+pnpm test:rls job-moderation   # attendu : vert (restes de l'exécution interrompue retirés au démarrage)
+```
+
+Mesuré au lot 10 : échec après 271 s, synthèse « dernière étape affichée : Error: supabase db query : … failed to connect to postgres », aucun processus `supabase` restant, un trigger temporaire laissé par l'interruption puis retiré par la relance (verte). L'essentiel de l'attente vient des requêtes HTTP vers l'application, qui attendent la base jusqu'aux délais de PostgREST ; le délai par preuve (600 s) reste la borne. `candidate-selection`, `contract-signing`, `job-moderation` et `reputation`, qui modifient temporairement des triggers, retirent leurs restes et réactivent les protections au démarrage.
+
+Avant le lot 10, la même coupure pendant une requête laissait `supabase db query` en attente sans limite (toujours bloqué après 120 s pour une requête de 4 s) : c'est la cause du blocage de plusieurs heures observé au lot 9.
 
 ## Fixtures et nettoyage
 
@@ -168,6 +191,16 @@ Get-Content supabase/migrations/20261110120000_cni_validity_candidate_tasks.sql 
 ```
 
 Le bloc I de `reputation` simule ce qu'aucun parcours ne produit en quelques secondes : l'échéance d'une CNI (fixture créée avec une date passée) et le dépôt d'un casier judiciaire (insertion en clé service, puis approbation). Le renouvellement, le refus (complément) et l'approbation de la CNI passent par les vraies routes (`/api/profile/documents`, `/api/admin/cni` en session `admin_ops`). La limite exacte d'échéance est évaluée en base aux instants qui l'encadrent (`candidate_cni_state`), puis par deux candidatures réelles (échéance aujourd'hui et demain, en UTC).
+
+Pour l'admin suspendu (lot 10), remettre les anciennes fonctions de grade, qui ne lisent que le rôle, reproduit l'accès d'un admin suspendu avec son jeton :
+
+```powershell
+docker exec supabase_db_easyjob-proof psql -U postgres -d postgres -c "create or replace function public.is_admin_user(uid uuid) returns boolean language sql stable as `$`$ select exists (select 1 from public.users u where u.id = uid and u.role::text in ('admin_support','admin_ops','admin_founder')) `$`$; create or replace function public.is_ops_admin_user(uid uuid) returns boolean language sql stable as `$`$ select exists (select 1 from public.users u where u.id = uid and u.role::text in ('admin_ops','admin_founder')) `$`$;"
+pnpm test:rls admin-centralization   # attendu : 2 échecs (I3 lecture et URL signée, I4 RPC et notification), code de sortie 1
+Get-Content supabase/migrations/20261110130000_suspended_admin_guard.sql -Raw | docker exec -i supabase_db_easyjob-proof psql -U postgres -d postgres -v ON_ERROR_STOP=1   # restauration
+```
+
+Les routes et pages restent refusées dans ce contrôle : leur garde applicative est vérifiée par `tests/admin-guard.test.ts` (filtre retiré d'une route → échec). Aucune session ne peut suspendre un admin ; la preuve le vérifie (I2) puis suspend en clé service, comme le support.
 
 Pour la vérification du téléphone (lot 8), rétablir l'ancien repli « numéro relu = numéro demandé » dans `findPhoneProof` (`lib/auth/phone-verification.ts`, copie locale non commitée) reproduit H-04 : `pnpm test:rls phone-verification` → 2 échecs (H1 et H7 autoconfirm : code erroné → téléphone vérifié et profil créé). La preuve appelle le module directement : aucun build n'est nécessaire.
 

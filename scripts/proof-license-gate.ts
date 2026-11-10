@@ -28,13 +28,10 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
 type LicenseCat =
@@ -267,27 +264,8 @@ async function cleanCandidate(c: ProofUser): Promise<void> {
 
 // ─── SQL local (bypass système) via `supabase db query` ──────────
 function runPsql(sql: string): { ok: boolean; out: string } {
-  // Le chemin temp ne contient jamais d'espace (tempfile dans %TEMP%) →
-  // guillemets inutiles (et brisants avec `cmd /c` qui re-quote la chaîne).
-  const tmp = path.join(os.tmpdir(), `proof-license-gate-${Date.now()}.sql`);
-  fs.writeFileSync(tmp, sql, "utf-8");
-  const isWin = process.platform === "win32";
-  const args = isWin
-    ? [
-        "/d",
-        "/s",
-        "/c",
-        `pnpm exec supabase db query --db-url ${DB_URL} -f ${tmp}`,
-      ]
-    : ["-c", `pnpm exec supabase db query --db-url '${DB_URL}' -f '${tmp}'`];
-  const r = spawnSync(isWin ? "cmd.exe" : "sh", args, {
-    encoding: "utf-8",
-    cwd: process.cwd(),
-  });
-  fs.rmSync(tmp, { force: true });
-  const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-  if (r.error) return { ok: false, out: `${r.error}\n${out}` };
-  return { ok: r.status === 0, out };
+  const r = runSupabaseQuery(DB_URL, sql, { proof: "license-gate" });
+  return { ok: r.status === 0, out: `${r.stdout}${r.stderr}` };
 }
 
 // ─── Scénario ────────────────────────────────────────────────────

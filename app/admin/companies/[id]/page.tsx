@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/auth/admin-page";
 import { CompanyReputationAdminClient } from "./company-reputation-admin-client";
 
 /**
@@ -18,23 +19,7 @@ export default async function AdminCompanyPage({
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/auth/login?next=/admin/companies");
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (
-    !userData?.role ||
-    !["admin_support", "admin_ops", "admin_founder"].includes(userData.role)
-  ) {
-    redirect("/");
-  }
+  await requireAdminPage(`/admin/companies/${id}`);
 
   // Lecture en clé service : company_profiles n'a pas de policy admin.
   const admin = createAdminClient();

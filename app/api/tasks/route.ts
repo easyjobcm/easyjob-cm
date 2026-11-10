@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Tâches du candidat connecté :
@@ -11,7 +12,7 @@ import { NextResponse } from "next/server";
  *             téléphone, Mobile Money, CNI et justificatifs qui bloquent
  *             une candidature, recalculés à chaque lecture.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -29,11 +30,10 @@ export async function GET() {
     ]);
     const error = missions.error ?? actions.error;
     if (error) {
-      console.error("Candidate tasks error:", error.code);
-      return NextResponse.json(
-        { error: "Internal server error", code: "tasks_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("tasks.list", error, {
+        code: "tasks_failed",
+        request,
+      });
     }
     return NextResponse.json(
       {
@@ -44,10 +44,9 @@ export async function GET() {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("Candidate tasks error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "tasks_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("tasks.list", error, {
+      code: "tasks_failed",
+      request,
+    });
   }
 }

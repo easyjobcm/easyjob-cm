@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const BUCKET = "candidate-documents";
 
@@ -42,10 +43,10 @@ export async function GET(
     .createSignedUrl(document.storage_path, 60);
 
   if (error || !data) {
-    return NextResponse.json(
-      { error: "Could not generate URL" },
-      { status: 500 },
-    );
+    return internalErrorResponse("profile.skill_documents.signed_url", error, {
+      code: "signed_url_failed",
+      request: _request,
+    });
   }
 
   return NextResponse.json(

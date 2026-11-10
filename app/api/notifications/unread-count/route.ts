@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /** Compteur de notifications non lues — session obligatoire, RLS respectée. */
 export async function GET() {
@@ -20,7 +21,9 @@ export async function GET() {
     .eq("is_read", false);
 
   if (countError) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return internalErrorResponse("notifications.unread_count", countError, {
+      code: "notifications_failed",
+    });
   }
 
   return NextResponse.json({ count: count ?? 0 });

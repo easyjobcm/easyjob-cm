@@ -19,7 +19,8 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 9b | Retrait des niveaux Sandbox, réputation par les avis — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-08 | Fonctionnel | Moyen |
 | 9c | Réputation EasyJob en étoiles — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-09 | Fonctionnel et confidentialité | Grand |
 | 9d | Détail d'offre mobile, tâches et CNI en cours de validité — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-10 | Fonctionnel et UX | Moyen |
-| 10 | Documentation, consignes IA et nettoyage — **prochain lot** | F-22, F-27, F-29, F-25, F-26, F-31 | Maintenance | Petit |
+| 10 | Documentation, consignes IA, nettoyage, journaux, CSP et fiabilité des preuves — **réalisé et vérifié localement, non déployé** | F-22, F-23, F-25, F-26, F-27, F-29, F-31 | Maintenance | Moyen |
+| 11 | Validation administrative des entreprises — **prochain lot produit** | Suite de F-41 (lots 5b, 6) | Fonctionnel et sécurité | Moyen |
 | — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
 
 ---
@@ -28,7 +29,13 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 
 - **Objectif** : savoir si les failles P0 et P1 sont présentes **et** si elles ont déjà été exploitées, ce qui détermine l'urgence du lot 1 et un éventuel nettoyage de données.
 - **IDs** : H-01, H-02, H-03.
-- **Périmètre** : requêtes `SELECT` sur `pg_policies`, `pg_trigger` (y compris les triggers sur `auth.users` qui appellent `handle_new_user`), `cron.job`, `app_metadata.role` des comptes admin ; comptages sur `users` (par rôle), `candidate_profiles` (`sandbox_level` — **avant le déploiement du lot 9b**, qui supprime la colonne —, `premium_until`, `driving_license_verified`), `subscriptions` (`price = 0`), comptes admin sans téléphone.
+- **Périmètre** : requêtes `SELECT` sur `pg_policies`, `pg_trigger` (y compris les triggers sur `auth.users` qui appellent `handle_new_user` : condition de sa suppression, lot 10), `cron.job`, `app_metadata.role` des comptes admin ; comptages sur `users` (par rôle), `candidate_profiles` (`sandbox_level` — **avant le déploiement du lot 9b**, qui supprime la colonne —, `premium_until`, `driving_license_verified`), `subscriptions` (`price = 0`), comptes admin sans téléphone.
+- **Contrôles ajoutés par les lots suivants** (tous en lecture seule, avant le déploiement correspondant) :
+  - **anciennes CNI vérifiées sans échéance** : `select count(*) from public.candidate_profiles where cni_verified = 'verified' and cni_expires_at is null;` — la règle de `candidate_cni_state` (lot 9d) les tient pour valides sans limite ; décider de les faire renouveler ou de poser une date ;
+  - CNI refusées pour échéance dès la migration du lot 9d (requête du lot 9d ci-dessous) ;
+  - `GET <projet>/auth/v1/settings` : `phone_autoconfirm: false` (lot 8, F-44) ;
+  - `cron.job` contient `reputation-expiry-sweep` après la migration du lot 9c ;
+  - comptes admin suspendus (`select id, role from public.users where role::text like 'admin_%' and is_active = false;`) : après la migration `20261110130000` du lot 10, ils perdent tout accès d'administration ; confirmer que c'est voulu pour chacun.
 - **Exclusions** : aucune écriture ni correction de données dans ce lot.
 - **Fichiers** : aucun. Consigner les résultats dans `docs/audit/AUDIT.md`, section 6.
 - **Dépendances** : aucune.
@@ -373,21 +380,25 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > **Avant déploiement** : compter en lecture seule les CNI refusées pour échéance, avec la règle de la candidature (`select count(*) as refusees, count(*) filter (where cni_verified = 'verified') as expirees, count(*) filter (where cni_verified <> 'verified') as en_renouvellement from public.candidate_profiles where cni_expires_at is not null and cni_expires_at::timestamp at time zone 'UTC' < now();`, exactitude vérifiée par la preuve `reputation` I15) : ces candidats seront refusés dès la migration et devront renouveler leur CNI (beaucoup d'approbations antérieures portent la date par défaut « naissance + 10 ans »). Prévenir le support.
 - **Critères d'acceptation** : `pnpm test:rls` complet (dont `reputation` I4 à I14 et `admin-cni` D1a), tests unitaires, typage, lint, formatage et build verts ; contrôle à 375 px en FR et EN.
 
-## Lot 10 — Documentation, consignes IA et nettoyage
+## Lot 10 — Documentation, consignes, nettoyage, journaux, CSP et fiabilité des preuves
 
-> **Statut** : prochain lot.
+> **Statut (2026-11-10)** : réalisé sur `chore/lot-10-maintenance-docs` (base `origin/main-dev`, 31b6c55, lot 9d intégré), **non commité, non déployé**. Aucune migration. Détails, statut de chaque constat et limites : `AUDIT.md` §28.
+> - F-22 : README court (démarrage Windows, cible de chaque base, `pnpm env:target`) ; `AGENTS.md` source unique, consignes Copilot et agents réduits à leur domaine, chemins vérifiés.
+> - Parcours nouvel arrivant vérifié dans une copie isolée : `bootstrap:local` (étape de types obsolète retirée, sauvegarde de `.env.local` distant), seed honnête et rejouable avec comptes utilisables, commandes PowerShell corrigées.
+> - F-27 : Mobile Money mort, `/api/payments/withdraw`, `public/manifest.json`, `next-intl`, `ts-node`, exports morts supprimés ; `handle_new_user()` conservée jusqu'au lot 0. F-26 déjà résolu (lot 7c-bis). F-29 clos.
+> - F-23 : toutes les routes passent par le journal structuré ; F-25 : CSP en Report-Only et `/api/csp-report` ; F-31 : `requireAdminPage()` sur les pages admin en clé service ; admin suspendu privé de son grade en base (`is_admin_user`, `is_ops_admin_user`, deux politiques) et dans les routes et pages, prouvé par `admin-centralization` I et `realtime` B5b-B5c.
+> - Preuves : échec borné (requêtes SQL et preuves), étape indiquée, processus arrêtés, restes d'une preuve interrompue retirés et protections réactivées au démarrage ; panne reproduite et testée.
+>
+> **Avant déploiement** : migration `20261110130000_suspended_admin_guard.sql` (compter d'abord les admins suspendus, lot 0) ; vérifier les rapports `security.csp_report` après la mise en ligne (`docs/deployment/production.md` §7).
+>
+> Reste ouvert : passage de la CSP en mode appliqué (après `z.config({ jitless: true })` côté client), outil de capture d'erreurs, bouton Google non monté (décision produit), F-37.
 
-- **IDs** : F-22, F-27, F-29, F-25, F-26, F-31.
-- **Périmètre** :
-  - Aligner `AGENTS.md` et les fichiers `.github/*instructions*` sur la stack réelle (Next 16, i18n maison, pas de PWA SW, pas de Three.js) et y ajouter la règle « toute colonne porteuse de droits est protégée par trigger ; écriture via RPC ».
-  - Supprimer le code mort listé en F-27.
-  - Déplacer `.qwen/` hors du dépôt ou l'ignorer.
-  - CSP en `Report-Only`.
-  - Corriger `enforce_salary_lock`.
-  - Mettre à jour la section CI du README.
-- **Dépendances** : aucune. Peut être fait à tout moment, idéalement tôt pour la partie consignes IA.
-- **Critères d'acceptation** : chaque outil ou fichier cité dans les consignes existe ; `tsc`, `lint` et `build` verts après suppression du code mort.
-- **Taille** : petit.
+## Lot 11 — Validation administrative des entreprises (prochain lot produit)
+
+> **Statut** : à cadrer. Constat des lots 5b et 6 : aucune RPC, interface ni trace ne valide une entreprise ; `create_job` exige pourtant une entreprise vérifiée.
+
+- **Périmètre** : RPC admin gardée (grade, motif de refus, `audit_logs`), notification et signal Realtime à l'entreprise, écran admin, nouvelle revue après modification du nom, du RCCM ou du document (règle du lot 5b), preuve d'autorisation.
+- **Dépendances** : lots 5b et 6.
 
 ## Futur lot — Engagements et annulations (à numéroter)
 

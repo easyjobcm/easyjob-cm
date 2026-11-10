@@ -6,6 +6,7 @@ import {
   type SkillDocumentType,
 } from "@/lib/validations/skill-documents";
 import { detectDocumentMime, EXT_BY_MIME } from "@/lib/utils/file-type";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 const BUCKET = "candidate-documents";
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -145,7 +146,11 @@ export async function POST(request: NextRequest) {
     .from(BUCKET)
     .upload(path, buffer, { contentType: mime, upsert: false });
   if (uploadError) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return internalErrorResponse(
+      "profile.skill_documents.upload",
+      uploadError,
+      { code: "upload_failed", request },
+    );
   }
 
   const { data: document, error: insertError } = await supabase
@@ -171,7 +176,10 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !document) {
     await supabase.storage.from(BUCKET).remove([path]);
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.skill_documents.save", insertError, {
+      code: "save_failed",
+      request,
+    });
   }
 
   if (input.skill_ids.length > 0) {
@@ -187,7 +195,10 @@ export async function POST(request: NextRequest) {
     if (linkError) {
       await supabase.storage.from(BUCKET).remove([path]);
       await supabase.from("candidate_documents").delete().eq("id", document.id);
-      return NextResponse.json({ error: "Save failed" }, { status: 500 });
+      return internalErrorResponse("profile.skill_documents.link", linkError, {
+        code: "save_failed",
+        request,
+      });
     }
 
     const recomputeResults = await Promise.all(

@@ -1,15 +1,15 @@
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/auth/admin-page";
 import { AdminDashboardClient } from "../admin-dashboard-client";
 
 /**
  * T8.1 — Page dashboard admin.
  *
- * La garde de rôle admin (connexion + rôle admin_*) est assurée
- * par `app/admin/layout.tsx` ; ce composant ne fait qu'extraire
- * les données et les transmettre au client.
+ * Rôle revérifié ici, avant la lecture en clé service (le layout ne
+ * s'exécute pas à chaque navigation, audit F-31).
  */
 export default async function AdminDashboardPage() {
-  const supabase = await createClient();
+  const { supabase } = await requireAdminPage("/admin/dashboard");
 
   // Offres en attente de modération (policy « Admins can view all jobs »).
   const { data: jobRows } = await supabase

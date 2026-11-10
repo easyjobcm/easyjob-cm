@@ -1,5 +1,6 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T8.4b — API admin « Profil candidat » (page /admin/candidates/[id]).
@@ -42,6 +43,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (!isAdminRole(userData?.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -49,7 +52,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
   const admin = createAdminClient();
 
-  const { data: profile } = await admin
+  const { data: profile, error: profileError } = await admin
     .from("candidate_profiles")
     .select(
       `id, user_id, first_name, last_name, gender, date_of_birth,
@@ -65,23 +68,30 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .eq("user_id", id)
     .maybeSingle();
 
+  // Une erreur de lecture n'est pas une absence : 500 journalisé, pas 404.
+  if (profileError) {
+    return internalErrorResponse("admin.candidates.detail", profileError, {
+      code: "admin_candidate_failed",
+      request: _request,
+    });
+  }
   if (!profile) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: userRow } = await admin
+  const { data: userRow, error: userError } = await admin
     .from("users")
     .select("id, email, phone, is_active, is_verified, role, locale")
     .eq("id", id)
     .maybeSingle();
 
-  const { data: skills } = await admin
+  const { data: skills, error: skillsError } = await admin
     .from("candidate_skills")
     .select("id, skill_name, skill_level, verification_status, created_at")
     .eq("candidate_id", profile.id)
     .order("created_at", { ascending: false });
 
-  const { data: documents } = await admin
+  const { data: documents, error: documentsError } = await admin
     .from("candidate_documents")
     .select(
       `id, document_type, title, issuing_organization, reference_number,
@@ -91,7 +101,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .eq("candidate_id", profile.id)
     .order("created_at", { ascending: false });
 
-  const { data: missionRows } = await admin
+  const { data: missionRows, error: missionsError } = await admin
     .from("missions")
     .select(
       "id, job_id, status, scheduled_date, contract_type, payment_status, created_at",
@@ -99,6 +109,16 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     .eq("candidate_id", id)
     .order("created_at", { ascending: false })
     .limit(100);
+
+  // Fiche partielle trompeuse (contact, documents, missions absents) : refus.
+  const detailError =
+    userError ?? skillsError ?? documentsError ?? missionsError;
+  if (detailError) {
+    return internalErrorResponse("admin.candidates.detail", detailError, {
+      code: "admin_candidate_failed",
+      request: _request,
+    });
+  }
 
   // Titres d'offres + noms d'entreprises (requêtes séparées + merge).
   const jobIds = [

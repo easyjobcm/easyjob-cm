@@ -7,6 +7,7 @@ import {
   lockedGroupsForCni,
 } from "@/lib/utils/profile-lock";
 import { pendingRequestedGroups } from "@/lib/utils/profile-lock-server";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Le nom/prénom sert à la vérification CNI (SRS §11.5 : le nom du document
@@ -146,7 +147,10 @@ export async function PUT(request: NextRequest) {
     );
   }
   if (updateError) {
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.identity.save", updateError, {
+      code: "save_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ ok: true, requiresReverification });

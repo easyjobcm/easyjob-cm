@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { missionRefusal } from "@/lib/validations/mission";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Mission vue par l'une de ses parties (RPC `get_mission`, lot 7c) :
@@ -43,11 +44,10 @@ export async function GET(
           { status: refusal.status },
         );
       }
-      console.error("Mission read error:", error.code);
-      return NextResponse.json(
-        { error: "Internal server error", code: "mission_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("missions.read", error, {
+        code: "mission_failed",
+        request: _request,
+      });
     }
     const mission = data[0];
     if (!mission) {
@@ -61,10 +61,9 @@ export async function GET(
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("Mission read error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "mission_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("missions.read", error, {
+      code: "mission_failed",
+      request: _request,
+    });
   }
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { jobModerationSchema, jobRefusal } from "@/lib/validations/job";
 import { JOB_PUBLISHED_STATUS } from "@/lib/utils/job-status";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Modération d'une offre en attente (approbation ou refus motivé).
@@ -65,29 +66,27 @@ export async function POST(
           { status: refusal.status },
         );
       }
-      console.error("Moderation error:", error);
-      return NextResponse.json(
-        { error: "Failed to moderate job", code: "moderation_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("admin.jobs.moderate", error, {
+        code: "moderation_failed",
+        request,
+      });
     }
 
     // Résultat réel relu dans la ligne renvoyée par la RPC.
     const expected = action === "approve" ? JOB_PUBLISHED_STATUS : "rejected";
     if (job?.status !== expected) {
-      console.error("Moderation mismatch:", job?.status, expected);
-      return NextResponse.json(
-        { error: "Failed to moderate job", code: "moderation_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("admin.jobs.moderate", null, {
+        code: "moderation_failed",
+        request,
+        reason: "result_mismatch",
+      });
     }
 
     return NextResponse.json({ success: true, status: job.status });
   } catch (error) {
-    console.error("Moderation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", code: "moderation_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("admin.jobs.moderate", error, {
+      code: "moderation_failed",
+      request,
+    });
   }
 }

@@ -147,7 +147,6 @@ jobs:
             echo "SUPABASE_URL=$API_URL"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
             echo "NEXT_PUBLIC_APP_URL=$NEXT_APP_URL"
-            echo "MOBILE_MONEY_SANDBOX=true"
             # EasyBot : fournisseur simulé servi par proof-chat-quota (aucun appel LLM).
             echo "AI_GATEWAY_API_KEY=proof-fake-key"
             echo "EASYBOT_GATEWAY_URL=http://127.0.0.1:3199/v3/ai"

@@ -4,6 +4,7 @@ import {
   findMatchingCandidates,
   calculateMatchScore,
 } from "@/lib/matching/ai-matching";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,8 +88,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ error: "jobId requis" }, { status: 400 });
   } catch (error) {
-    console.error("[v0] Matching error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return internalErrorResponse("matching.candidates", error, {
+      code: "matching_failed",
+      request,
+    });
   }
 }
 
@@ -167,7 +170,9 @@ export async function POST(_request: NextRequest) {
 
     return NextResponse.json({ suggestions });
   } catch (error) {
-    console.error("[v0] Job suggestions error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+    return internalErrorResponse("matching.jobs", error, {
+      code: "matching_failed",
+      request: _request,
+    });
   }
 }

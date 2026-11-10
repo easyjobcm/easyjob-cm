@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { paymentSchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * T6 — enregistrement / changement du numéro Mobile Money.
@@ -58,7 +59,10 @@ export async function PUT(request: NextRequest) {
   });
 
   if (rpcError) {
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.payment.save", rpcError, {
+      code: "save_failed",
+      request,
+    });
   }
 
   return NextResponse.json({ ok: true });

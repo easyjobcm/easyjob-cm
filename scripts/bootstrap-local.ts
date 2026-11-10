@@ -1,11 +1,7 @@
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { parseEnv } from "node:util";
+import { classifySupabaseUrl, describeTarget } from "./lib/supabase-target";
 
 const COLORS = {
   reset: "\x1b[0m",
@@ -103,7 +99,11 @@ function parseStatusEnv(envOutput: string): Record<string, string> {
     if (!line || line.startsWith("#") || !line.includes("=")) continue;
     const idx = line.indexOf("=");
     const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
+    // `supabase status -o env` met les valeurs entre guillemets.
+    const value = line
+      .slice(idx + 1)
+      .trim()
+      .replace(/^"(.*)"$/, "$1");
     values[key] = value;
   }
   return values;
@@ -133,6 +133,20 @@ function writeSupabaseEnvFromStatus(statusEnv: Record<string, string>) {
   }
 
   let envContent = readFileSync(".env.local", "utf8");
+  // .env.local va être réécrit vers la pile locale : une configuration qui
+  // visait un projet distant est d'abord sauvegardée (jamais affichée).
+  const previous = classifySupabaseUrl(
+    parseEnv(envContent).NEXT_PUBLIC_SUPABASE_URL,
+  );
+  if (previous.kind === "remote") {
+    const backup = existsSync(".env.local.remote.bak")
+      ? `.env.local.remote.${Date.now()}.bak`
+      : ".env.local.remote.bak";
+    copyFileSync(".env.local", backup);
+    logWarn(
+      `.env.local visait ${describeTarget(previous)} : copie dans ${backup} (ignorée par Git).`,
+    );
+  }
   envContent = upsertEnvValue(envContent, "NEXT_PUBLIC_SUPABASE_URL", apiUrl);
   envContent = upsertEnvValue(
     envContent,
@@ -152,7 +166,9 @@ function writeSupabaseEnvFromStatus(statusEnv: Record<string, string>) {
   );
   writeFileSync(".env.local", envContent, "utf8");
 
-  logSuccess("Updated .env.local with local Supabase URL and keys");
+  logSuccess(
+    `.env.local → ${describeTarget(classifySupabaseUrl(apiUrl))} (vérifier : pnpm env:target)`,
+  );
 }
 
 function getCliOptions() {
@@ -198,19 +214,6 @@ async function main() {
     logSuccess("Seed completed");
   }
 
-  logInfo("Generating local database types");
-  mkdirSync("src/types", { recursive: true });
-  run("npx", [
-    "supabase",
-    "gen",
-    "types",
-    "typescript",
-    "--local",
-    "--output",
-    "src/types/database.ts",
-  ]);
-  logSuccess("Generated src/types/database.ts");
-
   logInfo("Current Supabase status");
   run("npx", ["supabase", "status"]);
 
@@ -229,12 +232,11 @@ async function main() {
     `${COLORS.blue}→ Seed:${COLORS.reset} ${options.skipSeed ? "skipped" : "completed"}`,
   );
   console.log("");
-  console.log(`${COLORS.blue}→ Test accounts:${COLORS.reset}`);
-  console.log("- Candidate 1: +237690000001 (Jean Mbarga)");
-  console.log("- Candidate 2: +237690000002 (Marie Ngo Ndongo)");
-  console.log("- Candidate 3: +237690000003 (Paul Atangana)");
-  console.log("- Company 1: +237690000004 (Restaurant Le Baobab)");
-  console.log("- Company 2: +237690000005 (Hotel Akwa Palace)");
+  if (!options.skipSeed) {
+    console.log(
+      `${COLORS.blue}→ Comptes de test :${COLORS.reset} affichés par le seed ci-dessus (connexion par email et mot de passe).`,
+    );
+  }
 }
 
 main().catch((error) => {

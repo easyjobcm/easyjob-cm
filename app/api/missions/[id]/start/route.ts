@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { missionRouteContext, missionRpcError } from "@/lib/api/mission-route";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Début de mission par le candidat de la session (RPC `start_mission`).
@@ -19,22 +20,21 @@ export async function POST(
       p_mission_id: ctx.missionId,
     });
     if (error)
-      return missionRpcError(error, "Mission start error", "start_failed");
+      return missionRpcError(error, "missions.start", "start_failed", _request);
 
     const start = data[0];
     if (!start?.started_at) {
-      console.error("Mission start mismatch");
-      return NextResponse.json(
-        { error: "Internal server error", code: "start_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("missions.start", null, {
+        code: "start_failed",
+        request: _request,
+        reason: "result_mismatch",
+      });
     }
     return NextResponse.json({ start });
   } catch (error) {
-    console.error("Mission start error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "start_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("missions.start", error, {
+      code: "start_failed",
+      request: _request,
+    });
   }
 }

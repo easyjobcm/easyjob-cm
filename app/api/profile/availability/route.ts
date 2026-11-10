@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { availabilitySchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 async function getAuthorizedCandidateId(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -63,7 +64,10 @@ export async function PUT(request: NextRequest) {
     .eq("id", candidateId);
 
   if (distanceError) {
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.availability.save", distanceError, {
+      code: "availability_failed",
+      request,
+    });
   }
 
   const { error: deleteError } = await supabase
@@ -72,7 +76,10 @@ export async function PUT(request: NextRequest) {
     .eq("candidate_id", candidateId);
 
   if (deleteError) {
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("profile.availability.save", deleteError, {
+      code: "availability_failed",
+      request,
+    });
   }
 
   if (parsed.data.days.length > 0) {
@@ -89,7 +96,10 @@ export async function PUT(request: NextRequest) {
       );
 
     if (insertError) {
-      return NextResponse.json({ error: "Save failed" }, { status: 500 });
+      return internalErrorResponse("profile.availability.save", insertError, {
+        code: "availability_failed",
+        request,
+      });
     }
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { missionRouteContext, missionRpcError } from "@/lib/api/mission-route";
 import { missionReviewSchema } from "@/lib/validations/mission";
+import { internalErrorResponse } from "@/lib/api/errors";
 
 /**
  * Évaluation après réalisation (RPC `submit_mission_review`). La base déduit
@@ -39,22 +40,26 @@ export async function POST(
       p_reasons: parsed.data.reasons,
     });
     if (error)
-      return missionRpcError(error, "Mission review error", "review_failed");
+      return missionRpcError(
+        error,
+        "missions.review",
+        "review_failed",
+        request,
+      );
 
     const review = data[0];
     if (!review?.review_id) {
-      console.error("Mission review mismatch");
-      return NextResponse.json(
-        { error: "Internal server error", code: "review_failed" },
-        { status: 500 },
-      );
+      return internalErrorResponse("missions.review", null, {
+        code: "review_failed",
+        request,
+        reason: "result_mismatch",
+      });
     }
     return NextResponse.json({ review });
   } catch (error) {
-    console.error("Mission review error:", (error as Error).message);
-    return NextResponse.json(
-      { error: "Internal server error", code: "review_failed" },
-      { status: 500 },
-    );
+    return internalErrorResponse("missions.review", error, {
+      code: "review_failed",
+      request,
+    });
   }
 }

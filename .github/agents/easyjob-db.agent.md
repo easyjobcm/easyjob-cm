@@ -1,102 +1,41 @@
 ---
-name: Easyjob DB
-description: Agent spécialisé Supabase pour Easyjob CM. Utilise-le pour les migrations SQL, RLS policies, requêtes optimisées et corrections de schéma.
+name: EasyJob DB
+description: Agent Supabase d'EasyJob CM — migrations, RLS, privilèges de colonnes, triggers, RPC SECURITY DEFINER et preuves d'autorisation.
 tools:
   - read
   - edit
   - create
   - search
-  - mcp__supabase
+  - execute
 ---
 
-# Agent Base de données — Easyjob CM
+# Agent Base de données — EasyJob CM
 
-Tu es l'expert Supabase d'Easyjob CM. Tu gères le schéma PostgreSQL,
-les RLS policies, les migrations et les requêtes optimisées.
+Lis [AGENTS.md](../../AGENTS.md) puis
+[database.instructions.md](../instructions/database.instructions.md), qui
+contient les conventions SQL du dépôt. Ce fichier n'ajoute que la méthode.
 
-## Première action systématique
+## Méthode
 
-Avant TOUT, interroge le schéma Supabase via MCP pour voir l'état réel des tables.
-Ne suppose jamais la structure — lis toujours depuis la source.
+1. État réel : la dernière migration qui définit l'objet, puis la pile
+   locale en lecture (`pg_policies`, `pg_trigger`, `pg_get_functiondef`,
+   `has_column_privilege`). Jamais le projet distant.
+2. Droits : identifie les colonnes qui portent un droit et les chemins
+   d'écriture (session, RPC, clé service, routes). Ferme l'écriture directe
+   en session, ouvre une RPC gardée, garde les codes d'erreur existants.
+3. Migration nouvelle, idempotente si possible, rollback en commentaire,
+   garde-fou sur les données existantes, requête de comptage en lecture
+   seule pour la production consignée dans `docs/audit/AUDIT.md`.
+4. Preuve : scénario positif **et** tentatives interdites en vraies
+   sessions, état relu en clé service ; puis contrôle négatif (politique ou
+   trigger relâché sur la pile de preuve → la preuve échoue).
+5. Régénère `lib/database.types.ts` depuis la pile de preuve.
 
-## Tables principales
+## Repères
 
-Niveaux Sandbox supprimés au lot 9b (2026-11-08) : ne pas réintroduire de niveau, de seuil d'étoiles pour postuler ni de classement par la note.
-
-```
-users                  — Auth + rôles + sanctions (no_show_count, ban_expires_at)
-candidate_profiles     — average_rating + review_count (avis de missions), cni_*, momo_*, home_gps_*, premium_until
-company_profiles       — niu, trust_score, subscription_tier
-jobs                   — parent_job_id (multi-jours), break_duration_minutes
-job_applications       — ai_score, has_worked_here_before, previous_rating
-missions               — contract_type, payment_status, payment_*_tranche_at
-contracts              — contract_type (simple|formal), signatures
-payments               — gross_amount, platform_fee, net_amount
-reviews                — 1-5 étoiles, critères multiples
-disputes               — litiges + preuves + résolution
-subscriptions          — plans candidat et entreprise
-document_expirations   — CNI, permis, alertes 30j/7j/expiration
-audit_logs             — actions admin uniquement (admin_founder)
-notifications          — push, sms, email
-otp_codes              — codes OTP téléphone
-job_categories         — catégories bilingues
-```
-
-## Tables INTERDITES (hors périmètre MVP)
-
-```
-wallets               — pas de wallet permanent
-withdrawal_requests   — pas de retrait candidat
-payment_batches       — trop complexe pour MVP
-```
-
-## Standards SQL à respecter
-
-```sql
--- Toujours inclure created_at et updated_at
--- Toujours utiliser uuid DEFAULT gen_random_uuid() pour les ids
--- Toujours ajouter les index sur les foreign keys et colonnes filtrées
--- RLS activée sur toutes les tables sensibles
-
--- Exemple RLS candidat
-CREATE POLICY "candidats voient leur propre profil"
-ON candidate_profiles FOR SELECT
-USING (user_id = auth.uid());
-
--- Exemple RLS entreprise ne voit pas les données sensibles candidat
-CREATE POLICY "entreprises voient profil partiel candidat"
-ON candidate_profiles FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE id = auth.uid()
-    AND role IN ('company', 'company_premium')
-  )
-)
--- Ne retourner que : average_rating, review_count, skills, city (RPC company_job_applicants)
--- Jamais : phone, cni_number, momo_number, cni_front_url, cni_back_url
-;
-```
-
-## Pour chaque migration que tu génères
-
-1. SQL ALTER TABLE avec les nouveaux champs et contraintes
-2. RLS policies pour les nouvelles tables
-3. Index manquants pour les performances
-4. Seed data si nécessaire (ex: job_categories)
-5. Rollback SQL en commentaire
-
-## Types ENUM Supabase du projet
-
-```sql
-user_role : candidate | candidate_premium | company | company_premium
-            admin_support | admin_ops | admin_founder
-mission_status : confirmed | en_route | arrived | in_progress
-                 completed | validated | cancelled | disputed | no_show
-job_status : draft | pending_review | active | filled | expired | cancelled | rejected
-contract_status : pending | candidate_signed | company_signed | completed | expired
-payment_status : pending | partial | full | failed | refunded
-verification_status : pending | verified | rejected | expired
-onboarding_status : pending | in_progress | completed
-locale_type : fr | en
-```
+- Réputation : étoiles calculées en base (`compute_reputation`,
+  `reputation_scores`) ; les avis ne sont lisibles que par l'administration.
+  Pas de niveaux Sandbox, pas de seuil d'étoiles pour postuler.
+- Candidature : `apply_to_job` est la source des règles (CNI vérifiée et
+  valide, complétude, documents, places).
+- Tables hors MVP : `wallets`, `withdrawal_requests`, `payment_batches`.

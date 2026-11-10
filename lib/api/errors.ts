@@ -19,10 +19,16 @@ export function internalErrorResponse(
     code: string;
     request?: { headers: Pick<Headers, "get"> } | null;
     category?: ErrorCategory;
+    /** Code métier sûr quand il n'y a pas d'erreur (`result_mismatch`). */
+    reason?: string;
   },
 ): NextResponse {
   const requestId = requestIdFrom(options.request?.headers);
-  logServerError(op, error, { requestId, category: options.category });
+  logServerError(op, error, {
+    requestId,
+    category: options.category,
+    reason: options.reason,
+  });
   return NextResponse.json(
     {
       error: "Internal server error",

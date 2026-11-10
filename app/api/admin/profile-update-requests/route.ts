@@ -1,6 +1,8 @@
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { updateRequestSchema } from "@/lib/validations/profile";
+import { internalErrorResponse } from "@/lib/api/errors";
+import { logServerError, requestIdFrom } from "@/lib/observability/server-log";
 
 /**
  * T8.5 — GET liste des demandes de mise à jour de profil (vue
@@ -29,6 +31,8 @@ export async function GET(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
   if (
     !userData?.role ||
@@ -63,8 +67,10 @@ export async function GET(request: NextRequest) {
   // CASCADE garantit qu'une demande ne survit jamais à son profil.
   const { data: rows, error } = await query;
   if (error) {
-    console.error("[admin-profile-updates] list query:", error.message);
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.list", error, {
+      code: "admin_update_requests_failed",
+      request,
+    });
   }
 
   // L'initiateur (admin) : `requested_by` → `users.id`. La session admin
@@ -150,6 +156,8 @@ export async function POST(request: NextRequest) {
     .from("users")
     .select("role")
     .eq("id", user.id)
+    // Compte suspendu : aucun grade (AUDIT.md §28, comme is_admin_user).
+    .not("is_active", "is", false)
     .single();
 
   // Demande de mise à jour : réservé à admin_ops / admin_founder (US-ADMIN-05)
@@ -196,7 +204,10 @@ export async function POST(request: NextRequest) {
   // garde-fou : même si le rôle n'était pas checké plus haut, l'insert serait
   // refusé pour tout compte non-admin_ops/admin_founder.
   if (insertError || !inserted) {
-    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    return internalErrorResponse("admin.update_requests.create", insertError, {
+      code: "admin_update_request_failed",
+      request,
+    });
   }
 
   // Audit : traçabilité (qui a demandé quoi, quand, pour quel motif).
@@ -214,10 +225,9 @@ export async function POST(request: NextRequest) {
   if (auditError) {
     // L'audit est traçabilité, pas business : on ne casse pas la demande
     // créée, on loggue l'échec pour qu'il soit remonté.
-    console.error(
-      "[admin-profile-update] audit insert failed:",
-      auditError.message,
-    );
+    logServerError("admin.update_requests.audit", auditError, {
+      requestId: requestIdFrom(request.headers),
+    });
   }
 
   // Notification centre de notifications (Tâche /tasks utilise la table).
