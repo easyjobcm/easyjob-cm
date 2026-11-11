@@ -135,11 +135,13 @@ export async function POST(_request: NextRequest) {
         end_time,
         positions_available,
         positions_filled,
+        applications_close_at,
         company:company_public_profiles(company_name)
       `,
       )
       .eq("status", "active")
-      .gte("start_date", new Date().toISOString().split("T")[0])
+      // Lot 11b : recrutement ouvert à l'heure de la base.
+      .filter("recruitment_open", "eq", true)
       .order("start_date", { ascending: true })
       .limit(50);
 

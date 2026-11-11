@@ -2179,5 +2179,78 @@ Restant à cadrer :
 
 1. **Procédure de relance** quand la DGI ou le greffe restent inaccessibles : délai, relance, information de l'entreprise.
 2. **Conservation des pièces** (pièces d'identité, pièces remplacées) : durée, suppression à la fermeture du compte (F-37) — avant l'ouverture publique.
-3. **Expiration des offres datées** (constat, hors décision du lot) : aucune règle en base ; une offre active dont la date est passée reste joignable par lien direct et ouverte aux candidatures, que le dossier ait été revu ou non.
+3. ~~**Expiration des offres datées**~~ : traité par le lot 11b (§30), échéance de recrutement H−24 / H−2 en base.
 5. Reprise : prévenir les entreprises vérifiées avant le déploiement (pièces à ajouter).
+
+
+## 30. Suivi — Lot 11b : échéances de candidature et de sélection (2026-11-11)
+
+Branche `fix/lot-11b-job-deadlines` (base `origin/main-dev`, 891ef2b, lot 11 intégré), **non commitée, non déployée**. Migration `20261112120000_job_recruitment_deadlines.sql`. Règle produit : SRS §5.4.
+
+### Inventaire avant le lot
+
+| Élément | Rôle constaté |
+|---|---|
+| `jobs.urgency` | Ancienne option manuelle fournie par le client, plus lue depuis le lot 9d. Ne détermine rien dans ce lot (preuve F4). |
+| Badge « Urgente » | Calculé à l'affichage (`lib/jobs/urgency.ts`, début dans 24 h ou moins). Proximité du début, indépendante du régime. |
+| `jobs.published_at` | Remis à null par `update_job`, réécrit à chaque approbation : ne garde pas la première publication. |
+| `jobs.expires_at`, statut `expired` | Jamais renseignés. |
+| Liste des offres | Filtrait `start_date >= date du jour UTC du serveur` ; le lien direct restait ouvert aux candidatures (écart mesuré au lot 11, B3). |
+
+### Source de vérité
+
+- Colonnes `first_published_at`, `publication_regime` (`normal` | `urgent`), `applications_close_at` (contrainte « toutes ou aucune ») et `legacy_publication` (offre publiée avant le lot). Aucun privilège d'écriture des sessions sur `jobs` (lot 2) ; `create_job` et `update_job` refusent les champs de publication (`invalid_job_data`, détail `publication`).
+- Trigger `trg_job_publication_guard` (tout auteur, clé service comprise) :
+  - au premier passage à `active` depuis `draft` / `pending_review`, déduit le régime de `now()` et de l'horaire approuvé (`job_publication_regime`), fige la première publication et stocke l'échéance (`job_recruitment_close` : H−24 ou H−2) ; hors fenêtre, `job_start_too_close` ;
+  - ensuite, **échéance figée** : première publication, régime, échéance et marqueur `legacy_publication` ne changent plus (`publication_regime_locked`), dates et horaires non plus (`job_schedule_locked`) ; une nouvelle approbation après correction ne recalcule rien ;
+  - une offre déjà active (places, retour après revalidation du dossier) ou réactivée depuis un autre statut n'est pas republiée ; une offre `legacy_publication` ne reçoit jamais de régime.
+- `update_job` : offre publiée (ou antérieure au lot) → mêmes dates et horaires acceptés (fin absente = jour du début, comme le formulaire), tout changement refusé `job_schedule_locked` ; autres champs validés et offre renvoyée en modération (règles existantes : Pro et Business pour une offre active, sans candidat sélectionné). Offre jamais publiée → dates modifiables, début encore publiable exigé (`job_start_too_close`).
+- Insertion « déjà publiée » par la clé service (seed, preuves) : acceptée seulement si les trois valeurs sont fournies.
+
+### Contrôles
+
+- `apply_to_job` et `select_candidate` : `now() >= applications_close_at` (ou échéance absente) → `recruitment_closed`, après les contrôles existants de compte, documents, statut et dossier, avant la capacité. Sélection : après la relance idempotente. Verrous et ordre inchangés (offre puis entreprise).
+- `moderate_job` : `job_start_too_close` à la première publication seulement ; `create_job` : idem dès la saisie.
+- `job_availability` : nouvelle valeur `closed` (offre lisible, recrutement clos). Champ calculé PostgREST `recruitment_open(jobs)` pour les listes (`/api/jobs`, suggestions `/api/matching`), à l'heure de la base.
+- `now()` est l'heure de début de la transaction : une requête reçue avant l'échéance mais bloquée par un verrou est jugée à son heure d'arrivée.
+
+### Écrans
+
+Minuterie locale calée sur l'heure du serveur (`lib/jobs/use-recruitment.ts`), sans relecture HTTP périodique ; retour au premier plan et reconnexion relisent par `useLiveRefresh`.
+- Liste candidat : l'offre disparaît à l'échéance.
+- Détail : « Candidatures jusqu'au … » ; à l'échéance, « Les candidatures pour cette offre sont closes » et « Voir les autres offres » (candidat ayant postulé : candidature consultable). Le badge « Urgente » reste affiché indépendamment.
+- Entreprise (candidatures) : échéance affichée ; à l'échéance, « Sélectionner » remplacé par l'explication, rejet et engagements conservés.
+- Formulaire de correction : après publication, date et horaires en lecture seule, explication et lien « Créer une nouvelle offre » ; les autres étapes restent modifiables. Le formulaire renvoie les valeurs publiées ; la route de modification utilise `jobUpdateSchema` (date publiée renvoyée même passée). Un écran ouvert avant la publication reçoit `job_schedule_locked`, affiché en message métier.
+- Codes traduits FR/EN : `recruitment_closed`, `job_start_too_close`, `job_schedule_locked`.
+
+### Données existantes (décision validée)
+
+Aucune date de première publication fiable : `published_at` est réécrit, et l'horaire approuvé à la première approbation n'est pas tracé (`audit_logs` ne le contient pas). **Rien n'est repris, inventé ni republié.** La migration marque `legacy_publication` les offres déjà publiées (statut publié ou passé, `published_at`, ou approbation tracée dans `audit_logs`) : elles restent lisibles mais closes, dates et horaires figés, même après une correction approuvée ; engagements conservés. La migration affiche leur nombre. Le seed de développement démarre ses offres à J+3. Aucune base distante n'est touchée ni réinitialisée.
+
+### Validation (pile `easyjob-proof`, données fictives)
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `job-deadlines` (sessions réelles : entreprise Pro, 6 candidats, 2 admins ops, anonyme) | ✅ 35/35 : régimes à la première publication (R0) ; candidature et sélection à H−24 / H−2 juste avant, exactement, juste après, sans effet après refus (N1-N6, U1-U6) ; publication à H−24 + 1 µs, exactement H−24, H−24 − 1 µs, H−4, H−4 − 1 µs, début passé par RPC, route et écriture de service (P1-P7) ; liste, lien direct et disponibilité d'une offre close, offre commencée (L1-L3) ; badge sans prolongation (G1) ; revalidation sans réouverture (V1-V2) ; relance de sélection, contrat signable, retrait, statuts inchangés (S1-S3) ; champs forgés, régime figé pour la clé service, saisie trop proche, ancienne option `urgency` (F1-F4) ; **horaires figés** : modifiables avant publication (D1), refusés après par RPC sur offres normales et urgentes, ouvertes et closes (D2), par route et clé service (D3), mêmes valeurs acceptées avec une autre correction (D4), offre revenue en modération (D5), nouvelle approbation sans changement temporel (D6), offre close repoussée avec candidatures et offre avec contrat (D7), revalidation du dossier (D8), offre antérieure au lot (D9) ; double approbation à ordre imposé, relances et candidatures simultanées (R1-R3) |
+| Méthode des limites | Fonction de preuve temporaire `proof_l11b_case` (clé service) : place l'échéance ou le début relativement à `now()` puis appelle la vraie RPC sous l'identité de la session dans la même transaction ; instants exacts à la microseconde, sans attente. Pour une offre publiée, le trigger de garde est désactivé le temps du seul déplacement, dans cette transaction (pile jetable) |
+| Contrôles négatifs | ✅ `apply_to_job` et `select_candidate` sans échéance : 9 échecs ; trigger désactivé : échec dès R0 ; verrou des horaires retiré du trigger et de `update_job` : 8 échecs (D2-D9) ; retiré du trigger seul : D3 en échec (écriture de la clé service acceptée) puis D4-D6, D8 ; restauration par réinitialisation de la pile depuis les migrations, 35/35 |
+| Preuves adaptées | `company-dossier-visibility` B3 (écart du lot 11 fermé) et B4 (correction aux mêmes horaires) ; `realtime` (création à J+3, modification Pro aux mêmes horaires, mission recalée sur le jour), `mission-time-tracking`, `reputation` (offres insérées « déjà publiées ») ; `business-permissions`, `essentials-gate`, `jobs-rls-select` (début à J+3) |
+| `pnpm test:rls` complet après la modification SQL (pile réinitialisée depuis les migrations) | ✅ 30/30 |
+| Navigateur, échéances, 375 px, FR puis EN | ✅ 25/25 (passage précédent) : échéance franchie écran ouvert sans rechargement (liste, détail, candidat ayant postulé, entreprise) ; refus en base d'un envoi forcé ; « Voir les autres offres » ; coupure réseau puis une seule relecture serveur ; badge et candidatures closes simultanés ; EN ; aucun défilement horizontal |
+| Navigateur, formulaire de correction, 375 px, FR puis EN | ✅ 12/12 : offre publiée → explication et lien « Créer une nouvelle offre », date et horaires en lecture seule (valeurs publiées), titre corrigé et soumis : offre en modération, dates, première publication, régime et échéance inchangés ; offre jamais publiée → champs modifiables ; écran ouvert avant la publication puis date changée → « Offre déjà publiée : sa date et ses horaires ne peuvent plus être modifiés… », aucune erreur technique, date inchangée en base ; EN ; aucun défilement horizontal ; aucune erreur de page |
+| Tests unitaires, typage, lint, formatage, build | ✅ 522 tests (41 fichiers, dont `job-recruitment`), `tsc`, `eslint`, `prettier --check`, `next build` |
+| Types générés (`supabase gen types --schema public`, pile réinitialisée) | ✅ identiques à `lib/database.types.ts` |
+
+### Ce qui n'est pas prouvé
+
+- Appareils Android et iOS réels ; onglet gelé plusieurs heures par le système (la reprise est prouvée par coupure réseau et par l'écouteur de premier plan).
+- Visiteur anonyme : sans session, l'écran utilise l'horloge locale pour la minuterie (la base tranche toujours).
+
+### Décisions prises (2026-11-11) et suites
+
+- **Horaires figés après la première publication** : règle de lancement, appliquée en base pour tout auteur ; aucun contournement support. À réexaminer dans les lots « Engagements et annulations » et offres de plusieurs jours, sans les retirer du plan. Le parcours support de correction encadrée reste à construire (PLAN_ACTION.md).
+- **Déplacer une mission publiée** : nouvelle offre, nouvelle modération, régime calculé à sa première publication ; aucun transfert de candidatures ; l'ancienne offre et ses engagements ne sont pas annulés.
+- **Publication à exactement H−24** : refus maintenu.
+- **Règle SRS « modification jusqu'à 12 h avant le début »** : historique, non appliquée, à remplacer dans le lot « Engagements et annulations » ; aucune règle concurrente ajoutée.
+- **Offres antérieures sans historique fiable** : closes (`legacy_publication`), sans republication automatique ni date inventée.
+- Offres de plusieurs jours et candidatures par journée : lot prévu, non traitées ici.

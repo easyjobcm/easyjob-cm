@@ -81,6 +81,8 @@ export const en: TranslationKeys = {
           "The company edited the job in the meantime. Review it before deciding.",
         company_not_eligible:
           "Company suspended or not verified: the job cannot be published.",
+        job_start_too_close:
+          "Start too close or past: a job is published more than 24 hours before it starts, or urgently between 24 and 4 hours before.",
         job_not_found: "Job not found.",
         not_authenticated: "Session expired. Please sign in again.",
         invalid_action: "Invalid action.",
@@ -708,6 +710,10 @@ export const en: TranslationKeys = {
     unavailableApplied:
       "This job is not accepting new applications for now. Your application remains available.",
     backToJobs: "See other jobs",
+    closedBody: "Applications for this job are closed.",
+    closedApplied:
+      "Applications for this job are closed. Your application remains available.",
+    closesAt: "Applications until {date}",
     work: "Work required",
     pay: "Amount per candidate",
     location: "Location",
@@ -806,6 +812,7 @@ export const en: TranslationKeys = {
         "Your account is suspended: you cannot apply. Contact support.",
       job_not_found: "This job is no longer available.",
       job_not_available: "This job no longer accepts applications.",
+      recruitment_closed: "Applications for this job are closed.",
       no_positions: "All positions for this job are filled.",
       already_applied: "You have already applied to this job.",
       profile_incomplete:
@@ -2062,6 +2069,9 @@ export const en: TranslationKeys = {
       submitEdit: "Submit again",
       editNotice:
         "After editing, the job goes back to moderation: candidates cannot see it until it is approved again.",
+      scheduleLocked:
+        "This job is already published: its date and times can no longer be changed. Other details remain editable. To move the mission, create a new job: it will be moderated again, and the current job and its applications are kept.",
+      scheduleLockedAction: "Create a new job",
       errorTitle: "Job not saved",
     },
     errors: {
@@ -2097,6 +2107,10 @@ export const en: TranslationKeys = {
       job_not_editable: "This job can no longer be edited.",
       job_has_commitments:
         "This job cannot be deleted: candidates have been selected or a mission is under way. Contact support.",
+      job_start_too_close:
+        "Start too close or past: publish the job more than 24 hours before it starts, or at least 4 hours before for an urgent publication.",
+      job_schedule_locked:
+        "This job is already published: its date and times can no longer be changed. To move the mission, create a new job.",
       generic: "The job could not be saved. Please try again.",
     },
   },
@@ -2184,6 +2198,8 @@ export const en: TranslationKeys = {
         "Your company file must be verified by EasyJob before you can select a candidate.",
       job_not_available:
         "This job is no longer published: it must be live to select a candidate.",
+      recruitment_closed:
+        "Recruitment closed: this job's deadline has passed (24 hours before the start, or 2 hours if it was published urgently). Candidates already selected keep their mission.",
       no_positions:
         "All positions for this job are filled: no other selection is possible.",
       candidate_unavailable:

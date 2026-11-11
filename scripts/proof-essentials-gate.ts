@@ -366,7 +366,9 @@ async function main() {
     description:
       "Offre temporaire de validation E2E (supprimée après la preuve).",
     job_type: "shift",
-    start_date: new Date(Date.now() + 864e5).toISOString().split("T")[0],
+    // Lot 11b : début à J+3 (régime normal, recrutement ouvert jusqu'à
+    // H−24) : le résultat ne dépend pas de l'heure de la preuve.
+    start_date: new Date(Date.now() + 3 * 864e5).toISOString().split("T")[0],
     start_time: "09:00",
     end_time: "13:00",
     mission_pay_per_candidate: 1000,

@@ -409,7 +409,26 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 >
 > **Décisions prises (2026-11-11)** : retour automatique des offres encore admissibles après validation complète, sans nouvelle modération si leur contenu approuvé n'a pas changé (vérifié : preuve B1-B7, navigateur) ; correction du NIU réservée au support ; source officielle inaccessible → dossier en attente, aucune approbation automatique.
 >
-> **Reste à cadrer** (AUDIT.md §29) : procédure de relance quand la DGI ou le greffe restent inaccessibles ; conservation des pièces avant l'ouverture publique ; expiration des offres datées (constat : aucune règle en base, une offre active dont la date est passée reste joignable par lien direct et ouverte aux candidatures).
+> **Reste à cadrer** (AUDIT.md §29) : procédure de relance quand la DGI ou le greffe restent inaccessibles ; conservation des pièces avant l'ouverture publique. L'expiration des offres datées est traitée par le lot 11b.
+
+## Lot 11b — Échéances de candidature et de sélection
+
+> **Statut (2026-11-11)** : réalisé sur `fix/lot-11b-job-deadlines` (base `origin/main-dev`, 891ef2b), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §30 ; règle produit : SRS §5.4.
+> - Décisions produit validées : régime normal → candidatures et sélections avant H−24 ; régime urgent → avant H−2 ; refus à l'instant exact ; publication urgente entre moins de 24 h et 4 h avant le début ; publication à exactement H−24 refusée ; badge « Urgente » sans effet sur l'échéance ; aucun frais ni avantage d'abonnement.
+> - Migration `20261112120000_job_recruitment_deadlines.sql` : première publication, régime et échéance **figés** à la première publication par un trigger (tout auteur, clé service comprise), jamais recalculés ; **règle de lancement** : dates et horaires figés après la première publication (`job_schedule_locked`, trigger et `update_job`, mêmes valeurs acceptées) ; `apply_to_job` et `select_candidate` refusent `recruitment_closed` (après la relance idempotente) ; `create_job` et `moderate_job` refusent `job_start_too_close` à la première publication ; `job_availability` → `closed` ; champ calculé `recruitment_open` ; offres antérieures marquées `legacy_publication` (closes, dates figées, aucune date inventée).
+> - Écrans FR/EN : retrait de la liste, avis et « Voir les autres offres » sur le détail, « Sélectionner » remplacé côté entreprise, à l'échéance sans rechargement ; formulaire de correction avec date et horaires en lecture seule après publication et lien « Créer une nouvelle offre ».
+> - Preuve `job-deadlines` (35 assertions, limites exactes à la microseconde, contrôles négatifs) ; preuves existantes adaptées ; parcours navigateur des échéances et du formulaire.
+>
+> **Avant déploiement** (lecture seule) : compter les offres qui seront marquées `legacy_publication` et resteront closes : `select status, count(*) from public.jobs where status in ('active', 'filled', 'expired', 'cancelled') or published_at is not null group by 1;` (plus les offres en attente déjà approuvées une fois, tracées dans `audit_logs`).
+>
+> **Règle de lancement à réexaminer** (sans retirer ces lots du plan) : horaires figés après publication, dans le lot « Engagements et annulations » (qui remplace aussi la règle historique SRS « modification jusqu'à 12 h avant le début ») et dans le lot des offres de plusieurs jours.
+
+## Futur lot — Correction encadrée des horaires par le support (à numéroter)
+
+> **Statut** : demandé, **non commencé**. Depuis le lot 11b, aucune correction d'horaire n'est possible après la première publication, ni par l'entreprise ni par le support.
+
+- **Périmètre attendu** : corrections limitées d'une offre publiée par un admin habilité, avec motif et trace dans `audit_logs` ; information des candidats concernés ; vérification préalable des engagements (sélections, contrats, missions) et des chevauchements d'horaires des candidats ; règle explicite pour le régime et l'échéance (aucune réouverture silencieuse).
+- **Dépendances** : lot 11b ; lot « Engagements et annulations » (sort des engagements existants).
 
 ## Futur lot — Particuliers et professionnels non formalisés (reporté)
 
@@ -427,7 +446,8 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
   - offre partiellement pourvue : une annulation compte-t-elle si une partie seulement des places est pourvue, ou si aucune sélection n'a eu lieu ;
   - imputabilité d'une annulation d'entreprise (motif, force majeure) ;
   - absence : qui la constate, délai et forme du justificatif, validation (SRS §11.9) ;
-  - qui prononce la décision (support, parcours automatique) et comment elle est contestée.
+  - qui prononce la décision (support, parcours automatique) et comment elle est contestée ;
+  - remplacer la règle historique SRS « modification ou suppression jusqu'à 12 h avant le début » (non appliquée) et réexaminer la règle de lancement du lot 11b (dates et horaires figés après publication).
 - **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement).
 - **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
 - **Dépendances** : lot 9c ; lot paiement pour les pénalités.

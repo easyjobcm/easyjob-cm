@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { internalErrorResponse } from "@/lib/api/errors";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { jobInputSchema } from "@/lib/validations/job";
+import { jobUpdateSchema } from "@/lib/validations/job";
 import { jobWriteErrorResponse } from "../job-write-response";
 
 // Get a single job by ID
@@ -181,7 +181,7 @@ export async function PATCH(
       );
     }
 
-    const parsed = jobInputSchema.safeParse(
+    const parsed = jobUpdateSchema.safeParse(
       await request.json().catch(() => null),
     );
     if (!parsed.success) {

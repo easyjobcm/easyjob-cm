@@ -97,6 +97,7 @@ export function applyRefusalFeedback(
     case "job_not_found":
     case "job_not_available":
     case "no_positions":
+    case "recruitment_closed":
       return { title, description: d.refusals[refusal.code], action: browse };
     case "profile_incomplete":
       return {

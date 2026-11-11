@@ -42,6 +42,8 @@ const APPLY_REFUSALS: Record<string, { status: number; error: string }> = {
   job_not_found: { status: 404, error: "Job not found" },
   job_not_available: { status: 400, error: "Job is not available" },
   no_positions: { status: 400, error: "No positions available" },
+  // Lot 11b : échéance de l'offre atteinte (H−24, ou H−2 si urgente).
+  recruitment_closed: { status: 409, error: "Applications are closed" },
   already_applied: { status: 400, error: "Already applied to this job" },
 };
 

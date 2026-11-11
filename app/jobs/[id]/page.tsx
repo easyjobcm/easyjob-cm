@@ -114,7 +114,11 @@ export default async function JobDetailPage({ params }: PageProps) {
       isLoggedIn={!!user}
       missingEssentials={missingEssentials}
       cni={cni}
-      acceptingApplications={availability === "available"}
+      // Lot 11b : offre close lisible (dossier valide, échéance atteinte).
+      acceptingApplications={
+        availability === "available" || availability === "closed"
+      }
+      recruitmentClosedAtLoad={availability === "closed"}
     />
   );
 }

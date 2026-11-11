@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/lib/database.types";
 import {
   jobInputSchema,
+  jobUpdateSchema,
   missionPaySchema,
   type JobInput,
 } from "@/lib/validations/job";
@@ -88,6 +91,7 @@ export type JobFormInitial = Pick<
   | "positions_available"
   | "mission_pay_per_candidate"
   | "required_skills"
+  | "first_published_at"
 >;
 
 /**
@@ -100,6 +104,11 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tj = t.companyJobs;
+  // Lot 11b, règle de lancement : après la première publication, dates et
+  // horaires sont en lecture seule et renvoyés tels quels ; `update_job`
+  // refuse tout changement (job_schedule_locked), y compris depuis un écran
+  // ouvert avant la publication.
+  const scheduleLocked = !!initialJob?.first_published_at;
   // Suspension ou retrait de la vérification pendant la saisie : l'envoi
   // est retiré (le serveur le refuse de toute façon).
   const account = useAccountState();
@@ -238,12 +247,21 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         title: formData.title,
         job_type: formData.type,
         description: formData.description,
-        start_date:
-          formData.type === "shift" ? formData.date : formData.startDate,
-        end_date:
-          formData.type === "contract" ? formData.endDate : formData.date,
-        start_time: formData.startTime,
-        end_time: formData.endTime,
+        ...(scheduleLocked && initialJob
+          ? {
+              start_date: initialJob.start_date,
+              end_date: initialJob.end_date ?? initialJob.start_date,
+              start_time: initialJob.start_time.slice(0, 8),
+              end_time: initialJob.end_time.slice(0, 8),
+            }
+          : {
+              start_date:
+                formData.type === "shift" ? formData.date : formData.startDate,
+              end_date:
+                formData.type === "contract" ? formData.endDate : formData.date,
+              start_time: formData.startTime,
+              end_time: formData.endTime,
+            }),
         positions_available: formData.workersNeeded,
         mission_pay_per_candidate: missionPayValue,
         city: companyProfile.city,
@@ -254,7 +272,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         urgency: "normal",
       };
 
-      const parsed = jobInputSchema.safeParse(payload);
+      // Correction : une date déjà publiée peut être passée (offre close).
+      const parsed = (initialJob ? jobUpdateSchema : jobInputSchema).safeParse(
+        payload,
+      );
       if (!parsed.success) {
         failSubmit(errorMessage(parsed.error.issues[0]?.message));
         return;
@@ -492,6 +513,26 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         {/* Schedule Step */}
         {currentStep === "schedule" && (
           <div className="space-y-6">
+            {scheduleLocked && (
+              <div
+                role="note"
+                id="job-schedule-locked"
+                data-testid="job-schedule-locked"
+                className="flex gap-3 rounded-xl border border-border bg-muted p-4 text-sm text-muted-foreground"
+              >
+                <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <div className="space-y-2">
+                  <p>{tj.form.scheduleLocked}</p>
+                  <Link
+                    href="/company/jobs/new"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                    data-testid="job-schedule-locked-new"
+                  >
+                    {tj.form.scheduleLockedAction}
+                  </Link>
+                </div>
+              </div>
+            )}
             {formData.type === "shift" ? (
               <>
                 <div>
@@ -501,6 +542,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                   <Input
                     type="date"
                     value={formData.date}
+                    disabled={scheduleLocked}
+                    aria-describedby={
+                      scheduleLocked ? "job-schedule-locked" : undefined
+                    }
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, date: e.target.value }))
                     }
@@ -519,6 +564,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                     <Input
                       type="date"
                       value={formData.startDate}
+                      disabled={scheduleLocked}
+                      aria-describedby={
+                        scheduleLocked ? "job-schedule-locked" : undefined
+                      }
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -536,6 +585,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                     <Input
                       type="date"
                       value={formData.endDate}
+                      disabled={scheduleLocked}
+                      aria-describedby={
+                        scheduleLocked ? "job-schedule-locked" : undefined
+                      }
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -561,6 +614,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                 <Input
                   type="time"
                   value={formData.startTime}
+                  disabled={scheduleLocked}
+                  aria-describedby={
+                    scheduleLocked ? "job-schedule-locked" : undefined
+                  }
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
@@ -577,6 +634,10 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                 <Input
                   type="time"
                   value={formData.endTime}
+                  disabled={scheduleLocked}
+                  aria-describedby={
+                    scheduleLocked ? "job-schedule-locked" : undefined
+                  }
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,

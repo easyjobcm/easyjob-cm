@@ -461,7 +461,11 @@ async function seedTestData() {
   // 6. Create jobs
   console.log("Creating jobs...");
   const now = new Date();
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  // Lot 11b : début à J+3 (et non demain). Une offre active reçoit son
+  // régime à l'insertion (trigger trg_job_publication_guard) : à J+3 il est
+  // toujours normal, recrutement ouvert jusqu'à H−24, quelle que soit
+  // l'heure du seed. Un début à moins de 4 h serait refusé.
+  const inThreeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const jobs = [
@@ -473,8 +477,8 @@ async function seedTestData() {
       description:
         "Nous recherchons des serveurs expérimentés pour une grande soirée VIP. Tenue correcte exigée.",
       job_type: "shift",
-      start_date: tomorrow.toISOString().split("T")[0],
-      end_date: tomorrow.toISOString().split("T")[0],
+      start_date: inThreeDays.toISOString().split("T")[0],
+      end_date: inThreeDays.toISOString().split("T")[0],
       start_time: "18:00",
       end_time: "02:00",
       mission_pay_per_candidate: 20000,
@@ -500,7 +504,7 @@ async function seedTestData() {
       description:
         "Nettoyage du restaurant tous les matins avant l'ouverture. Matériel fourni.",
       job_type: "contract",
-      start_date: tomorrow.toISOString().split("T")[0],
+      start_date: inThreeDays.toISOString().split("T")[0],
       end_date: nextWeek.toISOString().split("T")[0],
       start_time: "06:00",
       end_time: "09:00",
@@ -528,8 +532,8 @@ async function seedTestData() {
       description:
         "Accueil des clients, gestion des réservations, service de conciergerie.",
       job_type: "shift",
-      start_date: tomorrow.toISOString().split("T")[0],
-      end_date: tomorrow.toISOString().split("T")[0],
+      start_date: inThreeDays.toISOString().split("T")[0],
+      end_date: inThreeDays.toISOString().split("T")[0],
       start_time: "22:00",
       end_time: "06:00",
       mission_pay_per_candidate: 16000,
@@ -581,8 +585,8 @@ async function seedTestData() {
       description:
         "Déchargement et rangement des livraisons. Port de charges lourdes.",
       job_type: "shift",
-      start_date: tomorrow.toISOString().split("T")[0],
-      end_date: tomorrow.toISOString().split("T")[0],
+      start_date: inThreeDays.toISOString().split("T")[0],
+      end_date: inThreeDays.toISOString().split("T")[0],
       start_time: "08:00",
       end_time: "12:00",
       mission_pay_per_candidate: 8000,
@@ -677,7 +681,7 @@ async function seedTestData() {
       job_id: jobId1,
       candidate_id: candidateProfileId1,
       application_id: applicationId1,
-      scheduled_date: tomorrow.toISOString().split("T")[0],
+      scheduled_date: inThreeDays.toISOString().split("T")[0],
       scheduled_start_time: "18:00",
       scheduled_end_time: "02:00",
       status: "confirmed",
@@ -688,7 +692,7 @@ async function seedTestData() {
       job_id: jobId3,
       candidate_id: candidateProfileId2,
       application_id: applicationId4,
-      scheduled_date: tomorrow.toISOString().split("T")[0],
+      scheduled_date: inThreeDays.toISOString().split("T")[0],
       scheduled_start_time: "22:00",
       scheduled_end_time: "06:00",
       status: "confirmed",

@@ -491,6 +491,13 @@ async function main() {
           company_id: company,
           status: opts.status ?? "active",
           positions_available: opts.positions ?? 1,
+          // Lot 11b : offre « déjà publiée » (fixture clé service), recrutement
+          // ouvert le temps de la preuve ; échéances prouvées par job-deadlines.
+          first_published_at: new Date().toISOString(),
+          publication_regime: "normal",
+          applications_close_at: new Date(
+            Date.now() + 6 * 3_600_000,
+          ).toISOString(),
         })
         .select("id")
         .single();

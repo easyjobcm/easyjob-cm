@@ -41,6 +41,7 @@ const PROOFS = [
   "company-permissions",
   "company-verification",
   "company-dossier-visibility",
+  "job-deadlines",
   "job-moderation",
   "candidate-selection",
   "contract-signing",
