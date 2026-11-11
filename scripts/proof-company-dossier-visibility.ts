@@ -363,10 +363,15 @@ async function main() {
     });
     const today = douala(new Date());
 
+    // Lot 11b : offre insérée « déjà publiée » (fixture clé service :
+    // première publication, régime et échéance fournis), recrutement ouvert
+    // le temps de la preuve pour enchaîner sélection et mission du jour.
+    // Les échéances elles-mêmes sont prouvées par job-deadlines.
     const seedJob = async (
       title: string,
       positions = 3,
       startDate: string = today,
+      closeAt: string = new Date(Date.now() + 6 * 3_600_000).toISOString(),
     ) => {
       const { data, error } = await serviceClient
         .from("jobs")
@@ -382,6 +387,9 @@ async function main() {
           company_id: coA,
           status: "active",
           positions_available: positions,
+          first_published_at: new Date().toISOString(),
+          publication_regime: "normal",
+          applications_close_at: closeAt,
         })
         .select("id")
         .single();
@@ -474,7 +482,15 @@ async function main() {
     const jobExpired = await seedJob("Offre expirée pendant la revue L11");
     const jobFull = await seedJob("Offre complète L11", 1);
     const yesterday = douala(new Date(Date.now() - 86_400_000));
-    const jobPast = await seedJob("Offre datée d'hier L11", 3, yesterday);
+    // Publiée en régime normal : échéance à H−24 de son début (passée).
+    const jobPast = await seedJob(
+      "Offre datée d'hier L11",
+      3,
+      yesterday,
+      new Date(
+        Date.parse(`${yesterday}T00:00:00+01:00`) - 86_400_000,
+      ).toISOString(),
+    );
     const jobMod = await seedJob("Offre modifiée L11");
     const { data: appFull } = await apply(C5, jobFull);
     const selFull = await select(appFull?.id ?? "");
@@ -483,6 +499,8 @@ async function main() {
       .from("company_profiles")
       .update({ subscription_plan: "pro" })
       .eq("id", coA);
+    // Lot 11b : dates et horaires figés après la première publication ;
+    // la correction porte sur le titre et la description, mêmes horaires.
     const { error: modErr } = await A.client.rpc("update_job", {
       p_job_id: jobMod,
       p_job: {
@@ -800,9 +818,8 @@ async function main() {
       { ...inadmissible, full: fullApply.error?.message },
     );
 
-    // Règle existante de date : seule la liste filtre start_date. Mesure
-    // informative (aucune règle d'expiration en base, avant comme après
-    // le lot 11) : rapportée, pas transformée en assertion.
+    // Lot 11b : l'écart mesuré au lot 11 (lien direct ouvert aux
+    // candidatures) est fermé par l'échéance de recrutement.
     const pastInfo = {
       list: (await listIds(C3)).includes(jobPast),
       directRead: await readJob(C3.client, jobPast),
@@ -812,12 +829,12 @@ async function main() {
       apply: (await apply(C3, jobPast)).error?.message ?? "acceptée",
     };
     report(
-      "B3 : offre datée d'hier → absente de la liste après revalidation (règle de date existante)",
-      !pastInfo.list,
+      "B3 : offre datée d'hier → absente de la liste après revalidation ; lien direct lisible mais recrutement clos (disponibilité « closed », candidature refusée recruitment_closed, lot 11b)",
+      !pastInfo.list &&
+        pastInfo.directRead === 1 &&
+        pastInfo.availability === "closed" &&
+        pastInfo.apply === "recruitment_closed",
       pastInfo,
-    );
-    console.log(
-      `ℹ️  Offre active datée d'hier (règle existante, inchangée par le lot 11) : lien direct ${pastInfo.directRead === 1 ? "lisible" : "illisible"}, disponibilité « ${pastInfo.availability} », candidature ${pastInfo.apply}.`,
     );
 
     const modAfter = await serviceClient

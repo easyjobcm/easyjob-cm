@@ -36,52 +36,64 @@ export const missionPaySchema = z
  * Propriétaire, statut, modération et compteurs n'en font pas partie.
  * Les messages sont des clés de `companyJobs.errors`.
  */
-export const jobInputSchema = z
-  .object({
-    title: z.string().trim().min(1, "titleRequired").max(120, "titleTooLong"),
-    description: z
-      .string()
-      .trim()
-      .min(1, "descriptionRequired")
-      .max(5000, "descriptionTooLong"),
-    address: z
-      .string()
-      .trim()
-      .min(1, "addressRequired")
-      .max(200, "addressTooLong"),
-    city: z.string().trim().min(1, "cityRequired").max(100, "cityRequired"),
-    start_date: isoDate.refine((d) => d >= doualaToday(), "startDatePast"),
-    start_time: time,
-    end_time: time,
-    mission_pay_per_candidate: missionPaySchema,
-    category_id: z.string().uuid().optional(),
-    job_type: z
-      .enum(Constants.public.Enums.job_type)
-      .optional()
-      .default("shift"),
-    quartier: optionalText(100),
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
-    end_date: isoDate.optional(),
-    is_recurring: z.boolean().optional().default(false),
-    recurring_days: z.array(z.number().int()).optional(),
-    estimated_hours: z.number().optional(),
-    required_skills: z.array(z.string().trim().min(1)).optional(),
-    min_experience_months: z.number().int().min(0).optional().default(0),
-    dress_code: optionalText(500),
-    special_instructions: optionalText(2000),
-    positions_available: z
-      .number()
-      .int()
-      .positive("positionsInvalid")
-      .optional()
-      .default(1),
-    urgency: z.enum(["normal", "urgent"]).optional().default("normal"),
-  })
-  .refine((d) => !d.end_date || d.end_date >= d.start_date, {
-    path: ["end_date"],
-    message: "endDateBeforeStart",
-  });
+const jobFields = z.object({
+  title: z.string().trim().min(1, "titleRequired").max(120, "titleTooLong"),
+  description: z
+    .string()
+    .trim()
+    .min(1, "descriptionRequired")
+    .max(5000, "descriptionTooLong"),
+  address: z
+    .string()
+    .trim()
+    .min(1, "addressRequired")
+    .max(200, "addressTooLong"),
+  city: z.string().trim().min(1, "cityRequired").max(100, "cityRequired"),
+  start_date: isoDate.refine((d) => d >= doualaToday(), "startDatePast"),
+  start_time: time,
+  end_time: time,
+  mission_pay_per_candidate: missionPaySchema,
+  category_id: z.string().uuid().optional(),
+  job_type: z.enum(Constants.public.Enums.job_type).optional().default("shift"),
+  quartier: optionalText(100),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  end_date: isoDate.optional(),
+  is_recurring: z.boolean().optional().default(false),
+  recurring_days: z.array(z.number().int()).optional(),
+  estimated_hours: z.number().optional(),
+  required_skills: z.array(z.string().trim().min(1)).optional(),
+  min_experience_months: z.number().int().min(0).optional().default(0),
+  dress_code: optionalText(500),
+  special_instructions: optionalText(2000),
+  positions_available: z
+    .number()
+    .int()
+    .positive("positionsInvalid")
+    .optional()
+    .default(1),
+  urgency: z.enum(["normal", "urgent"]).optional().default("normal"),
+});
+
+const END_AFTER_START = {
+  path: ["end_date"],
+  message: "endDateBeforeStart",
+};
+const endAfterStart = (d: { start_date: string; end_date?: string }) =>
+  !d.end_date || d.end_date >= d.start_date;
+
+/** Création : début à partir d'aujourd'hui (heure de Douala). */
+export const jobInputSchema = jobFields.refine(endAfterStart, END_AFTER_START);
+
+/**
+ * Modification (lot 11b) : après la première publication, dates et
+ * horaires sont figés et renvoyés tels quels, même passés ; la base
+ * (`update_job`) vérifie qu'ils n'ont pas changé, et revérifie la date
+ * d'une offre jamais publiée.
+ */
+export const jobUpdateSchema = jobFields
+  .extend({ start_date: isoDate })
+  .refine(endAfterStart, END_AFTER_START);
 
 export type JobInput = z.input<typeof jobInputSchema>;
 export type JobInputData = z.output<typeof jobInputSchema>;
@@ -111,6 +123,12 @@ export const JOB_RPC_REFUSALS = {
   job_not_pending: 409,
   job_changed: 409,
   company_not_eligible: 409,
+  // Lot 11b : début non publiable (moins de 4 h, exactement H−24, passé) ;
+  // échéance de recrutement atteinte (H−24, ou H−2 en publication urgente).
+  job_start_too_close: 409,
+  // Lot 11b : dates et horaires figés après la première publication.
+  job_schedule_locked: 409,
+  recruitment_closed: 409,
   application_not_found: 404,
   application_not_selectable: 409,
   job_not_available: 409,

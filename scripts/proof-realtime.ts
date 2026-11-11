@@ -573,13 +573,23 @@ async function main() {
     // ── J. Offres et candidatures ───────────────────────────────
     console.log("\n── J. Offres et candidatures ──");
     const today = douala(new Date());
+    // Lot 11b : une offre se publie à plus de 24 h de son début (ou en
+    // urgence jusqu'à H−4) ; elle commence à J+3, puis la mission est
+    // recalée sur aujourd'hui avant son démarrage (temps écoulé simulé).
+    const inThreeDays = douala(new Date(Date.now() + 3 * 864e5));
+    // Offres insérées « déjà publiées » (fixture clé service).
+    const published = () => ({
+      first_published_at: new Date().toISOString(),
+      publication_regime: "normal",
+      applications_close_at: new Date(Date.now() + 6 * 3_600_000).toISOString(),
+    });
     let m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };
     const createRes = await http("POST", "/api/jobs", E.cookie, {
       title: "Inventaire temps réel",
       job_type: "shift",
       description: "Preuve du lot 7d.",
-      start_date: today,
-      end_date: today,
+      start_date: inThreeDays,
+      end_date: inThreeDays,
       start_time: "00:00",
       end_time: "23:59",
       positions_available: 2,
@@ -694,6 +704,7 @@ async function main() {
         company_id: coE,
         status: "active",
         positions_available: 1,
+        ...published(),
       })
       .select("id")
       .single();
@@ -790,6 +801,12 @@ async function main() {
         (await waitSignal(lK1, m.k1, "contracts", contractId)),
       { status: signE.status, code: signE.body.code },
     );
+    // Temps écoulé : la mission (sélectionnée à J−3) commence aujourd'hui.
+    await serviceClient
+      .from("missions")
+      .update({ scheduled_date: today, scheduled_start_time: "00:00" })
+      .eq("id", missionId);
+    await sleep(500);
     m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };
     mT = mark(lT);
     const start = await http(
@@ -1054,6 +1071,7 @@ async function main() {
             company_id: coE,
             status: "active",
             positions_available: 1,
+            ...published(),
           })
           .select("id")
           .single()
@@ -1064,6 +1082,7 @@ async function main() {
       title: "Modifiée en Pro",
       job_type: "shift",
       description: "Preuve du lot 7d.",
+      // Lot 11b : mêmes date et horaires que l'offre publiée (figés).
       start_date: today,
       end_date: today,
       start_time: "00:00",

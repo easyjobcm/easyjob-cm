@@ -30,14 +30,17 @@ export async function GET(request: NextRequest) {
         `
         id, title, description, address, city, start_date, start_time,
         end_time, mission_pay_per_candidate, positions_available, positions_filled,
-        status, urgency, published_at, category_id,
+        status, published_at, applications_close_at, category_id,
         company:company_public_profiles(id, company_name, logo_url, city),
         category:job_categories(id, name_fr, name_en, icon)
       `,
         { count: "exact" },
       )
       .eq("status", JOB_PUBLISHED_STATUS)
-      .gte("start_date", new Date().toISOString().split("T")[0])
+      // Lot 11b : seules les offres dont le recrutement est ouvert à l'heure
+      // de la base (champ calculé `recruitment_open`, échéance H−24 ou H−2).
+      // Une offre close reste lisible par lien direct.
+      .filter("recruitment_open", "eq", true)
       // Lot 9d : l'urgence est calculée à l'affichage (début à 24 h ou
       // moins) ; l'ancienne option manuelle ne classe plus les offres.
       .order("published_at", { ascending: false });

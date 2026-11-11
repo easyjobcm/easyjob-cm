@@ -242,7 +242,9 @@ async function main() {
     category_id: null,
     description: "Offre de preuve RLS SELECT jobs.",
     job_type: "shift" as const,
-    start_date: new Date(Date.now() + 864e5).toISOString().split("T")[0],
+    // Lot 11b : début à J+3 (régime normal, recrutement ouvert jusqu'à
+    // H−24) : le résultat ne dépend pas de l'heure de la preuve.
+    start_date: new Date(Date.now() + 3 * 864e5).toISOString().split("T")[0],
     start_time: "09:00",
     end_time: "13:00",
     mission_pay_per_candidate: 1000,

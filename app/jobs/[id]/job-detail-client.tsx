@@ -48,6 +48,9 @@ import {
 } from "@/lib/utils/cni-validity";
 import { taskHref } from "@/lib/tasks/candidate-tasks";
 import { useJobUrgent } from "@/lib/jobs/use-job-urgency";
+import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
+import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
+import { doualaDateTime } from "@/lib/utils/douala-time";
 
 interface JobDetailClientProps {
   job: {
@@ -67,6 +70,8 @@ interface JobDetailClientProps {
     status?: string | null;
     positions_available: number | null;
     positions_filled: number | null;
+    /** Lot 11b : fin des candidatures (H−24, ou H−2 si publiée en urgence). */
+    applications_close_at?: string | null;
     company?: {
       company_name?: string | null;
       logo_url?: string | null;
@@ -100,6 +105,11 @@ interface JobDetailClientProps {
    * de toute façon la candidature (`job_not_available`).
    */
   acceptingApplications?: boolean;
+  /**
+   * Lot 11b : échéance atteinte à la lecture serveur (`job_availability` =
+   * `closed`). L'écran ouvert bascule aussi seul à l'échéance.
+   */
+  recruitmentClosedAtLoad?: boolean;
 }
 
 /** Section du détail : titre visible, contenu en carte. */
@@ -137,6 +147,7 @@ export function JobDetailClient({
   missingEssentials: initialMissingEssentials = [],
   cni = null,
   acceptingApplications = true,
+  recruitmentClosedAtLoad = false,
 }: JobDetailClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -191,6 +202,13 @@ export function JobDetailClient({
   );
 
   const urgent = useJobUrgent(job);
+  // Lot 11b : minuterie locale sur l'heure du serveur ; la base refuse de
+  // toute façon après l'échéance (recruitment_closed). Le badge « Urgente »
+  // n'entre pas dans ce calcul.
+  const recruitmentNow = useRecruitmentNow([job]);
+  const recruitmentClosed =
+    acceptingApplications &&
+    (recruitmentClosedAtLoad || !isRecruitmentOpen(job, recruitmentNow));
 
   const te = t.profile.essential;
   const essentialsMissingLabels = missingEssentials.map((k) => te[k]);
@@ -608,6 +626,19 @@ export function JobDetailClient({
                 </p>
               </div>
             </div>
+            {acceptingApplications &&
+              !recruitmentClosed &&
+              job.applications_close_at && (
+                <p
+                  className="text-sm text-muted-foreground"
+                  data-testid="job-closes-at"
+                >
+                  {tj.closesAt.replace(
+                    "{date}",
+                    doualaDateTime(job.applications_close_at, locale),
+                  )}
+                </p>
+              )}
           </div>
         </Section>
 
@@ -737,11 +768,21 @@ export function JobDetailClient({
             {hasApplied ? tj.unavailableApplied : tj.unavailableBody}
           </p>
         )}
-        {!acceptingApplications && !hasApplied ? (
+        {recruitmentClosed && (
+          <p
+            role="status"
+            className="mb-2 text-sm text-muted-foreground"
+            data-testid="job-closed-notice"
+          >
+            {hasApplied ? tj.closedApplied : tj.closedBody}
+          </p>
+        )}
+        {(!acceptingApplications || recruitmentClosed) && !hasApplied ? (
           <Button
             variant="outline"
             className="w-full"
             size="lg"
+            data-testid="job-browse-others"
             onClick={() => router.push("/jobs")}
           >
             {tj.backToJobs}

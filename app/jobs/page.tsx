@@ -10,6 +10,8 @@ import { useI18n } from "@/lib/i18n";
 import { Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
+import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 
 type JobListItem = {
   id: string;
@@ -24,6 +26,7 @@ type JobListItem = {
   status?: string | null;
   positions_available: number;
   positions_filled: number;
+  applications_close_at?: string | null;
   company?: {
     company_name: string;
     logo_url?: string;
@@ -67,6 +70,14 @@ export default function JobsPage() {
   // Offre publiée, modifiée, complète ou retirée : la liste est relue (une
   // offre qui n'est plus visible en disparaît).
   useLiveRefresh(["public:jobs", "applications"], () => mutate());
+
+  // Lot 11b : à l'échéance (H−24, ou H−2 si publiée en urgence), l'offre
+  // quitte la liste sans rechargement ; la route ne renvoie que les offres
+  // ouvertes à l'heure de la base.
+  const listed = jobs as JobListItem[];
+  const now = useRecruitmentNow(listed);
+  const openJobs = listed.filter((job) => isRecruitmentOpen(job, now));
+  const closedLocally = listed.length - openJobs.length;
 
   return (
     <AppShell>
@@ -149,7 +160,7 @@ export default function JobsPage() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && jobs.length === 0 && (
+        {!isLoading && !isError && openJobs.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Search className="h-8 w-8 text-muted-foreground" />
@@ -166,13 +177,13 @@ export default function JobsPage() {
         )}
 
         {/* Job list */}
-        {!isLoading && !isError && jobs.length > 0 && (
+        {!isLoading && !isError && openJobs.length > 0 && (
           <>
             <p className="text-sm text-muted-foreground mb-2">
-              {pagination?.total || 0}{" "}
+              {Math.max(0, (pagination?.total || 0) - closedLocally)}{" "}
               {locale === "fr" ? "offres trouvees" : "jobs found"}
             </p>
-            {jobs.map((job: JobListItem) => (
+            {openJobs.map((job) => (
               <JobCard key={job.id} job={job} />
             ))}
           </>

@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 29 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 30 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -236,6 +236,21 @@ Ne pas réappliquer la migration entière pour restaurer : sa section 9 (reprise
 Restauration : appliquer la politique et les deux fonctions extraites du fichier de migration ; 19/19.
 
 **Courses à ordre imposé.** `scripts/lib/proof-barrier.ts` crée une fonction temporaire `proof_sleeping_backends()` (clé service seulement) qui lit `pg_stat_activity` : la seconde opération ne part qu'après avoir observé la première en attente dans son trigger de ralentissement, donc en possession de ses verrous. Aucun délai fixe côté client ; si la première n'atteint pas le trigger, la preuve échoue (« aucune opération en attente »). Les appels `supabase-js` étant paresseux, la première requête est lancée explicitement (`.then(...)`) avant l'attente. Utilisé par `company-dossier-visibility` (R1-R4) et `job-moderation` (I9, I10). La fonction et les triggers temporaires sont retirés en fin de preuve et au démarrage suivant.
+
+`job-deadlines` (échéances de recrutement, lot 11b) :
+
+| Copie modifiée (migration `20261112120000_job_recruitment_deadlines.sql`) | Effet reproduit | Résultat attendu |
+|---|---|---|
+| `apply_to_job` et `select_candidate` de `20261111130000_company_dossier_visibility.sql` (sans échéance) | candidature et sélection acceptées à l'échéance ou après | 9 échecs (N1-N6, U1-U6, L3, G1, V1, S2, R3) |
+| `alter table public.jobs disable trigger trg_job_publication_guard` | aucun régime ni échéance à la publication | échec dès R0 (preuve interrompue) |
+| `job_publication_guard` sans `raise … job_schedule_locked` et `update_job` sans la branche « offre publiée » | dates et horaires d'une offre publiée modifiables | 8 échecs (D2-D9) |
+| `job_publication_guard` seul sans le verrou des horaires | écriture privilégiée (clé service) acceptée | D3 en échec, puis D4-D6 et D8 |
+
+Restauration : `supabase db reset --workdir $stack` (ou réappliquer les fonctions extraites de la migration et `enable trigger`) ; 35/35.
+
+**Limites temporelles exactes.** `job-deadlines` crée une fonction temporaire `proof_l11b_case()` (clé service seulement) qui, dans une seule transaction, place l'échéance (ou le début d'une offre en attente) à `now()` + décalage, puis appelle la vraie RPC (`apply_to_job`, `select_candidate`, `moderate_job`) sous l'identité de la session (`request.jwt.claims`). `now()` étant constant dans la transaction, « juste avant », « exactement » et « juste après » sont testés à la microseconde, sans attente ni relance. Un refus est capturé dans un sous-bloc (ses effets sont annulés) et les compteurs d'effets sont relus. Pour une offre publiée, dont horaires et échéance sont figés pour tout auteur, la fonction désactive le trigger de garde le temps du seul déplacement, dans la même transaction (pile jetable uniquement). La fonction est supprimée en fin de preuve et au démarrage suivant.
+
+**Offres « déjà publiées » dans les fixtures.** Depuis le lot 11b, une offre insérée directement au statut `active` reçoit son régime du trigger et doit commencer dans plus de 4 h. Les preuves qui enchaînent une mission le jour même (`company-dossier-visibility`, `mission-time-tracking`, `reputation`, `realtime`) fournissent les trois valeurs de publication (première publication, régime, échéance proche dans le futur) en clé service ; `realtime` crée son offre à J+3 puis recale la mission sur le jour avant de la démarrer.
 
 Les preuves qui publient des offres ou y font postuler (`job-moderation`, `candidate-selection`, `contract-signing`, `mission-time-tracking`, `realtime`, `business-permissions`, `jobs-rls-select`, `essentials-gate`, `reputation` pour ses entreprises au profil complet) complètent le dossier de leurs entreprises par `scripts/lib/verified-company.ts` (pièces fictives, trois contrôles approuvés sur les versions courantes, en clé service) : depuis le lot 11, un statut `verified` seul ne permet plus de publier, et les offres actives d'une entreprise sans dossier valide sont masquées et fermées aux candidatures. `company-permissions` E1 et E2 listent les colonnes ouvertes en session et les trois RPC gardées qui écrivent `company_profiles`.
 

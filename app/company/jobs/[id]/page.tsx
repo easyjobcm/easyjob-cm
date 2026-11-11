@@ -46,6 +46,8 @@ import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 import { plural } from "@/lib/i18n/plural";
 import { ReputationStars } from "@/components/reputation/reputation-stars";
 import { MissionPay } from "@/components/jobs/mission-pay";
+import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
+import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -63,6 +65,8 @@ type Job = Pick<
   | "mission_pay_per_candidate"
   | "required_skills"
   | "required_documents"
+  | "status"
+  | "applications_close_at"
 >;
 
 /** Réponse de GET /api/jobs/[id]/missions (lot 7c ; null possibles). */
@@ -159,7 +163,7 @@ export default function CompanyJobDetailPage() {
     const { data: jobData, error: jobError } = await supabase
       .from("jobs")
       .select(
-        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents",
+        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents, status, applications_close_at",
       )
       .eq("id", jobId)
       .single();
@@ -384,6 +388,12 @@ export default function CompanyJobDetailPage() {
   );
   const isFull =
     !!job && (job.positions_filled ?? 0) >= (job.positions_available ?? 1);
+  // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence)
+  // reflétée à l'heure du serveur sur l'écran ouvert ; la base refuse
+  // recruitment_closed. Contrats et missions restent accessibles.
+  const recruitmentNow = useRecruitmentNow(job ? [job] : []);
+  const recruitmentClosed =
+    !!job && job.status === "active" && !isRecruitmentOpen(job, recruitmentNow);
 
   if (loading) {
     return (
@@ -464,6 +474,28 @@ export default function CompanyJobDetailPage() {
               {formatTime(job.start_time)} - {formatTime(job.end_time)}
             </span>
           </p>
+          {job.status === "active" &&
+            (recruitmentClosed ? (
+              <p
+                className="text-xs text-muted-foreground"
+                role="status"
+                data-testid="company-recruitment-closed"
+              >
+                {ta.errors.recruitment_closed}
+              </p>
+            ) : (
+              job.applications_close_at && (
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="company-recruitment-closes-at"
+                >
+                  {t.jobDetail.closesAt.replace(
+                    "{date}",
+                    doualaDateTime(job.applications_close_at, locale),
+                  )}
+                </p>
+              )
+            ))}
         </div>
 
         {((job.required_skills?.length ?? 0) > 0 ||
@@ -613,6 +645,13 @@ export default function CompanyJobDetailPage() {
                                   data-testid="select-blocked-dossier"
                                 >
                                   {ta.errors.company_not_verified}
+                                </p>
+                              ) : recruitmentClosed ? (
+                                <p
+                                  className="w-full text-xs text-muted-foreground"
+                                  data-testid="select-blocked-closed"
+                                >
+                                  {ta.errors.recruitment_closed}
                                 </p>
                               ) : (
                                 <Button
@@ -829,6 +868,11 @@ export default function CompanyJobDetailPage() {
                 {ta.errors.company_not_verified}
               </p>
             )}
+            {!suspended && !dossierBlocked && recruitmentClosed && (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {ta.errors.recruitment_closed}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionType(null)}>
@@ -836,7 +880,9 @@ export default function CompanyJobDetailPage() {
             </Button>
             <Button
               onClick={handleSelectCandidate}
-              disabled={processing || suspended || dossierBlocked}
+              disabled={
+                processing || suspended || dossierBlocked || recruitmentClosed
+              }
               data-testid="select-confirm"
             >
               {processing ? ta.processing : ta.selectDialog.confirm}

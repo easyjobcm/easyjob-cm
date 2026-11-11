@@ -80,6 +80,8 @@ export const fr = {
           "L'entreprise a modifié l'offre entre-temps. Relisez-la avant de décider.",
         company_not_eligible:
           "Entreprise suspendue ou non vérifiée : l'offre ne peut pas être publiée.",
+        job_start_too_close:
+          "Début trop proche ou passé : une offre se publie plus de 24 h avant son début, ou en urgence entre 24 h et 4 h avant.",
         job_not_found: "Offre introuvable.",
         not_authenticated: "Session expirée. Veuillez vous reconnecter.",
         invalid_action: "Action invalide.",
@@ -718,6 +720,11 @@ export const fr = {
     unavailableApplied:
       "Cette offre n'accepte plus de nouvelles candidatures pour le moment. Votre candidature reste consultable.",
     backToJobs: "Voir les autres offres",
+    // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence).
+    closedBody: "Les candidatures pour cette offre sont closes.",
+    closedApplied:
+      "Les candidatures pour cette offre sont closes. Votre candidature reste consultable.",
+    closesAt: "Candidatures jusqu'au {date}",
     work: "Travail demandé",
     pay: "Montant par candidat",
     location: "Lieu",
@@ -817,6 +824,7 @@ export const fr = {
         "Votre compte est suspendu : vous ne pouvez pas postuler. Contactez le support.",
       job_not_found: "Cette offre n'est plus disponible.",
       job_not_available: "Cette offre n'accepte plus de candidatures.",
+      recruitment_closed: "Les candidatures pour cette offre sont closes.",
       no_positions: "Toutes les places de cette offre sont pourvues.",
       already_applied: "Vous avez déjà postulé à cette offre.",
       profile_incomplete:
@@ -2104,6 +2112,10 @@ export const fr = {
       submitEdit: "Soumettre à nouveau",
       editNotice:
         "Après modification, l'offre repasse en modération : elle n'est plus visible par les candidats jusqu'à la nouvelle validation.",
+      // Lot 11b : règle de lancement, horaires figés après publication.
+      scheduleLocked:
+        "Offre déjà publiée : la date et les horaires ne peuvent plus être modifiés. Les autres informations restent modifiables. Pour déplacer la mission, créez une nouvelle offre : elle sera de nouveau modérée, et l'offre actuelle et ses candidatures sont conservées.",
+      scheduleLockedAction: "Créer une nouvelle offre",
       errorTitle: "Offre non enregistrée",
     },
     errors: {
@@ -2143,6 +2155,10 @@ export const fr = {
       job_not_editable: "Cette offre ne peut plus être modifiée.",
       job_has_commitments:
         "Suppression impossible : des candidats sont sélectionnés ou une mission est engagée sur cette offre. Contactez le support.",
+      job_start_too_close:
+        "Début trop proche ou passé : publiez l'offre plus de 24 h avant son début, ou au moins 4 h avant pour une publication urgente.",
+      job_schedule_locked:
+        "Offre déjà publiée : sa date et ses horaires ne peuvent plus être modifiés. Pour déplacer la mission, créez une nouvelle offre.",
       generic: "L'offre n'a pas pu être enregistrée. Réessayez.",
     },
   },
@@ -2231,6 +2247,8 @@ export const fr = {
         "Votre dossier entreprise doit être vérifié par EasyJob pour sélectionner un candidat.",
       job_not_available:
         "Cette offre n'est plus publiée : elle doit l'être pour sélectionner un candidat.",
+      recruitment_closed:
+        "Recrutement clos : l'échéance de cette offre est passée (24 h avant le début, ou 2 h si elle a été publiée en urgence). Les candidats déjà sélectionnés gardent leur mission.",
       no_positions:
         "Toutes les places de cette offre sont pourvues : aucune autre sélection n'est possible.",
       candidate_unavailable:

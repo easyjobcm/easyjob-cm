@@ -1425,6 +1425,7 @@ export type Database = {
       jobs: {
         Row: {
           address: string
+          applications_close_at: string | null
           benefits: string[]
           break_duration_minutes: number
           category_id: string | null
@@ -1439,11 +1440,13 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
+          first_published_at: string | null
           id: string
           is_recurring: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
+          legacy_publication: boolean
           location_map_url: string | null
           location_photo_url: string | null
           location_reference: string | null
@@ -1457,6 +1460,7 @@ export type Database = {
           positions_available: number | null
           positions_filled: number | null
           provided_equipment: string[]
+          publication_regime: string | null
           published_at: string | null
           quartier: string | null
           recurring_days: number[] | null
@@ -1478,6 +1482,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          applications_close_at?: string | null
           benefits?: string[]
           break_duration_minutes?: number
           category_id?: string | null
@@ -1492,11 +1497,13 @@ export type Database = {
           end_time: string
           estimated_hours?: number | null
           expires_at?: string | null
+          first_published_at?: string | null
           id?: string
           is_recurring?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold?: string | null
           latitude?: number | null
+          legacy_publication?: boolean
           location_map_url?: string | null
           location_photo_url?: string | null
           location_reference?: string | null
@@ -1510,6 +1517,7 @@ export type Database = {
           positions_available?: number | null
           positions_filled?: number | null
           provided_equipment?: string[]
+          publication_regime?: string | null
           published_at?: string | null
           quartier?: string | null
           recurring_days?: number[] | null
@@ -1531,6 +1539,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          applications_close_at?: string | null
           benefits?: string[]
           break_duration_minutes?: number
           category_id?: string | null
@@ -1545,11 +1554,13 @@ export type Database = {
           end_time?: string
           estimated_hours?: number | null
           expires_at?: string | null
+          first_published_at?: string | null
           id?: string
           is_recurring?: boolean | null
           job_type?: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold?: string | null
           latitude?: number | null
+          legacy_publication?: boolean
           location_map_url?: string | null
           location_photo_url?: string | null
           location_reference?: string | null
@@ -1563,6 +1574,7 @@ export type Database = {
           positions_available?: number | null
           positions_filled?: number | null
           provided_equipment?: string[]
+          publication_regime?: string | null
           published_at?: string | null
           quartier?: string | null
           recurring_days?: number[] | null
@@ -2851,6 +2863,7 @@ export type Database = {
         Args: { p_job: Json }
         Returns: {
           address: string
+          applications_close_at: string | null
           benefits: string[]
           break_duration_minutes: number
           category_id: string | null
@@ -2865,11 +2878,13 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
+          first_published_at: string | null
           id: string
           is_recurring: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
+          legacy_publication: boolean
           location_map_url: string | null
           location_photo_url: string | null
           location_reference: string | null
@@ -2883,6 +2898,7 @@ export type Database = {
           positions_available: number | null
           positions_filled: number | null
           provided_equipment: string[]
+          publication_regime: string | null
           published_at: string | null
           quartier: string | null
           recurring_days: number[] | null
@@ -2982,6 +2998,7 @@ export type Database = {
         }
         Returns: {
           address: string
+          applications_close_at: string | null
           benefits: string[]
           break_duration_minutes: number
           category_id: string | null
@@ -2996,11 +3013,13 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
+          first_published_at: string | null
           id: string
           is_recurring: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
+          legacy_publication: boolean
           location_map_url: string | null
           location_photo_url: string | null
           location_reference: string | null
@@ -3014,6 +3033,7 @@ export type Database = {
           positions_available: number | null
           positions_filled: number | null
           provided_equipment: string[]
+          publication_regime: string | null
           published_at: string | null
           quartier: string | null
           recurring_days: number[] | null
@@ -3041,6 +3061,18 @@ export type Database = {
         }
       }
       job_availability: { Args: { p_job_id: string }; Returns: string }
+      job_publication_regime: {
+        Args: { p_at: string; p_start: string }
+        Returns: string
+      }
+      job_recruitment_close: {
+        Args: { p_regime: string; p_start: string }
+        Returns: string
+      }
+      job_start_instant: {
+        Args: { p_date: string; p_time: string }
+        Returns: string
+      }
       license_categories_for: {
         Args: { p_required: string }
         Returns: string[]
@@ -3070,6 +3102,7 @@ export type Database = {
         }
         Returns: {
           address: string
+          applications_close_at: string | null
           benefits: string[]
           break_duration_minutes: number
           category_id: string | null
@@ -3084,11 +3117,13 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
+          first_published_at: string | null
           id: string
           is_recurring: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
+          legacy_publication: boolean
           location_map_url: string | null
           location_photo_url: string | null
           location_reference: string | null
@@ -3102,6 +3137,7 @@ export type Database = {
           positions_available: number | null
           positions_filled: number | null
           provided_equipment: string[]
+          publication_regime: string | null
           published_at: string | null
           quartier: string | null
           recurring_days: number[] | null
@@ -3140,6 +3176,10 @@ export type Database = {
         Returns: undefined
       }
       record_application_blocker: { Args: { p_job_id: string }; Returns: Json }
+      recruitment_open: {
+        Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: boolean
+      }
       refresh_reputation: {
         Args: {
           p_cause: string
@@ -3289,6 +3329,7 @@ export type Database = {
         Args: { p_job: Json; p_job_id: string }
         Returns: {
           address: string
+          applications_close_at: string | null
           benefits: string[]
           break_duration_minutes: number
           category_id: string | null
@@ -3303,11 +3344,13 @@ export type Database = {
           end_time: string
           estimated_hours: number | null
           expires_at: string | null
+          first_published_at: string | null
           id: string
           is_recurring: boolean | null
           job_type: Database["public"]["Enums"]["job_type"] | null
           late_cancellation_threshold: string | null
           latitude: number | null
+          legacy_publication: boolean
           location_map_url: string | null
           location_photo_url: string | null
           location_reference: string | null
@@ -3321,6 +3364,7 @@ export type Database = {
           positions_available: number | null
           positions_filled: number | null
           provided_equipment: string[]
+          publication_regime: string | null
           published_at: string | null
           quartier: string | null
           recurring_days: number[] | null
