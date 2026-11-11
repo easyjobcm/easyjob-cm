@@ -37,6 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import type { Database, Tables } from "@/lib/database.types";
 import {
+  useAccountState,
   useAccountSuspended,
   useLatestRequest,
   useLiveRefresh,
@@ -117,6 +118,12 @@ export default function CompanyJobDetailPage() {
   } | null>(null);
 
   const suspended = useAccountSuspended();
+  // Lot 11 : dossier entreprise plus vérifié → nouvelle sélection refusée
+  // en base (company_not_verified) ; le bouton est retiré, les engagements
+  // existants (contrats, missions) restent accessibles.
+  const account = useAccountState();
+  const dossierBlocked =
+    !!account?.company && account.company.verification_status !== "verified";
   const latest = useLatestRequest();
 
   useEffect(() => {
@@ -599,17 +606,27 @@ export default function CompanyJobDetailPage() {
                         {!suspended &&
                           (app.status === "pending" ||
                             app.status === "shortlisted") && (
-                            <div className="flex items-center gap-2 mt-3">
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedApplication(app);
-                                  setActionType("select");
-                                }}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                {ta.actions.select}
-                              </Button>
+                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                              {dossierBlocked ? (
+                                <p
+                                  className="w-full text-xs text-muted-foreground"
+                                  data-testid="select-blocked-dossier"
+                                >
+                                  {ta.errors.company_not_verified}
+                                </p>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  data-testid="select-candidate"
+                                  onClick={() => {
+                                    setSelectedApplication(app);
+                                    setActionType("select");
+                                  }}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  {ta.actions.select}
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -807,6 +824,11 @@ export default function CompanyJobDetailPage() {
                 {t.realtime.actionUnavailable}
               </p>
             )}
+            {!suspended && dossierBlocked && (
+              <p className="mt-2 text-sm text-destructive" role="alert">
+                {ta.errors.company_not_verified}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionType(null)}>
@@ -814,7 +836,7 @@ export default function CompanyJobDetailPage() {
             </Button>
             <Button
               onClick={handleSelectCandidate}
-              disabled={processing || suspended}
+              disabled={processing || suspended || dossierBlocked}
               data-testid="select-confirm"
             >
               {processing ? ta.processing : ta.selectDialog.confirm}

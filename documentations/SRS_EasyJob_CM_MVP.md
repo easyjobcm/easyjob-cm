@@ -105,7 +105,7 @@ Assurance mission automatisée, expansion multi-pays (Côte d'Ivoire, Sénégal)
 - [x] Onboarding guidé par IA pour candidats et entreprises
 - [x] Profil candidat avec système de complétude et badges
 - [x] Gestion des dates d'expiration des documents candidat
-- [x] Profil entreprise avec vérification NIU
+- [x] Profil entreprise avec dossier vérifié par EasyJob (RCCM, NIU, représentant — lot 11, §6.3.1)
 - [x] Publication d'offres assistée par IA avec modération admin obligatoire
 - [x] Système d'offres multi-jours décomposées par journée
 - [x] Catégorisation et paramétrage automatique des offres par l'IA
@@ -382,8 +382,59 @@ Ces trois critères sont évalués **indépendamment** du pourcentage global de 
 > Note : il n'y a pas de portefeuille permanent. Le paiement se fait mission par mission au moment de la publication d'une offre (voir section 6.10).
 
 **Critères d'acceptation :**
-- Le NIU est vérifié par regex (format valide) + validation manuelle admin dans les 24h.
+- Le NIU est vérifié par regex (format valide) + validation manuelle admin dans les 24h (voir §6.3.1 : le format seul ne suffit jamais).
 - L'onboarding est sauvegardable et reprennable.
+
+### 6.3.1 Dossier entreprise vérifié par EasyJob (lot 11)
+
+**Décision produit (2026-11-11) :** au lancement, seules les **entreprises dont le dossier est vérifié** publient des offres. Les particuliers et les professionnels non formalisés sont reportés (PLAN_ACTION.md, lot à cadrer) ; aucune implémentation n'est commencée.
+
+**Dossier exigé** (pièces privées, bucket `company-documents`, lisibles par le propriétaire et les admins actifs seulement, jamais dans un profil public, une notification, un journal ou un signal Realtime) :
+1. **RCCM** : numéro et document.
+2. **NIU** : numéro (saisi à l'inscription, modifiable par le support seulement) et attestation correspondante.
+3. **Représentant** : nom, fonction, pièce d'identité, et preuve de son habilitation — dirigeant mentionné dans les justificatifs, ou mandat de l'entreprise (document exigé dans ce cas). La vérification CNI des candidats n'est pas réutilisée : elle porte sur un autre compte et un autre parcours.
+
+L'entreprise voit ses pièces manquantes, l'état de chaque contrôle (vérifié, à corriger avec motif, en attente) et l'action possible, dès l'onboarding, le tableau de bord, le profil et l'entrée de la création d'offre. Libellé affiché : « Dossier vérifié par EasyJob » (aucune certification générale de conformité).
+
+**Contrôle manuel par l'équipe :**
+- `admin_support` actif consulte (fiche, pièces par URL signée de 60 s) ; il ne décide jamais.
+- `admin_ops` / `admin_founder` actifs enregistrent trois contrôles séparés, puis la décision finale :
+  - **RCCM** : auprès d'une source officielle accessible, ou du greffe compétent si nécessaire ;
+  - **NIU** : auprès du service officiel de la DGI ; il doit correspondre à l'entreprise. Un fichier envoyé ou un format valide ne suffit pas ;
+  - **représentant** : identité et habilitation (dirigeant mentionné, ou mandat).
+- Chaque contrôle enregistre l'auteur, la date, la source consultée, une référence ou note interne (jamais montrée à l'entreprise) et, en cas de refus, un motif communiqué. « Vérification impossible » (source indisponible) laisse le dossier en attente : aucune approbation automatique, aucune intégration externe simulée, aucun scraping, aucune validation par EasyBot.
+- L'approbation finale exige les trois contrôles validés sur la **version courante** du dossier. La correction demandée porte un motif (10 à 500 caractères).
+
+**État et sécurité :** toute modification d'un élément contrôlé invalide les contrôles qui en dépendent, sans effacer l'historique, et remet en revue une entreprise vérifiée :
+
+| Modification | RCCM | NIU | Représentant |
+|---|---|---|---|
+| Raison sociale, nom légal (identité de l'entreprise) | invalidé | invalidé | invalidé |
+| Numéro ou document RCCM | invalidé | — | invalidé (dirigeant vérifié sur l'immatriculation) |
+| NIU (support seulement) ou attestation NIU | — | invalidé | — |
+| Nom, fonction, habilitation, pièce d'identité ou mandat du représentant | — | — | invalidé |
+
+Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version ancienne est refusée ; deux décisions concurrentes n'en produisent qu'une. Décision, notification et `audit_logs` (sans référence interne, motif ni donnée personnelle) sont écrits dans la même transaction.
+
+**Droit de publier :** vérifié en base par `create_job`, `update_job` et `moderate_job` (dossier complet approuvé, compte et entreprise actifs), y compris en appel direct. Une offre en attente n'est pas publiée si l'entreprise a perdu son autorisation entre-temps.
+
+**Perte de la validation complète du dossier (décision produit du 2026-11-11) :**
+- les offres actives disparaissent des recherches, listes et liens directs pour les nouveaux candidats (lien direct : « Offre indisponible », sans aucune donnée de l'offre) ;
+- toute nouvelle candidature et toute nouvelle sélection sont refusées en base, y compris en appel direct ;
+- les candidatures existantes restent consultables par leurs candidats et par l'entreprise ; le retrait d'une candidature suit les règles existantes ;
+- missions, contrats et engagements existants sont conservés avec leurs actions (signature, début, code de fin, avis) ; la relance d'une sélection déjà réussie retrouve son résultat sans nouvel engagement ;
+- le statut de l'offre n'est pas modifié (ni annulation, ni refus, ni suppression) : visibilité et disponibilité sont calculées à partir du dossier ;
+- une opération terminée avant la remise en revue conserve ses effets ; une opération engagée après est refusée ;
+- la suspension d'un compte garde ses propres règles.
+
+**Retour après validation (décision du 2026-11-11, validée) :** une offre retrouve automatiquement sa visibilité dès que le dossier est de nouveau vérifié, sans nouvelle modération, **seulement si elle est toujours admissible** selon les règles existantes : statut `active` (une offre annulée, expirée, refusée, pourvue ou en attente de modération ne revient pas), places disponibles (sinon candidature et sélection refusées), règle de date de la liste (offre dont la date est passée absente de la liste), restrictions du compte (un compte suspendu reste privé de sélection et de publication). Une offre dont le contenu a été modifié repasse en modération : l'ancienne approbation n'est jamais réutilisée. Les conditions figées des contrats existants ne changent pas.
+
+**Décisions associées (2026-11-11) :**
+- correction du NIU réservée au support (l'entreprise le lit seulement) ;
+- source officielle inaccessible (DGI, registre, greffe) : dossier en attente, aucune approbation automatique ; la procédure de relance reste à formaliser ;
+- conservation des pièces (pièces d'identité, pièces remplacées) : à cadrer avant l'ouverture publique.
+
+**Anciens dossiers :** aucun n'est réputé NIU ou représentant vérifié ; les entreprises « vérifiées » avant le lot 11 repassent en attente et complètent leur dossier (état précédent conservé dans `audit_logs`).
 
 ---
 
@@ -650,7 +701,7 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 **Niveau `admin_ops` (haut cadre) :**
 - Tout `admin_support` +
 - KPIs temps réel : missions actives, CA du jour/mois, taux de conversion, alertes.
-- Gestion des utilisateurs : suspension, ~~modification du niveau Sandbox~~ (retiré, lot 9b), vérification manuelle CNI/NIU.
+- Gestion des utilisateurs : suspension, ~~modification du niveau Sandbox~~ (retiré, lot 9b), vérification manuelle CNI, vérification du dossier entreprise (RCCM, NIU auprès de la DGI, représentant — §6.3.1).
 - Modération des offres : approbation, rejet, demande de correction.
 - Suivi et intervention sur les missions en cours.
 - Gestion des litiges : décision, libération ou remboursement.
@@ -1063,7 +1114,9 @@ Note et nombre d'avis du profil mis à jour (lot 9b ; plus de niveau Sandbox)
 ### 7.2 Flux complet entreprise
 
 ```
-Inscription + NIU (validation admin 24h)
+Inscription + NIU
+    ↓
+Dossier entreprise (RCCM, NIU, représentant) vérifié par EasyJob (§6.3.1)
     ↓
 Onboarding entreprise
     ↓
@@ -1538,10 +1591,10 @@ admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
 
 ### 11.6 — Vérification automatique du NIU
 
-**Décision : Option A + B appliquée.**
+**Décision : Option A + B appliquée (précisée au lot 11, 2026-11-11).**
 - Vérification du format par regex à la saisie.
-- Validation manuelle par `admin_ops` dans les 24h.
-- Surveillance de l'évolution des APIs gouvernementales.
+- Validation manuelle par `admin_ops` (ou `admin_founder`) auprès du **service officiel de la DGI** : le NIU doit correspondre à l'entreprise ; l'attestation envoyée ou un format valide ne suffisent pas. Source et référence sont enregistrées ; si la DGI est inaccessible, le dossier reste en attente.
+- Surveillance de l'évolution des APIs gouvernementales. Aucune intégration n'est simulée tant qu'aucune API officielle n'est disponible.
 
 **Statut :** ✅ Décision prise.
 
@@ -1634,6 +1687,7 @@ Les éléments suivants ne seront pas développés dans le MVP :
 - Intégration avec des logiciels RH tiers (Sage, etc.).
 - KYC automatisé via partenaire type Smile Identity — prévu V1.1.
 - Embeddings sémantiques pour le matching — prévu V1.1.
+- Comptes recruteurs pour particuliers et professionnels non formalisés (décision du 2026-11-11 : reporté ; au lancement, seules les entreprises au dossier vérifié publient).
 
 ---
 

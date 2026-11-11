@@ -24,6 +24,8 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useAccountState } from "@/lib/realtime/provider";
 import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
+import { CompanyVerificationCard } from "@/components/company/company-verification-card";
+import type { MyCompanyVerification } from "@/lib/utils/company-verification";
 
 interface CompanyProfileClientProps {
   user: {
@@ -43,6 +45,8 @@ interface CompanyProfileClientProps {
   activeJobsCount: number;
   subscriptionExpiresAt: string | null;
   hasUsedTrial: boolean;
+  /** Lot 11 : état du dossier entreprise (revue EasyJob). */
+  verification: MyCompanyVerification | null;
 }
 
 function HeroOrb({
@@ -87,6 +91,7 @@ export function CompanyProfileClient({
   activeJobsCount,
   subscriptionExpiresAt: initialExpiresAt,
   hasUsedTrial,
+  verification,
 }: CompanyProfileClientProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -276,6 +281,8 @@ export function CompanyProfileClient({
 
         {/* ── CONTENT ─────────────────────────────────────────── */}
         <div className="space-y-5 px-4 pb-10 pt-6">
+          {verification && <CompanyVerificationCard dossier={verification} />}
+
           {/* Completion ring */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}

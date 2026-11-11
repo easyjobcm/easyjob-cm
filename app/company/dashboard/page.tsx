@@ -4,6 +4,7 @@ import { LiveRefresh } from "@/lib/realtime/provider";
 import { CompanyDashboardClient } from "./company-dashboard-client";
 import { loginHref } from "@/lib/auth/safe-redirect";
 import { isCompanyRole } from "@/lib/utils/profile-status";
+import { parseMyCompanyVerification } from "@/lib/utils/company-verification";
 
 export default async function CompanyDashboardPage() {
   const supabase = await createClient();
@@ -40,6 +41,12 @@ export default async function CompanyDashboardPage() {
   if (!profile || profile.onboarding_status !== "completed") {
     redirect("/onboarding/company");
   }
+
+  // Lot 11 : état des contrôles et pièces manquantes (jamais la note interne).
+  const { data: verificationRaw } = await supabase.rpc(
+    "my_company_verification",
+  );
+  const verification = parseMyCompanyVerification(verificationRaw);
 
   // Get company's jobs with application count
   const { data: jobs } = await supabase
@@ -121,6 +128,7 @@ export default async function CompanyDashboardPage() {
       <CompanyDashboardClient
         user={userData}
         profile={profile}
+        verification={verification}
         jobs={jobsWithCounts}
         stats={{
           totalJobs: totalJobs || 0,

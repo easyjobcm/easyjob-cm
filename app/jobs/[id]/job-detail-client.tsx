@@ -94,6 +94,12 @@ interface JobDetailClientProps {
   missingEssentials?: EssentialKey[];
   /** Champs CNI du candidat connecté (affichage du refus « CNI expirée »). */
   cni?: CniProfileFields | null;
+  /**
+   * Lot 11 : false si le dossier de l'entreprise n'est plus vérifié (offre
+   * lisible seulement par un candidat ayant déjà postulé). La base refuse
+   * de toute façon la candidature (`job_not_available`).
+   */
+  acceptingApplications?: boolean;
 }
 
 /** Section du détail : titre visible, contenu en carte. */
@@ -130,6 +136,7 @@ export function JobDetailClient({
   isLoggedIn,
   missingEssentials: initialMissingEssentials = [],
   cni = null,
+  acceptingApplications = true,
 }: JobDetailClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -721,7 +728,25 @@ export function JobDetailClient({
         className="fixed bottom-[calc(4rem+1px+env(safe-area-inset-bottom))] left-0 right-0 z-30 border-t border-border bg-background/95 p-4 backdrop-blur-xl"
         data-testid="job-primary-action"
       >
-        {hasApplied ? (
+        {!acceptingApplications && (
+          <p
+            role="status"
+            className="mb-2 text-sm text-muted-foreground"
+            data-testid="job-unavailable-notice"
+          >
+            {hasApplied ? tj.unavailableApplied : tj.unavailableBody}
+          </p>
+        )}
+        {!acceptingApplications && !hasApplied ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            size="lg"
+            onClick={() => router.push("/jobs")}
+          >
+            {tj.backToJobs}
+          </Button>
+        ) : hasApplied ? (
           <Button
             variant="outline"
             className="w-full"
@@ -950,6 +975,35 @@ export function JobDetailClient({
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/**
+ * Lot 11 : lien direct vers une offre masquée (dossier de l'entreprise plus
+ * vérifié). Aucune donnée de l'offre n'est lue ni affichée. La page se relit
+ * si l'offre redevient visible (signal public).
+ */
+export function JobUnavailable() {
+  const router = useRouter();
+  const { t } = useI18n();
+  const tj = t.jobDetail;
+  useLiveRefresh(["public:jobs", "jobs", "applications"], () =>
+    router.refresh(),
+  );
+  return (
+    <div
+      className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center"
+      data-testid="job-unavailable"
+    >
+      <AlertTriangle className="h-10 w-10 text-warning" aria-hidden />
+      <h1 className="text-xl font-semibold text-foreground">
+        {tj.unavailableTitle}
+      </h1>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {tj.unavailableBody}
+      </p>
+      <Button onClick={() => router.push("/jobs")}>{tj.backToJobs}</Button>
     </div>
   );
 }

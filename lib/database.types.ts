@@ -643,6 +643,8 @@ export type Database = {
           logo_url: string | null
           longitude: number | null
           niu: string | null
+          niu_document_path: string | null
+          niu_revision: number
           niu_verified: boolean | null
           onboarding_status:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -650,6 +652,13 @@ export type Database = {
           onboarding_step: number | null
           quartier: string | null
           rccm: string | null
+          rccm_revision: number
+          representative_authority: string | null
+          representative_id_document_path: string | null
+          representative_mandate_path: string | null
+          representative_name: string | null
+          representative_revision: number
+          representative_title: string | null
           sector: string | null
           subscription_expires_at: string | null
           subscription_plan: string | null
@@ -660,9 +669,13 @@ export type Database = {
           updated_at: string | null
           user_id: string
           verification_rejection_reason: string | null
+          verification_reviewed_at: string | null
+          verification_reviewed_revision: number | null
+          verification_revision: number
           verification_status:
             | Database["public"]["Enums"]["verification_status"]
             | null
+          verification_submitted_at: string | null
           website: string | null
         }
         Insert: {
@@ -686,6 +699,8 @@ export type Database = {
           logo_url?: string | null
           longitude?: number | null
           niu?: string | null
+          niu_document_path?: string | null
+          niu_revision?: number
           niu_verified?: boolean | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -693,6 +708,13 @@ export type Database = {
           onboarding_step?: number | null
           quartier?: string | null
           rccm?: string | null
+          rccm_revision?: number
+          representative_authority?: string | null
+          representative_id_document_path?: string | null
+          representative_mandate_path?: string | null
+          representative_name?: string | null
+          representative_revision?: number
+          representative_title?: string | null
           sector?: string | null
           subscription_expires_at?: string | null
           subscription_plan?: string | null
@@ -703,9 +725,13 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           verification_rejection_reason?: string | null
+          verification_reviewed_at?: string | null
+          verification_reviewed_revision?: number | null
+          verification_revision?: number
           verification_status?:
             | Database["public"]["Enums"]["verification_status"]
             | null
+          verification_submitted_at?: string | null
           website?: string | null
         }
         Update: {
@@ -729,6 +755,8 @@ export type Database = {
           logo_url?: string | null
           longitude?: number | null
           niu?: string | null
+          niu_document_path?: string | null
+          niu_revision?: number
           niu_verified?: boolean | null
           onboarding_status?:
             | Database["public"]["Enums"]["onboarding_status"]
@@ -736,6 +764,13 @@ export type Database = {
           onboarding_step?: number | null
           quartier?: string | null
           rccm?: string | null
+          rccm_revision?: number
+          representative_authority?: string | null
+          representative_id_document_path?: string | null
+          representative_mandate_path?: string | null
+          representative_name?: string | null
+          representative_revision?: number
+          representative_title?: string | null
           sector?: string | null
           subscription_expires_at?: string | null
           subscription_plan?: string | null
@@ -746,9 +781,13 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           verification_rejection_reason?: string | null
+          verification_reviewed_at?: string | null
+          verification_reviewed_revision?: number | null
+          verification_revision?: number
           verification_status?:
             | Database["public"]["Enums"]["verification_status"]
             | null
+          verification_submitted_at?: string | null
           website?: string | null
         }
         Relationships: [
@@ -756,6 +795,73 @@ export type Database = {
             foreignKeyName: "company_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_verification_checks: {
+        Row: {
+          check_revision: number
+          check_type: string
+          company_id: string
+          decided_at: string
+          decided_by: string | null
+          decided_by_role: string | null
+          decision: string
+          dossier_revision: number
+          id: string
+          reason: string | null
+          reference_note: string | null
+          source: string | null
+        }
+        Insert: {
+          check_revision: number
+          check_type: string
+          company_id: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role?: string | null
+          decision: string
+          dossier_revision: number
+          id?: string
+          reason?: string | null
+          reference_note?: string | null
+          source?: string | null
+        }
+        Update: {
+          check_revision?: number
+          check_type?: string
+          company_id?: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role?: string | null
+          decision?: string
+          dossier_revision?: number
+          id?: string
+          reason?: string | null
+          reference_note?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_verification_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_verification_checks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_verification_checks_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -2473,6 +2579,19 @@ export type Database = {
         Args: { p_note: string; p_review_id: string }
         Returns: string
       }
+      admin_record_company_check: {
+        Args: {
+          p_check: string
+          p_company_id: string
+          p_decision: string
+          p_reason: string
+          p_reference: string
+          p_seen_check: string
+          p_seen_revision: number
+          p_source: string
+        }
+        Returns: Json
+      }
       admin_reputation_review_impacts: {
         Args: { p_subject_id: string; p_subject_type: string }
         Returns: {
@@ -2491,6 +2610,15 @@ export type Database = {
           stars_after: number
           stars_before: number
         }[]
+      }
+      admin_review_company: {
+        Args: {
+          p_action: string
+          p_company_id: string
+          p_reason: string
+          p_seen_revision: number
+        }
+        Returns: Json
       }
       admin_set_user_active: {
         Args: { p_active: boolean; p_user_id: string }
@@ -2534,6 +2662,7 @@ export type Database = {
         }
       }
       candidate_action_tasks: { Args: never; Returns: Json }
+      candidate_applied_to_job: { Args: { p_job_id: string }; Returns: boolean }
       candidate_cni_state: {
         Args: {
           p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
@@ -2600,6 +2729,26 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      company_check_status: {
+        Args: {
+          p: Database["public"]["Tables"]["company_profiles"]["Row"]
+          p_check: string
+        }
+        Returns: {
+          decided_at: string
+          decision_id: string
+          reason: string
+          status: string
+        }[]
+      }
+      company_dossier_missing: {
+        Args: { p: Database["public"]["Tables"]["company_profiles"]["Row"] }
+        Returns: string[]
+      }
+      company_dossier_valid: {
+        Args: { p_company_id: string }
+        Returns: boolean
+      }
       company_effective_plan: {
         Args: { p_expires_at: string; p_plan: string }
         Returns: string
@@ -2638,6 +2787,10 @@ export type Database = {
       company_profile_completion_pct: {
         Args: { p: Database["public"]["Tables"]["company_profiles"]["Row"] }
         Returns: number
+      }
+      company_verification_complete: {
+        Args: { p_company_id: string }
+        Returns: boolean
       }
       compute_reputation: {
         Args: { p_at?: string; p_subject_id: string; p_subject_type: string }
@@ -2887,6 +3040,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      job_availability: { Args: { p_job_id: string }; Returns: string }
       license_categories_for: {
         Args: { p_required: string }
         Returns: string[]
@@ -2975,6 +3129,7 @@ export type Database = {
         }
       }
       my_account_state: { Args: never; Returns: Json }
+      my_company_verification: { Args: never; Returns: Json }
       my_reputation: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
@@ -3103,6 +3258,7 @@ export type Database = {
           status: Database["public"]["Enums"]["mission_status"]
         }[]
       }
+      submit_company_verification: { Args: never; Returns: Json }
       submit_completion_code: {
         Args: { p_code: string; p_mission_id: string }
         Returns: {

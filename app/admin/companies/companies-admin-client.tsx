@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  FileSearch,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,19 +25,24 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { useI18n } from "@/lib/i18n";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { doualaDateTime } from "@/lib/utils/douala-time";
+import type { CompanyReviewState } from "@/lib/utils/company-verification";
 
 /**
  * T8.4a — Vue centralisée des entreprises (client).
  *
  * Consomme `/api/admin/companies` (lecture service_role, recherche libre
- * `?q=`). Sections En attente / Validées / Suspendues :
- *   - Suspendues : users.is_active = false (gate de publication §6.19)
+ * `?q=`). Sections :
+ *   - À examiner : dossier soumis en attente (lot 11), plus ancien d'abord,
+ *                  section ouverte par défaut ;
+ *   - En attente : dossier incomplet ou correction demandée (le refus n'est
+ *                  pas supprimé — resoumission possible) ;
  *   - Validées   : company_profiles.verification_status = 'verified' ET actif
- *   - En attente : pending ET rejected (le refus n'est pas supprimé —
- *     ré-émition possible, SRS §6.14.4)
+ *   - Suspendues : users.is_active = false (gate de publication §6.19)
  */
 
-type SectionKey = "pending" | "verified" | "suspended";
+type SectionKey = "review" | "pending" | "verified" | "suspended";
+const SECTIONS: SectionKey[] = ["review", "pending", "verified", "suspended"];
 
 interface Company {
   id: string;
@@ -51,6 +57,8 @@ interface Company {
   city: string | null;
   verification_status: "pending" | "verified" | "rejected" | null;
   verification_rejection_reason: string | null;
+  review_state: CompanyReviewState | null;
+  submitted_at: string | null;
   has_logo: boolean;
   created_at: string | null;
 }
@@ -63,6 +71,7 @@ interface CompaniesClientProps {
 function sectionOf(c: Company): SectionKey {
   if (!c.is_active) return "suspended";
   if (c.verification_status === "verified") return "verified";
+  if (c.review_state === "in_review") return "review";
   return "pending";
 }
 
@@ -118,12 +127,11 @@ export function CompaniesAdminClient({
   canModerate,
   fromDashboard,
 }: CompaniesClientProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const tr = t.admin.companies;
-  const momoLabels = t.admin.momo;
   const [q, setQ] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
-  const [active, setActive] = React.useState<SectionKey>("pending");
+  const [active, setActive] = React.useState<SectionKey>("review");
 
   React.useEffect(() => {
     const id = setTimeout(() => setDebouncedQ(q.trim()), 250);
@@ -143,11 +151,15 @@ export function CompaniesAdminClient({
 
   const grouped = React.useMemo(() => {
     const g: Record<SectionKey, Company[]> = {
+      review: [],
       pending: [],
       verified: [],
       suspended: [],
     };
     for (const c of companies) g[sectionOf(c)].push(c);
+    g.review.sort((a, b) =>
+      (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""),
+    );
     g.pending.sort((a, b) =>
       (a.created_at ?? "").localeCompare(b.created_at ?? ""),
     );
@@ -155,17 +167,20 @@ export function CompaniesAdminClient({
   }, [companies]);
 
   const counts: Record<SectionKey, number> = {
+    review: grouped.review.length,
     pending: grouped.pending.length,
     verified: grouped.verified.length,
     suspended: grouped.suspended.length,
   };
 
   const emptyLabels: Record<SectionKey, string> = {
+    review: tr.emptyReview,
     pending: tr.emptyPending,
     verified: tr.emptyVerified,
     suspended: tr.emptySuspended,
   };
   const sectionLabels: Record<SectionKey, string> = {
+    review: tr.sectionReview,
     pending: tr.sectionPending,
     verified: tr.sectionVerified,
     suspended: tr.sectionSuspended,
@@ -185,9 +200,12 @@ export function CompaniesAdminClient({
 
   const renderCard = (c: Company) => {
     const v = verificationLabel(c, {
-      pending: momoLabels.pending,
-      verified: momoLabels.verified,
-      rejected: momoLabels.rejected,
+      pending:
+        c.review_state === "in_review"
+          ? tr.reviewStates.in_review
+          : tr.reviewStates.incomplete,
+      verified: tr.reviewStates.verified,
+      rejected: tr.reviewStates.correction,
       none: tr.noContact,
     });
     const vColor =
@@ -290,13 +308,30 @@ export function CompaniesAdminClient({
                 {tr.sectionSuspended}
               </span>
             )}
+            {c.review_state === "in_review" && c.submitted_at && (
+              <span className="text-[11px] text-muted-foreground">
+                {tr.submittedOn.replace(
+                  "{date}",
+                  doualaDateTime(c.submitted_at, locale),
+                )}
+              </span>
+            )}
             {c.company_id && (
               <Link
                 href={`/admin/companies/${c.company_id}`}
-                className="ml-auto text-xs font-medium text-primary"
-                data-testid="admin-company-reputation-link"
+                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary"
+                data-testid={
+                  c.review_state === "in_review"
+                    ? "admin-company-review-link"
+                    : "admin-company-reputation-link"
+                }
               >
-                {t.reputation.admin.openCompany}
+                {c.review_state === "in_review" && (
+                  <FileSearch className="h-3.5 w-3.5" />
+                )}
+                {c.review_state === "in_review"
+                  ? tr.openDossier
+                  : t.reputation.admin.openCompany}
               </Link>
             )}
           </div>
@@ -317,6 +352,11 @@ export function CompaniesAdminClient({
             {counts[key]}
           </span>
         </div>
+        {key === "pending" && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            {tr.sectionPendingHint}
+          </p>
+        )}
         {list.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center text-sm text-muted-foreground">
             {debouncedQ ? tr.noResults : emptyLabels[key]}
@@ -359,20 +399,20 @@ export function CompaniesAdminClient({
 
       {/* Sélecteur de section */}
       <div className="flex flex-wrap gap-2">
-        {(["pending", "verified", "suspended"] as SectionKey[]).map((key) => (
+        {SECTIONS.map((key) => (
           <button
             key={key}
             onClick={() => setActive(key)}
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
               active === key
-                ? "border-[#7C3AED] bg-[#7C3AED]/10 text-[#7C3AED]"
+                ? "border-primary bg-primary/10 text-primary"
                 : "border-input text-muted-foreground hover:bg-muted"
             }`}
           >
             {sectionLabels[key]}
             <span
               className={`rounded-full px-1.5 text-xs ${
-                active === key ? "bg-[#7C3AED]/15" : "bg-muted"
+                active === key ? "bg-primary/15" : "bg-muted"
               }`}
             >
               {counts[key]}

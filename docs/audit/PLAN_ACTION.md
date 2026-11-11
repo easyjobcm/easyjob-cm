@@ -20,7 +20,8 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 9c | Réputation EasyJob en étoiles — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-09 | Fonctionnel et confidentialité | Grand |
 | 9d | Détail d'offre mobile, tâches et CNI en cours de validité — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-10 | Fonctionnel et UX | Moyen |
 | 10 | Documentation, consignes IA, nettoyage, journaux, CSP et fiabilité des preuves — **réalisé et vérifié localement, non déployé** | F-22, F-23, F-25, F-26, F-27, F-29, F-31 | Maintenance | Moyen |
-| 11 | Validation administrative des entreprises — **prochain lot produit** | Suite de F-41 (lots 5b, 6) | Fonctionnel et sécurité | Moyen |
+| 11 | Dossier entreprise vérifié par EasyJob (RCCM, NIU, représentant) — **réalisé et vérifié localement, non déployé ; vérifications DGI et greffe réelles hors preuve** | Suite de F-41 (lots 5b, 6) ; décision produit du 2026-11-11 | Fonctionnel et sécurité | Grand |
+| — | Particuliers et professionnels non formalisés — **reporté (décision produit du 2026-11-11), non commencé** | — | Fonctionnel | À cadrer |
 | — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
 
 ---
@@ -393,12 +394,29 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 >
 > Reste ouvert : passage de la CSP en mode appliqué (après `z.config({ jitless: true })` côté client), outil de capture d'erreurs, bouton Google non monté (décision produit), F-37.
 
-## Lot 11 — Validation administrative des entreprises (prochain lot produit)
+## Lot 11 — Dossier entreprise vérifié par EasyJob
 
-> **Statut** : à cadrer. Constat des lots 5b et 6 : aucune RPC, interface ni trace ne valide une entreprise ; `create_job` exige pourtant une entreprise vérifiée.
+> **Statut (2026-11-11)** : réalisé sur `feat/lot-11-company-verification` (base `origin/main-dev`, 1e63198), **non commité, non déployé**. Détails, droits appliqués, résultats et limites : `AUDIT.md` §29 ; règle produit : SRS §6.3.1.
+> - Décision produit : au lancement, seules les entreprises au dossier vérifié publient. Dossier : RCCM (numéro, document), NIU (numéro, attestation), représentant (identité, pièce d'identité, habilitation : dirigeant mentionné ou mandat).
+> - Migration `20261111120000_company_verification_review.sql` : pièces et représentant dans `company_profiles`, versions par élément (`rccm_revision`, `niu_revision`, `representative_revision`) et du dossier, historique en ajout seul `company_verification_checks` (auteur, date, source, référence interne, motif), trigger du lot 5b étendu à tout auteur, RPC `admin_record_company_check`, `admin_review_company`, `submit_company_verification`, `my_company_verification` ; `create_job`, `update_job` et `moderate_job` relisent `company_verification_complete()`.
+> - Écrans : trois contrôles séparés sur la fiche admin, aperçu masqué et décisions bloquées si le dossier change ; carte d'état côté entreprise (pièces manquantes, contrôles, motifs, action) sur le tableau de bord, le profil, l'onboarding et dès l'entrée de la création d'offre ; libellé « Dossier vérifié par EasyJob ».
+> - Preuve `company-verification` (36 assertions), contrôles négatifs, fixture `scripts/lib/verified-company.ts` pour les preuves qui publient, parcours navigateur en deux sessions (FR/EN, 375 px).
+> - Décision du 2026-11-11 appliquée (migration `20261111130000_company_dossier_visibility.sql`) : dossier non valide → offres actives masquées aux nouveaux candidats (liste, détail, lien direct, lecture directe), nouvelles candidatures et sélections refusées en base, candidatures, contrats, missions et avis existants conservés, statut des offres inchangé ; dépendances entre contrôles étendues (identité de l'entreprise → trois contrôles). Preuve `company-dossier-visibility` (19 assertions, courses à ordre imposé) ; `job-moderation` I9 fiabilisée par synchronisation explicite (`scripts/lib/proof-barrier.ts`).
+>
+> **Avant déploiement** (lecture seule, lot 0) — dossiers touchés par la reprise : toute entreprise `verified` repasse en attente non soumise et `niu_verified` repasse à false (état précédent dans `audit_logs`). Compter d'abord :
+> `select verification_status, niu_verified, onboarding_status, count(*) from public.company_profiles group by 1, 2, 3;`
+> et les offres actives de ces entreprises : `select count(*) from public.jobs j join public.company_profiles cp on cp.id = j.company_id where cp.verification_status = 'verified' and j.status = 'active';`. Prévenir les entreprises concernées (pièces à ajouter) et le support.
+>
+> **Décisions prises (2026-11-11)** : retour automatique des offres encore admissibles après validation complète, sans nouvelle modération si leur contenu approuvé n'a pas changé (vérifié : preuve B1-B7, navigateur) ; correction du NIU réservée au support ; source officielle inaccessible → dossier en attente, aucune approbation automatique.
+>
+> **Reste à cadrer** (AUDIT.md §29) : procédure de relance quand la DGI ou le greffe restent inaccessibles ; conservation des pièces avant l'ouverture publique ; expiration des offres datées (constat : aucune règle en base, une offre active dont la date est passée reste joignable par lien direct et ouverte aux candidatures).
 
-- **Périmètre** : RPC admin gardée (grade, motif de refus, `audit_logs`), notification et signal Realtime à l'entreprise, écran admin, nouvelle revue après modification du nom, du RCCM ou du document (règle du lot 5b), preuve d'autorisation.
-- **Dépendances** : lots 5b et 6.
+## Futur lot — Particuliers et professionnels non formalisés (reporté)
+
+> **Statut** : reporté par la décision produit du 2026-11-11, **non commencé**. Au lancement, seules les entreprises au dossier vérifié publient (SRS §6.3.1).
+
+- **À cadrer** : pièces exigibles sans RCCM ni NIU (identité, justificatif d'activité), limites de publication, libellé public distinct de « Dossier vérifié par EasyJob », obligations (contrat, déclaration) et responsabilité d'EasyJob.
+- **Dépendances** : lot 11 (mêmes contrôles manuels, historique et droit de publier en base).
 
 ## Futur lot — Engagements et annulations (à numéroter)
 

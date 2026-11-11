@@ -20,8 +20,8 @@
  *         du catalogue et appels réels).
  *      F. Parcours légitimes : édition directe d'un champ autorisé,
  *         onboarding complet, reprise, lecture du RCCM par son propriétaire.
- *      G. Administration : validation de confiance (service role) puis
- *         publication acceptée ; admin_ops suspend et réactive (trace
+ *      G. Administration : statut posé en clé service sans contrôle du dossier :
+ *         publication refusée depuis le lot 11 ; admin_ops suspend et réactive (trace
  *         audit_logs) ; admin_support refusé ; aucun admin n'écrit la table
  *         en session.
  *      H. Nouvelle revue : une entreprise vérifiée qui modifie son nom, son
@@ -534,15 +534,18 @@ async function main() {
           where tgname = 'trg_protect_company_profile_columns') as trigger_enabled
     `);
     report(
-      "E1 : ni INSERT ni DELETE en session, UPDATE limité aux 12 colonnes de l'onboarding",
+      "E1 : ni INSERT ni DELETE en session, UPDATE limité aux 12 colonnes de l'onboarding et aux 6 pièces et champs du représentant (lot 11)",
       catalog?.table_write === false &&
         catalog?.updatable ===
-          "address,city,company_name,company_size,description,documents_url,onboarding_status,onboarding_step,quartier,rccm,sector,website",
+          "address,city,company_name,company_size,description,documents_url,niu_document_path,onboarding_status,onboarding_step,quartier,rccm,representative_authority,representative_id_document_path,representative_mandate_path,representative_name,representative_title,sector,website",
       catalog,
     );
     report(
-      "E2 : aucune fonction SECURITY DEFINER exposée n'écrit company_profiles ni n'exécute de SQL dynamique",
-      catalog?.exposed_writers === "",
+      "E2 : seules les RPC gardées du lot 11 (contrôle, décision finale, soumission) écrivent company_profiles en SECURITY DEFINER ; aucune n'exécute de SQL dynamique",
+      // Gardes de ces trois RPC prouvées par proof-company-verification (C1 à
+      // C5, D2, F1, F2, G1) ; toute autre fonction exposée fait échouer E2.
+      catalog?.exposed_writers ===
+        "admin_record_company_check,admin_review_company,submit_company_verification",
       catalog?.exposed_writers,
     );
     report(
@@ -651,10 +654,11 @@ async function main() {
     const verified = await readProfile(idA);
     const jobVerified = await postJson("/api/jobs", sessionA.cookie, JOB_BODY);
     report(
-      "G2 : validation de confiance (service role) → vérifiée, POST /api/jobs 201",
+      "G2 : statut « verified » posé en clé service sans contrôle du dossier (lot 11) → publication toujours refusée (company_not_verified)",
       verified.verification_status === "verified" &&
         verified.niu_verified === true &&
-        jobVerified.status === 201,
+        jobVerified.status === 403 &&
+        jobVerified.body.code === "company_not_verified",
       { status: jobVerified.status },
     );
     const suspendS = await postJson("/api/admin/companies", sessionS.cookie, {
@@ -732,12 +736,12 @@ async function main() {
       JOB_BODY,
     );
     report(
-      "H2 : nom modifié → enregistré, repasse en attente, motif effacé, NIU vérifié conservé",
+      "H2 : nom modifié → enregistré, repasse en attente, motif effacé, NIU décertifié (la raison sociale fait partie du contrôle NIU, lot 11)",
       renamed.status === 200 &&
         afterRename.company_name === "Hôtel Renommé SARL" &&
         afterRename.verification_status === "pending" &&
         afterRename.verification_rejection_reason === null &&
-        afterRename.niu_verified === true,
+        afterRename.niu_verified === false,
       { verification: afterRename.verification_status },
     );
     report(
@@ -787,7 +791,7 @@ async function main() {
       .eq("user_id", idA);
     const afterRejected = await readProfile(idA);
     report(
-      "H6 : entreprise refusée qui se corrige → reste refusée (seul l'admin lève le refus)",
+      "H6 : entreprise refusée qui se corrige → reste refusée (seule la resoumission explicite, lot 11, la remet en file)",
       !rejectedEditErr &&
         afterRejected.company_name === "Hôtel Corrigé SARL" &&
         afterRejected.verification_status === "rejected" &&

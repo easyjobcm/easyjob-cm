@@ -212,7 +212,7 @@ export const en: TranslationKeys = {
       emailLabel: "Contact e-mail",
       phoneLabel: "Phone",
       noContact: "Contact information not provided",
-      verifiedBadge: "Verified company",
+      verifiedBadge: "File verified by EasyJob",
       viewProfile: "View profile",
       suspend: "Suspend",
       activate: "Reactivate",
@@ -221,6 +221,128 @@ export const en: TranslationKeys = {
       activateConfirm: "Reactivate this company?",
       readOnly:
         "Read-only access — only admin_ops and admin_founder can suspend or reactivate.",
+      sectionReview: "To review",
+      emptyReview: "No file to review",
+      sectionPendingHint:
+        "Incomplete files, or files waiting for a correction from the company.",
+      submittedOn: "Submitted on {date}",
+      openDossier: "Review file",
+      reviewStates: {
+        incomplete: "Incomplete file",
+        in_review: "To review",
+        correction: "Correction requested",
+        verified: "Verified",
+      },
+      review: {
+        title: "Company file",
+        subtitle:
+          "Check the RCCM, the NIU and the representative separately with official sources, then decide.",
+        state: "File status",
+        version: "Version {n}",
+        fields: {
+          companyName: "Company name",
+          legalName: "Legal name",
+          sector: "Sector",
+          size: "Size",
+          website: "Website",
+          rccm: "RCCM number",
+          niu: "NIU",
+          address: "Address",
+          contact: "Contact",
+          onboarding: "Onboarding",
+          description: "Description",
+        },
+        onboardingDone: "Completed",
+        onboardingOpen: "Not completed",
+        niuVerified: "NIU certified (DGI check)",
+        niuNotVerified: "NIU not certified",
+        document: "RCCM document",
+        viewDocument: "View document",
+        hideDocument: "Hide",
+        noDocument: "No document uploaded",
+        documentLinkHint: "Temporary link (60 seconds), not shareable.",
+        documentError: "The document could not be opened.",
+        accountSuspended: "Account suspended",
+        lastReason: "Last reason sent",
+        reviewedOn: "Decision on {date}",
+        approve: "Approve file",
+        requestCorrection: "Request a correction",
+        reasonLabel: "Reason sent to the company",
+        reasonPlaceholder:
+          "E.g. the RCCM is unreadable, please send a full scan of the page.",
+        reasonHint: "10 to 500 characters. The company will see it as written.",
+        sendCorrection: "Send request",
+        cancel: "Cancel",
+        confirmApprove:
+          "Approve this file? It will show “File verified by EasyJob” and the company will be able to post jobs.",
+        approved: "File approved",
+        correctionSent: "Correction requested from the company",
+        readOnly:
+          "Read-only: only admin_ops and admin_founder decide on a file.",
+        notPending: "No decision expected: this file is not awaiting review.",
+        changed:
+          "The file has changed since you opened it. Review it again before deciding.",
+        reload: "Review the file again",
+        loadError: "The file could not be loaded.",
+        sections: {
+          rccm: "RCCM check",
+          niu: "NIU check",
+          representative: "Representative check",
+        },
+        checkHints: {
+          rccm: "Check the number and company name with an accessible official source, or with the competent court registry if needed.",
+          niu: "Check the NIU with the official DGI service: it must match this company. An uploaded file or a valid format is not enough.",
+          representative:
+            "Check the representative's identity and authority: officer named in the supporting documents, or a mandate from the company.",
+        },
+        checkStatus: {
+          approved: "Approved",
+          rejected: "Rejected",
+          unverifiable: "Cannot be verified",
+          pending: "To check",
+        },
+        decisions: {
+          approved: "Approve",
+          rejected: "Reject",
+          unverifiable: "Cannot be verified",
+        },
+        sourceLabel: "Verification source",
+        sourcePlaceholder: "Choose the source consulted",
+        sources: {
+          official_registry: "Official registry (lookup)",
+          court_registry: "Competent court registry",
+          dgi_online: "DGI online service",
+          dgi_office: "Tax office (DGI)",
+          rccm_extract: "Officer named in the supporting documents",
+          mandate: "Company mandate",
+        },
+        referenceLabel: "Reference or internal note",
+        referenceHint:
+          "Visible to the EasyJob team only (3 to 300 characters). Avoid copying personal data here.",
+        referencePlaceholder: "E.g. DGI lookup on 11/11, certificate no. …",
+        checkReasonLabel: "Reason sent to the company",
+        saveCheck: "Save check",
+        checkSaved: "Check saved",
+        unverifiableHint:
+          "The file stays pending: no approval without an external check.",
+        history: "Check history",
+        historyEmpty: "No check recorded.",
+        historyOutdated: "previous version",
+        historyBy: "by {who}",
+        representativeName: "Representative",
+        representativeTitle: "Position",
+        representativeAuthority: "Authority",
+        documentsLabels: {
+          rccm: "RCCM document",
+          niu: "NIU certificate",
+          representative_id: "ID document",
+          mandate: "Mandate",
+        },
+        missing: "Missing items",
+        finalTitle: "Final decision",
+        finalHint:
+          "Approval requires all three checks approved on the current version of the file.",
+      },
     },
     candidateProfile: {
       title: "Candidate profile",
@@ -581,6 +703,11 @@ export const en: TranslationKeys = {
   },
 
   jobDetail: {
+    unavailableTitle: "Job unavailable",
+    unavailableBody: "This job is temporarily not offered to new candidates.",
+    unavailableApplied:
+      "This job is not accepting new applications for now. Your application remains available.",
+    backToJobs: "See other jobs",
     work: "Work required",
     pay: "Amount per candidate",
     location: "Location",
@@ -1732,6 +1859,23 @@ export const en: TranslationKeys = {
     niuLabel: "NIU (unique identification number)",
     niuHint: "Entered at sign-up. To change it, contact support.",
     rccmFileHint: "PDF, JPG, PNG or WebP — 5 MB max",
+    niuDocumentLabel: "Registration certificate (NIU)",
+    niuDocumentHint:
+      "Issued by the DGI in the company's name. PDF, JPG, PNG or WebP, 5 MB maximum.",
+    representativeSection: "Company representative",
+    representativeHint:
+      "The person acting on behalf of the company on EasyJob. The EasyJob team checks their identity and authority.",
+    representativeNameLabel: "Full name",
+    representativeTitleLabel: "Position (e.g. manager)",
+    authorityLabel: "Authority",
+    authority: {
+      listed_officer: "Officer named in the RCCM",
+      mandate: "Mandate signed by the company",
+    },
+    idDocumentLabel: "ID document (national ID card or passport)",
+    mandateLabel: "Company mandate",
+    fileSaved: "File saved. Choose another file to replace it.",
+    chooseFile: "Click to choose a file",
     rccmFileSaved: "A document is already saved. Choose a file to replace it.",
     saveError: "Your information could not be saved.",
     verifiedNotice:
@@ -1756,6 +1900,102 @@ export const en: TranslationKeys = {
       profile_not_found: "Company profile not found. Contact support.",
       account_suspended: "Your account is suspended.",
       unauthorized: "Session expired. Please sign in again.",
+      representativeNameTooLong: "Name too long (100 characters maximum).",
+      representativeTitleTooLong: "Position too long (100 characters maximum).",
+      submit_failed: "The file could not be sent. Try again.",
+    },
+  },
+
+  companyVerification: {
+    title: "Company verification",
+    states: {
+      incomplete: {
+        title: "Incomplete file",
+        body: "Add the missing items, then send the file to the EasyJob team.",
+      },
+      in_review: {
+        title: "File under review",
+        body: "The EasyJob team is checking your RCCM, NIU and representative. You can post jobs as soon as the file is verified.",
+      },
+      correction: {
+        title: "Correction requested",
+        body: "Fix the issue reported, replace the document if needed, then submit the file again.",
+      },
+      verified: {
+        title: "File verified by EasyJob",
+        body: "Your company file has been verified by EasyJob: you can post jobs.",
+      },
+    },
+    reasonLabel: "Reason",
+    submittedOn: "Sent on {date}",
+    reviewedOn: "Decision on {date}",
+    complete: "Complete my file",
+    correct: "Correct my file",
+    checks: {
+      rccm: "RCCM",
+      niu: "NIU",
+      representative: "Representative",
+    },
+    checkStatus: {
+      approved: "Verified",
+      rejected: "To correct",
+      pending: "Pending",
+    },
+    missingTitle: "Missing items",
+    pieces: {
+      rccm_number: "RCCM number",
+      rccm_document: "RCCM document",
+      niu_number: "NIU (contact support)",
+      niu_document: "NIU certificate",
+      representative_name: "Representative's name",
+      representative_title: "Representative's position",
+      representative_authority: "Representative's authority",
+      representative_id_document: "Representative's ID document",
+      mandate_document: "Company mandate",
+    },
+    jobEntryHint:
+      "You can post jobs as soon as EasyJob has verified your file.",
+    offersHidden:
+      "Until the file is verified, your active jobs are hidden from new candidates and no new application or selection is possible. Ongoing applications, contracts and missions continue.",
+    submitButton: "Send my file",
+    resubmitButton: "Submit again",
+    saveButton: "Save",
+    outcomes: {
+      submitted: "File sent to the EasyJob team.",
+      resubmitted: "File submitted again.",
+      already_pending: "Information saved. Your file is still under review.",
+      already_verified: "Information saved.",
+      dossier_incomplete:
+        "Information saved. Add the missing items to send your file.",
+      nothing_changed:
+        "Change the item reported (company name, RCCM, NIU certificate or representative) before submitting again.",
+    },
+    errors: {
+      not_authenticated: "Session expired. Please sign in again.",
+      not_a_company: "This action is for companies only.",
+      account_suspended: "This account is suspended.",
+      company_not_found: "Company not found.",
+      forbidden: "Your admin level does not allow this decision.",
+      invalid_action: "Invalid action.",
+      reason_required: "Enter a reason of at least 10 characters.",
+      reason_too_long: "Reason too long (500 characters maximum).",
+      company_not_pending: "This file has already been handled.",
+      dossier_not_submitted: "This file has not been submitted yet.",
+      company_changed: "The file has changed: review it again before deciding.",
+      dossier_incomplete: "Incomplete file: some items are missing.",
+      nothing_changed: "Change the item reported before submitting again.",
+      submit_failed: "The file could not be sent. Try again.",
+      invalid_check: "Unknown check.",
+      source_required: "Choose the official source consulted.",
+      reference_required:
+        "Enter a reference or internal note (at least 3 characters).",
+      reference_too_long: "Note too long (300 characters maximum).",
+      check_changed:
+        "This check changed in the meantime: review the file again.",
+      checks_incomplete:
+        "All three checks must be approved on the current version.",
+      company_review_failed: "The decision could not be saved.",
+      generic: "Something went wrong. Try again.",
     },
   },
 
@@ -1940,6 +2180,8 @@ export const en: TranslationKeys = {
       application_not_found: "Application not found.",
       application_not_selectable:
         "This application can no longer be selected (withdrawn or rejected). Choose another candidate.",
+      company_not_verified:
+        "Your company file must be verified by EasyJob before you can select a candidate.",
       job_not_available:
         "This job is no longer published: it must be live to select a candidate.",
       no_positions:

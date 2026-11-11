@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 27 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 29 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -124,7 +124,7 @@ pnpm exec supabase db reset --workdir $stack   # restauration
 
 Pour la suppression : `grant delete on public.jobs to authenticated; alter table public.jobs disable trigger trg_protect_job_writes; create policy neg_owner_delete on public.jobs for delete to authenticated using (company_id in (select id from public.company_profiles where user_id = auth.uid()));`, puis `pnpm test:rls job-moderation` (attendu : 4 échecs, dont I1). Si `db reset` échoue ensuite, recréer la pile : `supabase stop --workdir $stack --no-backup`, puis l'étape 1.
 
-`job-moderation` crée aussi, le temps d'une assertion, un trigger qui fait échouer l'écriture dans `audit_logs` pour une seule offre, afin de prouver l'absence d'effet partiel, et deux triggers de ralentissement (`pg_sleep`) pour forcer l'ordre entre une sélection et une suppression. Ils ne visent que les lignes de la preuve et sont retirés en fin de preuve, même en cas d'échec.
+`job-moderation` crée aussi, le temps d'une assertion, un trigger qui fait échouer l'écriture dans `audit_logs` pour une seule offre, afin de prouver l'absence d'effet partiel, et deux triggers de ralentissement (`pg_sleep`) pour forcer l'ordre entre une sélection et une suppression ; depuis le lot 11, la seconde opération attend d'avoir observé la première dans son trigger (voir « Courses à ordre imposé »). Ils ne visent que les lignes de la preuve et sont retirés en fin de preuve, même en cas d'échec.
 
 Pour la sélection (lot 7a), désactiver le trigger des candidatures et recréer la politique F-16 :
 
@@ -202,10 +202,47 @@ Get-Content supabase/migrations/20261110130000_suspended_admin_guard.sql -Raw | 
 
 Les routes et pages restent refusées dans ce contrôle : leur garde applicative est vérifiée par `tests/admin-guard.test.ts` (filtre retiré d'une route → échec). Aucune session ne peut suspendre un admin ; la preuve le vérifie (I2) puis suspend en clé service, comme le support.
 
+Pour le dossier entreprise (lot 11), trois contournements sont reproduits en appliquant sur la pile dédiée une copie modifiée d'une fonction extraite de `supabase/migrations/20261111120000_company_verification_review.sql`, puis les fonctions d'origine (extraites du même fichier) pour restaurer :
+
+| Copie modifiée | Effet reproduit | `pnpm test:rls company-verification` |
+|---|---|---|
+| `company_verification_complete` réduite à `verification_status = 'verified'` | publication sur un statut forcé sans contrôle valide | 1 échec (J3) |
+| `admin_review_company` sans l'exigence des trois contrôles approuvés | approbation avec le RCCM seul, ou un NIU refusé ou invérifiable | 6 échecs (D2, D3, D4, puis E1, E3, E4) |
+| `admin_record_company_check` sans le jeton de dernière décision (`check_changed`) | double enregistrement d'un contrôle (double clic, deux admins) | 1 échec (F2) |
+
+```powershell
+Get-Content $env:TEMP\neg-copie.sql -Raw | docker exec -i supabase_db_easyjob-proof psql -U postgres -d postgres -v ON_ERROR_STOP=1
+pnpm test:rls company-verification   # attendu : échecs ci-dessus, code de sortie 1
+Get-Content $env:TEMP\fonctions-origine.sql -Raw | docker exec -i supabase_db_easyjob-proof psql -U postgres -d postgres -v ON_ERROR_STOP=1   # restauration, puis 36/36
+```
+
+Ne pas réappliquer la migration entière pour restaurer : sa section 9 (reprise) remettrait en attente les entreprises vérifiées présentes sur la pile.
+
+`company-verification` :
+
+- crée, le temps de l'assertion H1, un trigger qui fait échouer la notification de décision de sa seule entreprise de preuve (absence d'effet partiel) ; il est retiré en fin de preuve et au démarrage suivant ;
+- téléverse de **vrais PDF multipages** fictifs (générés par la preuve) dans `company-documents`, supprimés au nettoyage ;
+- rejoue telle quelle, instruction par instruction, la section 9 (reprise des anciens dossiers) : sur la pile dédiée, seules ses fixtures existent à ce moment ;
+- ne teste **pas** les vérifications réelles auprès de la DGI, du registre ou du greffe : la base enregistre ce que l'admin déclare avoir constaté (source, référence) ; la preuve couvre droits, états, traces et absence de fuite.
+
+`company-dossier-visibility` (offres d'une entreprise qui perd la validation du dossier) :
+
+| Copie modifiée (migration `20261111130000_company_dossier_visibility.sql`) | Effet reproduit | Résultat attendu |
+|---|---|---|
+| Politique « Published jobs are viewable by all » remise à `status = 'active'` ou propriétaire | offre masquée encore lisible par un nouveau candidat ou l'anonyme | 1 échec (M1) |
+| `apply_to_job` sans le contrôle du dossier | candidature acceptée pendant la revue | 5 échecs (M2, puis M3, M4, M6, R2) |
+| `select_candidate` sans le verrou partagé de la ligne entreprise | sélection acceptée alors qu'une remise en revue est engagée | 1 échec (R4) |
+
+Restauration : appliquer la politique et les deux fonctions extraites du fichier de migration ; 19/19.
+
+**Courses à ordre imposé.** `scripts/lib/proof-barrier.ts` crée une fonction temporaire `proof_sleeping_backends()` (clé service seulement) qui lit `pg_stat_activity` : la seconde opération ne part qu'après avoir observé la première en attente dans son trigger de ralentissement, donc en possession de ses verrous. Aucun délai fixe côté client ; si la première n'atteint pas le trigger, la preuve échoue (« aucune opération en attente »). Les appels `supabase-js` étant paresseux, la première requête est lancée explicitement (`.then(...)`) avant l'attente. Utilisé par `company-dossier-visibility` (R1-R4) et `job-moderation` (I9, I10). La fonction et les triggers temporaires sont retirés en fin de preuve et au démarrage suivant.
+
+Les preuves qui publient des offres ou y font postuler (`job-moderation`, `candidate-selection`, `contract-signing`, `mission-time-tracking`, `realtime`, `business-permissions`, `jobs-rls-select`, `essentials-gate`, `reputation` pour ses entreprises au profil complet) complètent le dossier de leurs entreprises par `scripts/lib/verified-company.ts` (pièces fictives, trois contrôles approuvés sur les versions courantes, en clé service) : depuis le lot 11, un statut `verified` seul ne permet plus de publier, et les offres actives d'une entreprise sans dossier valide sont masquées et fermées aux candidatures. `company-permissions` E1 et E2 listent les colonnes ouvertes en session et les trois RPC gardées qui écrivent `company_profiles`.
+
 Pour la vérification du téléphone (lot 8), rétablir l'ancien repli « numéro relu = numéro demandé » dans `findPhoneProof` (`lib/auth/phone-verification.ts`, copie locale non commitée) reproduit H-04 : `pnpm test:rls phone-verification` → 2 échecs (H1 et H7 autoconfirm : code erroné → téléphone vérifié et profil créé). La preuve appelle le module directement : aucun build n'est nécessaire.
 
 Pour le quota d'EasyBot, recréer `consume_chat_quota` sur la pile dédiée sans ses deux `pg_advisory_xact_lock` (et avec un `perform pg_sleep(0.05);` en tête, qui élargit la fenêtre de course) fait passer plus de réservations que la limite : `pnpm test:rls chat-quota` → 3 échecs (C5, C6 ×2). Restauration : réexécuter `supabase/migrations/20261108120000_chat_quota.sql` sur la pile (`psql … < fichier`, idempotent).
 
 ## Couverture et limites
 
-Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel), §26 (réputation EasyJob), §27 (CNI en cours de validité, tâches et détail d'offre) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.
+Couverture par preuve et résultats : `docs/audit/AUDIT.md`, §9, §10, §13, §15 (onboarding entreprise), §16 (droits des entreprises), §17 (offres et modération) et §18 (sélection et visibilité des candidats), §19 (signature des contrats) §20 (début de mission, code de fin et évaluations), §22 (temps réel), §26 (réputation EasyJob), §27 (CNI en cours de validité, tâches et détail d'offre), §29 (dossier entreprise vérifié par EasyJob) et §23 (vérification du téléphone, retour OAuth, EasyBot, erreurs et journaux). `contracts`, `missions`, `mission_check_ins`, `mission_completion_codes` et `reviews` sont couverts en lecture et en écriture.

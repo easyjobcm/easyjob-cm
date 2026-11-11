@@ -23,6 +23,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
+import { approveCompanyDossier } from "./lib/verified-company";
 
 type DB = SupabaseClient<Database>;
 type CandidateProfileInsert =
@@ -263,6 +264,9 @@ async function createTestCompany(
   if (companyErr || !company) {
     throw new Error(`company insert: ${companyErr?.message}`);
   }
+  // Lot 11 : offre visible et ouverte aux candidatures seulement si le
+  // dossier de l'entreprise est complet et contrôlé (fixture fictive).
+  await approveCompanyDossier(serviceClient, company.id);
   return { authUserId, companyId: company.id };
 }
 

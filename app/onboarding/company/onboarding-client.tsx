@@ -23,9 +23,16 @@ import {
 import { Constants, type Tables } from "@/lib/database.types";
 import {
   companyOnboardingSchema,
+  REPRESENTATIVE_AUTHORITIES,
   type CompanyOnboardingInput,
 } from "@/lib/validations/company";
 import { CAMEROON_CITIES } from "@/lib/utils/candidate-constants";
+import {
+  companyReviewState,
+  type MyCompanyVerification,
+} from "@/lib/utils/company-verification";
+import { CompanyVerificationCard } from "@/components/company/company-verification-card";
+import { toast } from "@/hooks/use-toast";
 
 type Step = "company" | "documents" | "location";
 
@@ -56,7 +63,12 @@ const businessTypes = [
 
 const STEP_FIELDS: Record<Step, (keyof CompanyOnboardingInput)[]> = {
   company: ["company_name", "sector", "company_size", "website", "description"],
-  documents: ["rccm"],
+  documents: [
+    "rccm",
+    "representative_name",
+    "representative_title",
+    "representative_authority",
+  ],
   location: ["city", "quartier", "address"],
 };
 
@@ -65,7 +77,17 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 /** Saisie brute : chaque champ est une chaîne, validée par le schéma partagé. */
 type FormState = Record<keyof CompanyOnboardingInput, string>;
 
-type SavedProfile = Pick<
+/** Pièces du dossier : champ du formulaire envoyé à la route. */
+const DOC_FIELDS = {
+  rccm: "rccm_document",
+  niu: "niu_document",
+  representative_id: "representative_id_document",
+  mandate: "mandate_document",
+} as const;
+type DocKey = keyof typeof DOC_FIELDS;
+
+/** Profil enregistré : les pièces sont signalées par leur seule présence. */
+export type SavedProfile = Pick<
   Tables<"company_profiles">,
   | "company_name"
   | "sector"
@@ -74,22 +96,86 @@ type SavedProfile = Pick<
   | "description"
   | "rccm"
   | "niu"
-  | "documents_url"
   | "city"
   | "quartier"
   | "address"
   | "verification_status"
->;
+  | "verification_submitted_at"
+  | "representative_name"
+  | "representative_title"
+  | "representative_authority"
+> & { documents: Record<DocKey, boolean> };
+
+/** Zone de dépôt d'une pièce (même rendu pour les quatre pièces). */
+function FilePicker({
+  label,
+  hint,
+  file,
+  saved,
+  savedLabel,
+  chooseLabel,
+  testId,
+  onFile,
+}: {
+  label: string;
+  hint: string;
+  file: File | null;
+  saved: boolean;
+  savedLabel: string;
+  chooseLabel: string;
+  testId: string;
+  onFile: (file: File | null) => boolean;
+}) {
+  return (
+    <div>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <div className="mt-1.5">
+        <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border px-3 py-3 text-center transition-colors hover:border-primary/50">
+          <Upload className="mb-1.5 h-6 w-6 text-muted-foreground" />
+          <span className="break-all text-sm text-muted-foreground">
+            {file ? file.name : chooseLabel}
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">{hint}</span>
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="hidden"
+            data-testid={testId}
+            onChange={(e) => {
+              if (!onFile(e.target.files?.[0] ?? null)) e.target.value = "";
+            }}
+          />
+        </label>
+        {saved && !file && (
+          <p className="mt-2 text-xs text-muted-foreground">{savedLabel}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type SubmitOutcome =
+  | "submitted"
+  | "resubmitted"
+  | "already_pending"
+  | "already_verified";
 
 export function CompanyOnboardingClient({
   profile,
+  verification,
+  initialStep = "company",
 }: {
   profile: SavedProfile | null;
+  /** Lot 11 : `my_company_verification()`. */
+  verification: MyCompanyVerification | null;
+  initialStep?: Step;
 }) {
   const router = useRouter();
   const { locale, t } = useI18n();
   const tc = t.companyOnboarding;
-  const [currentStep, setCurrentStep] = React.useState<Step>("company");
+  const tv = t.companyVerification;
+  const reviewState = profile ? companyReviewState(profile) : "incomplete";
+  const [currentStep, setCurrentStep] = React.useState<Step>(initialStep);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -104,9 +190,25 @@ export function CompanyOnboardingClient({
     city: profile?.city ?? "",
     quartier: profile?.quartier ?? "",
     address: profile?.address ?? "",
+    representative_name: profile?.representative_name ?? "",
+    representative_title: profile?.representative_title ?? "",
+    representative_authority: profile?.representative_authority ?? "",
   });
-  const [rccmFile, setRccmFile] = React.useState<File | null>(null);
-  const hasSavedDocument = (profile?.documents_url ?? []).length > 0;
+  const [files, setFiles] = React.useState<Record<DocKey, File | null>>({
+    rccm: null,
+    niu: null,
+    representative_id: null,
+    mandate: null,
+  });
+  const pickFile = (key: DocKey) => (file: File | null) => {
+    if (file && file.size > MAX_FILE_BYTES) {
+      setError(tc.errors.file_too_large);
+      return false;
+    }
+    setError("");
+    setFiles((prev) => ({ ...prev, [key]: file }));
+    return true;
+  };
 
   const setField = (field: keyof CompanyOnboardingInput, value: string) => {
     setError("");
@@ -171,7 +273,10 @@ export function CompanyOnboardingClient({
       for (const [key, value] of Object.entries(formData)) {
         body.append(key, value);
       }
-      if (rccmFile) body.append("rccm_document", rccmFile);
+      for (const key of Object.keys(DOC_FIELDS) as DocKey[]) {
+        const file = files[key];
+        if (file) body.append(DOC_FIELDS[key], file);
+      }
 
       const res = await fetch("/api/company/onboarding", {
         method: "PUT",
@@ -181,10 +286,34 @@ export function CompanyOnboardingClient({
         ok?: boolean;
         error?: string;
         issues?: { code: string }[];
+        verification?: {
+          outcome?: SubmitOutcome;
+          code?: "dossier_incomplete" | "nothing_changed";
+        };
       } = await res.json().catch(() => ({}));
       if (!res.ok || !result.ok) {
         setError(errorMessage(result.issues?.[0]?.code ?? result.error ?? ""));
         return;
+      }
+      // Lot 11 : un dossier refusé sans changement d'un champ revu est
+      // enregistré mais ne repart pas en revue : l'écran reste ouvert.
+      const verification = result.verification;
+      if (verification?.code === "nothing_changed") {
+        setError(tv.outcomes.nothing_changed);
+        router.refresh();
+        return;
+      }
+      const outcomeKey = verification?.code ?? verification?.outcome;
+      if (outcomeKey) {
+        toast({
+          description: tv.outcomes[outcomeKey],
+          variant:
+            outcomeKey === "dossier_incomplete"
+              ? "warning"
+              : outcomeKey === "submitted" || outcomeKey === "resubmitted"
+                ? "success"
+                : "default",
+        });
       }
       router.push("/company/dashboard");
       router.refresh();
@@ -195,9 +324,18 @@ export function CompanyOnboardingClient({
     }
   };
 
+  // Champs facultatifs pour avancer : le représentant peut être complété
+  // plus tard (les pièces manquantes sont listées par la carte du dossier).
+  const OPTIONAL_TO_CONTINUE: (keyof CompanyOnboardingInput)[] = [
+    "website",
+    "description",
+    "representative_name",
+    "representative_title",
+    "representative_authority",
+  ];
   const isStepValid = () =>
     STEP_FIELDS[currentStep]
-      .filter((field) => !["website", "description"].includes(field))
+      .filter((field) => !OPTIONAL_TO_CONTINUE.includes(field))
       .every((field) => formData[field].trim() !== "");
 
   return (
@@ -251,6 +389,13 @@ export function CompanyOnboardingClient({
 
       {/* Step content */}
       <div className="flex-1 px-6 py-6">
+        {verification && reviewState !== "verified" && (
+          <CompanyVerificationCard
+            dossier={verification}
+            action={false}
+            className="mb-6"
+          />
+        )}
         {profile?.verification_status === "verified" &&
           currentStep !== "location" && (
             <Card className="mb-6 border-warning/30 bg-warning/5">
@@ -401,46 +546,16 @@ export function CompanyOnboardingClient({
                 />
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-foreground">
-                  {locale === "fr" ? "Document RCCM" : "RCCM document"}
-                </label>
-                <div className="mt-1.5">
-                  <label className="flex flex-col items-center justify-center h-32 rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">
-                      {rccmFile
-                        ? rccmFile.name
-                        : locale === "fr"
-                          ? "Cliquez pour telecharger"
-                          : "Click to upload"}
-                    </span>
-                    <span className="text-xs text-muted-foreground mt-1">
-                      {tc.rccmFileHint}
-                    </span>
-                    <input
-                      type="file"
-                      accept="application/pdf,image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        if (file && file.size > MAX_FILE_BYTES) {
-                          setError(tc.errors.file_too_large);
-                          e.target.value = "";
-                          return;
-                        }
-                        setError("");
-                        setRccmFile(file);
-                      }}
-                    />
-                  </label>
-                  {hasSavedDocument && !rccmFile && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {tc.rccmFileSaved}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <FilePicker
+                label={locale === "fr" ? "Document RCCM" : "RCCM document"}
+                hint={tc.rccmFileHint}
+                file={files.rccm}
+                saved={!!profile?.documents.rccm}
+                savedLabel={tc.rccmFileSaved}
+                chooseLabel={tc.chooseFile}
+                testId="onboarding-file-rccm"
+                onFile={pickFile("rccm")}
+              />
 
               <div>
                 <label className="text-sm font-medium text-foreground">
@@ -455,6 +570,111 @@ export function CompanyOnboardingClient({
                 <p className="text-xs text-muted-foreground mt-1">
                   {tc.niuHint}
                 </p>
+              </div>
+
+              <FilePicker
+                label={tc.niuDocumentLabel}
+                hint={tc.niuDocumentHint}
+                file={files.niu}
+                saved={!!profile?.documents.niu}
+                savedLabel={tc.fileSaved}
+                chooseLabel={tc.chooseFile}
+                testId="onboarding-file-niu"
+                onFile={pickFile("niu")}
+              />
+
+              <div className="space-y-4 rounded-xl border border-border p-4">
+                <div>
+                  <h3 className="font-semibold text-foreground">
+                    {tc.representativeSection}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {tc.representativeHint}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="representative-name"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    {tc.representativeNameLabel}
+                  </label>
+                  <Input
+                    id="representative-name"
+                    value={formData.representative_name}
+                    onChange={(e) =>
+                      setField("representative_name", e.target.value)
+                    }
+                    autoComplete="name"
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="representative-title"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    {tc.representativeTitleLabel}
+                  </label>
+                  <Input
+                    id="representative-title"
+                    value={formData.representative_title}
+                    onChange={(e) =>
+                      setField("representative_title", e.target.value)
+                    }
+                    className="mt-1.5"
+                  />
+                </div>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-foreground">
+                    {tc.authorityLabel}
+                  </legend>
+                  <div className="grid gap-2">
+                    {REPRESENTATIVE_AUTHORITIES.map((authority) => (
+                      <button
+                        key={authority}
+                        type="button"
+                        aria-pressed={
+                          formData.representative_authority === authority
+                        }
+                        data-testid={`onboarding-authority-${authority}`}
+                        onClick={() =>
+                          setField("representative_authority", authority)
+                        }
+                        className={cn(
+                          "rounded-xl px-4 py-3 text-left text-sm font-medium transition-all",
+                          formData.representative_authority === authority
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80",
+                        )}
+                      >
+                        {tc.authority[authority]}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <FilePicker
+                  label={tc.idDocumentLabel}
+                  hint={tc.rccmFileHint}
+                  file={files.representative_id}
+                  saved={!!profile?.documents.representative_id}
+                  savedLabel={tc.fileSaved}
+                  chooseLabel={tc.chooseFile}
+                  testId="onboarding-file-representative-id"
+                  onFile={pickFile("representative_id")}
+                />
+                {formData.representative_authority === "mandate" && (
+                  <FilePicker
+                    label={tc.mandateLabel}
+                    hint={tc.rccmFileHint}
+                    file={files.mandate}
+                    saved={!!profile?.documents.mandate}
+                    savedLabel={tc.fileSaved}
+                    chooseLabel={tc.chooseFile}
+                    testId="onboarding-file-mandate"
+                    onFile={pickFile("mandate")}
+                  />
+                )}
               </div>
 
               <Card className="bg-primary/5 border-primary/20">
@@ -563,10 +783,12 @@ export function CompanyOnboardingClient({
           {loading ? (
             <LoadingSpinner size="sm" />
           ) : currentStepIndex === steps.length - 1 ? (
-            locale === "fr" ? (
-              "Creer mon compte"
+            reviewState === "correction" ? (
+              tv.resubmitButton
+            ) : reviewState === "incomplete" ? (
+              tv.submitButton
             ) : (
-              "Create my account"
+              tv.saveButton
             )
           ) : (
             <>

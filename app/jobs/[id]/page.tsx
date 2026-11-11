@@ -5,7 +5,7 @@ import {
   type EssentialKey,
 } from "@/lib/utils/profile-completion";
 import type { CniProfileFields } from "@/lib/utils/cni-validity";
-import { JobDetailClient } from "./job-detail-client";
+import { JobDetailClient, JobUnavailable } from "./job-detail-client";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -36,7 +36,13 @@ export default async function JobDetailPage({ params }: PageProps) {
     .eq("id", id)
     .single();
 
+  // Lot 11 : offre active masquée (dossier de l'entreprise plus vérifié).
+  // Nouveau candidat : page « indisponible », sans aucune donnée de l'offre.
+  const { data: availability } = await supabase.rpc("job_availability", {
+    p_job_id: id,
+  });
   if (error || !job) {
+    if (availability === "unavailable") return <JobUnavailable />;
     notFound();
   }
 
@@ -108,6 +114,7 @@ export default async function JobDetailPage({ params }: PageProps) {
       isLoggedIn={!!user}
       missingEssentials={missingEssentials}
       cni={cni}
+      acceptingApplications={availability === "available"}
     />
   );
 }

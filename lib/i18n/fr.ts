@@ -212,7 +212,7 @@ export const fr = {
       emailLabel: "E-mail de contact",
       phoneLabel: "Téléphone",
       noContact: "Informations de contact non renseignées",
-      verifiedBadge: "Entreprise vérifiée",
+      verifiedBadge: "Dossier vérifié par EasyJob",
       viewProfile: "Voir le profil",
       suspend: "Suspendre",
       activate: "Réactiver",
@@ -221,6 +221,130 @@ export const fr = {
       activateConfirm: "Réactiver cette entreprise ?",
       readOnly:
         "Accès en lecture seule — seuls admin_ops et admin_founder peuvent suspendre ou réactiver.",
+      sectionReview: "À examiner",
+      emptyReview: "Aucun dossier à examiner",
+      sectionPendingHint:
+        "Dossiers incomplets ou en attente d'une correction de l'entreprise.",
+      submittedOn: "Soumis le {date}",
+      openDossier: "Examiner le dossier",
+      reviewStates: {
+        incomplete: "Dossier incomplet",
+        in_review: "À examiner",
+        correction: "Correction demandée",
+        verified: "Vérifiée",
+      },
+      review: {
+        title: "Dossier entreprise",
+        subtitle:
+          "Contrôlez séparément le RCCM, le NIU et le représentant auprès des sources officielles, puis décidez.",
+        state: "État du dossier",
+        version: "Version {n}",
+        fields: {
+          companyName: "Raison sociale",
+          legalName: "Nom légal",
+          sector: "Secteur",
+          size: "Taille",
+          website: "Site web",
+          rccm: "Numéro RCCM",
+          niu: "NIU",
+          address: "Adresse",
+          contact: "Contact",
+          onboarding: "Onboarding",
+          description: "Description",
+        },
+        onboardingDone: "Terminé",
+        onboardingOpen: "Non terminé",
+        niuVerified: "NIU certifié (contrôle DGI)",
+        niuNotVerified: "NIU non certifié",
+        document: "Document RCCM",
+        viewDocument: "Voir la pièce",
+        hideDocument: "Masquer",
+        noDocument: "Aucun document déposé",
+        documentLinkHint: "Lien temporaire (60 secondes), non partageable.",
+        documentError: "Le document n'a pas pu être ouvert.",
+        accountSuspended: "Compte suspendu",
+        lastReason: "Dernier motif communiqué",
+        reviewedOn: "Décision du {date}",
+        approve: "Approuver le dossier",
+        requestCorrection: "Demander une correction",
+        reasonLabel: "Motif communiqué à l'entreprise",
+        reasonPlaceholder:
+          "Ex. : le RCCM est illisible, envoyez un scan complet de la page.",
+        reasonHint: "10 à 500 caractères. L'entreprise le verra tel quel.",
+        sendCorrection: "Envoyer la demande",
+        cancel: "Annuler",
+        confirmApprove:
+          "Approuver ce dossier ? Il sera affiché « Dossier vérifié par EasyJob » et l'entreprise pourra publier des offres.",
+        approved: "Dossier approuvé",
+        correctionSent: "Correction demandée à l'entreprise",
+        readOnly:
+          "Lecture seule : seuls admin_ops et admin_founder décident d'un dossier.",
+        notPending:
+          "Aucune décision attendue : ce dossier n'est pas à examiner.",
+        changed:
+          "Le dossier a été modifié depuis son ouverture. Relisez-le avant de décider.",
+        reload: "Relire le dossier",
+        loadError: "Le dossier n'a pas pu être chargé.",
+        sections: {
+          rccm: "Contrôle RCCM",
+          niu: "Contrôle NIU",
+          representative: "Contrôle du représentant",
+        },
+        checkHints: {
+          rccm: "Vérifiez le numéro et la raison sociale auprès d'une source officielle accessible, ou du greffe compétent si nécessaire.",
+          niu: "Vérifiez le NIU auprès du service officiel de la DGI : il doit correspondre à cette entreprise. Un fichier envoyé ou un format valide ne suffit pas.",
+          representative:
+            "Vérifiez l'identité du représentant et son habilitation : dirigeant mentionné dans les justificatifs, ou mandat de l'entreprise.",
+        },
+        checkStatus: {
+          approved: "Validé",
+          rejected: "Refusé",
+          unverifiable: "Vérification impossible",
+          pending: "À contrôler",
+        },
+        decisions: {
+          approved: "Valider",
+          rejected: "Refuser",
+          unverifiable: "Vérification impossible",
+        },
+        sourceLabel: "Source de vérification",
+        sourcePlaceholder: "Choisir la source consultée",
+        sources: {
+          official_registry: "Registre officiel (consultation)",
+          court_registry: "Greffe compétent",
+          dgi_online: "Service en ligne de la DGI",
+          dgi_office: "Centre des impôts (DGI)",
+          rccm_extract: "Dirigeant mentionné dans les justificatifs",
+          mandate: "Mandat de l'entreprise",
+        },
+        referenceLabel: "Référence ou note interne",
+        referenceHint:
+          "Visible par l'équipe EasyJob seulement (3 à 300 caractères). Évitez d'y recopier des données personnelles.",
+        referencePlaceholder:
+          "Ex. : consultation DGI du 11/11, attestation n° …",
+        checkReasonLabel: "Motif communiqué à l'entreprise",
+        saveCheck: "Enregistrer le contrôle",
+        checkSaved: "Contrôle enregistré",
+        unverifiableHint:
+          "Le dossier reste en attente : aucune approbation sans vérification externe.",
+        history: "Historique des contrôles",
+        historyEmpty: "Aucun contrôle enregistré.",
+        historyOutdated: "version précédente",
+        historyBy: "par {who}",
+        representativeName: "Représentant",
+        representativeTitle: "Fonction",
+        representativeAuthority: "Habilitation",
+        documentsLabels: {
+          rccm: "Document RCCM",
+          niu: "Attestation NIU",
+          representative_id: "Pièce d'identité",
+          mandate: "Mandat",
+        },
+        missing: "Pièces manquantes",
+        finalTitle: "Décision finale",
+        finalHint:
+          "L'approbation exige les trois contrôles validés sur la version actuelle du dossier.",
+      },
     },
     candidateProfile: {
       title: "Profil candidat",
@@ -587,6 +711,13 @@ export const fr = {
   // Détail d'une offre (lot 9d) : travail, montant, lieu, horaires,
   // exigences, puis action.
   jobDetail: {
+    // Lot 11 : offre masquée tant que le dossier de l'entreprise n'est pas vérifié.
+    unavailableTitle: "Offre indisponible",
+    unavailableBody:
+      "Cette offre n'est temporairement plus proposée aux nouveaux candidats.",
+    unavailableApplied:
+      "Cette offre n'accepte plus de nouvelles candidatures pour le moment. Votre candidature reste consultable.",
+    backToJobs: "Voir les autres offres",
     work: "Travail demandé",
     pay: "Montant par candidat",
     location: "Lieu",
@@ -1765,6 +1896,23 @@ export const fr = {
     niuLabel: "NIU (numéro d'identifiant unique)",
     niuHint: "Saisi à l'inscription. Pour le modifier, contactez le support.",
     rccmFileHint: "PDF, JPG, PNG ou WebP — 5 Mo maximum",
+    niuDocumentLabel: "Attestation d'immatriculation (NIU)",
+    niuDocumentHint:
+      "Délivrée par la DGI au nom de l'entreprise. PDF, JPG, PNG ou WebP, 5 Mo maximum.",
+    representativeSection: "Représentant de l'entreprise",
+    representativeHint:
+      "La personne qui agit au nom de l'entreprise sur EasyJob. L'équipe EasyJob vérifie son identité et son habilitation.",
+    representativeNameLabel: "Nom complet",
+    representativeTitleLabel: "Fonction (ex. : gérant)",
+    authorityLabel: "Habilitation",
+    authority: {
+      listed_officer: "Dirigeant mentionné au RCCM",
+      mandate: "Mandat signé par l'entreprise",
+    },
+    idDocumentLabel: "Pièce d'identité (CNI ou passeport)",
+    mandateLabel: "Mandat de l'entreprise",
+    fileSaved: "Fichier enregistré. Choisissez-en un autre pour le remplacer.",
+    chooseFile: "Cliquez pour choisir un fichier",
     rccmFileSaved:
       "Un document est déjà enregistré. Choisissez un fichier pour le remplacer.",
     saveError: "Vos informations n'ont pas pu être enregistrées.",
@@ -1790,6 +1938,105 @@ export const fr = {
       profile_not_found: "Profil entreprise introuvable. Contactez le support.",
       account_suspended: "Votre compte est suspendu.",
       unauthorized: "Session expirée. Veuillez vous reconnecter.",
+      representativeNameTooLong: "Nom trop long (100 caractères maximum).",
+      representativeTitleTooLong:
+        "Fonction trop longue (100 caractères maximum).",
+      submit_failed: "Le dossier n'a pas pu être envoyé. Réessayez.",
+    },
+  },
+
+  companyVerification: {
+    title: "Vérification de l'entreprise",
+    states: {
+      incomplete: {
+        title: "Dossier incomplet",
+        body: "Ajoutez les pièces manquantes, puis envoyez le dossier à l'équipe EasyJob.",
+      },
+      in_review: {
+        title: "Dossier en cours d'examen",
+        body: "L'équipe EasyJob contrôle votre RCCM, votre NIU et votre représentant. Vous pourrez publier des offres dès la vérification du dossier.",
+      },
+      correction: {
+        title: "Correction demandée",
+        body: "Corrigez l'élément signalé, remplacez le document si besoin, puis soumettez le dossier à nouveau.",
+      },
+      verified: {
+        title: "Dossier vérifié par EasyJob",
+        body: "Votre dossier entreprise est vérifié par EasyJob : vous pouvez publier des offres.",
+      },
+    },
+    reasonLabel: "Motif",
+    submittedOn: "Envoyé le {date}",
+    reviewedOn: "Décision du {date}",
+    complete: "Compléter mon dossier",
+    correct: "Corriger mon dossier",
+    checks: {
+      rccm: "RCCM",
+      niu: "NIU",
+      representative: "Représentant",
+    },
+    checkStatus: {
+      approved: "Vérifié",
+      rejected: "À corriger",
+      pending: "En attente",
+    },
+    missingTitle: "Pièces manquantes",
+    pieces: {
+      rccm_number: "Numéro RCCM",
+      rccm_document: "Document RCCM",
+      niu_number: "NIU (contactez le support)",
+      niu_document: "Attestation NIU",
+      representative_name: "Nom du représentant",
+      representative_title: "Fonction du représentant",
+      representative_authority: "Habilitation du représentant",
+      representative_id_document: "Pièce d'identité du représentant",
+      mandate_document: "Mandat de l'entreprise",
+    },
+    jobEntryHint:
+      "Vous pourrez publier dès que votre dossier sera vérifié par EasyJob.",
+    offersHidden:
+      "Tant que le dossier n'est pas vérifié, vos offres actives sont masquées aux nouveaux candidats et aucune nouvelle candidature ni sélection n'est possible. Les candidatures, contrats et missions en cours continuent.",
+    submitButton: "Envoyer mon dossier",
+    resubmitButton: "Soumettre à nouveau",
+    saveButton: "Enregistrer",
+    outcomes: {
+      submitted: "Dossier envoyé à l'équipe EasyJob.",
+      resubmitted: "Dossier soumis à nouveau.",
+      already_pending:
+        "Informations enregistrées. Votre dossier reste en cours d'examen.",
+      already_verified: "Informations enregistrées.",
+      dossier_incomplete:
+        "Informations enregistrées. Ajoutez les pièces manquantes pour envoyer votre dossier.",
+      nothing_changed:
+        "Modifiez l'élément signalé (raison sociale, RCCM, attestation NIU ou représentant) avant de soumettre à nouveau.",
+    },
+    errors: {
+      not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+      not_a_company: "Action réservée aux entreprises.",
+      account_suspended: "Ce compte est suspendu.",
+      company_not_found: "Entreprise introuvable.",
+      forbidden: "Votre grade ne permet pas cette décision.",
+      invalid_action: "Action invalide.",
+      reason_required: "Indiquez un motif d'au moins 10 caractères.",
+      reason_too_long: "Motif trop long (500 caractères maximum).",
+      company_not_pending: "Ce dossier a déjà été traité.",
+      dossier_not_submitted: "Ce dossier n'a pas encore été soumis.",
+      company_changed: "Le dossier a changé : relisez-le avant de décider.",
+      dossier_incomplete: "Dossier incomplet : des pièces manquent.",
+      nothing_changed:
+        "Modifiez l'élément signalé avant de soumettre à nouveau.",
+      submit_failed: "Le dossier n'a pas pu être envoyé. Réessayez.",
+      invalid_check: "Contrôle inconnu.",
+      source_required: "Choisissez la source officielle consultée.",
+      reference_required:
+        "Indiquez une référence ou une note interne (3 caractères minimum).",
+      reference_too_long: "Note trop longue (300 caractères maximum).",
+      check_changed:
+        "Ce contrôle a été modifié entre-temps : relisez le dossier.",
+      checks_incomplete:
+        "Les trois contrôles doivent être validés sur la version actuelle.",
+      company_review_failed: "La décision n'a pas pu être enregistrée.",
+      generic: "Une erreur est survenue. Réessayez.",
     },
   },
 
@@ -1980,6 +2227,8 @@ export const fr = {
       application_not_found: "Candidature introuvable.",
       application_not_selectable:
         "Cette candidature ne peut plus être sélectionnée (retirée ou refusée). Choisissez un autre candidat.",
+      company_not_verified:
+        "Votre dossier entreprise doit être vérifié par EasyJob pour sélectionner un candidat.",
       job_not_available:
         "Cette offre n'est plus publiée : elle doit l'être pour sélectionner un candidat.",
       no_positions:

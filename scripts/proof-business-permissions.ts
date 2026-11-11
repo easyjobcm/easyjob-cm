@@ -43,6 +43,7 @@ import {
   type CandidateProfileForCompletion,
 } from "@/lib/utils/profile-completion";
 import { readLocalProofEnv } from "./lib/local-supabase";
+import { approveCompanyDossier } from "./lib/verified-company";
 
 type DB = SupabaseClient<Database>;
 type Tables = Database["public"]["Tables"];
@@ -257,6 +258,9 @@ async function makeCompany(label: string) {
     .select("id")
     .single();
   if (error || !data) throw new Error(`company ${label}: ${error?.message}`);
+  // Lot 11 : offre visible et ouverte aux candidatures seulement si le
+  // dossier de l'entreprise est complet et contrôlé (fixture fictive).
+  await approveCompanyDossier(svc, data.id);
   return { ...acc, companyId: data.id };
 }
 

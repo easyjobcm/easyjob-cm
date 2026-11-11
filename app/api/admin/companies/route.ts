@@ -2,6 +2,10 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { userModerateSchema } from "@/lib/validations/admin-users";
 import { internalErrorResponse } from "@/lib/api/errors";
+import {
+  companyReviewState,
+  type CompanyReviewState,
+} from "@/lib/utils/company-verification";
 
 /**
  * T8.4a — API admin « Entreprises » (vue centralisée /admin/companies).
@@ -15,6 +19,9 @@ import { internalErrorResponse } from "@/lib/api/errors";
  *        - « Validées »   : verification_status = 'verified' ET compte actif ;
  *        - « Suspendues » : users.is_active = false.
  *        Recherche libre (?q=) par nom / e-mail / téléphone.
+ *        Lot 11 : `review_state` (incomplete, in_review, correction,
+ *        verified) et `submitted_at` permettent de trier la file « À
+ *        examiner » (dossiers soumis, plus ancien en premier).
  *
  *        LECTURE via service_role (`createAdminClient()`) : `company_profiles`
  *        et `users` n'ont AUCUNE policy SELECT admin (seules «Companies can
@@ -50,6 +57,7 @@ interface CompanyProfileRow {
   city: string | null;
   verification_status: "pending" | "verified" | "rejected";
   verification_rejection_reason: string | null;
+  verification_submitted_at: string | null;
   logo_url: string | null;
   created_at: string | null;
 }
@@ -67,6 +75,8 @@ interface CompanyItem {
   city: string | null;
   verification_status: "pending" | "verified" | "rejected" | null;
   verification_rejection_reason: string | null;
+  review_state: CompanyReviewState | null;
+  submitted_at: string | null;
   has_logo: boolean;
   created_at: string | null;
 }
@@ -133,7 +143,8 @@ export async function GET(request: NextRequest) {
     .select(
       `id, user_id, company_name, contact_name, contact_email,
        contact_phone, city, verification_status,
-       verification_rejection_reason, logo_url, created_at`,
+       verification_rejection_reason, verification_submitted_at, logo_url,
+       created_at`,
     )
     .in(
       "user_id",
@@ -166,6 +177,8 @@ export async function GET(request: NextRequest) {
       city: p?.city ?? null,
       verification_status: p?.verification_status ?? null,
       verification_rejection_reason: p?.verification_rejection_reason ?? null,
+      review_state: p ? companyReviewState(p) : null,
+      submitted_at: p?.verification_submitted_at ?? null,
       has_logo: !!p?.logo_url,
       created_at: p?.created_at ?? u.created_at,
     };

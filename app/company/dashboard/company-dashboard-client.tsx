@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
+import { CompanyVerificationCard } from "@/components/company/company-verification-card";
+import type { MyCompanyVerification } from "@/lib/utils/company-verification";
 import {
   Briefcase,
   Users,
@@ -31,6 +33,8 @@ interface CompanyDashboardClientProps {
     logo_url?: string | null;
     company_name: string;
   };
+  /** Lot 11 : `my_company_verification()`. */
+  verification: MyCompanyVerification | null;
   jobs: Array<{
     id: string;
     status: string | null;
@@ -58,6 +62,7 @@ export function CompanyDashboardClient({
   profile,
   jobs,
   stats,
+  verification,
 }: CompanyDashboardClientProps) {
   const { t, locale } = useI18n();
 
@@ -175,6 +180,9 @@ export function CompanyDashboardClient({
       </div>
 
       <div className="px-4 -mt-4 relative z-10 space-y-6">
+        {/* Lot 11 : état du dossier, mis à jour en direct (clé profile). */}
+        {verification && <CompanyVerificationCard dossier={verification} />}
+
         {/* Quick Actions */}
         <Card className="shadow-lg">
           <CardContent className="p-4">

@@ -39,6 +39,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
+import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 
 type DB = SupabaseClient<Database>;
@@ -290,6 +291,8 @@ async function createCompany(userId: string, name: string): Promise<string> {
     .select("id")
     .single();
   if (error || !data) throw new Error(`company insert: ${error?.message}`);
+  // Lot 11 : dossier complet et contrôlé, sinon create_job refuse.
+  await approveCompanyDossier(serviceClient, data.id);
   return data.id;
 }
 

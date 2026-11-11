@@ -38,6 +38,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
+import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
 
@@ -194,6 +196,8 @@ async function createCompany(
     .select("id")
     .single();
   if (error || !data) throw new Error(`company insert: ${error?.message}`);
+  // Lot 11 : dossier complet et contrôlé, sinon create_job refuse.
+  if (verified) await approveCompanyDossier(serviceClient, data.id);
   return data.id;
 }
 
@@ -375,6 +379,7 @@ async function main() {
   // `finally` n'a pas pu s'exécuter. Restes retirés et protections
   // réactivées AVANT toute assertion (lot 10).
   dropSlowTriggers();
+  dropBarrier(execSql);
   execSql("drop trigger if exists proof_l6_fail_audit on public.audit_logs");
   execSql("drop function if exists public.proof_l6_fail_audit()");
 
@@ -1339,18 +1344,38 @@ async function main() {
       const jobId = await seedJob(coV, "active");
       const appId = await seedApplication(jobId, "pending");
       if (setup) await setup(jobId, appId);
-      const delay = (who: "selection" | "deletion") =>
-        first && first !== who
-          ? new Promise((r) => setTimeout(r, 400))
-          : Promise.resolve();
-      const [selection, deletion] = await Promise.all([
-        delay("selection").then(() =>
-          V.client.rpc("select_candidate", { p_application_id: appId }),
-        ),
-        delay("deletion").then(() =>
-          http("DELETE", `/api/jobs/${jobId}`, V.cookie),
-        ),
-      ]);
+      // `.then` envoie la requête tout de suite (supabase-js est paresseux).
+      const runSelection = () =>
+        V.client
+          .rpc("select_candidate", { p_application_id: appId })
+          .then((r) => r);
+      const runDeletion = () => http("DELETE", `/api/jobs/${jobId}`, V.cookie);
+      let selection: Awaited<ReturnType<typeof runSelection>>;
+      let deletion: Awaited<ReturnType<typeof runDeletion>>;
+      if (first) {
+        // Ordre imposé (lot 11) : la seconde opération ne part qu'une fois
+        // la première observée en attente dans son trigger de ralentissement,
+        // donc en possession de ses verrous. Aucun délai fixe.
+        const firstOp = first === "deletion" ? runDeletion() : runSelection();
+        await waitSleeping(serviceClient);
+        const secondOp = first === "deletion" ? runSelection() : runDeletion();
+        if (first === "deletion") {
+          [deletion, selection] = (await Promise.all([firstOp, secondOp])) as [
+            typeof deletion,
+            typeof selection,
+          ];
+        } else {
+          [selection, deletion] = (await Promise.all([firstOp, secondOp])) as [
+            typeof selection,
+            typeof deletion,
+          ];
+        }
+      } else {
+        [selection, deletion] = await Promise.all([
+          runSelection(),
+          runDeletion(),
+        ]);
+      }
       const job = await readJob(jobId);
       const { data: app } = await serviceClient
         .from("job_applications")
@@ -1389,9 +1414,10 @@ async function main() {
     );
 
     // Ordres forcés : un trigger temporaire (pile dédiée) ralentit la
-    // transaction partie en premier, l'autre arrive pendant qu'elle tient
-    // ses verrous.
+    // transaction partie en premier ; l'autre ne part qu'une fois la
+    // première observée en attente dans ce trigger (scripts/lib/proof-barrier).
     slowTriggers = true;
+    await installBarrier(execSql, serviceClient);
     const slowDeletion = await race(async (jobId) => {
       execSql(`
         create or replace function public.proof_l6_slow_job_delete() returns trigger
@@ -1429,6 +1455,7 @@ async function main() {
       slowSelection.outcome,
     );
     dropSlowTriggers();
+    dropBarrier(execSql);
     slowTriggers = false;
 
     // ── H. Échecs sans effet partiel ────────────────────────────
@@ -1478,7 +1505,10 @@ async function main() {
       { status: h2.status, row: h2After?.status },
     );
   } finally {
-    if (slowTriggers) dropSlowTriggers();
+    if (slowTriggers) {
+      dropSlowTriggers();
+      dropBarrier(execSql);
+    }
     if (failingTrigger) {
       execSql(
         "drop trigger if exists proof_l6_fail_audit on public.audit_logs",

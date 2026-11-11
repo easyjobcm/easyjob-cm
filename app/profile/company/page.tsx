@@ -9,6 +9,7 @@ import { accountStateSchema } from "@/lib/realtime/signals";
 import { CompanyProfileClient } from "./company-profile-client";
 import { LiveRefresh } from "@/lib/realtime/provider";
 import { loginHref } from "@/lib/auth/safe-redirect";
+import { parseMyCompanyVerification } from "@/lib/utils/company-verification";
 
 export default async function CompanyProfilePage() {
   const supabase = await createClient();
@@ -84,6 +85,12 @@ export default async function CompanyProfilePage() {
   // SRS v1.2 : l'essai est consommé dès que trial_ends_at est défini en DB
   const hasUsedTrial = !!companyProfile?.trial_ends_at;
 
+  // Lot 11 : état des contrôles et pièces manquantes (jamais la note interne).
+  const { data: verificationRaw } = await supabase.rpc(
+    "my_company_verification",
+  );
+  const verification = parseMyCompanyVerification(verificationRaw);
+
   const criteria = computeCompanyCriteria(companyProfile ?? {});
   const completionPct = computeCompletion(criteria);
 
@@ -114,6 +121,7 @@ export default async function CompanyProfilePage() {
         activeJobsCount={activeJobsCount}
         subscriptionExpiresAt={subscriptionExpiresAt}
         hasUsedTrial={hasUsedTrial}
+        verification={verification}
       />
     </>
   );

@@ -39,7 +39,17 @@ describe("companyOnboardingSchema", () => {
       subscription_plan: "premium",
       onboarding_status: "completed",
     });
-    expect(Object.keys(parsed).sort()).toEqual(Object.keys(valid).sort());
+    // Lot 11 : les champs du représentant s'ajoutent (null si absents).
+    expect(Object.keys(parsed).sort()).toEqual(
+      [
+        ...Object.keys(valid),
+        "representative_name",
+        "representative_title",
+        "representative_authority",
+      ].sort(),
+    );
+    expect(parsed).not.toHaveProperty("niu");
+    expect(parsed).not.toHaveProperty("verification_status");
   });
 
   it.each([

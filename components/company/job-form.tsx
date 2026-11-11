@@ -19,7 +19,12 @@ import {
 } from "@/lib/validations/job";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { JOB_PENDING_STATUS } from "@/lib/utils/job-status";
-import { useAccountState } from "@/lib/realtime/provider";
+import { useAccountState, useLiveRefresh } from "@/lib/realtime/provider";
+import { CompanyVerificationCard } from "@/components/company/company-verification-card";
+import {
+  parseMyCompanyVerification,
+  type MyCompanyVerification,
+} from "@/lib/utils/company-verification";
 import {
   Briefcase,
   Calendar,
@@ -106,6 +111,28 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         ? tj.errors.company_not_verified
         : null;
   const { toast } = useToast();
+
+  // Lot 11 : dossier non vérifié → informé dès l'entrée (pièces manquantes,
+  // contrôles, motifs), relu en direct après une décision admin.
+  const [dossier, setDossier] = React.useState<MyCompanyVerification | null>(
+    null,
+  );
+  const loadDossier = React.useCallback(async () => {
+    const { data } = await createClient().rpc("my_company_verification");
+    setDossier(parseMyCompanyVerification(data));
+  }, []);
+  React.useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .rpc("my_company_verification")
+      .then(({ data }) => {
+        if (!cancelled) setDossier(parseMyCompanyVerification(data));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useLiveRefresh(["profile", "account"], loadDossier);
   const [currentStep, setCurrentStep] = React.useState<Step>("basics");
   const [loading, setLoading] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
@@ -351,6 +378,17 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       </div>
 
       <div className="flex-1 px-6 py-6 overflow-y-auto">
+        {dossier && dossier.status !== "verified" && (
+          <div
+            className="mb-6 space-y-2"
+            data-testid="job-form-dossier-blocked"
+          >
+            <p className="text-sm font-medium text-foreground">
+              {t.companyVerification.jobEntryHint}
+            </p>
+            <CompanyVerificationCard dossier={dossier} />
+          </div>
+        )}
         {/* Basics Step */}
         {currentStep === "basics" && (
           <div className="space-y-6">

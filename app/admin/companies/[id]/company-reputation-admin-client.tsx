@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 export function CompanyReputationAdminClient({
   company,
   backLink,
+  children,
 }: {
   company: {
     id: string;
@@ -16,6 +17,8 @@ export function CompanyReputationAdminClient({
     verification: string | null;
   };
   backLink: ReactNode;
+  /** Lot 11 : revue du dossier, affichée avant la réputation. */
+  children?: ReactNode;
 }) {
   const { t } = useI18n();
   return (
@@ -30,12 +33,11 @@ export function CompanyReputationAdminClient({
             {company.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {[company.sector, company.city, company.verification]
-              .filter(Boolean)
-              .join(" · ")}
+            {[company.sector, company.city].filter(Boolean).join(" · ")}
           </p>
         </div>
       </div>
+      {children}
       <ReputationAdminPanel subjectType="company" subjectId={company.id} />
     </div>
   );

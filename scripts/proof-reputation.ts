@@ -53,6 +53,7 @@ import {
   computeCompletion,
 } from "@/lib/utils/profile-completion";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import {
   parseActionTasks,
@@ -251,6 +252,10 @@ async function createCompany(
     .select("id")
     .single();
   if (error || !data) throw new Error(`company insert: ${error?.message}`);
+  // Lot 11 : offre visible et ouverte aux candidatures seulement si le
+  // dossier de l'entreprise est complet et contrôlé (fixture fictive). Profil
+  // incomplet : non touché (le critère « RCCM ou NIU » compte dans les étoiles).
+  if (complete) await approveCompanyDossier(service, data.id);
   return data.id;
 }
 
