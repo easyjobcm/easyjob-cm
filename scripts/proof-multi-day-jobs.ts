@@ -50,6 +50,8 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database, Json } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectRpc } from "./lib/sign-and-select";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
@@ -157,7 +159,8 @@ begin
     if p_kind = 'apply' then
       perform * from public.apply_to_job_days(v_job, array[p_day]);
     elsif p_kind = 'select' then
-      perform * from public.select_candidate(p_target);
+      perform * from public.sign_and_select(p_target,
+        coalesce((select p.terms_hash from public.contract_selection_preview(p_target) p), ''));
     end if;
   exception when others then
     v_err := sqlerrm;
@@ -1298,8 +1301,8 @@ async function main() {
     const raceA = await appOf(pd0.id, prof[0]);
     const raceB = await appOf(pd0.id, prof[2]);
     const race = await Promise.all([
-      http("POST", `/api/applications/${raceA}/select`, A.cookie),
-      http("POST", `/api/applications/${raceB}/select`, A.cookie),
+      signAndSelectHttp(APP_URL, raceA, A.cookie),
+      signAndSelectHttp(APP_URL, raceB, A.cookie),
     ]);
     const { data: pd0Sel } = await serviceClient
       .from("job_days")
@@ -1352,11 +1355,7 @@ async function main() {
           .eq("candidate_id", prof[0])
           .single()
       ).data?.id ?? "";
-    const s3 = await http(
-      "POST",
-      `/api/applications/${fullApp}/select`,
-      A.cookie,
-    );
+    const s3 = await signAndSelectHttp(APP_URL, fullApp, A.cookie);
     const fullSel = s3.body.selection as
       | { mission_id?: string; contract_id?: string }
       | undefined;
@@ -1482,31 +1481,11 @@ async function main() {
     const shortApp = await applyFull(C4, cShort);
     const beforeApp = await applyFull(C4, cBefore);
     const periodApp = await applyFull(C4, cPeriod);
-    const selBase = await http(
-      "POST",
-      `/api/applications/${baseApp}/select`,
-      A.cookie,
-    );
-    const selExact = await http(
-      "POST",
-      `/api/applications/${exactApp}/select`,
-      B.cookie,
-    );
-    const selShort = await http(
-      "POST",
-      `/api/applications/${shortApp}/select`,
-      B.cookie,
-    );
-    const selBefore = await http(
-      "POST",
-      `/api/applications/${beforeApp}/select`,
-      B.cookie,
-    );
-    const selPeriod = await http(
-      "POST",
-      `/api/applications/${periodApp}/select`,
-      B.cookie,
-    );
+    const selBase = await signAndSelectHttp(APP_URL, baseApp, A.cookie);
+    const selExact = await signAndSelectHttp(APP_URL, exactApp, B.cookie);
+    const selShort = await signAndSelectHttp(APP_URL, shortApp, B.cookie);
+    const selBefore = await signAndSelectHttp(APP_URL, beforeApp, B.cookie);
+    const selPeriod = await signAndSelectHttp(APP_URL, periodApp, B.cookie);
     const { data: periodState } = await serviceClient
       .from("job_applications")
       .select("status")
@@ -1566,11 +1545,7 @@ async function main() {
       ],
     );
     const sameApp = await applyFull(C5, cSame);
-    const selSame = await http(
-      "POST",
-      `/api/applications/${sameApp}/select`,
-      B.cookie,
-    );
+    const selSame = await signAndSelectHttp(APP_URL, sameApp, B.cookie);
     report(
       "C5 journées d'une même mission globale à moins de 3 h : pas des engagements distincts, sélection acceptée",
       selSame.status === 200,
@@ -1591,9 +1566,9 @@ async function main() {
     const raceAppA = await applyFull(C6, raceJobA);
     const raceAppB = await applyFull(C6, raceJobB);
     installSlowSelection(raceAppA);
-    const pA = http("POST", `/api/applications/${raceAppA}/select`, A.cookie);
+    const pA = signAndSelectHttp(APP_URL, raceAppA, A.cookie);
     await waitSleeping(serviceClient, 1);
-    const pB = http("POST", `/api/applications/${raceAppB}/select`, B.cookie);
+    const pB = signAndSelectHttp(APP_URL, raceAppB, B.cookie);
     const [rA, rB] = await Promise.all([pA, pB]);
     execSql(
       "drop trigger if exists proof_l12_slow_select on public.job_applications",
@@ -1708,7 +1683,7 @@ async function main() {
           .eq("candidate_id", prof[4])
       ).data ?? [];
     for (const a of v3Apps) {
-      await http("POST", `/api/applications/${a.id}/select`, B.cookie);
+      await signAndSelectHttp(APP_URL, a.id, B.cookie);
     }
     const { data: v3Contracts } = await serviceClient
       .from("contracts")
@@ -1930,11 +1905,7 @@ async function main() {
     );
 
     // L'entreprise B sélectionne le candidat sur E.
-    const wSel = await http(
-      "POST",
-      `/api/applications/${wEApp}/select`,
-      B.cookie,
-    );
+    const wSel = await signAndSelectHttp(APP_URL, wEApp, B.cookie);
     const w2X = await readDays(C7.client, wX);
     const w2P = await readDays(C7.client, wP);
     report(
@@ -2426,11 +2397,7 @@ async function main() {
       ).data ?? [];
     const pMissions: string[] = [];
     for (const a of pApps) {
-      const r = await http(
-        "POST",
-        `/api/applications/${a.id}/select`,
-        B.cookie,
-      );
+      const r = await signAndSelectHttp(APP_URL, a.id, B.cookie);
       pMissions.push(
         (r.body.selection as { mission_id?: string })?.mission_id ?? "",
       );
@@ -2631,9 +2598,7 @@ async function main() {
       }
     };
     const selectQ = async (applicationId: string) => {
-      const { data, error } = await Q.client.rpc("select_candidate", {
-        p_application_id: applicationId,
-      });
+      const { data, error } = await signAndSelectRpc(Q.client, applicationId);
       if (error || !data?.[0]?.mission_id) {
         throw new Error(`select: ${error?.message}`);
       }
@@ -3106,17 +3071,13 @@ async function main() {
       .from("users")
       .update({ is_active: false })
       .eq("id", idA);
-    const dCompany = await A.client.rpc("select_candidate", {
-      p_application_id: c2app,
-    });
+    const dCompany = await signAndSelectRpc(A.client, c2app);
     await serviceClient.from("users").update({ is_active: true }).eq("id", idA);
     await serviceClient
       .from("company_profiles")
       .update({ verification_status: "pending" })
       .eq("id", coA);
-    const dDossier = await A.client.rpc("select_candidate", {
-      p_application_id: c2app,
-    });
+    const dDossier = await signAndSelectRpc(A.client, c2app);
     const dAnonDays = await anon.rpc("job_days_for_candidate", {
       p_job_id: jobPer,
     });

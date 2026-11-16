@@ -35,6 +35,7 @@ import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -338,11 +339,7 @@ async function main() {
         p_job_id: jobId,
       });
       if (error || !app) throw new Error(`apply: ${error?.message}`);
-      const sel = await http(
-        "POST",
-        `/api/applications/${app.id}/select`,
-        A.cookie,
-      );
+      const sel = await signAndSelectHttp(APP_URL, app.id, A.cookie);
       const selection = sel.body.selection as
         | { mission_id?: string; contract_id?: string }
         | undefined;
@@ -423,9 +420,9 @@ async function main() {
       { distinct: code1 !== code2 },
     );
 
-    const reselect = await http(
-      "POST",
-      `/api/applications/${m1.applicationId}/select`,
+    const reselect = await signAndSelectHttp(
+      APP_URL,
+      m1.applicationId,
       A.cookie,
     );
     report(
@@ -677,7 +674,8 @@ async function main() {
     const r2 = afterRows.find((r) => r.application_id === m2.applicationId);
     report(
       "C4 réalisée sans GPS ni contrat signé ; l'entreprise voit « code utilisé », le code du second reste affiché",
-      contract1?.status === "pending" &&
+      // Lot 13 : signé par l'entreprise à la sélection, pas par le candidat.
+      contract1?.status === "company_signed" &&
         contract1.candidate_signed_at === null &&
         r1?.code_used === true &&
         r1.completion_code === null &&

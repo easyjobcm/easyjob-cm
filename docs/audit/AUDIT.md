@@ -2388,5 +2388,47 @@ Ces refus en base sont conservés : ils tranchent pour un écran périmé ou un 
 ### Dépendances documentées
 
 - Lot « Engagements et annulations » : signalement d'une journée non confirmée, justification, décision du support, contestation, remplacement, sanction, remboursement. Le garde-fou `protect_reputation_incidents` refuse une absence sur une mission dont **une** journée a été confirmée : à préciser par ce lot pour les missions globales.
-- Lot contrats : signature de l'entreprise avant sélection (inchangée ici), contenu légal et PDF.
+- Lot contrats : signature de l'entreprise avant sélection et PDF livrés au lot 13 (§32) ; contenu légal du contrat formalisé toujours à valider.
 - Lot de correction encadrée des horaires : le calendrier entier est désormais figé.
+
+## 32. Suivi — Lot 13 : contrat signé à la sélection (2026-11-16)
+
+Branche `feat/lot-13-contracts-selection`, créée depuis `origin/main-dev` (83ace11, lot 12 intégré). Migration `20261116120000_contract_selection.sql`. Non commité, non déployé.
+
+### Inventaire avant le lot
+
+- `select_candidate` (lots 7a à 12) créait sélection, mission, journées, codes, contrat `pending` et notification sans aucune signature ; l'entreprise signait ensuite, séparément, par `sign_contract`. La RPC était appelable directement en session.
+- `get_contract`, `get_mission`, la réponse de `sign_contract` et les colonnes lisibles de `contracts` (`status`, `*_signed_at`, `*_terms_hash`, `updated_at`) révélaient à chaque partie l'état et l'heure de la signature de l'autre ; les notifications de signature aussi (« X a signé… », « signé par les deux parties ») ; le signal temps réel d'une signature allait aux deux parties.
+- La présélection restait inscriptible en session (`protect_job_application_writes`) et affichée (onglet entreprise, libellés candidat).
+- Aucun PDF ; aucune bibliothèque PDF dans le dépôt.
+
+### Mécanisme
+
+- **Aperçu** `contract_selection_preview` : lecture seule (`selection_prepare`, sans verrou ni écriture), mêmes contrôles et mêmes codes que la sélection ; renvoie le candidat en prénom et initiale, le format, les conditions, les clauses courantes et l'**empreinte de proposition** `contract_proposal_hash` (SHA-256 de `{v, kind, application_id, job_id, candidate_id, company_id, template, terms}`, `terms` = `contract_data` sans `mission_id`).
+- **Signer et sélectionner** : `sign_and_select` (session, sans IP) et `sign_and_select_observed` (route, clé service, IP observée) appellent `contract_select_core`. Verrous dans l'ordre du lot 12 (candidature, offre, entreprise en partage, journée, verrou consultatif du candidat) ; relance sur une candidature déjà sélectionnée → résultat d'origine sans écriture (jamais de signature ajoutée à un contrat existant) ; contrôles refaits sur l'état verrouillé ; empreinte présentée différente de l'empreinte courante → `terms_mismatch` ; puis sélection, mission, journées, codes, contrat (clauses et `terms_hash` par le trigger du lot 7b), contrôle que le contrat inséré porte exactement l'empreinte présentée, signature de l'entreprise (`company_terms_hash = terms_hash`, statut `company_signed`), notification du candidat. Tout refus annule la transaction.
+- `select_candidate` est supprimée ; `selection_prepare`, `selection_company_of` et `contract_select_core` sont fermées aux sessions.
+- **Confidentialité** : `get_contract` renvoie `viewer_signed`, `can_sign`, `needs_review` (plus de statut ni d'horodatage) ; `get_mission` renvoie `contract_viewer_signed` ; `company_job_applicants` renvoie `contract_id` et `contract_to_sign` ; la signature renvoie `{contract_id, signed_party, already_signed}` ; colonnes de signature et `updated_at` retirées du `grant select` ; notification d'une signature seulement à une partie qui doit encore signer, sans dire qui a signé ; `rt_on_contracts` ne signale une signature qu'au signataire. Le détail reste en base pour le support (clé service).
+- **Présélection** : `protect_job_application_writes` n'autorise plus que le refus en session ; `withdraw_job_application` accepte une ancienne présélection ; les écrans l'affichent « en attente » (`displayApplicationStatus`). Aucune donnée réécrite.
+- **PDF** : `GET /api/contracts/[id]/pdf?locale=fr|en`, lecture par `get_contract` en session (tiers → 404) ; générateur sans dépendance (`lib/contracts/pdf.ts` : PDF 1.4, Helvetica en WinAnsi, pagination) ; contenu tiré des conditions et clauses figées (`lib/contracts/contract-pdf.ts`).
+
+### Écrans (FR/EN, 375 px)
+
+- Entreprise : « Voir le contrat proposé » ouvre un dialogue (candidat, journées et horaires, lieu, montant XAF, clauses, case de consentement en fin de contrat, « Signer et sélectionner » dans un pied réduit aux actions) ; si les conditions ont changé : bandeau et contrat relu ; plus d'onglet de présélection ; « Votre signature est attendue » ou « Signé par vous » sur la candidature.
+- Contrat : mention propre au lecteur, plus de bloc « Signatures » des deux parties, bouton « Télécharger le contrat (PDF) ». Mission et Tâches : « Mission : Prévue », distinct de la mention de signature.
+
+### Validation (pile `easyjob-proof`, données fictives)
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `contract-selection` (nouvelle, sessions réelles) | ✅ 29/29 : aperçu et fermeture sans écriture, tiers, candidat et anonyme refusés ; consentement exigé ; double clic ; réponse perdue ; transaction complète (3 journées, 3 codes, empreinte présentée = contrat signé) ; confidentialité (lecture, mission, candidatures, réponse de signature, aucune notification à l'entreprise) ; tâche du candidat, début avant signature, tâche retirée après signature ; PDF FR/EN, accès direct d'une entreprise tierce, d'un autre candidat et d'un anonyme, PDF après la mission ; journées au choix (deux contrats) ; montant puis clauses changés après l'aperçu ; échéance franchie avant le clic ; deux entreprises en concurrence ; ancien appel `select_candidate` (404) ; contrat antérieur sans signature rétroactive ; ancienne présélection retirable |
+| Preuves existantes adaptées | sélection par l'aperçu signé (`scripts/lib/sign-and-select.ts`) ; `contract-signing` : contrats « antérieurs » fabriqués en clé service pour éprouver la double signature, assertions de confidentialité (L5, S5, S7, S8, D1, D2) ; `candidate-selection` : présélection refusée, ancienne présélection sélectionnable, course C1 sur la seule signature ; `realtime` J6, M1, M2 ; colonnes `contract_id` et `contract_to_sign` (F3, P3) ; statut `company_signed` (S1, C4) |
+| `pnpm test:rls` complet (pile réinitialisée depuis les seules migrations, application reconstruite) | ⚠️ puis ✅ : 31/32 en 663 s ; seul échec `contract-signing` S5, assertion de la preuve trop large (les 16 premiers caractères de l'heure de signature du candidat coïncidaient avec `created_at` du contrat, créé dans la même minute ; aucune fuite) ; assertion corrigée (horodatage complet), `contract-signing` relancée deux fois : ✅ 45/45. Pendant le développement, `company-dossier-visibility` M9 (signal `jobs:public` non reçu) et `reputation` (collision aléatoire de numéro de téléphone à la création des fixtures) ont échoué une fois chacune, puis sont passées à la relance et dans la suite complète : non liés au lot, non reproduits |
+| Navigateur (Chrome headless 375 × 812, application construite) | ✅ 15/15 : entreprise FR (aperçu, fermeture sans effet, signature, mention), entreprise EN (aperçu), candidat EN (tâche, contrat, signature, tâche retirée de l'autre onglet ouvert sans rechargement en 0,9 s environ, mission), candidat FR (contrat, PDF de trois journées de nuit vérifié), lien direct d'un autre candidat ; aucun défilement horizontal. Corrigé pendant la vérification : double point après l'initiale (« Aline N.. ») et pied du dialogue qui masquait la moitié du contrat |
+| Tests unitaires, typage, lint, formatage, build, types générés | ✅ 552 tests (dont `contract-pdf`), `tsc`, `eslint`, `prettier --check`, `next build`, types identiques au schéma de la pile réinitialisée |
+
+### Limites
+
+- Détail des signatures (horodatages, IP, empreintes) lisible par le support en clé service seulement : aucun écran admin des contrats.
+- PDF à polices standard (un caractère hors WinAnsi devient « ? »), sans signature graphique ni identité civile figée, produit à la demande et non archivé. Contenu légal du contrat formalisé toujours à valider (SRS §11.1).
+- Une ancienne présélection perd ce statut quand elle est sélectionnée, refusée ou retirée, comme toute candidature en attente ; aucune table d'historique des statuts.
+- La signature du candidat n'est plus signalée à l'entreprise (sa propre vue ne change pas) ; la création du contrat l'est.

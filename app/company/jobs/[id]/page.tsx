@@ -23,6 +23,7 @@ import {
   XCircle,
   Phone,
   FileText,
+  FileSignature,
 } from "lucide-react";
 import {
   Dialog,
@@ -49,6 +50,11 @@ import { MissionPay } from "@/components/jobs/mission-pay";
 import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
 import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
+import { displayApplicationStatus } from "@/lib/jobs/application-status";
+import {
+  SelectionContractDialog,
+  type SelectionResult,
+} from "@/components/contracts/selection-contract-dialog";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -130,10 +136,6 @@ export default function CompanyJobDetailPage() {
   );
   const [rejectionReason, setRejectionReason] = useState("");
   const [processing, setProcessing] = useState(false);
-  // Contrat de chaque candidature sélectionnée (colonnes lisibles, lot 7b).
-  const [contracts, setContracts] = useState<
-    Map<string, Pick<Tables<"contracts">, "id" | "status">>
-  >(new Map());
   // Garde synchrone contre le double clic (l'état React arrive trop tard).
   const processingRef = useRef(false);
   // Pointages et heures de chaque candidature sélectionnée (lot 7c).
@@ -202,11 +204,6 @@ export default function CompanyJobDetailPage() {
         ? []
         : null;
 
-    const { data: contractRows, error: contractsError } = await supabase
-      .from("contracts")
-      .select("id, application_id, status")
-      .eq("job_id", jobId);
-
     const missionsRes = await fetch(`/api/jobs/${jobId}/missions`, {
       cache: "no-store",
     }).catch(() => null);
@@ -224,12 +221,7 @@ export default function CompanyJobDetailPage() {
     if (!latest.isLatest(token)) return byApplication;
     // Lecture interrompue par le réseau : rien n'est retiré de l'écran ; la
     // reprise (retour du réseau, reconnexion) relira tout.
-    if (
-      isNetworkError(jobError) ||
-      isNetworkError(contractsError) ||
-      !res ||
-      !missionsRes
-    ) {
+    if (isNetworkError(jobError) || !res || !missionsRes) {
       setLoading(false);
       return byApplication;
     }
@@ -260,14 +252,6 @@ export default function CompanyJobDetailPage() {
           : null,
       );
     }
-    setContracts(
-      new Map(
-        (contractRows ?? []).map((c) => [
-          c.application_id,
-          { id: c.id, status: c.status },
-        ]),
-      ),
-    );
     if (missionsRes) setMissions(byApplication);
 
     setLoading(false);
@@ -287,46 +271,31 @@ export default function CompanyJobDetailPage() {
           .join(" ")
       : "";
 
-  const handleSelectCandidate = async () => {
-    if (!selectedApplication || processingRef.current) return;
-    processingRef.current = true;
-    setProcessing(true);
-
-    const res = await fetch(
-      `/api/applications/${selectedApplication.application_id}/select`,
-      { method: "POST" },
-    ).catch(() => null);
-    const body = ((await res?.json().catch(() => null)) ?? {}) as {
-      code?: string;
-      selection?: { status?: string };
-    };
-
-    // Succès seulement si la base a bien enregistré la sélection.
-    if (res?.ok && body.selection?.status === "selected") {
+  /**
+   * Lot 13 : issue de « Signer et sélectionner ». L'écran relit toujours
+   * l'état enregistré (places, statut, contrat) ; une réponse perdue suivie
+   * d'une relance retrouve la même sélection.
+   */
+  const onSelectionDone = async (
+    result: SelectionResult | null,
+    code: keyof typeof ta.errors | null,
+  ) => {
+    if (result) {
       toast({
         title: ta.toasts.selectedTitle,
         variant: "success",
         description: ta.toasts.selectedDesc,
       });
-    } else {
+      setSelectedApplication(null);
+      setActionType(null);
+    } else if (code && code !== "terms_mismatch") {
       toast({
         title: ta.toasts.errorTitle,
-        // Requête non aboutie : message réseau ; sinon le code métier.
-        description: !res
-          ? ta.errors.network
-          : body.code && body.code in ta.errors
-            ? ta.errors[body.code as keyof typeof ta.errors]
-            : ta.errors.generic,
+        description: ta.errors[code],
         variant: "destructive",
       });
     }
-    // L'écran affiche toujours l'état relu (places, statut).
     await loadData();
-
-    setSelectedApplication(null);
-    setActionType(null);
-    processingRef.current = false;
-    setProcessing(false);
   };
 
   const handleRejectCandidate = async () => {
@@ -389,12 +358,6 @@ export default function CompanyJobDetailPage() {
             {ta.status.pending}
           </Badge>
         );
-      case "shortlisted":
-        return (
-          <Badge className="bg-blue-100 text-blue-700">
-            {ta.status.shortlisted}
-          </Badge>
-        );
       case "selected":
         return (
           <Badge className="bg-green-100 text-green-700">
@@ -418,17 +381,20 @@ export default function CompanyJobDetailPage() {
     }
   };
 
+  // Lot 13 : une ancienne présélection est comptée et traitée comme une
+  // candidature en attente (statut conservé en base).
   const countStatus = (status: string) =>
-    String(applications.filter((a) => a.status === status).length);
+    String(
+      applications.filter((a) => displayApplicationStatus(a.status) === status)
+        .length,
+    );
 
   const perDay = job?.schedule_format === "per_day";
   const filteredApplications = applications.filter(
     (app) =>
-      app.status === activeTab &&
+      displayApplicationStatus(app.status) === activeTab &&
       (!perDay || !dayFilter || app.job_day_id === dayFilter),
   );
-  const isFull =
-    !!job && (job.positions_filled ?? 0) >= (job.positions_available ?? 1);
   // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence)
   // reflétée à l'heure du serveur sur l'écran ouvert ; la base refuse
   // recruitment_closed. Contrats et missions restent accessibles.
@@ -677,15 +643,9 @@ export default function CompanyJobDetailPage() {
           </div>
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pending" className="text-xs">
               {ta.tabs.pending.replace("{count}", countStatus("pending"))}
-            </TabsTrigger>
-            <TabsTrigger value="shortlisted" className="text-xs">
-              {ta.tabs.shortlisted.replace(
-                "{count}",
-                countStatus("shortlisted"),
-              )}
             </TabsTrigger>
             <TabsTrigger value="selected" className="text-xs">
               {ta.tabs.selected.replace("{count}", countStatus("selected"))}
@@ -721,7 +681,7 @@ export default function CompanyJobDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold">{name(app)}</span>
-                          {getStatusBadge(app.status)}
+                          {getStatusBadge(displayApplicationStatus(app.status))}
                           {app.match_score && (
                             <Badge variant="outline" className="text-xs">
                               {Math.round(app.match_score)}% match
@@ -780,8 +740,8 @@ export default function CompanyJobDetailPage() {
                         )}
 
                         {!suspended &&
-                          (app.status === "pending" ||
-                            app.status === "shortlisted") && (
+                          displayApplicationStatus(app.status) ===
+                            "pending" && (
                             <div className="flex flex-wrap items-center gap-2 mt-3">
                               {dossierBlocked ? (
                                 <p
@@ -806,7 +766,7 @@ export default function CompanyJobDetailPage() {
                                     setActionType("select");
                                   }}
                                 >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  <FileSignature className="h-4 w-4 mr-1" />
                                   {ta.actions.select}
                                 </Button>
                               )}
@@ -830,42 +790,37 @@ export default function CompanyJobDetailPage() {
                               <Phone className="h-4 w-4 mr-1" />
                               {ta.actions.contact}
                             </Button>
-                            {(() => {
-                              const contract = contracts.get(
-                                app.application_id,
-                              );
-                              if (!contract) return null;
-                              return (
-                                <>
-                                  <motion.div whileTap={{ scale: 0.97 }}>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        router.push(`/contracts/${contract.id}`)
-                                      }
-                                    >
-                                      <FileText className="h-4 w-4 mr-1" />
-                                      {ta.actions.contract}
-                                    </Button>
-                                  </motion.div>
-                                  <Badge
-                                    variant={
-                                      contract.status === "completed"
-                                        ? "success"
-                                        : "warning"
+                            {app.contract_id && (
+                              <>
+                                <motion.div whileTap={{ scale: 0.97 }}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      router.push(
+                                        `/contracts/${app.contract_id}`,
+                                      )
                                     }
-                                    className="text-xs"
                                   >
-                                    {
-                                      t.contract.status[
-                                        contract.status ?? "pending"
-                                      ]
-                                    }
-                                  </Badge>
-                                </>
-                              );
-                            })()}
+                                    <FileText className="h-4 w-4 mr-1" />
+                                    {ta.actions.contract}
+                                  </Button>
+                                </motion.div>
+                                {/* Lot 13 : seule la signature de
+                                    l'entreprise est indiquée ici. */}
+                                <Badge
+                                  variant={
+                                    app.contract_to_sign ? "warning" : "success"
+                                  }
+                                  className="text-xs"
+                                  data-testid="applicant-contract-state"
+                                >
+                                  {app.contract_to_sign
+                                    ? ta.contractToSign
+                                    : ta.contractSigned}
+                                </Badge>
+                              </>
+                            )}
                           </div>
                         )}
 
@@ -1028,57 +983,29 @@ export default function CompanyJobDetailPage() {
         />
       )}
 
-      {/* Selection Dialog */}
-      <Dialog
-        open={actionType === "select" && selectedApplication !== null}
-        onOpenChange={() => setActionType(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{ta.selectDialog.title}</DialogTitle>
-            <DialogDescription>
-              {ta.selectDialog.description.replace(
-                "{name}",
-                name(selectedApplication),
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              {isFull ? ta.errors.no_positions : ta.selectDialog.notice}
-            </p>
-            {suspended && (
-              <p className="mt-2 text-sm text-destructive" role="alert">
-                {t.realtime.actionUnavailable}
-              </p>
-            )}
-            {!suspended && dossierBlocked && (
-              <p className="mt-2 text-sm text-destructive" role="alert">
-                {ta.errors.company_not_verified}
-              </p>
-            )}
-            {!suspended && !dossierBlocked && recruitmentClosed && (
-              <p className="mt-2 text-sm text-destructive" role="alert">
-                {ta.errors.recruitment_closed}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setActionType(null)}>
-              {ta.cancel}
-            </Button>
-            <Button
-              onClick={handleSelectCandidate}
-              disabled={
-                processing || suspended || dossierBlocked || recruitmentClosed
-              }
-              data-testid="select-confirm"
-            >
-              {processing ? ta.processing : ta.selectDialog.confirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Lot 13 : contrat proposé, « Signer et sélectionner ». */}
+      <SelectionContractDialog
+        applicationId={
+          actionType === "select" && selectedApplication
+            ? selectedApplication.application_id
+            : null
+        }
+        candidateName={name(selectedApplication)}
+        blockedReason={
+          suspended
+            ? t.realtime.actionUnavailable
+            : dossierBlocked
+              ? ta.errors.company_not_verified
+              : selectedApplication && selectionClosedFor(selectedApplication)
+                ? ta.errors.recruitment_closed
+                : null
+        }
+        onClose={() => {
+          setActionType(null);
+          setSelectedApplication(null);
+        }}
+        onDone={(result, code) => void onSelectionDone(result, code)}
+      />
 
       {/* Rejection Dialog */}
       <Dialog

@@ -17,6 +17,21 @@ export const contractSignSchema = z.object({
 
 export type ContractSignInput = z.infer<typeof contractSignSchema>;
 
+/**
+ * « Signer et sélectionner » (RPC `sign_and_select`, lot 13) : même
+ * consentement, sur l'empreinte de l'aperçu du contrat proposé
+ * (`contract_selection_preview`).
+ */
+export const selectionSignSchema = contractSignSchema;
+
+/** Code d'un corps de signature refusé (400). */
+export function signBodyRefusal(issueMessage: string | undefined) {
+  return issueMessage === "consent_required" ||
+    issueMessage === "terms_hash_invalid"
+    ? issueMessage
+    : "invalid_request";
+}
+
 /** Statut HTTP de chaque refus levé par `get_contract` / `sign_contract`. */
 export const CONTRACT_RPC_REFUSALS = {
   not_authenticated: 401,

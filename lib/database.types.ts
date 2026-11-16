@@ -2971,6 +2971,8 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: {
           application_id: string
+          contract_id: string
+          contract_to_sign: boolean
           created_at: string
           day_date: string
           day_ends_at: string
@@ -3049,6 +3051,45 @@ export type Database = {
         Args: { p_candidate_signed_at: string; p_company_signed_at: string }
         Returns: Database["public"]["Enums"]["contract_status"]
       }
+      contract_proposal_hash: {
+        Args: {
+          p_application_id: string
+          p_candidate_id: string
+          p_company_id: string
+          p_job_id: string
+          p_template: string
+          p_terms: Json
+        }
+        Returns: string
+      }
+      contract_select_core: {
+        Args: {
+          p_application_id: string
+          p_observed_ip: string
+          p_terms_hash: string
+          p_uid: string
+        }
+        Returns: {
+          already_selected: boolean
+          application_id: string
+          contract_id: string
+          mission_id: string
+          status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
+      contract_selection_preview: {
+        Args: { p_application_id: string }
+        Returns: {
+          application_id: string
+          candidate_name: string
+          company_name: string
+          contract_template: string
+          job_day_id: string
+          job_id: string
+          terms: Json
+          terms_hash: string
+        }[]
+      }
       contract_sign_core: {
         Args: {
           p_contract_id: string
@@ -3058,11 +3099,8 @@ export type Database = {
         }
         Returns: {
           already_signed: boolean
-          candidate_signed_at: string
-          company_signed_at: string
           contract_id: string
           signed_party: string
-          status: Database["public"]["Enums"]["contract_status"]
         }[]
       }
       contract_terms_hash: {
@@ -3148,19 +3186,17 @@ export type Database = {
           application_id: string
           can_sign: boolean
           candidate_name: string
-          candidate_signed_at: string
           company_name: string
-          company_signed_at: string
           contract_id: string
           contract_template: string
           created_at: string
           job_id: string
           mission_id: string
           needs_review: boolean
-          status: Database["public"]["Enums"]["contract_status"]
           terms: Json
           terms_hash: string
           viewer_party: string
+          viewer_signed: boolean
         }[]
       }
       get_mission: {
@@ -3169,14 +3205,13 @@ export type Database = {
           address: string
           application_id: string
           candidate_reviewed: boolean
-          candidate_signed: boolean
           city: string
           company_id: string
           company_name: string
           company_reviewed: boolean
           completed_at: string
           contract_id: string
-          contract_status: Database["public"]["Enums"]["contract_status"]
+          contract_viewer_signed: boolean
           currency: string
           days: Json
           job_id: string
@@ -3529,8 +3564,31 @@ export type Database = {
         Args: { p_domain: string; p_resource: string; p_user_ids: string[] }
         Returns: undefined
       }
-      select_candidate: {
-        Args: { p_application_id: string }
+      selection_company_of: {
+        Args: { p_uid: string }
+        Returns: Record<string, unknown>
+      }
+      selection_prepare: {
+        Args: { p_application_id: string; p_uid: string }
+        Returns: Json
+      }
+      sign_and_select: {
+        Args: { p_application_id: string; p_terms_hash: string }
+        Returns: {
+          already_selected: boolean
+          application_id: string
+          contract_id: string
+          mission_id: string
+          status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
+      sign_and_select_observed: {
+        Args: {
+          p_application_id: string
+          p_observed_ip?: string
+          p_terms_hash: string
+          p_user_id: string
+        }
         Returns: {
           already_selected: boolean
           application_id: string
@@ -3543,11 +3601,8 @@ export type Database = {
         Args: { p_contract_id: string; p_terms_hash: string }
         Returns: {
           already_signed: boolean
-          candidate_signed_at: string
-          company_signed_at: string
           contract_id: string
           signed_party: string
-          status: Database["public"]["Enums"]["contract_status"]
         }[]
       }
       sign_contract_observed: {
@@ -3559,11 +3614,8 @@ export type Database = {
         }
         Returns: {
           already_signed: boolean
-          candidate_signed_at: string
-          company_signed_at: string
           contract_id: string
           signed_party: string
-          status: Database["public"]["Enums"]["contract_status"]
         }[]
       }
       skill_requires_license: {

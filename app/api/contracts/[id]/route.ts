@@ -8,7 +8,8 @@ import { internalErrorResponse } from "@/lib/api/errors";
  * Contrat vu par l'une de ses parties (RPC `get_contract`, lot 7b).
  *
  * La base déduit la partie de la session, renvoie les conditions figées à la
- * sélection, leur empreinte et l'état des deux signatures. Ni IP, ni
+ * sélection, leur empreinte et la seule signature du lecteur (lot 13 : ni
+ * l'état ni l'heure de la signature de l'autre partie). Ni IP, ni
  * identifiant de signataire, ni donnée sensible du candidat (F-16).
  */
 export async function GET(

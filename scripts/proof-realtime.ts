@@ -41,6 +41,7 @@ import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -668,11 +669,15 @@ async function main() {
       .update({ status: "shortlisted" })
       .eq("id", app1!.id)
       .select("id");
+    const { data: stillPending } = await serviceClient
+      .from("job_applications")
+      .select("status")
+      .eq("id", app1!.id)
+      .single();
     report(
-      "J6 : présélection par l'entreprise → signal au candidat",
-      !slErr &&
-        shortlisted?.length === 1 &&
-        (await waitSignal(lK1, m.k1, "applications", app1!.id)),
+      "J6 : présélection en session refusée (lot 13), candidature inchangée",
+      (!!slErr || (shortlisted ?? []).length === 0) &&
+        stillPending?.status === "pending",
       slErr?.message,
     );
 
@@ -726,11 +731,7 @@ async function main() {
     // Sélection de K1 par la route.
     m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };
     const mE2 = mark(lE2);
-    const sel = await http(
-      "POST",
-      `/api/applications/${app1!.id}/select`,
-      E.cookie,
-    );
+    const sel = await signAndSelectHttp(APP_URL, app1!.id, E.cookie);
     const selection = (sel.body.selection ?? {}) as {
       mission_id?: string;
       contract_id?: string;
@@ -779,10 +780,16 @@ async function main() {
         consent: true,
       },
     );
+    // Lot 13 : l'entreprise a signé à la sélection. La signature du
+    // candidat n'est signalée qu'à ses propres sessions (ses écrans retirent
+    // « Signer mon contrat ») ; l'entreprise n'en est pas informée.
+    const k1Signal = await waitSignal(lK1, m.k1, "contracts", contractId);
+    await sleep(800);
     report(
-      "M1 : signature du candidat → l'entreprise reçoit (contracts, id)",
+      "M1 : signature du candidat → ses sessions reçoivent (contracts, id), l'entreprise rien",
       signK.status === 200 &&
-        (await waitSignal(lE, m.e, "contracts", contractId)),
+        k1Signal &&
+        since(lE, m.e).filter((e) => e.payload.d === "contracts").length === 0,
       { status: signK.status, code: signK.body.code },
     );
     m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };
@@ -795,10 +802,14 @@ async function main() {
         consent: true,
       },
     );
+    await sleep(800);
     report(
-      "M2 : signature de l'entreprise → le candidat reçoit (contracts, id)",
+      "M2 : relance de l'entreprise (déjà signataire) → already_signed, aucun signal",
       signE.status === 200 &&
-        (await waitSignal(lK1, m.k1, "contracts", contractId)),
+        (signE.body.signature as { already_signed?: boolean } | undefined)
+          ?.already_signed === true &&
+        since(lK1, m.k1).filter((e) => e.payload.d === "contracts").length ===
+          0,
       { status: signE.status, code: signE.body.code },
     );
     // Temps écoulé : la mission (sélectionnée à J−3) commence aujourd'hui.
@@ -1194,9 +1205,9 @@ async function main() {
     });
     // Sélection envoyée immédiatement avec l'ancienne session (avant tout
     // traitement du signal par le client).
-    const staleSelect = await http(
-      "POST",
-      `/api/applications/${appStale!.id}/select`,
+    const staleSelect = await signAndSelectHttp(
+      APP_URL,
+      appStale!.id,
       E.cookie,
     );
     report(

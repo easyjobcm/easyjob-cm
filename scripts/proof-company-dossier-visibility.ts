@@ -30,6 +30,8 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectRpc } from "./lib/sign-and-select";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
@@ -415,8 +417,9 @@ async function main() {
     // paresseux) : indispensable pour ordonner les courses.
     const apply = (s: Session, jobId: string) =>
       s.client.rpc("apply_to_job", { p_job_id: jobId }).then((r) => r);
+    // Lot 13 : aperçu du contrat puis « Signer et sélectionner ».
     const select = (applicationId: string) =>
-      http("POST", `/api/applications/${applicationId}/select`, A.cookie);
+      signAndSelectHttp(APP_URL, applicationId, A.cookie);
     const counts = async (jobId: string) => {
       const [m, c, a] = await Promise.all([
         serviceClient
@@ -579,9 +582,7 @@ async function main() {
     );
 
     const m3Route = await select(app1?.id ?? "");
-    const m3Rpc = await A.client.rpc("select_candidate", {
-      p_application_id: app1?.id ?? "",
-    });
+    const m3Rpc = await signAndSelectRpc(A.client, app1?.id ?? "");
     const { data: app1Row } = await serviceClient
       .from("job_applications")
       .select("status")
@@ -918,9 +919,7 @@ async function main() {
       .update({ company_name: "Hôtel Visible Suspendu SARL" })
       .eq("id", coA);
     await approveCompanyDossier(serviceClient, coA);
-    const suspSelect = await A.client.rpc("select_candidate", {
-      p_application_id: app3?.id ?? "",
-    });
+    const suspSelect = await signAndSelectRpc(A.client, app3?.id ?? "");
     const suspCreate = await A.client.rpc("create_job", {
       p_job: {
         title: "Offre d'un compte suspendu",

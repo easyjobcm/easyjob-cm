@@ -10,6 +10,7 @@
  */
 import type { Database } from "@/lib/database.types";
 import type { DayBlockReason } from "@/lib/jobs/schedule";
+import { displayApplicationStatus } from "@/lib/jobs/application-status";
 
 type DayRow =
   Database["public"]["Functions"]["job_days_for_candidate"]["Returns"][number];
@@ -48,7 +49,8 @@ export type DayState =
   | "full"
   /** Incompatible avec un engagement déjà sélectionné du candidat. */
   | "conflict"
-  | ApplicationStatus;
+  /** Présélection retirée (lot 13) : affichée comme « pending ». */
+  | Exclude<ApplicationStatus, "shortlisted">;
 
 /** Ouverte : recrutement ouvert à la lecture et échéance non franchie. */
 export function dayIsOpen(
@@ -71,7 +73,9 @@ export function dayHasConflict(
  * (`apply_to_job_core`) : candidature existante, clôture, capacité, conflit.
  */
 export function dayState(day: CandidateJobDay, now: number): DayState {
-  if (day.my_application_status) return day.my_application_status;
+  if (day.my_application_status) {
+    return displayApplicationStatus(day.my_application_status);
+  }
   if (!dayIsOpen(day, now)) return "closed";
   if (day.is_full) return "full";
   if (dayHasConflict(day)) return "conflict";

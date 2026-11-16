@@ -1,6 +1,6 @@
 /**
  * Échéance de recrutement (lot 11b). La base tranche : `apply_to_job` et
- * `select_candidate` refusent `recruitment_closed` dès que l'heure de la
+ * `sign_and_select` refusent `recruitment_closed` dès que l'heure de la
  * base atteint `jobs.applications_close_at` (H−24, ou H−2 pour une offre
  * publiée en urgence ; régime figé à la première publication). L'écran ne
  * fait que refléter cette échéance, avec l'heure du serveur.

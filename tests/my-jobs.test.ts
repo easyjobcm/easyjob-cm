@@ -1,3 +1,4 @@
+import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { describe, expect, it } from "vitest";
 import {
   applicationsEmptyState,
@@ -38,8 +39,8 @@ describe("Mes jobs : candidatures", () => {
     expect(applicationsEmptyState(apps)).toBeNull();
   });
 
-  it("chaque statut a un libellé FR et EN", () => {
-    for (const s of [
+  it("chaque statut affiché a un libellé FR et EN", () => {
+    for (const status of [
       "pending",
       "shortlisted",
       "selected",
@@ -47,6 +48,8 @@ describe("Mes jobs : candidatures", () => {
       "withdrawn",
       "no_show",
     ] as const) {
+      // Lot 13 : une ancienne présélection s'affiche « En attente ».
+      const s = displayApplicationStatus(status);
       expect(fr.myJobs.applicationStatus[s]).toBeTruthy();
       expect(en.myJobs.applicationStatus[s]).not.toBe(
         fr.myJobs.applicationStatus[s],

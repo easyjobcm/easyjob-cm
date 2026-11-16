@@ -537,6 +537,10 @@ Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version a
 5. Déclenchement automatique de la génération du contrat.
 6. Notification au candidat.
 
+> **Lot 13 (2026-11-16) : sélection par signature du contrat.** Depuis une candidature, l'entreprise ouvre le **contrat proposé** (candidat en prénom et initiale, format, journées et horaires, lieu, montant en XAF, clauses exactes) et le signe par « **Signer et sélectionner** » (case de consentement cochée). Fermer l'aperçu ne laisse rien : la candidature reste en attente et la place disponible. À la confirmation, la base revérifie l'empreinte du contrat présenté, l'identité et les droits de l'entreprise, son dossier, la candidature, l'échéance, les places et les conflits de 3 h (lot 12) ; la signature de l'entreprise, la sélection, la mission, ses codes et la notification sont enregistrés dans une seule transaction. Si les conditions ont changé depuis l'aperçu (offre, clauses), la signature est refusée et le contrat mis à jour est présenté ; aucune signature ni aucun engagement partiel ne subsiste d'une opération refusée. Un double clic ou une réponse perdue retrouve le résultat initial. Aucune sélection n'est possible sans cette signature.
+>
+> **Présélection retirée (lot 13).** L'étape « présélectionnée » n'existe plus dans les écrans ni dans les écritures. Une candidature présélectionnée avant ce lot conserve son statut en base, s'affiche « en attente » et se traite comme telle (sélection, refus, retrait).
+
 **Critères d'acceptation :**
 - Une candidature est enregistrée en moins de 60 secondes.
 - L'entreprise peut refuser une candidature avec motif optionnel.
@@ -578,6 +582,11 @@ Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version a
 - Consentement électronique avec horodatage et adresse IP.
 
 > **Décision produit du 2026-11-07 (lot 7c-bis) :** la rémunération figée dans le contrat à la sélection est le montant fixe par candidat pour la mission, en XAF, avec la mention qu'il s'agit d'un forfait par mission. Elle est couverte par l'empreinte acceptée lors de la signature. Les horaires restent indiqués à titre d'organisation. Une modification ultérieure de l'offre ne change pas le contrat.
+
+> **Lot 13 (2026-11-16) : signatures et PDF.**
+> - L'entreprise signe le contrat **au moment de la sélection** (§6.6). Le candidat retrouve « Signer mon contrat » dans *Tâches* dès la sélection et jusqu'à sa propre signature ; il peut commencer la mission avant de signer (décision du lot 7c inchangée). Les contrats créés avant ce lot gardent leurs conditions, clauses et preuves ; aucune signature n'est attribuée rétroactivement à l'entreprise, qui signe elle-même un contrat antérieur encore non signé.
+> - **Confidentialité des signatures** : chaque partie voit seulement l'action qu'elle doit accomplir (« Votre signature est attendue » ou « Signé par vous »), jamais l'état ni l'heure de la signature de l'autre partie, à l'écran, dans les réponses de l'API, dans les notifications et dans le PDF. Le détail (horodatages, IP, empreintes acceptées) reste en base pour le support habilité. La mention de signature est distincte de l'état de la mission (« Mission : Prévue »).
+> - **PDF** : le candidat et l'entreprise téléchargent le contrat dès qu'il existe, y compris après la mission. Il est produit depuis les conditions et clauses figées du contrat (accents, montant en XAF, toutes les journées et leurs horaires en heure de Douala), en français ou en anglais. Un tiers reçoit la même réponse que pour un contrat inexistant. Période complète : un contrat pour l'ensemble des journées ; journées au choix : un contrat distinct par journée sélectionnée.
 
 **Critères d'acceptation :**
 - Le contrat est généré en moins de 10 secondes après sélection.

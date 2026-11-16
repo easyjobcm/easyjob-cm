@@ -185,9 +185,10 @@ export type JobInputData = z.output<typeof jobInputSchema>;
 
 /**
  * Codes renvoyés par les RPC `create_job`, `update_job`, `moderate_job`,
- * `delete_job`, `select_candidate` et `company_job_applicants` (message de
- * l'exception), traduits dans `companyJobs.errors`, `companyApplicants.errors`
- * et `admin.moderation.errors`.
+ * `delete_job`, `contract_selection_preview`, `sign_and_select` et
+ * `company_job_applicants` (message de l'exception), traduits dans
+ * `companyJobs.errors`, `companyApplicants.errors` et
+ * `admin.moderation.errors`.
  */
 export const JOB_RPC_REFUSALS = {
   not_authenticated: 401,
@@ -225,6 +226,9 @@ export const JOB_RPC_REFUSALS = {
   no_positions: 409,
   candidate_unavailable: 409,
   selection_incomplete: 409,
+  // Lot 13 : conditions du contrat (offre, clauses) changées depuis
+  // l'aperçu signé ; rien n'est écrit.
+  terms_mismatch: 409,
 } as const;
 
 export type JobRpcRefusal = keyof typeof JOB_RPC_REFUSALS;

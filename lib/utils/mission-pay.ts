@@ -2,7 +2,7 @@ import type { Json } from "@/lib/database.types";
 
 /**
  * Montant par candidat figé dans un contrat (`contract_data`, écrit par
- * `select_candidate`) : entier XAF > 0, sinon null. Une mission affiche ce
+ * la sélection signée, `sign_and_select`) : entier XAF > 0, sinon null. Une mission affiche ce
  * montant accepté, jamais celui de l'offre relu après coup.
  */
 export function frozenMissionPay(contractData: Json | null | undefined) {

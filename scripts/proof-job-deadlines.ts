@@ -49,6 +49,7 @@ import type { Database, Json } from "@/lib/database.types";
 import { isJobUrgent } from "@/lib/jobs/urgency";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
@@ -186,7 +187,8 @@ begin
     if p_kind = 'apply' then
       perform public.apply_to_job(p_job);
     elsif p_kind = 'select' then
-      perform * from public.select_candidate(p_target);
+      perform * from public.sign_and_select(p_target,
+        coalesce((select p.terms_hash from public.contract_selection_preview(p_target) p), ''));
     elsif p_kind = 'moderate' then
       perform public.moderate_job(p_job, 'approve', null, null);
     end if;
@@ -564,11 +566,7 @@ async function main() {
       already_selected?: boolean;
     };
     const selectRoute = async (applicationId: string) => {
-      const r = await http(
-        "POST",
-        `/api/applications/${applicationId}/select`,
-        A.cookie,
-      );
+      const r = await signAndSelectHttp(APP_URL, applicationId, A.cookie);
       return { ...r, selection: (r.body.selection ?? {}) as Selection };
     };
     const applicationOf = async (jobId: string, candidateId: string) =>

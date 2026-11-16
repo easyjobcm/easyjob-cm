@@ -35,6 +35,12 @@ import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectRpc } from "./lib/sign-and-select";
+import {
+  postSelectHttp,
+  previewHttp,
+  signAndSelectHttp,
+} from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
@@ -414,8 +420,9 @@ async function main() {
       return data.id;
     }
 
+    // Lot 13 : aperçu du contrat puis « Signer et sélectionner ».
     const select = (session: Session, applicationId: string) =>
-      http("POST", `/api/applications/${applicationId}/select`, session.cookie);
+      signAndSelectHttp(APP_URL, applicationId, session.cookie);
 
     async function state(applicationId: string) {
       const [{ data: app }, { data: missions }, { data: contracts }, notif] =
@@ -469,7 +476,7 @@ async function main() {
     const st1 = await state(app1);
     const sel1 = s1.body.selection as Record<string, unknown> | undefined;
     report(
-      "S1 : sélection → candidature selected, une mission et un contrat pending liés aux parties",
+      "S1 : sélection → candidature selected, une mission et un contrat signé par l'entreprise (lot 13) liés aux parties",
       s1.status === 200 &&
         sel1?.already_selected === false &&
         st1.app?.status === "selected" &&
@@ -481,7 +488,7 @@ async function main() {
         st1.missions[0].scheduled_date === JOB_BODY.start_date &&
         st1.missions[0].contract_type === "simple" &&
         st1.contracts.length === 1 &&
-        st1.contracts[0].status === "pending" &&
+        st1.contracts[0].status === "company_signed" &&
         st1.contracts[0].company_id === coA &&
         st1.contracts[0].candidate_id === cand1 &&
         st1.contracts[0].contract_template === "simple" &&
@@ -722,12 +729,8 @@ async function main() {
     );
 
     const r6 = await select(B, appR);
-    const { error: r7Err } = await C[1].client.rpc("select_candidate", {
-      p_application_id: appR,
-    });
-    const { error: r8Err } = await anon.rpc("select_candidate", {
-      p_application_id: appR,
-    });
+    const { error: r7Err } = await signAndSelectRpc(C[1].client, appR);
+    const { error: r8Err } = await signAndSelectRpc(anon, appR);
     const stR = await state(appR);
     report(
       "R6-R8 : autre entreprise (404), candidat (RPC) et anonyme → refusés, rien créé",
@@ -764,9 +767,8 @@ async function main() {
       .select("status");
     const r10 = await select(A, appS);
     report(
-      "R10 : présélection puis refus légitimes préservés ; candidature refusée non sélectionnable",
-      !shortErr &&
-        shortRows?.[0]?.status === "shortlisted" &&
+      "R10 : présélection refusée en session (lot 13), refus légitime préservé ; candidature refusée non sélectionnable",
+      (!!shortErr || (shortRows ?? []).length === 0) &&
         !rejErr &&
         rejRows?.[0]?.status === "rejected" &&
         r10.status === 409 &&
@@ -778,15 +780,17 @@ async function main() {
       },
     );
 
+    // Ancienne présélection (donnée antérieure au lot 13, posée en clé
+    // service) : traitée comme une candidature en attente.
     const jShort = await seedJob(coA);
     const appSh = await apply(C[0], jShort);
-    await A.client
+    await serviceClient
       .from("job_applications")
       .update({ status: "shortlisted" })
       .eq("id", appSh);
     const r11 = await select(A, appSh);
     report(
-      "R11 : candidature présélectionnée → sélectionnable",
+      "R11 : ancienne candidature présélectionnée → sélectionnable par signature",
       r11.status === 200 && (await state(appSh)).missions.length === 1,
       r11.status,
     );
@@ -839,8 +843,18 @@ async function main() {
     const jC1 = await seedJob(coA);
     const appC1 = await apply(C[3], jC1);
     createSlowApplication(appC1);
+    // Lot 13 : l'aperçu est lu avant la course ; seule la signature (qui
+    // verrouille la candidature) est mise en concurrence avec le retrait.
+    const c1Hash = (
+      (await previewHttp(APP_URL, appC1, A.cookie)).body.preview as {
+        terms_hash?: string;
+      }
+    )?.terms_hash;
     const [c1Select, c1Withdraw] = await Promise.all([
-      select(A, appC1),
+      postSelectHttp(APP_URL, appC1, A.cookie, {
+        terms_hash: c1Hash,
+        consent: true,
+      }),
       delay(400).then(() =>
         C[3].client.rpc("withdraw_job_application", { p_job_id: jC1 }),
       ),
@@ -984,6 +998,10 @@ async function main() {
       "day_date",
       "day_starts_at",
       "day_ends_at",
+      // Lot 13 : contrat de la candidature et signature attendue de
+      // l'entreprise elle-même (rien sur celle du candidat).
+      "contract_id",
+      "contract_to_sign",
     ].sort();
     const forbiddenStrings = [
       SECRETS.lastName,

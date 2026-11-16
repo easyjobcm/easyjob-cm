@@ -26,6 +26,7 @@ import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { readSessionUser } from "@/lib/supabase/session-user";
 import {
   applicationsEmptyState,
@@ -177,7 +178,6 @@ export default function MyJobsPage() {
     "default" | "success" | "warning" | "destructive"
   > = {
     pending: "warning",
-    shortlisted: "default",
     selected: "success",
     rejected: "destructive",
     withdrawn: "default",
@@ -248,7 +248,10 @@ export default function MyJobsPage() {
             <h3 className="font-semibold text-foreground">
               {application.job?.title}
             </h3>
-            {getStatusBadge(application.status, "application")}
+            {getStatusBadge(
+              displayApplicationStatus(application.status),
+              "application",
+            )}
           </div>
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />

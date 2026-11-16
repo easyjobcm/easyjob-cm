@@ -762,10 +762,6 @@ export const en: TranslationKeys = {
         title: "Application sent",
         desc: "You will be notified if you are selected.",
       },
-      shortlisted: {
-        title: "You are shortlisted",
-        desc: "The company is reviewing your application. You will be notified of its decision.",
-      },
       selected: {
         title: "You are selected",
         desc: "Sign your contract from the Tasks tab.",
@@ -999,7 +995,6 @@ export const en: TranslationKeys = {
     },
     applicationStatus: {
       pending: "Pending",
-      shortlisted: "Shortlisted",
       selected: "Selected",
       rejected: "Not accepted",
       withdrawn: "Withdrawn",
@@ -1513,7 +1508,7 @@ export const en: TranslationKeys = {
         },
         {
           q: "What are the possible application statuses?",
-          a: "Pending, shortlisted, selected, rejected, withdrawn, or no-show.",
+          a: "Pending, selected, rejected, withdrawn, or no-show.",
         },
         {
           q: "How do I manage my availability?",
@@ -2146,13 +2141,11 @@ export const en: TranslationKeys = {
     },
     tabs: {
       pending: "Pending ({count})",
-      shortlisted: "Shortlist ({count})",
       selected: "Selected ({count})",
       rejected: "Rejected ({count})",
     },
     status: {
       pending: "Pending",
-      shortlisted: "Shortlisted",
       selected: "Selected",
       rejected: "Rejected",
       withdrawn: "Withdrawn",
@@ -2175,19 +2168,31 @@ export const en: TranslationKeys = {
       rated: "You rated this candidate.",
     },
     actions: {
-      select: "Select",
+      select: "View proposed contract",
       reject: "Reject",
       contact: "Contact",
       contract: "Contract",
     },
+    contractToSign: "Your signature is awaited",
+    contractSigned: "Signed by you",
     cancel: "Cancel",
     processing: "Processing...",
     selectDialog: {
-      title: "Confirm selection",
-      description: "Do you want to select {name} for this job?",
+      title: "Proposed contract",
+      description:
+        "Read the contract proposed to {name} before signing it. Nothing is recorded until you sign.",
+      candidate: "Candidate",
       notice:
-        "A mission and a contract will be created, and the candidate will be notified.",
-      confirm: "Confirm",
+        "By signing, you select this candidate: the mission, its end codes and the contract are created, and the candidate is notified to sign in turn.",
+      closeNotice:
+        "Closing this preview keeps the application pending and the position available.",
+      loading: "Preparing the contract…",
+      changed:
+        "The contract terms changed since you read them (job offer edited or clauses updated). Read the contract below again before signing.",
+      consentHint:
+        "Tick the acceptance box at the end of the contract to sign.",
+      confirm: "Sign and select",
+      close: "Close",
     },
     rejectDialog: {
       title: "Reject application",
@@ -2198,7 +2203,7 @@ export const en: TranslationKeys = {
     toasts: {
       selectedTitle: "Candidate selected",
       selectedDesc:
-        "The mission and the contract have been created and the candidate has been notified. Now sign the contract from this application.",
+        "Your signature is recorded. The mission and the contract have been created, and the candidate has been notified to sign in turn.",
       rejectedTitle: "Application rejected",
       rejectedDesc:
         "The application has been rejected and the candidate sees it as not accepted.",
@@ -2231,6 +2236,10 @@ export const en: TranslationKeys = {
         "This job has no precise working dates: no selection is possible.",
       selection_incomplete:
         "Selection saved without a mission or contract. Contact support.",
+      terms_mismatch:
+        "The contract terms changed since you read them: nothing was signed or saved. Read the updated contract.",
+      consent_required: "Tick the acceptance box to sign.",
+      preview: "The proposed contract could not be prepared. Please try again.",
       generic: "The selection could not be saved. Please try again.",
       network:
         "Cannot connect: the selection was not sent. Check your connection, then try again.",
@@ -2243,6 +2252,7 @@ export const en: TranslationKeys = {
     notFound: "Mission not found or not accessible.",
     loadError: "The mission could not be loaded.",
     retry: "Retry",
+    statusLabel: "Mission: {status}",
     status: {
       pending: "Scheduled",
       confirmed: "Confirmed",
@@ -2359,16 +2369,11 @@ export const en: TranslationKeys = {
       simple: "Simple contract (under 3 days)",
       formal: "Formal contract (3 days or more)",
     },
-    status: {
-      pending: "Awaiting signatures",
-      candidate_signed: "Signed by the candidate",
-      company_signed: "Signed by the company",
-      completed: "Signed by both parties",
-      rejected: "Rejected",
-      expired: "Expired",
-      signed_candidate: "Needs review",
-      signed_company: "Needs review",
-      fully_signed: "Needs review",
+    viewerState: {
+      signed: "Signed by you",
+      toSign: "Your signature is awaited",
+      review: "To be reviewed by support",
+      closed: "Signature not available",
     },
     parties: "Parties",
     company: "Company",
@@ -2386,13 +2391,11 @@ export const en: TranslationKeys = {
     clausesVersion: "Clause version: {version}",
     clausesMissing:
       "The general clauses were not recorded with this contract. They are not reconstructed.",
-    signatures: "Signatures",
-    signedOn: "Signed on {date}",
-    awaiting: "Pending",
     fingerprint: "Fingerprint of the signed content: {hash}",
     needsReview:
       "This contract must be reviewed by support before any new signature.",
-    yourSignature: "Your agreement",
+    yourSignature: "Your signature",
+    signNow: "Your agreement",
     sign: "Sign and accept",
     signing: "Signing…",
     confirmTitle: "Confirm your signature",
@@ -2401,13 +2404,20 @@ export const en: TranslationKeys = {
     confirm: "Sign",
     cancel: "Cancel",
     alreadySignedByYou: "You have signed this contract.",
-    awaitingOther: "Waiting for the other party's signature.",
     separateSteps:
       "Signing the contract is separate from starting the mission, confirming it with the code and paying the agreed amount.",
+    separateStepsCompany:
+      "Signing the contract is separate from giving the end code to the candidate.",
+    downloadPdf: "Download the contract (PDF)",
+    pdf: {
+      format: "Format",
+      days: "Days and hours",
+      timeZone: "Hours in Douala time (Africa/Douala).",
+      generatedAt: "Document generated on {date} (Douala time).",
+    },
     toasts: {
       signedTitle: "Contract signed",
       signedDesc: "Your signature has been recorded.",
-      completedDesc: "The contract is signed by both parties.",
       errorTitle: "Signature not recorded",
     },
     errors: {
@@ -2598,7 +2608,6 @@ export const en: TranslationKeys = {
       closed: "Applications closed",
       full: "Full",
       pending: "Application sent",
-      shortlisted: "Shortlisted",
       selected: "Selected",
       rejected: "Not selected",
       withdrawn: "Withdrawn",

@@ -40,7 +40,7 @@ type Mission = Nullable<
   | "started_at"
   | "completed_at"
   | "contract_id"
-  | "contract_status"
+  | "contract_viewer_signed"
   | "company_name"
   | "address"
   | "city"
@@ -173,7 +173,7 @@ export default function MissionDetailPage() {
     active &&
     (!mission.completed_at ||
       !mission.candidate_reviewed ||
-      (!!mission.contract_id && !mission.candidate_signed));
+      (!!mission.contract_id && mission.contract_viewer_signed === false));
   const item = (index: number) => ({
     initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
@@ -209,7 +209,7 @@ export default function MissionDetailPage() {
             className="bg-white/15 text-white border-white/30 shrink-0"
             data-testid="mission-status"
           >
-            {tm.status[status]}
+            {tm.statusLabel.replace("{status}", tm.status[status])}
           </Badge>
         </div>
       </div>
@@ -291,12 +291,15 @@ export default function MissionDetailPage() {
                     <FileText className="h-5 w-5 text-primary shrink-0" />
                     <div className="min-w-0">
                       <div className="font-medium">{t.contract.open}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {
-                          t.contract.status[
-                            mission.contract_status ?? "pending"
-                          ]
-                        }
+                      {/* Lot 13 : signature du lecteur seulement, distincte
+                          de l'état de la mission ci-dessus. */}
+                      <div
+                        className="text-sm text-muted-foreground"
+                        data-testid="mission-contract-state"
+                      >
+                        {mission.contract_viewer_signed
+                          ? t.contract.viewerState.signed
+                          : t.contract.viewerState.toSign}
                       </div>
                     </div>
                   </div>

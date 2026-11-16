@@ -42,6 +42,7 @@ import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { addDays } from "./lib/job-days-fixture";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectRpc } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
@@ -1170,14 +1171,14 @@ async function main() {
       .eq("job_id", j1)
       .eq("candidate_id", candC)
       .single();
-    // Depuis le lot 7a, la sélection passe par select_candidate.
-    const { data: g1Rows, error: g1Err } = await V.client.rpc(
-      "select_candidate",
-      { p_application_id: app1?.id ?? "" },
+    // Lot 13 : la sélection passe par sign_and_select (aperçu signé).
+    const { data: g1Rows, error: g1Err } = await signAndSelectRpc(
+      V.client,
+      app1?.id ?? "",
     );
     const g1Job = await readJob(j1);
     report(
-      "G1 : sélection par l'entreprise (select_candidate) → positions_filled = 1",
+      "G1 : sélection par l'entreprise (sign_and_select) → positions_filled = 1",
       !g1Err &&
         g1Rows?.[0]?.status === "selected" &&
         g1Job?.positions_filled === 1,
@@ -1201,9 +1202,7 @@ async function main() {
       .insert({ job_id: jP2, candidate_id: candC, status: "pending" })
       .select("id")
       .single();
-    await P.client.rpc("select_candidate", {
-      p_application_id: app2?.id ?? "",
-    });
+    await signAndSelectRpc(P.client, app2?.id ?? "");
     const f3Before = await readJob(jP2);
     const f3 = await http("PATCH", `/api/jobs/${jP2}`, P.cookie, JOB_BODY);
     report(
@@ -1309,7 +1308,7 @@ async function main() {
 
     const jSel = await seedJob(coV, "active");
     const appSel = await seedApplication(jSel, "pending");
-    await V.client.rpc("select_candidate", { p_application_id: appSel });
+    await signAndSelectRpc(V.client, appSel);
     await expectCommitmentKept(
       "I5 : candidat sélectionné → 409 job_has_commitments (route et RPC), offre et candidature conservées",
       jSel,
@@ -1360,10 +1359,7 @@ async function main() {
       const appId = await seedApplication(jobId, "pending");
       if (setup) await setup(jobId, appId);
       // `.then` envoie la requête tout de suite (supabase-js est paresseux).
-      const runSelection = () =>
-        V.client
-          .rpc("select_candidate", { p_application_id: appId })
-          .then((r) => r);
+      const runSelection = () => signAndSelectRpc(V.client, appId);
       const runDeletion = () => http("DELETE", `/api/jobs/${jobId}`, V.cookie);
       let selection: Awaited<ReturnType<typeof runSelection>>;
       let deletion: Awaited<ReturnType<typeof runDeletion>>;

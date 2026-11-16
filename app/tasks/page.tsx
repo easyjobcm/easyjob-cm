@@ -578,8 +578,11 @@ function TasksContent() {
           <Link href={`/missions/${m.mission_id}`} className="block">
             <div className="flex items-start justify-between gap-2">
               <h3 className="font-semibold text-foreground">{m.job_title}</h3>
-              <Badge variant="outline">
-                {tm.status[m.status ?? "pending"]}
+              <Badge variant="outline" data-testid="task-mission-status">
+                {tm.statusLabel.replace(
+                  "{status}",
+                  tm.status[m.status ?? "pending"],
+                )}
               </Badge>
             </div>
             <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">

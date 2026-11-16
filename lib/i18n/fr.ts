@@ -772,10 +772,6 @@ export const fr = {
         title: "Candidature envoyée",
         desc: "Vous serez notifié si vous êtes sélectionné.",
       },
-      shortlisted: {
-        title: "Vous êtes présélectionné",
-        desc: "L'entreprise étudie votre candidature. Vous serez notifié de sa décision.",
-      },
       selected: {
         title: "Vous êtes sélectionné",
         desc: "Signez votre contrat depuis l'onglet Tâches.",
@@ -1020,7 +1016,6 @@ export const fr = {
     },
     applicationStatus: {
       pending: "En attente",
-      shortlisted: "Présélectionnée",
       selected: "Sélectionnée",
       rejected: "Non retenue",
       withdrawn: "Retirée",
@@ -1548,7 +1543,7 @@ export const fr = {
         },
         {
           q: "Quels sont les statuts d'une candidature ?",
-          a: "En attente, présélectionné, sélectionné, refusé, retiré ou absence non justifiée.",
+          a: "En attente, sélectionné, refusé, retiré ou absence non justifiée.",
         },
         {
           q: "Comment gérer mes disponibilités ?",
@@ -2195,13 +2190,11 @@ export const fr = {
     },
     tabs: {
       pending: "En attente ({count})",
-      shortlisted: "Présélect. ({count})",
       selected: "Sélectionnées ({count})",
       rejected: "Rejetées ({count})",
     },
     status: {
       pending: "En attente",
-      shortlisted: "Présélectionnée",
       selected: "Sélectionnée",
       rejected: "Rejetée",
       withdrawn: "Retirée",
@@ -2224,19 +2217,33 @@ export const fr = {
       rated: "Vous avez noté ce candidat.",
     },
     actions: {
-      select: "Sélectionner",
+      select: "Voir le contrat proposé",
       reject: "Rejeter",
       contact: "Contacter",
       contract: "Contrat",
     },
+    // Lot 13 : signature de l'entreprise attendue (contrat créé avant).
+    contractToSign: "Votre signature est attendue",
+    contractSigned: "Signé par vous",
     cancel: "Annuler",
     processing: "Traitement...",
+    // Lot 13 : aperçu du contrat proposé, signé à la sélection.
     selectDialog: {
-      title: "Confirmer la sélection",
-      description: "Voulez-vous sélectionner {name} pour ce poste ?",
+      title: "Contrat proposé",
+      description:
+        "Lisez le contrat proposé à {name} avant de le signer. Rien n'est enregistré tant que vous n'avez pas signé.",
+      candidate: "Candidat concerné",
       notice:
-        "Une mission et un contrat seront créés, et le candidat sera notifié.",
-      confirm: "Confirmer",
+        "En signant, vous sélectionnez ce candidat : la mission, ses codes de fin et le contrat sont créés, et le candidat est notifié pour signer à son tour.",
+      closeNotice:
+        "Fermer cet aperçu laisse la candidature en attente et la place disponible.",
+      loading: "Préparation du contrat…",
+      changed:
+        "Les conditions du contrat ont changé depuis votre lecture (offre modifiée ou clauses mises à jour). Relisez le contrat ci-dessous avant de signer.",
+      consentHint:
+        "Cochez la case d'acceptation en fin de contrat pour signer.",
+      confirm: "Signer et sélectionner",
+      close: "Fermer",
     },
     rejectDialog: {
       title: "Rejeter la candidature",
@@ -2247,7 +2254,7 @@ export const fr = {
     toasts: {
       selectedTitle: "Candidat sélectionné",
       selectedDesc:
-        "La mission et le contrat ont été créés et le candidat a été notifié. Signez maintenant le contrat depuis cette candidature.",
+        "Votre signature est enregistrée. La mission et le contrat ont été créés, et le candidat a été notifié pour signer à son tour.",
       rejectedTitle: "Candidature rejetée",
       rejectedDesc:
         "La candidature a été rejetée et le candidat la voit comme non retenue.",
@@ -2281,6 +2288,10 @@ export const fr = {
         "Cette offre n'a pas de dates de travail précises : aucune sélection n'est possible.",
       selection_incomplete:
         "Sélection enregistrée sans mission ou contrat. Contactez le support.",
+      terms_mismatch:
+        "Les conditions du contrat ont changé depuis votre lecture : rien n'a été signé ni enregistré. Relisez le contrat mis à jour.",
+      consent_required: "Cochez la case d'acceptation pour signer.",
+      preview: "Le contrat proposé n'a pas pu être préparé. Réessayez.",
       generic: "La sélection n'a pas pu être enregistrée. Réessayez.",
       network:
         "Connexion impossible : la sélection n'a pas été envoyée. Vérifiez votre connexion, puis réessayez.",
@@ -2293,6 +2304,8 @@ export const fr = {
     notFound: "Mission introuvable ou inaccessible.",
     loadError: "La mission n'a pas pu être chargée.",
     retry: "Réessayer",
+    // Lot 13 : état de la mission, distinct de la signature du contrat.
+    statusLabel: "Mission : {status}",
     status: {
       pending: "Prévue",
       confirmed: "Confirmée",
@@ -2414,16 +2427,13 @@ export const fr = {
       simple: "Contrat simple (moins de 3 jours)",
       formal: "Contrat formalisé (3 jours et plus)",
     },
-    status: {
-      pending: "En attente de signatures",
-      candidate_signed: "Signé par le candidat",
-      company_signed: "Signé par l'entreprise",
-      completed: "Signé par les deux parties",
-      rejected: "Refusé",
-      expired: "Expiré",
-      signed_candidate: "À vérifier",
-      signed_company: "À vérifier",
-      fully_signed: "À vérifier",
+    // Lot 13 : mention propre au lecteur (sa signature), jamais l'état de
+    // la signature de l'autre partie.
+    viewerState: {
+      signed: "Signé par vous",
+      toSign: "Votre signature est attendue",
+      review: "À vérifier par le support",
+      closed: "Signature non disponible",
     },
     parties: "Parties au contrat",
     company: "Entreprise",
@@ -2441,13 +2451,11 @@ export const fr = {
     clausesVersion: "Version des clauses : {version}",
     clausesMissing:
       "Les clauses générales n'ont pas été enregistrées avec ce contrat. Elles ne sont pas reconstituées.",
-    signatures: "Signatures",
-    signedOn: "Signé le {date}",
-    awaiting: "En attente",
     fingerprint: "Empreinte du contenu signé : {hash}",
     needsReview:
       "Ce contrat doit être vérifié par le support avant toute nouvelle signature.",
-    yourSignature: "Votre accord",
+    yourSignature: "Votre signature",
+    signNow: "Votre accord",
     sign: "Signer et accepter",
     signing: "Signature en cours…",
     confirmTitle: "Confirmer votre signature",
@@ -2456,13 +2464,20 @@ export const fr = {
     confirm: "Je signe",
     cancel: "Annuler",
     alreadySignedByYou: "Vous avez signé ce contrat.",
-    awaitingOther: "La signature de l'autre partie est attendue.",
     separateSteps:
       "La signature du contrat est distincte du début de mission, de la confirmation par code et du règlement du montant convenu.",
+    separateStepsCompany:
+      "La signature du contrat est distincte de la remise du code de fin au candidat.",
+    downloadPdf: "Télécharger le contrat (PDF)",
+    pdf: {
+      format: "Format",
+      days: "Journées et horaires",
+      timeZone: "Horaires en heure de Douala (Africa/Douala).",
+      generatedAt: "Document généré le {date} (heure de Douala).",
+    },
     toasts: {
       signedTitle: "Contrat signé",
       signedDesc: "Votre signature a été enregistrée.",
-      completedDesc: "Le contrat est signé par les deux parties.",
       errorTitle: "Signature non enregistrée",
     },
     errors: {
@@ -2656,7 +2671,6 @@ export const fr = {
       closed: "Candidatures closes",
       full: "Complète",
       pending: "Candidature envoyée",
-      shortlisted: "Présélectionnée",
       selected: "Sélectionné(e)",
       rejected: "Non retenue",
       withdrawn: "Retirée",

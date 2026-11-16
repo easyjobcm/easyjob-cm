@@ -18,7 +18,7 @@ export function isCandidatePremium(role: string): boolean {
 
 /**
  * Rôle entreprise, standard ou premium : mêmes écrans entreprise, comme les
- * RPC `create_job`, `select_candidate`, etc. (`role in ('company',
+ * RPC `create_job`, `sign_and_select`, etc. (`role in ('company',
  * 'company_premium')`).
  */
 export function isCompanyRole(role: string | null | undefined): boolean {

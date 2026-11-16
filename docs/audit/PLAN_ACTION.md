@@ -451,7 +451,22 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - absences, remboursements et situations partielles : lots « Engagements et annulations » et paiement ; aucune résolution présumée.
 
 - **Dépendances** : lot 11b (échéances, horaires figés) ; lot 7 (sélection, contrat, codes) ; lot 9c (réputation).
-- **Hors lot** : signalement d'une journée non confirmée, absence, contestation, remplacement, sanction, remboursement (lot « Engagements et annulations ») ; résolution « absence validée avec remboursement effectivement confirmé » de la règle de réputation entreprise (lots « Engagements et annulations » et paiement) ; signature de l'entreprise avant sélection (lot contrats) ; correction encadrée des horaires (lot dédié).
+- **Hors lot** : signalement d'une journée non confirmée, absence, contestation, remplacement, sanction, remboursement (lot « Engagements et annulations ») ; résolution « absence validée avec remboursement effectivement confirmé » de la règle de réputation entreprise (lots « Engagements et annulations » et paiement) ; signature de l'entreprise avant sélection (lot 13) ; correction encadrée des horaires (lot dédié).
+
+## Lot 13 — Contrat signé à la sélection
+
+> **Statut (2026-11-16)** : réalisé sur `feat/lot-13-contracts-selection` (base `origin/main-dev`, 83ace11, lot 12 intégré), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §32 ; règles produit : SRS §6.6 et §6.7.
+> - Depuis une candidature, l'entreprise lit le **contrat proposé** (candidat, journées, horaires, montant XAF, clauses exactes) et le signe par « **Signer et sélectionner** » ; fermer l'aperçu ne laisse rien.
+> - En base (`contract_selection_preview`, `sign_and_select` / `sign_and_select_observed`) : mêmes verrous et contrôles que la sélection des lots 7a à 12, comparaison de l'empreinte de la proposition, puis sélection, mission, journées, codes, contrat, signature de l'entreprise et notification dans une transaction ; conditions changées → `terms_mismatch`, rien n'est écrit ; relance → résultat d'origine. `select_candidate` est supprimée.
+> - Candidat : « Signer mon contrat » dans *Tâches* dès la sélection, mission possible avant signature, tâche retirée de tous ses écrans à sa signature ; mention de signature distincte de l'état de la mission.
+> - Confidentialité : chaque partie ne voit que sa propre signature (écrans, API, notifications, Realtime, PDF) ; colonnes de statut et d'horodatage de signature illisibles en session.
+> - PDF du contrat (`/api/contracts/[id]/pdf`, FR/EN) produit sans dépendance depuis les conditions figées ; période complète : un contrat ; journées au choix : un contrat par journée.
+> - Présélection retirée des écrans et des écritures ; anciennes présélections affichées et traitées comme en attente (sélection, refus, retrait), statut conservé.
+> - Migration `20261116120000_contract_selection.sql` ; preuve `contract-selection` ajoutée à `pnpm test:rls` ; preuves existantes passées par l'aperçu signé (`scripts/lib/sign-and-select.ts`).
+>
+> **Limites** : voir `AUDIT.md` §32 (détail des signatures lisible par le support en clé service seulement, aucun écran admin ; PDF à polices standard, sans signature graphique ni identité civile ; contenu légal du contrat formalisé toujours à valider, SRS §11.1).
+
+- **Dépendances** : lots 7a et 7b (sélection, empreinte, clauses figées), 7d (signaux), 11 et 11b (dossier, échéances), 12 (journées, conflits de 3 h).
 
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 

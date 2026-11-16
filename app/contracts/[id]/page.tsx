@@ -3,16 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { z } from "zod";
 import {
   AlertTriangle,
   ArrowLeft,
-  Briefcase,
-  Calendar,
   CheckCircle,
-  Clock,
+  Download,
   FileSignature,
-  MapPin,
   RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,12 +24,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ContractClausesCard,
+  ContractTermsCard,
+} from "@/components/contracts/contract-terms";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
-import { formatDate, formatTime } from "@/lib/utils";
-import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
-import { plural } from "@/lib/i18n/plural";
-import { MissionPay } from "@/components/jobs/mission-pay";
+import { parseContractTerms } from "@/lib/contracts/terms";
 import type { Database } from "@/lib/database.types";
 import {
   useAccountSuspended,
@@ -46,14 +43,8 @@ type ContractRow =
 /** `get_contract` peut renvoyer null pour ces colonnes (types générés stricts). */
 type Contract = Omit<
   ContractRow,
-  | "candidate_signed_at"
-  | "company_signed_at"
-  | "mission_id"
-  | "candidate_name"
-  | "company_name"
+  "mission_id" | "candidate_name" | "company_name"
 > & {
-  candidate_signed_at: string | null;
-  company_signed_at: string | null;
   mission_id: string | null;
   candidate_name: string | null;
   company_name: string | null;
@@ -61,54 +52,6 @@ type Contract = Omit<
 type ContractError = keyof ReturnType<
   typeof useI18n
 >["t"]["contract"]["errors"];
-
-/** Conditions figées par `select_candidate` (contract_data). */
-const termsSchema = z
-  .object({
-    job_title: z.string().nullish(),
-    start_date: z.string().nullish(),
-    end_date: z.string().nullish(),
-    start_time: z.string().nullish(),
-    end_time: z.string().nullish(),
-    break_minutes: z.number().nullish(),
-    address: z.string().nullish(),
-    city: z.string().nullish(),
-    mission_pay_per_candidate: z.number().nullish(),
-    currency: z.string().nullish(),
-    pay_basis: z.string().nullish(),
-    // Lot 12 : format et journées figés à la sélection.
-    schedule_format: z.string().nullish(),
-    days: z
-      .array(
-        z.object({
-          date: z.string(),
-          start_time: z.string(),
-          end_time: z.string(),
-        }),
-      )
-      .nullish(),
-  })
-  .partial();
-
-/**
- * Clauses générales et phrase de consentement figées dans le contrat
- * (`contract_data.clauses`, version immuable copiée à la création et couverte
- * par l'empreinte). L'écran affiche toujours ce texte, jamais celui du
- * dictionnaire courant.
- */
-const clauseTextSchema = z.object({
-  intro: z.string(),
-  candidate_title: z.string(),
-  candidate: z.array(z.string()),
-  company_title: z.string(),
-  company: z.array(z.string()),
-  consent: z.string(),
-});
-const clausesSchema = z.object({
-  version: z.string(),
-  fr: clauseTextSchema,
-  en: clauseTextSchema,
-});
 
 const ERROR_CODES = new Set<string>([
   "not_authenticated",
@@ -142,6 +85,12 @@ async function fetchContract(contractId: string): Promise<LoadResult> {
   return { kind: res?.status === 404 ? "contract_not_found" : "load" };
 }
 
+/**
+ * Contrat vu par l'une de ses parties (lots 7b et 13). Chaque partie ne voit
+ * que l'action qu'elle doit accomplir (sa propre signature) : ni l'état ni
+ * l'heure de la signature de l'autre partie. Le PDF se télécharge dès que le
+ * contrat existe, y compris après la mission.
+ */
 export default function ContractSignPage() {
   const router = useRouter();
   const params = useParams();
@@ -202,7 +151,7 @@ export default function ContractSignPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractId]);
 
-  // Signature de l'autre partie, mission démarrée, compte suspendu.
+  // Signature depuis un autre écran, compte suspendu.
   useLiveRefresh(["contracts", "missions", "account"], loadContract);
 
   const handleSign = async () => {
@@ -218,27 +167,18 @@ export default function ContractSignPage() {
     }).catch(() => null);
     const body = ((await res?.json().catch(() => null)) ?? {}) as {
       code?: string;
-      signature?: { status?: string };
     };
 
     // Toujours relire l'état enregistré : une réponse perdue peut cacher une
     // signature réussie, qu'une relance retrouvera à l'identique.
     const fresh = await loadContract();
-    const ownSigned =
-      fresh &&
-      (fresh.viewer_party === "candidate"
-        ? fresh.candidate_signed_at
-        : fresh.company_signed_at);
 
-    if (res?.ok && ownSigned) {
+    if (fresh?.viewer_signed) {
       setConfirmOpen(false);
       setAccepted(false);
       toast({
         title: tc.toasts.signedTitle,
-        description:
-          fresh?.status === "completed"
-            ? tc.toasts.completedDesc
-            : tc.toasts.signedDesc,
+        description: tc.toasts.signedDesc,
         variant: "success",
       });
     } else {
@@ -255,16 +195,6 @@ export default function ContractSignPage() {
     signingRef.current = false;
     setSigning(false);
   };
-
-  const formatInstant = (value: string) =>
-    new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Africa/Douala",
-    }).format(new Date(value));
 
   if (loading) {
     return (
@@ -298,42 +228,18 @@ export default function ContractSignPage() {
     );
   }
 
-  const parsedTerms = termsSchema.safeParse(contract.terms);
-  const terms = parsedTerms.success ? parsedTerms.data : {};
-  const parsedClauses = clausesSchema.safeParse(
-    (contract.terms as Record<string, unknown> | null)?.clauses,
-  );
-  const clausesVersion = parsedClauses.success
-    ? parsedClauses.data.version
-    : null;
-  const clauses = parsedClauses.success
-    ? parsedClauses.data[locale === "en" ? "en" : "fr"]
-    : null;
-  const status = contract.status ?? "pending";
-  const isCompleted = status === "completed";
-  const ownSignedAt =
-    contract.viewer_party === "candidate"
-      ? contract.candidate_signed_at
-      : contract.company_signed_at;
+  const parsed = parseContractTerms(contract.terms, locale);
+  const clauses = parsed.clauses;
   const companyName = contract.company_name ?? "—";
-  const jobTitle = terms.job_title ?? "—";
-  const sameDay = !terms.end_date || terms.end_date === terms.start_date;
-
-  const signatureRow = (label: string, signedAt: string | null) => (
-    <div className="flex items-center justify-between gap-3">
-      <span>{label}</span>
-      {signedAt ? (
-        <div className="flex items-center gap-2 text-success text-right">
-          <CheckCircle className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="text-sm">
-            {tc.signedOn.replace("{date}", formatInstant(signedAt))}
-          </span>
-        </div>
-      ) : (
-        <Badge variant="outline">{tc.awaiting}</Badge>
-      )}
-    </div>
-  );
+  const jobTitle = parsed.terms.job_title ?? "—";
+  // Mention propre au lecteur : sa signature, jamais celle de l'autre partie.
+  const viewerState = contract.viewer_signed
+    ? "signed"
+    : contract.needs_review
+      ? "review"
+      : contract.can_sign
+        ? "toSign"
+        : "closed";
 
   const item = (index: number) => ({
     initial: { opacity: 0, y: 12 },
@@ -370,10 +276,12 @@ export default function ContractSignPage() {
             </p>
           </div>
           <Badge
-            variant={isCompleted ? "success" : "warning"}
+            variant={viewerState === "signed" ? "success" : "warning"}
             data-testid="contract-status"
+            data-viewer-state={viewerState}
+            className="shrink-0 text-center"
           >
-            {tc.status[status]}
+            {tc.viewerState[viewerState]}
           </Badge>
         </div>
       </div>
@@ -411,7 +319,7 @@ export default function ContractSignPage() {
                 <div className="text-sm font-medium text-muted-foreground">
                   {tc.candidate}
                 </div>
-                <div className="font-medium">
+                <div className="font-medium" data-testid="contract-candidate">
                   {contract.candidate_name ?? "—"}
                 </div>
               </div>
@@ -420,194 +328,57 @@ export default function ContractSignPage() {
         </motion.div>
 
         <motion.div {...item(2)}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{tc.terms}</CardTitle>
-              <p className="text-xs text-muted-foreground">{tc.termsNotice}</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Briefcase
-                  className="h-4 w-4 text-muted-foreground shrink-0"
-                  aria-label={tc.job}
-                />
-                <span className="font-medium" data-testid="contract-job">
-                  {jobTitle}
-                </span>
-              </div>
-              {terms.days && terms.days.length > 1 ? (
-                <div
-                  className="flex items-start gap-2"
-                  data-testid="contract-days"
-                >
-                  <Calendar
-                    className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0"
-                    aria-label={tc.dates}
-                  />
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {terms.schedule_format === "per_day"
-                        ? t.schedule.formats.per_day.title
-                        : t.schedule.formats.full_period.title}
-                      {" · "}
-                      {plural(terms.days.length, t.schedule.dayCount, locale)}
-                    </p>
-                    <ul className="mt-1 space-y-0.5 text-sm">
-                      {terms.days.map((d) => (
-                        <li key={d.date} data-testid="contract-day">
-                          {formatDayDate(d.date, locale)} ·{" "}
-                          {formatDayHours(d, t.schedule.nextDay)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Calendar
-                    className="h-4 w-4 text-muted-foreground shrink-0"
-                    aria-label={tc.dates}
-                  />
-                  <span>
-                    {terms.start_date
-                      ? formatDate(terms.start_date, locale)
-                      : "—"}
-                    {!sameDay && terms.end_date
-                      ? ` – ${formatDate(terms.end_date, locale)}`
-                      : ""}
-                  </span>
-                </div>
-              )}
-              {!(terms.days && terms.days.length > 1) && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Clock
-                    className="h-4 w-4 text-muted-foreground shrink-0"
-                    aria-label={tc.hours}
-                  />
-                  <span>
-                    {formatTime(terms.start_time, locale)} –{" "}
-                    {formatTime(terms.end_time, locale)}
-                  </span>
-                  {terms.break_minutes ? (
-                    <span className="text-sm text-muted-foreground">
-                      ·{" "}
-                      {tc.breakMinutes.replace(
-                        "{min}",
-                        String(terms.break_minutes),
-                      )}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <MapPin
-                  className="h-4 w-4 text-muted-foreground shrink-0"
-                  aria-label={tc.place}
-                />
-                <span>
-                  {[terms.address, terms.city].filter(Boolean).join(", ") ||
-                    "—"}
-                </span>
-              </div>
-              <div className="pt-2 border-t space-y-0.5">
-                <p className="text-sm text-muted-foreground">{tc.pay}</p>
-                {/* Seules les conditions forfaitaires en XAF sont affichées :
-                    un contrat sans ces trois valeurs figées affiche « — ». */}
-                <MissionPay
-                  amount={
-                    terms.pay_basis === "per_mission" &&
-                    terms.currency === "XAF" &&
-                    Number.isInteger(terms.mission_pay_per_candidate) &&
-                    (terms.mission_pay_per_candidate ?? 0) > 0
-                      ? terms.mission_pay_per_candidate
-                      : null
-                  }
-                  amountClassName="text-lg text-primary"
-                  testId="contract-pay"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t.pay.contractBasis}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <ContractTermsCard contract={parsed} notice={tc.termsNotice} />
         </motion.div>
 
         <motion.div {...item(3)}>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{tc.clausesTitle}</CardTitle>
-            </CardHeader>
-            <CardContent
-              className="text-sm text-muted-foreground space-y-3"
-              data-testid="contract-clauses"
-            >
-              {clauses ? (
-                <>
-                  <p>{clauses.intro}</p>
-                  <div>
-                    <p className="text-foreground font-medium">
-                      {clauses.candidate_title}
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {clauses.candidate.map((line, i) => (
-                        <li key={i}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="text-foreground font-medium">
-                      {clauses.company_title}
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {clauses.company.map((line, i) => (
-                        <li key={i}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <p className="text-xs" data-testid="contract-clauses-version">
-                    {tc.clausesVersion.replace(
-                      "{version}",
-                      clausesVersion ?? "",
-                    )}
-                  </p>
-                </>
-              ) : (
-                <p role="note">{tc.clausesMissing}</p>
-              )}
-            </CardContent>
-          </Card>
+          <ContractClausesCard contract={parsed} />
         </motion.div>
 
         <motion.div {...item(4)}>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">{tc.signatures}</CardTitle>
+              <CardTitle className="text-base">{tc.yourSignature}</CardTitle>
             </CardHeader>
             <CardContent
-              className="space-y-4"
+              className="space-y-3"
               data-testid="contract-signatures"
             >
-              {signatureRow(tc.candidate, contract.candidate_signed_at)}
-              {signatureRow(tc.company, contract.company_signed_at)}
+              {contract.viewer_signed ? (
+                <p
+                  className="flex items-center gap-2 text-sm text-success"
+                  role="status"
+                  data-testid="contract-viewer-signed"
+                >
+                  <CheckCircle className="h-4 w-4 shrink-0" aria-hidden />
+                  {tc.alreadySignedByYou}
+                </p>
+              ) : !contract.can_sign ? (
+                <p className="text-sm text-muted-foreground">
+                  {tc.viewerState[viewerState]}
+                </p>
+              ) : null}
               <p className="text-xs text-muted-foreground break-all">
                 {tc.fingerprint.replace(
                   "{hash}",
                   contract.terms_hash.slice(0, 16),
                 )}
               </p>
+              <motion.div whileTap={{ scale: 0.98 }}>
+                <Button variant="outline" className="w-full" asChild>
+                  <a
+                    href={`/api/contracts/${contract.contract_id}/pdf?locale=${locale}`}
+                    download
+                    data-testid="contract-pdf"
+                  >
+                    <Download className="h-4 w-4 mr-2" aria-hidden />
+                    {tc.downloadPdf}
+                  </a>
+                </Button>
+              </motion.div>
             </CardContent>
           </Card>
         </motion.div>
-
-        {ownSignedAt && !isCompleted && (
-          <p
-            className="text-sm text-muted-foreground text-center"
-            role="status"
-          >
-            {tc.alreadySignedByYou} {tc.awaitingOther}
-          </p>
-        )}
 
         {contract.can_sign && clauses && (
           <motion.div {...item(5)}>
@@ -615,7 +386,7 @@ export default function ContractSignPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <FileSignature className="h-4 w-4" aria-hidden />
-                  {tc.yourSignature}
+                  {tc.signNow}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -632,7 +403,7 @@ export default function ContractSignPage() {
                     htmlFor="contract-consent"
                     className="text-sm text-muted-foreground"
                   >
-                    {clauses?.consent}
+                    {clauses.consent}
                   </label>
                 </div>
 
@@ -654,6 +425,7 @@ export default function ContractSignPage() {
                     className="w-full"
                     onClick={() => setConfirmOpen(true)}
                     disabled={!accepted || signing || suspended}
+                    data-testid="contract-sign"
                   >
                     {signError ? tc.retry : tc.sign}
                   </Button>
@@ -664,7 +436,9 @@ export default function ContractSignPage() {
                   )}
                 </motion.div>
                 <p className="text-xs text-muted-foreground">
-                  {tc.separateSteps}
+                  {contract.viewer_party === "candidate"
+                    ? tc.separateSteps
+                    : tc.separateStepsCompany}
                 </p>
               </CardContent>
             </Card>
@@ -704,6 +478,7 @@ export default function ContractSignPage() {
                 onClick={() => void handleSign()}
                 disabled={signing}
                 isLoading={signing}
+                data-testid="contract-sign-confirm"
               >
                 {signing ? tc.signing : tc.confirm}
               </Button>

@@ -56,6 +56,7 @@ import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { addDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 import {
   parseActionTasks,
   pendingActionCount,
@@ -573,11 +574,7 @@ async function main() {
         p_job_id: jobId,
       });
       if (error || !app) throw new Error(`apply: ${error?.message}`);
-      const sel = await http(
-        "POST",
-        `/api/applications/${app.id}/select`,
-        company.cookie,
-      );
+      const sel = await signAndSelectHttp(APP_URL, app.id, company.cookie);
       const missionId = (
         sel.body.selection as { mission_id?: string } | undefined
       )?.mission_id;
@@ -970,6 +967,9 @@ async function main() {
       "day_date",
       "day_starts_at",
       "day_ends_at",
+      // Lot 13 : contrat et signature attendue de l'entreprise elle-même.
+      "contract_id",
+      "contract_to_sign",
     ];
     report(
       "P3 candidats vus par l'entreprise : étoiles seules (ni moyenne, ni nombre d'avis, ni missions, ni motifs, ni commentaire)",

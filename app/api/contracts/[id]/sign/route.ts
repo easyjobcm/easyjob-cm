@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   contractRefusal,
   contractSignSchema,
+  signBodyRefusal,
 } from "@/lib/validations/contract";
 import { observedClientIp } from "@/lib/utils/observed-ip";
 import { internalErrorResponse } from "@/lib/api/errors";
@@ -17,8 +18,11 @@ import { internalErrorResponse } from "@/lib/api/errors";
  * si l'infrastructure en fournit une fiable (`observedClientIp`), sinon elle
  * reste absente. La base déduit la partie du contrat, compare l'empreinte
  * présentée à l'empreinte enregistrée, horodate et calcule le statut. Une
- * relance après une signature déjà enregistrée renvoie la signature
- * d'origine (`already_signed`). L'IP n'est jamais journalisée ici.
+ * relance après une signature déjà enregistrée ne réécrit rien
+ * (`already_signed`). L'IP n'est jamais journalisée ici.
+ *
+ * Lot 13 : la réponse ne contient que la partie signataire, jamais l'état ni
+ * l'heure de la signature de l'autre partie (détail réservé au support).
  */
 export async function POST(
   request: NextRequest,
@@ -49,17 +53,8 @@ export async function POST(
       await request.json().catch(() => null),
     );
     if (!parsed.success) {
-      const code = parsed.error.issues[0]?.message ?? "invalid_request";
-      return NextResponse.json(
-        {
-          error: code,
-          code:
-            code === "consent_required" || code === "terms_hash_invalid"
-              ? code
-              : "invalid_request",
-        },
-        { status: 400 },
-      );
+      const code = signBodyRefusal(parsed.error.issues[0]?.message);
+      return NextResponse.json({ error: code, code }, { status: 400 });
     }
 
     const ip = observedClientIp(request.headers);
@@ -87,11 +82,7 @@ export async function POST(
     }
 
     const signature = data[0];
-    const signedAt =
-      signature?.signed_party === "candidate"
-        ? signature.candidate_signed_at
-        : signature?.company_signed_at;
-    if (!signature || !signedAt) {
+    if (!signature || !signature.signed_party) {
       return internalErrorResponse("contracts.sign", null, {
         code: "signing_failed",
         request,

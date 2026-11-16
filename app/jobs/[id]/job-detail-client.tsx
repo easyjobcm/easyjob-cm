@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { useI18n } from "@/lib/i18n";
+import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { toast } from "@/hooks/use-toast";
 import type { EssentialKey } from "@/lib/utils/profile-completion";
@@ -184,8 +185,10 @@ export function JobDetailClient({
   const [applying, setApplying] = React.useState(false);
   // Statut réel de la candidature (lot 9) : une candidature retirée ou
   // refusée n'est plus présentée comme « envoyée ».
+  // Lot 13 : une ancienne présélection s'affiche et se retire comme une
+  // candidature en attente.
   const statusOf = (a: typeof userApplication) =>
-    a ? (a.status ?? "pending") : null;
+    a ? (displayApplicationStatus(a.status) ?? "pending") : null;
   const [applicationStatus, setApplicationStatus] = React.useState<
     string | null
   >(statusOf(userApplication));

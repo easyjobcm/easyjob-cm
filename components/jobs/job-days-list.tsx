@@ -108,9 +108,7 @@ export function JobDaysList({
                       className="h-5 w-5 cursor-not-allowed opacity-50"
                       data-testid="job-day-choose"
                     />
-                  ) : state === "pending" ||
-                    state === "shortlisted" ||
-                    state === "selected" ? (
+                  ) : state === "pending" || state === "selected" ? (
                     <Check className="h-4 w-4 text-success" aria-hidden />
                   ) : null}
                 </span>

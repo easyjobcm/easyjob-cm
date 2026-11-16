@@ -3,9 +3,13 @@
  *
  * Méthode :
  *   1. Fixtures en service role : entreprises A (offres) et B (tierce),
- *      candidats C1 à C4. Les candidatures passent par apply_to_job et la
- *      sélection par la route du lot 7a (POST /api/applications/[id]/select)
- *      en session entreprise : les contrats sont ceux du parcours réel.
+ *      candidats C1 à C4. Les candidatures passent par apply_to_job. Lot 13 :
+ *      une sélection signe désormais le contrat pour l'entreprise
+ *      (proof-contract-selection) ; pour éprouver la double signature, les
+ *      contrats k1 à k8 sont créés comme avant ce lot (conditions lues par
+ *      l'aperçu réel, sélection, mission et contrat en clé service, sans
+ *      signature de l'entreprise). Le forfait (M) passe par « Signer et
+ *      sélectionner ».
  *   2. Tentatives en sessions RÉELLES : routes de l'application avec les
  *      cookies, PostgREST et RPC directs avec le JWT. La clé service ne sert
  *      qu'aux fixtures, aux tentatives « de confiance », à la reprise
@@ -20,8 +24,10 @@
  *         « par mission » ; quatrième candidature refusée ; l'empreinte couvre
  *         montant, devise et forfait.
  *      S. Signatures : candidat puis entreprise, horodatages serveur,
- *         signataires, empreintes ; relance qui retrouve l'horodatage
- *         d'origine ; notifications de l'autre partie ; mission inchangée.
+ *         signataires, empreintes ; relance sans écriture ; notification
+ *         seulement à une partie qui doit encore signer ; aucune réponse ne
+ *         révèle l'état ni l'heure de la signature de l'autre partie (lot 13) ;
+ *         mission inchangée.
  *      R. Refus : UPDATE direct du statut, des conditions ou d'une
  *         signature ; empreinte périmée ; consentement absent ; contrat
  *         tiers ; anonyme ; écriture de confiance qui modifie les conditions,
@@ -51,6 +57,7 @@ import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
+import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 
 type DB = SupabaseClient<Database>;
@@ -405,17 +412,13 @@ async function main() {
       return data.id;
     }
 
-    /** Contrat créé par le parcours du lot 7a (candidature puis sélection). */
-    async function contractFor(candidate: Session, jobId: string) {
+    /** Contrat créé par « Signer et sélectionner » (lot 13). */
+    async function signedContractFor(candidate: Session, jobId: string) {
       const { data: app, error } = await candidate.client.rpc("apply_to_job", {
         p_job_id: jobId,
       });
       if (error || !app) throw new Error(`apply: ${error?.message}`);
-      const sel = await http(
-        "POST",
-        `/api/applications/${app.id}/select`,
-        A.cookie,
-      );
+      const sel = await signAndSelectHttp(APP_URL, app.id, A.cookie);
       const selection = sel.body.selection as
         | { contract_id?: string; mission_id?: string }
         | undefined;
@@ -426,6 +429,72 @@ async function main() {
         applicationId: app.id as string,
         contractId: selection.contract_id,
         missionId: selection.mission_id ?? null,
+      };
+    }
+
+    /**
+     * Contrat « antérieur au lot 13 » : créé comme le faisait
+     * select_candidate (lots 7a à 12), sans signature de l'entreprise.
+     * Conditions lues par l'aperçu réel (session entreprise), puis
+     * sélection, mission et contrat en clé service ; clauses et empreinte
+     * posées par le trigger, comme pour tout contrat.
+     */
+    async function contractFor(candidate: Session, jobId: string) {
+      const { data: app, error } = await candidate.client.rpc("apply_to_job", {
+        p_job_id: jobId,
+      });
+      if (error || !app) throw new Error(`apply: ${error?.message}`);
+      const { data: pv, error: pvErr } = await A.client.rpc(
+        "contract_selection_preview",
+        { p_application_id: app.id },
+      );
+      const preview = pv?.[0];
+      if (pvErr || !preview) throw new Error(`preview: ${pvErr?.message}`);
+      const terms = { ...(preview.terms as { [key: string]: Json }) };
+      delete terms.clauses;
+      const first = (terms.days as { [key: string]: string }[])[0];
+      const { error: selErr } = await serviceClient
+        .from("job_applications")
+        .update({
+          status: "selected",
+          selected_at: new Date().toISOString(),
+          selected_by: idA,
+        })
+        .eq("id", app.id);
+      if (selErr) throw new Error(`legacy select: ${selErr.message}`);
+      const { data: mission, error: mErr } = await serviceClient
+        .from("missions")
+        .insert({
+          job_id: jobId,
+          candidate_id: app.candidate_id,
+          application_id: app.id,
+          scheduled_date: first.date,
+          scheduled_start_time: first.start_time,
+          scheduled_end_time: first.end_time,
+          contract_type: preview.contract_template,
+        })
+        .select("id")
+        .single();
+      if (mErr || !mission) throw new Error(`legacy mission: ${mErr?.message}`);
+      const { data: contract, error: cErr } = await serviceClient
+        .from("contracts")
+        .insert({
+          application_id: app.id,
+          job_id: jobId,
+          candidate_id: app.candidate_id,
+          company_id: coA,
+          contract_template: preview.contract_template,
+          contract_data: { ...terms, mission_id: mission.id },
+        })
+        .select("id")
+        .single();
+      if (cErr || !contract) {
+        throw new Error(`legacy contract: ${cErr?.message}`);
+      }
+      return {
+        applicationId: app.id as string,
+        contractId: contract.id,
+        missionId: mission.id as string | null,
       };
     }
 
@@ -502,11 +571,14 @@ async function main() {
     const v1 = g1.body.contract as ContractView | undefined;
     const terms1 = (v1?.terms ?? {}) as Record<string, unknown>;
     report(
-      "L1 candidat : conditions figées, entreprise, état pending, signable",
+      "L1 candidat : conditions figées, entreprise, sa signature attendue, signable, aucun état de l'autre partie",
       g1.status === 200 &&
         v1?.viewer_party === "candidate" &&
-        v1.status === "pending" &&
+        v1.viewer_signed === false &&
         v1.can_sign === true &&
+        !("status" in v1) &&
+        !("company_signed_at" in v1) &&
+        !("candidate_signed_at" in v1) &&
         v1.needs_review === false &&
         v1.company_name === "Restaurant A" &&
         v1.candidate_name === `Aline ${SECRETS.lastName}` &&
@@ -524,7 +596,7 @@ async function main() {
       g1.status === 200
         ? {
             party: v1?.viewer_party,
-            status: v1?.status,
+            signed: v1?.viewer_signed,
             company: v1?.company_name,
           }
         : g1.text.slice(0, 200),
@@ -588,15 +660,33 @@ async function main() {
       .eq("id", k1.contractId);
     const { data: okCols, error: okErr } = await A.client
       .from("contracts")
-      .select("id, application_id, status, terms_hash, candidate_signed_at")
+      .select("id, application_id, terms_hash, contract_data")
       .eq("job_id", job1);
+    // Lot 13 : état et horodatages de signature illisibles en session.
+    const sigCols = await Promise.all(
+      [
+        "status",
+        "candidate_signed_at",
+        "company_signed_at",
+        "candidate_terms_hash",
+        "company_terms_hash",
+        "updated_at",
+      ].map(async (col) => ({
+        col,
+        a: (await A.client.from("contracts").select(col).eq("job_id", job1))
+          .error,
+        c: (await C1.client.from("contracts").select(col).eq("job_id", job1))
+          .error,
+      })),
+    );
     const { data: bCols } = await B.client
       .from("contracts")
       .select("id")
       .eq("id", k1.contractId);
     report(
-      "L5 SELECT direct : colonnes sensibles refusées, colonnes d'état lisibles par la partie, invisibles pour un tiers",
+      "L5 SELECT direct : colonnes sensibles et état de signature refusés aux deux parties, conditions lisibles par la partie, invisibles pour un tiers",
       !!starErr &&
+        sigCols.every((x) => !!x.a && !!x.c) &&
         !!ipErr &&
         !!sigUrlErr &&
         !okErr &&
@@ -654,7 +744,7 @@ async function main() {
     if (invErr || !invJob) throw new Error(`job seed: ${invErr?.message}`);
     const invContracts = [];
     for (const cand of [C1, C2, C3]) {
-      invContracts.push(await contractFor(cand, invJob.id));
+      invContracts.push(await signedContractFor(cand, invJob.id));
     }
     const invViews = await Promise.all(
       invContracts.map((k, i) => view([C1, C2, C3][i], k.contractId)),
@@ -694,7 +784,7 @@ async function main() {
     );
 
     // Offre pleine : la candidature est déjà refusée (apply_to_job), et une
-    // sélection d'une candidature antérieure le serait (select_candidate).
+    // sélection d'une candidature antérieure le serait (sign_and_select).
     const { data: invApp4, error: invApp4Err } = await C4.client.rpc(
       "apply_to_job",
       { p_job_id: invJob.id },
@@ -853,7 +943,8 @@ async function main() {
       s1.status === 200 &&
         sig1?.signed_party === "candidate" &&
         sig1.already_signed === false &&
-        sig1.status === "candidate_signed" &&
+        Object.keys(sig1).sort().join(",") ===
+          "already_signed,contract_id,signed_party" &&
         r1.status === "candidate_signed" &&
         r1.candidate_signed_at !== null &&
         Math.abs(new Date(r1.candidate_signed_at).getTime() - tBefore) <
@@ -870,10 +961,11 @@ async function main() {
       },
     );
     report(
-      "S2 notification « Contrat à signer » à l'entreprise uniquement",
+      "S2 notification « Contrat à signer » à l'entreprise uniquement, sans état de signature",
       n1.length === 1 &&
         n1[0].user_id === idA &&
-        n1[0].notification_type === "mission_update",
+        n1[0].notification_type === "mission_update" &&
+        !("contract_status" in ((n1[0].data ?? {}) as object)),
       n1.map((n) => n.user_id === idA),
     );
 
@@ -889,16 +981,15 @@ async function main() {
     const r1b = await row(k1.contractId);
     const sig1b = s1b.body.signature as Signature | undefined;
     report(
-      "S3 relance : signature d'origine renvoyée (already_signed), horodatage inchangé, aucune notification de plus",
+      "S3 relance : already_signed, horodatage inchangé, aucune notification de plus",
       s1b.status === 200 &&
         sig1b?.already_signed === true &&
-        sig1b.candidate_signed_at === sig1?.candidate_signed_at &&
         rpcAgain?.[0]?.already_signed === true &&
         r1b.candidate_signed_at === r1.candidate_signed_at &&
         r1b.updated_at === r1.updated_at &&
         r1b.company_signed_at === null &&
         (await notificationsFor(k1.contractId)).length === 1,
-      { first: sig1?.candidate_signed_at, again: sig1b?.candidate_signed_at },
+      { again: sig1b?.already_signed },
     );
 
     // Le candidat ne peut pas signer pour l'entreprise : aucune entrée ne
@@ -923,13 +1014,13 @@ async function main() {
     const g7 = await view(A, k1.contractId);
     const v7 = g7.body.contract as ContractView | undefined;
     report(
-      "S5 l'entreprise retrouve la signature du candidat et peut signer",
+      "S5 l'entreprise voit seulement sa propre signature attendue (rien sur celle du candidat) et peut signer",
       g7.status === 200 &&
-        v7?.candidate_signed_at === r1.candidate_signed_at &&
-        v7.company_signed_at === null &&
-        v7.status === "candidate_signed" &&
-        v7.can_sign === true,
-      { status: v7?.status },
+        v7?.viewer_signed === false &&
+        v7.can_sign === true &&
+        !g7.text.includes("candidate_signed") &&
+        !g7.text.includes(r1.candidate_signed_at!),
+      { signed: v7?.viewer_signed },
     );
 
     const s2 = await sign(A, k1.contractId, {
@@ -943,7 +1034,6 @@ async function main() {
       "S6 seconde signature (entreprise) : completed, deux horodatages, signataires et empreintes",
       s2.status === 200 &&
         sig2?.signed_party === "company" &&
-        sig2.status === "completed" &&
         r2.status === "completed" &&
         r2.candidate_signed_at === r1.candidate_signed_at &&
         r2.candidate_signed_by === idC1 &&
@@ -958,14 +1048,8 @@ async function main() {
       { status: r2.status },
     );
     report(
-      "S7 notification de double signature au candidat",
-      n2.length === 2 &&
-        n2.some(
-          (n) =>
-            n.user_id === idC1 &&
-            (n.data as Record<string, unknown>)?.contract_status ===
-              "completed",
-        ),
+      "S7 aucune notification au candidat qui a déjà signé (la signature de l'entreprise ne lui est pas annoncée)",
+      n2.length === 1 && n2.every((n) => n.user_id === idA),
       n2.length,
     );
 
@@ -976,15 +1060,15 @@ async function main() {
     const e1 = gC1end.body.contract as ContractView | undefined;
     const e2 = gAend.body.contract as ContractView | undefined;
     report(
-      "S8 relecture par les deux parties : même état, mêmes horodatages, plus rien à signer",
-      e1?.status === "completed" &&
-        e2?.status === "completed" &&
-        e1.candidate_signed_at === e2.candidate_signed_at &&
-        e1.company_signed_at === e2.company_signed_at &&
+      "S8 relecture par les deux parties : chacune voit sa signature, aucun horodatage, plus rien à signer",
+      e1?.viewer_signed === true &&
+        e2?.viewer_signed === true &&
         e1.terms_hash === e2.terms_hash &&
         e1.can_sign === false &&
-        e2.can_sign === false,
-      [e1?.status, e2?.status],
+        e2.can_sign === false &&
+        !gC1end.text.includes("signed_at") &&
+        !gAend.text.includes("signed_at"),
+      [e1?.viewer_signed, e2?.viewer_signed],
     );
 
     const [again1, again2] = await Promise.all([
@@ -1091,17 +1175,11 @@ async function main() {
       (b) =>
         (b.body.signature as Signature | undefined)?.already_signed === false,
     );
-    const stamps = new Set(
-      burst.map(
-        (b) => (b.body.signature as Signature | undefined)?.candidate_signed_at,
-      ),
-    );
     report(
-      "D1 cinq soumissions simultanées : une seule écriture, même horodatage partout, une notification",
+      "D1 cinq soumissions simultanées : une seule écriture, une notification",
       burst.every((b) => b.status === 200) &&
         firsts.length === 1 &&
-        stamps.size === 1 &&
-        stamps.has(r3.candidate_signed_at!) &&
+        r3.candidate_signed_at !== null &&
         r3.status === "candidate_signed" &&
         (await notificationsFor(k2.contractId)).length === 1,
       { statuses: burst.map((b) => b.status), firsts: firsts.length },
@@ -1119,9 +1197,12 @@ async function main() {
       }),
     ]);
     const r4 = await row(k3.contractId);
-    const statuses = [dC.data?.[0]?.status, dA.data?.[0]?.status].sort();
+    const statuses = [
+      dC.data?.[0]?.already_signed,
+      dA.data?.[0]?.already_signed,
+    ];
     report(
-      "D2 deux signatures simultanées des deux parties (RPC directe) : completed, les deux conservées, IP absente",
+      "D2 deux signatures simultanées des deux parties (RPC directe) : completed, les deux conservées, IP absente, une seule notification (la première)",
       !dC.error &&
         !dA.error &&
         r4.status === "completed" &&
@@ -1129,10 +1210,8 @@ async function main() {
         r4.company_signed_by === idA &&
         r4.candidate_ip === null &&
         r4.company_ip === null &&
-        statuses.includes("completed") &&
-        (statuses.includes("candidate_signed") ||
-          statuses.includes("company_signed")) &&
-        (await notificationsFor(k3.contractId)).length === 2,
+        statuses.every((x) => x === false) &&
+        (await notificationsFor(k3.contractId)).length === 1,
       {
         statuses,
         final: r4.status,
@@ -1217,7 +1296,8 @@ async function main() {
     report(
       "I3 signature directe en session : identité de la session, IP absente",
       !directAErr &&
-        directA?.[0]?.status === "completed" &&
+        directA?.[0]?.signed_party === "company" &&
+        r5c.status === "completed" &&
         r5c.company_signed_by === idA &&
         r5c.company_ip === null,
       directAErr?.message,
@@ -1376,8 +1456,8 @@ async function main() {
       "CL7 relance du candidat après l'évolution : signature d'origine, horodatage inchangé",
       (replay.body.signature as Signature | undefined)?.already_signed ===
         true &&
-        (replay.body.signature as Signature | undefined)
-          ?.candidate_signed_at === rc1.candidate_signed_at &&
+        (await row(kc.contractId)).candidate_signed_at ===
+          rc1.candidate_signed_at &&
         (await row(kc.contractId)).updated_at === rc1.updated_at,
     );
 

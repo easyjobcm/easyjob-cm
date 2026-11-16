@@ -44,6 +44,7 @@ import {
 } from "@/lib/utils/profile-completion";
 import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { signAndSelectRpc } from "./lib/sign-and-select";
 
 type DB = SupabaseClient<Database>;
 type Tables = Database["public"]["Tables"];
@@ -908,14 +909,13 @@ async function proveApplications() {
     })
     .eq("id", app2?.id ?? "");
   report(
-    "B8 sélection par UPDATE direct refusée (select_candidate, lot 7a)",
+    "B8 sélection par UPDATE direct refusée (sign_and_select, lots 7a et 13)",
     directSelErr !== null &&
       (await applicationsFor(job, other.profileId))[0]?.status === "pending",
     directSelErr?.code,
   );
-  const { error: selErr } = await sCoA.rpc("select_candidate", {
-    p_application_id: app2?.id ?? "",
-  });
+  // Lot 13 : sélection signée par l'entreprise (aperçu puis signature).
+  const { error: selErr } = await signAndSelectRpc(sCoA, app2?.id ?? "");
   const sel = (await applicationsFor(job, other.profileId))[0];
   report(
     "B8 sélection légitime par l'entreprise préservée",
