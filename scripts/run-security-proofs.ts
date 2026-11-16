@@ -46,6 +46,7 @@ const PROOFS = [
   "candidate-selection",
   "contract-signing",
   "mission-time-tracking",
+  "multi-day-jobs",
   "reputation",
   "realtime",
   "chat-quota",

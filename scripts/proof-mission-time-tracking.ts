@@ -1026,7 +1026,19 @@ async function main() {
     );
 
     // ── L. Mission sans code (antérieure, non reprise) ───────────
-    const mL = await missionFor(C2, await seedJob("Ancienne preuve L7c"));
+    // Lot 12 : C2 est déjà engagé aujourd'hui (jobPair) ; l'offre est créée
+    // à une autre date puis la mission est recalée sur aujourd'hui par la
+    // clé service, comme une donnée antérieure au contrôle des conflits.
+    const mL = await missionFor(
+      C2,
+      await seedJob("Ancienne preuve L7c", {
+        date: douala(new Date(Date.now() + 4 * 86_400_000)),
+      }),
+    );
+    await serviceClient
+      .from("missions")
+      .update({ scheduled_date: today })
+      .eq("id", mL.missionId);
     await serviceClient
       .from("mission_completion_codes")
       .delete()

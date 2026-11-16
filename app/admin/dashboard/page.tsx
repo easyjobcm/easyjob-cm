@@ -17,7 +17,9 @@ export default async function AdminDashboardPage() {
     .select(
       `id, company_id, title, description, city, start_date, end_date,
        start_time, end_time, mission_pay_per_candidate, positions_available,
-       urgency, updated_at`,
+       urgency, updated_at, schedule_format,
+       days:job_days(day_date, start_time, end_time,
+                     mission_pay_per_candidate, positions_available)`,
     )
     .eq("status", "pending_review")
     .order("created_at", { ascending: true })

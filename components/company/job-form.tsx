@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, Plus, X } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,21 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/lib/database.types";
 import {
+  doualaToday,
   jobInputSchema,
   jobUpdateSchema,
   missionPaySchema,
+  type JobDayInput,
   type JobInput,
 } from "@/lib/validations/job";
+import {
+  crossesMidnight,
+  formatDayDate,
+  formatDayHours,
+  scheduleIssue,
+  sortDays,
+  type ScheduleFormat,
+} from "@/lib/jobs/schedule";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { JOB_PENDING_STATUS } from "@/lib/utils/job-status";
 import { useAccountState, useLiveRefresh } from "@/lib/realtime/provider";
@@ -31,7 +41,6 @@ import {
 import {
   Briefcase,
   Calendar,
-  Clock,
   Banknote,
   ChevronRight,
   AlertTriangle,
@@ -51,31 +60,17 @@ const steps: { id: Step; labelFr: string; labelEn: string }[] = [
   { id: "review", labelFr: "Apercu", labelEn: "Review" },
 ];
 
-const jobCategories = [
-  { id: "restauration", labelFr: "Restauration", labelEn: "Restaurant" },
-  { id: "securite", labelFr: "Securite", labelEn: "Security" },
-  { id: "logistique", labelFr: "Logistique", labelEn: "Logistics" },
-  { id: "evenementiel", labelFr: "Evenementiel", labelEn: "Events" },
-  { id: "commerce", labelFr: "Commerce", labelEn: "Retail" },
-  { id: "autre", labelFr: "Autre", labelEn: "Other" },
-];
+type Category = Pick<Tables<"job_categories">, "id" | "name_fr" | "name_en">;
 
-const jobTypes = [
-  {
-    id: "shift",
-    labelFr: "Mission ponctuelle",
-    labelEn: "One-time shift",
-    descFr: "Pour un jour specifique",
-    descEn: "For a specific day",
-  },
-  {
-    id: "contract",
-    labelFr: "Contrat temporaire",
-    labelEn: "Temporary contract",
-    descFr: "Plusieurs jours/semaines",
-    descEn: "Multiple days/weeks",
-  },
-];
+/** Journée de l'offre telle que relue (`job_days`). */
+type InitialDay = Pick<
+  Tables<"job_days">,
+  | "day_date"
+  | "start_time"
+  | "end_time"
+  | "mission_pay_per_candidate"
+  | "positions_available"
+>;
 
 /** Colonnes relues pour préremplir la correction d'une offre. */
 export type JobFormInitial = Pick<
@@ -92,25 +87,85 @@ export type JobFormInitial = Pick<
   | "mission_pay_per_candidate"
   | "required_skills"
   | "first_published_at"
->;
+> &
+  Partial<
+    Pick<
+      Tables<"jobs">,
+      "category_id" | "schedule_format" | "legacy_publication"
+    >
+  > & { days?: InitialDay[] | null };
+
+/** Journée en cours de saisie. */
+type DayDraft = {
+  date: string;
+  start: string;
+  end: string;
+  pay: string;
+  positions: number;
+};
+
+const hhmm = (t: string | null | undefined) => (t ?? "").slice(0, 5);
+
+/** Journées initiales : calendrier relu, sinon une seule journée si l'offre
+ * n'a pas d'intervalle (aucune journée déduite de deux dates). */
+function initialDays(job: JobFormInitial | undefined): DayDraft[] {
+  if (!job) return [];
+  if (job.days && job.days.length > 0) {
+    return sortDays(
+      job.days.map((d) => ({
+        date: d.day_date,
+        start_time: hhmm(d.start_time),
+        end_time: hhmm(d.end_time),
+        pay:
+          d.mission_pay_per_candidate != null
+            ? String(d.mission_pay_per_candidate)
+            : "",
+        positions: d.positions_available ?? 1,
+      })),
+    ).map((d) => ({
+      date: d.date,
+      start: d.start_time,
+      end: d.end_time,
+      pay: d.pay,
+      positions: d.positions,
+    }));
+  }
+  if (!job.end_date || job.end_date === job.start_date) {
+    return [
+      {
+        date: job.start_date,
+        start: hhmm(job.start_time),
+        end: hhmm(job.end_time),
+        pay: "",
+        positions: 1,
+      },
+    ];
+  }
+  return [];
+}
+
+const payValue = (raw: string) =>
+  raw.trim() === "" ? Number.NaN : Number(raw);
 
 /**
  * Formulaire d'offre, en création et en correction. L'envoi passe par
  * `POST /api/jobs` ou `PATCH /api/jobs/[id]`, qui appellent les RPC
  * `create_job` et `update_job` : statut, propriétaire et modération sont
- * imposés par la base.
+ * imposés par la base. Lot 12 : dates choisies une à une (jamais déduites
+ * d'un intervalle), deux formats (période complète, journées au choix),
+ * aperçu des journées avant l'envoi.
  */
 export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tj = t.companyJobs;
+  const ts = t.schedule;
   // Lot 11b, règle de lancement : après la première publication, dates et
   // horaires sont en lecture seule et renvoyés tels quels ; `update_job`
-  // refuse tout changement (job_schedule_locked), y compris depuis un écran
-  // ouvert avant la publication.
-  const scheduleLocked = !!initialJob?.first_published_at;
-  // Suspension ou retrait de la vérification pendant la saisie : l'envoi
-  // est retiré (le serveur le refuse de toute façon).
+  // refuse tout changement (job_schedule_locked), y compris l'ajout ou le
+  // retrait d'une journée (lot 12).
+  const scheduleLocked =
+    !!initialJob?.first_published_at || !!initialJob?.legacy_publication;
   const account = useAccountState();
   const publishBlocked = !account
     ? null
@@ -121,8 +176,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         : null;
   const { toast } = useToast();
 
-  // Lot 11 : dossier non vérifié → informé dès l'entrée (pièces manquantes,
-  // contrôles, motifs), relu en direct après une décision admin.
   const [dossier, setDossier] = React.useState<MyCompanyVerification | null>(
     null,
   );
@@ -142,34 +195,51 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     };
   }, []);
   useLiveRefresh(["profile", "account"], loadDossier);
+
+  // Catégories réelles (`job_categories`) : l'identifiant est enregistré et
+  // relu lors d'une correction.
+  const [categories, setCategories] = React.useState<Category[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .from("job_categories")
+      .select("id, name_fr, name_en")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) setCategories(data ?? []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [currentStep, setCurrentStep] = React.useState<Step>("basics");
   const [loading, setLoading] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
-  const isContract = initialJob?.job_type === "contract";
+  const startDays = initialDays(initialJob);
+  const sameHoursAtStart =
+    startDays.length === 0 ||
+    startDays.every(
+      (d) => d.start === startDays[0].start && d.end === startDays[0].end,
+    );
   const [formData, setFormData] = React.useState({
     title: initialJob?.title ?? "",
-    // Catégorie et avantages ne sont pas enregistrés :
-    // ils sont à ressaisir lors d'une correction.
-    category: "",
-    type: (isContract ? "contract" : "shift") as "shift" | "contract",
+    category: initialJob?.category_id ?? "",
     description: initialJob?.description ?? "",
-    // Schedule
-    date: isContract ? "" : (initialJob?.start_date ?? ""),
-    startTime: initialJob?.start_time.slice(0, 5) ?? "",
-    endTime: initialJob?.end_time.slice(0, 5) ?? "",
-    startDate: isContract ? (initialJob?.start_date ?? "") : "",
-    endDate: isContract ? (initialJob?.end_date ?? "") : "",
+    // Calendrier
+    days: startDays,
+    newDate: "",
+    sameHours: sameHoursAtStart,
+    startTime: startDays[0]?.start ?? "",
+    endTime: startDays[0]?.end ?? "",
+    format: (initialJob?.schedule_format ?? "full_period") as ScheduleFormat,
     workersNeeded: initialJob?.positions_available ?? 1,
-    // Location
-    useCompanyAddress: true,
-    customAddress: "",
     // Requirements
     requirements: initialJob?.required_skills ?? [],
     benefits: [] as string[],
-    customRequirement: "",
-    customBenefit: "",
-    // Payment : montant fixe par candidat pour la mission (XAF entiers)
+    // Paiement (période complète) : montant fixe par candidat (XAF entiers)
     missionPay: initialJob ? String(initialJob.mission_pay_per_candidate) : "",
   });
 
@@ -177,18 +247,13 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
-    if (nextIndex < steps.length) {
-      setCurrentStep(steps[nextIndex].id);
-    }
+    if (nextIndex < steps.length) setCurrentStep(steps[nextIndex].id);
   };
 
   const handleBack = () => {
     const prevIndex = currentStepIndex - 1;
-    if (prevIndex >= 0) {
-      setCurrentStep(steps[prevIndex].id);
-    } else {
-      router.back();
-    }
+    if (prevIndex >= 0) setCurrentStep(steps[prevIndex].id);
+    else router.back();
   };
 
   const errorMessage = (code: unknown) =>
@@ -205,17 +270,87 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     });
   };
 
-  // Saisie vide : NaN (montant manquant) ; aucune conversion silencieuse
-  // d'une fraction en entier, refusée par missionPaySchema.
-  const missionPayValue =
-    formData.missionPay.trim() === ""
-      ? Number.NaN
-      : Number(formData.missionPay);
+  // Format : choisi seulement pour plusieurs journées.
+  const format: ScheduleFormat =
+    formData.days.length > 1 ? formData.format : "full_period";
+
+  // Journées effectives (horaires communs ou propres), triées par début.
+  const effectiveDays = sortDays(
+    formData.days.map((d) => ({
+      ...d,
+      date: d.date,
+      start_time: formData.sameHours ? formData.startTime : d.start,
+      end_time: formData.sameHours ? formData.endTime : d.end,
+    })),
+  );
+  const hoursComplete = effectiveDays.every((d) => d.start_time && d.end_time);
+  const issue =
+    formData.days.length === 0
+      ? "daysRequired"
+      : hoursComplete
+        ? scheduleIssue(effectiveDays)
+        : null;
+
+  const missionPayValue = payValue(formData.missionPay);
   const missionPayCheck = missionPaySchema.safeParse(missionPayValue);
   const missionPayError =
     formData.missionPay.trim() !== "" && !missionPayCheck.success
       ? errorMessage(missionPayCheck.error.issues[0]?.message)
       : null;
+  const dayPayValid = (raw: string) =>
+    missionPaySchema.safeParse(payValue(raw)).success;
+  const perDayPayValid = effectiveDays.every((d) => dayPayValid(d.pay));
+
+  const updateDay = (date: string, patch: Partial<DayDraft>) =>
+    setFormData((prev) => ({
+      ...prev,
+      days: prev.days.map((d) => (d.date === date ? { ...d, ...patch } : d)),
+    }));
+
+  const addDate = () => {
+    const date = formData.newDate;
+    if (!date || formData.days.some((d) => d.date === date)) return;
+    setFormData((prev) => {
+      // Nouvelle journée : mêmes horaires, montant et places que la première.
+      const ref = prev.days[0];
+      const added: DayDraft = {
+        date,
+        start: ref?.start ?? prev.startTime,
+        end: ref?.end ?? prev.endTime,
+        pay: ref?.pay ?? "",
+        positions: ref?.positions ?? 1,
+      };
+      return {
+        ...prev,
+        newDate: "",
+        days: [...prev.days, added].sort((a, b) =>
+          a.date.localeCompare(b.date),
+        ),
+      };
+    });
+  };
+
+  const removeDate = (date: string) =>
+    setFormData((prev) => ({
+      ...prev,
+      days: prev.days.filter((d) => d.date !== date),
+    }));
+
+  const copyFirstDay = () =>
+    setFormData((prev) => {
+      const first = sortDays(
+        prev.days.map((d) => ({ ...d, start_time: d.start, end_time: d.end })),
+      )[0];
+      if (!first) return prev;
+      return {
+        ...prev,
+        days: prev.days.map((d) => ({
+          ...d,
+          pay: first.pay,
+          positions: first.positions,
+        })),
+      };
+    });
 
   const handlePublish = async () => {
     setSubmitError(null);
@@ -231,7 +366,6 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         return;
       }
 
-      // Lieu : adresse de l'entreprise, seule source proposée.
       const { data: companyProfile } = await supabase
         .from("company_profiles")
         .select("city, address")
@@ -243,11 +377,29 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         return;
       }
 
+      const daysPayload: JobDayInput[] = effectiveDays.map((d) => ({
+        date: d.date,
+        start_time: d.start_time,
+        end_time: d.end_time,
+        ...(format === "per_day"
+          ? {
+              mission_pay_per_candidate: payValue(d.pay),
+              positions_available: d.positions,
+            }
+          : {}),
+      }));
+      const first = effectiveDays[0];
+      // Offre antérieure à intervalle sans calendrier, déjà publiée : dates
+      // renvoyées telles quelles (aucune journée déduite).
+      const legacyLocked =
+        scheduleLocked && initialJob && formData.days.length === 0;
+
       const payload: JobInput = {
         title: formData.title,
-        job_type: formData.type,
+        job_type: effectiveDays.length > 1 ? "contract" : "shift",
         description: formData.description,
-        ...(scheduleLocked && initialJob
+        ...(formData.category ? { category_id: formData.category } : {}),
+        ...(legacyLocked && initialJob
           ? {
               start_date: initialJob.start_date,
               end_date: initialJob.end_date ?? initialJob.start_date,
@@ -255,24 +407,26 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
               end_time: initialJob.end_time.slice(0, 8),
             }
           : {
-              start_date:
-                formData.type === "shift" ? formData.date : formData.startDate,
-              end_date:
-                formData.type === "contract" ? formData.endDate : formData.date,
-              start_time: formData.startTime,
-              end_time: formData.endTime,
+              start_date: first?.date ?? "",
+              start_time: first?.start_time ?? "",
+              end_time: first?.end_time ?? "",
+              schedule_format: format,
+              days: daysPayload,
             }),
-        positions_available: formData.workersNeeded,
-        mission_pay_per_candidate: missionPayValue,
+        positions_available:
+          format === "per_day"
+            ? effectiveDays.reduce((n, d) => n + d.positions, 0)
+            : formData.workersNeeded,
+        mission_pay_per_candidate:
+          format === "per_day"
+            ? Math.min(...effectiveDays.map((d) => payValue(d.pay)))
+            : missionPayValue,
         city: companyProfile.city,
         address: companyProfile.address || "",
         required_skills: formData.requirements,
-        // Lot 9d : plus d'option « urgente » ; le badge est calculé à
-        // l'affichage (début à 24 h ou moins).
         urgency: "normal",
       };
 
-      // Correction : une date déjà publiée peut être passée (offre close).
       const parsed = (initialJob ? jobUpdateSchema : jobInputSchema).safeParse(
         payload,
       );
@@ -291,12 +445,34 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       );
       const body = (await res.json().catch(() => ({}))) as {
         code?: string;
+        field?: string;
+        days?: string[];
         job?: { status?: string };
       };
 
-      // Succès seulement si la base a bien mis l'offre en attente.
       if (!res.ok || body.job?.status !== JOB_PENDING_STATUS) {
-        failSubmit(errorMessage(body.code));
+        if (body.code === "job_start_too_close" && body.days?.length) {
+          failSubmit(
+            `${tj.errors.job_start_too_close} ${ts.tooClose.replace(
+              "{days}",
+              body.days.map((d) => formatDayDate(d, locale)).join(", "),
+            )}`,
+          );
+        } else if (body.code === "invalid_job_data" && body.field) {
+          const fieldKey: Record<string, string> = {
+            days: "daysInvalid",
+            days_count: "daysTooMany",
+            days_duplicate: "daysDuplicate",
+            days_time: "daysTime",
+            days_overlap: "daysOverlap",
+            days_pay: "dayPayRequired",
+            days_positions: "positionsInvalid",
+            end_date: "daysRequired",
+          };
+          failSubmit(errorMessage(fieldKey[body.field] ?? body.code));
+        } else {
+          failSubmit(errorMessage(body.code));
+        }
         return;
       }
 
@@ -343,24 +519,33 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
     setFormData((prev) => ({ ...prev, [field]: newArray }));
   };
 
+  const legacyLockedView = scheduleLocked && formData.days.length === 0;
+
   const isStepValid = () => {
     switch (currentStep) {
       case "basics":
-        return formData.title && formData.category && formData.description;
+        return (
+          !!formData.title &&
+          !!formData.description &&
+          (categories.length === 0 || !!formData.category)
+        );
       case "schedule":
-        if (!formData.startTime || !formData.endTime) return false;
-        if (formData.type === "shift") return !!formData.date;
-        return !!formData.startDate && !!formData.endDate;
+        if (legacyLockedView) return true;
+        return hoursComplete && issue === null;
       case "requirements":
         return true;
       case "payment":
-        return missionPayCheck.success;
+        return format === "per_day" ? perDayPayValid : missionPayCheck.success;
       case "review":
         return true;
       default:
         return false;
     }
   };
+
+  const categoryName = (c: Category) =>
+    locale === "fr" ? c.name_fr : c.name_en;
+  const lockedHint = scheduleLocked ? "job-schedule-locked" : undefined;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -398,7 +583,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         </p>
       </div>
 
-      <div className="flex-1 px-6 py-6 overflow-y-auto">
+      <div className="flex-1 px-4 py-6 overflow-y-auto sm:px-6">
         {dossier && dossier.status !== "verified" && (
           <div
             className="mb-6 space-y-2"
@@ -414,10 +599,14 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         {currentStep === "basics" && (
           <div className="space-y-6">
             <div>
-              <label className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="job-title"
+                className="text-sm font-medium text-foreground"
+              >
                 {locale === "fr" ? "Titre du poste" : "Job title"}
               </label>
               <Input
+                id="job-title"
                 value={formData.title}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, title: e.target.value }))
@@ -431,67 +620,46 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
-                {locale === "fr" ? "Categorie" : "Category"}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {jobCategories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, category: cat.id }))
-                    }
-                    className={cn(
-                      "rounded-xl px-4 py-3 text-sm font-medium transition-all text-left",
-                      formData.category === cat.id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80",
-                    )}
-                  >
-                    {locale === "fr" ? cat.labelFr : cat.labelEn}
-                  </button>
-                ))}
+            {categories.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-foreground mb-3">
+                  {locale === "fr" ? "Categorie" : "Category"}
+                </p>
+                <div
+                  className="grid grid-cols-2 gap-2"
+                  data-testid="job-categories"
+                >
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      aria-pressed={formData.category === cat.id}
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, category: cat.id }))
+                      }
+                      className={cn(
+                        "rounded-xl px-4 py-3 text-sm font-medium transition-all text-left break-words",
+                        formData.category === cat.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80",
+                      )}
+                    >
+                      {categoryName(cat)}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
-                {locale === "fr" ? "Type de mission" : "Job type"}
-              </label>
-              <div className="space-y-2">
-                {jobTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        type: type.id as "shift" | "contract",
-                      }))
-                    }
-                    className={cn(
-                      "w-full rounded-xl p-4 text-left border-2 transition-all",
-                      formData.type === type.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50",
-                    )}
-                  >
-                    <p className="font-medium text-foreground">
-                      {locale === "fr" ? type.labelFr : type.labelEn}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {locale === "fr" ? type.descFr : type.descEn}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="job-description"
+                className="text-sm font-medium text-foreground"
+              >
                 {locale === "fr" ? "Description du poste" : "Job description"}
               </label>
               <textarea
+                id="job-description"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData((prev) => ({
@@ -533,158 +701,282 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                 </div>
               </div>
             )}
-            {formData.type === "shift" ? (
-              <>
-                <div>
-                  <label className="text-sm font-medium text-foreground">
-                    {locale === "fr" ? "Date de la mission" : "Job date"}
-                  </label>
-                  <Input
-                    type="date"
-                    value={formData.date}
-                    disabled={scheduleLocked}
-                    aria-describedby={
-                      scheduleLocked ? "job-schedule-locked" : undefined
-                    }
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                    className="mt-1.5"
-                    min={new Date().toISOString().split("T")[0]}
-                  />
-                </div>
-              </>
+
+            {legacyLockedView && initialJob ? (
+              <p className="text-sm text-foreground">
+                {formatDayDate(initialJob.start_date, locale)}
+                {initialJob.end_date &&
+                  initialJob.end_date !== initialJob.start_date &&
+                  ` → ${formatDayDate(initialJob.end_date, locale)}`}
+                {" · "}
+                {hhmm(initialJob.start_time)} → {hhmm(initialJob.end_time)}
+              </p>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">
-                      {locale === "fr" ? "Date de debut" : "Start date"}
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.startDate}
-                      disabled={scheduleLocked}
-                      aria-describedby={
-                        scheduleLocked ? "job-schedule-locked" : undefined
-                      }
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          startDate: e.target.value,
-                        }))
-                      }
-                      className="mt-1.5"
-                      min={new Date().toISOString().split("T")[0]}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-foreground">
-                      {locale === "fr" ? "Date de fin" : "End date"}
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.endDate}
-                      disabled={scheduleLocked}
-                      aria-describedby={
-                        scheduleLocked ? "job-schedule-locked" : undefined
-                      }
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          endDate: e.target.value,
-                        }))
-                      }
-                      className="mt-1.5"
-                      min={
-                        formData.startDate ||
-                        new Date().toISOString().split("T")[0]
-                      }
-                    />
-                  </div>
+                {/* Dates choisies une à une */}
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {ts.datesLabel}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {ts.datesHint}
+                  </p>
+                  {!scheduleLocked && (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        type="date"
+                        aria-label={ts.addDateLabel}
+                        data-testid="job-day-new"
+                        value={formData.newDate}
+                        min={doualaToday()}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            newDate: e.target.value,
+                          }))
+                        }
+                        className="min-w-0 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addDate}
+                        disabled={
+                          !formData.newDate ||
+                          formData.days.some((d) => d.date === formData.newDate)
+                        }
+                        data-testid="job-day-add"
+                      >
+                        <Plus className="mr-1 h-4 w-4" aria-hidden />
+                        {ts.addDate}
+                      </Button>
+                    </div>
+                  )}
+                  {formData.days.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      {ts.noDates}
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-2" data-testid="job-days">
+                      {effectiveDays.map((d) => (
+                        <li
+                          key={d.date}
+                          className="rounded-xl border border-border p-3"
+                          data-testid="job-day"
+                          data-date={d.date}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-foreground">
+                              {formatDayDate(d.date, locale)}
+                            </span>
+                            {!scheduleLocked && (
+                              <button
+                                type="button"
+                                onClick={() => removeDate(d.date)}
+                                aria-label={ts.removeDate.replace(
+                                  "{date}",
+                                  formatDayDate(d.date, locale),
+                                )}
+                                className="rounded-full p-1 text-muted-foreground hover:bg-muted"
+                              >
+                                <X className="h-4 w-4" aria-hidden />
+                              </button>
+                            )}
+                          </div>
+                          {!formData.sameHours && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <label className="text-xs text-muted-foreground">
+                                {ts.startTime}
+                                <Input
+                                  type="time"
+                                  value={d.start}
+                                  disabled={scheduleLocked}
+                                  aria-describedby={lockedHint}
+                                  onChange={(e) =>
+                                    updateDay(d.date, { start: e.target.value })
+                                  }
+                                  className="mt-1"
+                                />
+                              </label>
+                              <label className="text-xs text-muted-foreground">
+                                {ts.endTime}
+                                <Input
+                                  type="time"
+                                  value={d.end}
+                                  disabled={scheduleLocked}
+                                  aria-describedby={lockedHint}
+                                  onChange={(e) =>
+                                    updateDay(d.date, { end: e.target.value })
+                                  }
+                                  className="mt-1"
+                                />
+                              </label>
+                            </div>
+                          )}
+                          {d.start_time && d.end_time && crossesMidnight(d) && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {ts.crossesMidnight}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+
+                {/* Horaires communs ou par journée */}
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={formData.sameHours}
+                    disabled={scheduleLocked}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        sameHours: e.target.checked,
+                        // Passage aux horaires par journée : chaque journée
+                        // reprend les horaires communs.
+                        days: e.target.checked
+                          ? prev.days
+                          : prev.days.map((d) => ({
+                              ...d,
+                              start: prev.startTime || d.start,
+                              end: prev.endTime || d.end,
+                            })),
+                      }))
+                    }
+                    data-testid="job-same-hours"
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {ts.sameHours}
+                </label>
+                {formData.sameHours && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="text-sm font-medium text-foreground">
+                      {ts.startTime}
+                      <Input
+                        type="time"
+                        value={formData.startTime}
+                        disabled={scheduleLocked}
+                        aria-describedby={lockedHint}
+                        data-testid="job-start-time"
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            startTime: e.target.value,
+                          }))
+                        }
+                        className="mt-1.5"
+                      />
+                    </label>
+                    <label className="text-sm font-medium text-foreground">
+                      {ts.endTime}
+                      <Input
+                        type="time"
+                        value={formData.endTime}
+                        disabled={scheduleLocked}
+                        aria-describedby={lockedHint}
+                        data-testid="job-end-time"
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            endTime: e.target.value,
+                          }))
+                        }
+                        className="mt-1.5"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {issue && formData.days.length > 0 && (
+                  <p
+                    role="alert"
+                    className="text-sm text-destructive"
+                    data-testid="job-days-issue"
+                  >
+                    {errorMessage(issue)}
+                  </p>
+                )}
+
+                {/* Format, pour plusieurs journées */}
+                {formData.days.length > 1 && (
+                  <fieldset className="space-y-2" data-testid="job-format">
+                    <legend className="mb-2 text-sm font-medium text-foreground">
+                      {ts.formatLabel}
+                    </legend>
+                    {(["full_period", "per_day"] as const).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        aria-pressed={formData.format === f}
+                        disabled={scheduleLocked}
+                        data-testid={`job-format-${f}`}
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, format: f }))
+                        }
+                        className={cn(
+                          "w-full rounded-xl border-2 p-4 text-left transition-all disabled:opacity-70",
+                          formData.format === f
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50",
+                        )}
+                      >
+                        <p className="font-medium text-foreground">
+                          {ts.formats[f].title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {ts.formats[f].desc}
+                        </p>
+                      </button>
+                    ))}
+                  </fieldset>
+                )}
               </>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            {format === "full_period" && (
               <div>
-                <label className="text-sm font-medium text-foreground">
-                  {locale === "fr" ? "Heure de debut" : "Start time"}
-                </label>
-                <Input
-                  type="time"
-                  value={formData.startTime}
-                  disabled={scheduleLocked}
-                  aria-describedby={
-                    scheduleLocked ? "job-schedule-locked" : undefined
-                  }
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      startTime: e.target.value,
-                    }))
-                  }
-                  className="mt-1.5"
-                />
+                <p className="text-sm font-medium text-foreground">
+                  {locale === "fr"
+                    ? "Nombre de personnes recherchees"
+                    : "Number of workers needed"}
+                </p>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="-"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        workersNeeded: Math.max(1, prev.workersNeeded - 1),
+                      }))
+                    }
+                  >
+                    -
+                  </Button>
+                  <span className="text-xl font-bold w-12 text-center">
+                    {formData.workersNeeded}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="+"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        workersNeeded: prev.workersNeeded + 1,
+                      }))
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">
-                  {locale === "fr" ? "Heure de fin" : "End time"}
-                </label>
-                <Input
-                  type="time"
-                  value={formData.endTime}
-                  disabled={scheduleLocked}
-                  aria-describedby={
-                    scheduleLocked ? "job-schedule-locked" : undefined
-                  }
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      endTime: e.target.value,
-                    }))
-                  }
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                {locale === "fr"
-                  ? "Nombre de personnes recherchees"
-                  : "Number of workers needed"}
-              </label>
-              <div className="flex items-center gap-3 mt-1.5">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      workersNeeded: Math.max(1, prev.workersNeeded - 1),
-                    }))
-                  }
-                >
-                  -
-                </Button>
-                <span className="text-xl font-bold w-12 text-center">
-                  {formData.workersNeeded}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      workersNeeded: prev.workersNeeded + 1,
-                    }))
-                  }
-                >
-                  +
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -692,13 +984,14 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         {currentStep === "requirements" && (
           <div className="space-y-6">
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
+              <p className="text-sm font-medium text-foreground mb-3">
                 {locale === "fr" ? "Exigences" : "Requirements"}
-              </label>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {commonRequirements.map((req) => (
                   <button
                     key={req.id}
+                    type="button"
                     onClick={() =>
                       toggleItem(formData.requirements, req.id, "requirements")
                     }
@@ -716,13 +1009,14 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">
+              <p className="text-sm font-medium text-foreground mb-3">
                 {locale === "fr" ? "Avantages proposes" : "Benefits offered"}
-              </label>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {commonBenefits.map((benefit) => (
                   <button
                     key={benefit.id}
+                    type="button"
                     onClick={() =>
                       toggleItem(formData.benefits, benefit.id, "benefits")
                     }
@@ -744,47 +1038,149 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
         {/* Payment Step */}
         {currentStep === "payment" && (
           <div className="space-y-6">
-            <div>
-              <label
-                htmlFor="mission-pay"
-                className="text-sm font-medium text-foreground"
-              >
-                {t.pay.formLabel}
-              </label>
-              <div className="relative mt-1.5">
-                <Banknote className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="mission-pay"
-                  type="number"
-                  inputMode="numeric"
-                  step={1}
-                  min={1}
-                  value={formData.missionPay}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      missionPay: e.target.value,
-                    }))
-                  }
-                  placeholder="10000"
-                  className="pl-10 text-lg"
-                  aria-invalid={missionPayError ? true : undefined}
-                  aria-describedby="mission-pay-hint"
-                />
+            {format === "per_day" ? (
+              <div className="space-y-3" data-testid="job-day-pay">
+                {effectiveDays.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={copyFirstDay}
+                    data-testid="job-day-copy-first"
+                  >
+                    {ts.copyFirstDay}
+                  </Button>
+                )}
+                {effectiveDays.map((d) => {
+                  const invalid = d.pay.trim() !== "" && !dayPayValid(d.pay);
+                  return (
+                    <div
+                      key={d.date}
+                      className="rounded-xl border border-border p-3"
+                      data-testid="job-day-pay-row"
+                      data-date={d.date}
+                    >
+                      <p className="font-medium text-foreground">
+                        {formatDayDate(d.date, locale)}
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          {formatDayHours(d, ts.nextDay)}
+                        </span>
+                      </p>
+                      <div className="mt-2 grid grid-cols-[1fr_auto] items-end gap-3">
+                        <label className="text-xs text-muted-foreground">
+                          {ts.dayPayLabel}
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            step={1}
+                            min={1}
+                            value={d.pay}
+                            onChange={(e) =>
+                              updateDay(d.date, { pay: e.target.value })
+                            }
+                            placeholder="10000"
+                            aria-invalid={invalid ? true : undefined}
+                            className="mt-1"
+                          />
+                        </label>
+                        <div className="text-xs text-muted-foreground">
+                          {ts.dayPositions}
+                          <div className="mt-1 flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              aria-label={`${ts.dayPositions} -`}
+                              onClick={() =>
+                                updateDay(d.date, {
+                                  positions: Math.max(1, d.positions - 1),
+                                })
+                              }
+                            >
+                              -
+                            </Button>
+                            <span className="w-6 text-center text-base font-bold text-foreground">
+                              {d.positions}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              aria-label={`${ts.dayPositions} +`}
+                              onClick={() =>
+                                updateDay(d.date, {
+                                  positions: d.positions + 1,
+                                })
+                              }
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      {invalid && (
+                        <p
+                          role="alert"
+                          className="mt-1 text-xs text-destructive"
+                        >
+                          {tj.errors.dayPayRequired}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              {missionPayError && (
-                <p role="alert" className="text-xs text-destructive mt-1">
-                  {missionPayError}
-                </p>
-              )}
-              <div
-                id="mission-pay-hint"
-                className="text-xs text-muted-foreground mt-1 space-y-1"
-              >
-                <p>{t.pay.formHint}</p>
-                <p>{t.pay.formExample}</p>
+            ) : (
+              <div>
+                <label
+                  htmlFor="mission-pay"
+                  className="text-sm font-medium text-foreground"
+                >
+                  {effectiveDays.length > 1
+                    ? ts.periodPayLabel
+                    : t.pay.formLabel}
+                </label>
+                <div className="relative mt-1.5">
+                  <Banknote className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="mission-pay"
+                    type="number"
+                    inputMode="numeric"
+                    step={1}
+                    min={1}
+                    value={formData.missionPay}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        missionPay: e.target.value,
+                      }))
+                    }
+                    placeholder="10000"
+                    className="pl-10 text-lg"
+                    aria-invalid={missionPayError ? true : undefined}
+                    aria-describedby="mission-pay-hint"
+                  />
+                </div>
+                {missionPayError && (
+                  <p role="alert" className="text-xs text-destructive mt-1">
+                    {missionPayError}
+                  </p>
+                )}
+                <div
+                  id="mission-pay-hint"
+                  className="text-xs text-muted-foreground mt-1 space-y-1"
+                >
+                  {effectiveDays.length > 1 ? (
+                    <p>{ts.periodPayHint}</p>
+                  ) : (
+                    <>
+                      <p>{t.pay.formHint}</p>
+                      <p>{t.pay.formExample}</p>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -799,76 +1195,125 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
             )}
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">
-                    {formData.title}
-                  </h3>
-                </div>
+                <h3 className="mb-3 break-words font-semibold text-foreground">
+                  {formData.title}
+                </h3>
 
                 <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Briefcase className="h-4 w-4" />
-                    <span>
-                      {
-                        jobCategories.find((c) => c.id === formData.category)?.[
-                          locale === "fr" ? "labelFr" : "labelEn"
-                        ]
-                      }
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {formData.type === "shift"
-                        ? formData.date
-                        : `${formData.startDate} - ${formData.endDate}`}
-                    </span>
-                  </div>
-
-                  {formData.startTime && formData.endTime && (
+                  {formData.category && (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="h-4 w-4" />
+                      <Briefcase className="h-4 w-4" />
                       <span>
-                        {formData.startTime} - {formData.endTime}
+                        {(() => {
+                          const c = categories.find(
+                            (x) => x.id === formData.category,
+                          );
+                          return c ? categoryName(c) : null;
+                        })()}
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>
-                      {plural(
-                        Number(formData.workersNeeded) || 0,
-                        t.pay.positions,
-                        locale,
-                      )}
-                    </span>
-                  </div>
+                  {effectiveDays.length > 1 && (
+                    <p className="font-medium text-foreground">
+                      {ts.formats[format].title}
+                    </p>
+                  )}
 
-                  <div className="flex items-start gap-2 text-muted-foreground pt-2 border-t">
-                    <Banknote className="h-4 w-4 mt-1" />
-                    <div className="space-y-0.5">
-                      <p className="text-xs">{t.pay.perCandidate}</p>
-                      <MissionPay
-                        amount={
-                          missionPayCheck.success ? missionPayCheck.data : null
-                        }
-                        amountClassName="text-primary"
-                        testId="review-mission-pay"
-                      />
-                    </div>
-                  </div>
+                  {format === "full_period" && (
+                    <>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>
+                          {plural(
+                            Number(formData.workersNeeded) || 0,
+                            t.pay.positions,
+                            locale,
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2 text-muted-foreground pt-2 border-t">
+                        <Banknote className="h-4 w-4 mt-1" />
+                        <div className="space-y-0.5">
+                          <p className="text-xs">
+                            {effectiveDays.length > 1
+                              ? ts.payPeriod.replace(
+                                  "{days}",
+                                  plural(
+                                    effectiveDays.length,
+                                    ts.dayCount,
+                                    locale,
+                                  ),
+                                )
+                              : t.pay.perCandidate}
+                          </p>
+                          <MissionPay
+                            amount={
+                              missionPayCheck.success
+                                ? missionPayCheck.data
+                                : null
+                            }
+                            amountClassName="text-primary"
+                            testId="review-mission-pay"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {effectiveDays.length > 0 && (
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Calendar className="h-4 w-4" aria-hidden />
+                    {ts.preview} ·{" "}
+                    {plural(effectiveDays.length, ts.dayCount, locale)}
+                  </h4>
+                  <ul
+                    className="divide-y divide-border"
+                    data-testid="job-review-days"
+                  >
+                    {effectiveDays.map((d) => (
+                      <li
+                        key={d.date}
+                        className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2 text-sm"
+                        data-testid="job-review-day"
+                        data-date={d.date}
+                      >
+                        <span className="text-foreground">
+                          {formatDayDate(d.date, locale)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {formatDayHours(d, ts.nextDay)}
+                        </span>
+                        {format === "per_day" && (
+                          <span className="w-full text-muted-foreground">
+                            <MissionPay
+                              amount={
+                                dayPayValid(d.pay) ? payValue(d.pay) : null
+                              }
+                              amountClassName="text-primary"
+                            />
+                            {" · "}
+                            {plural(d.positions, ts.perDayPositions, locale)}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="bg-muted/50">
               <CardContent className="p-4">
                 <h4 className="text-sm font-medium text-foreground mb-2">
                   Description
                 </h4>
-                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                <p className="text-sm text-muted-foreground whitespace-pre-line break-words">
                   {formData.description}
                 </p>
               </CardContent>
@@ -889,11 +1334,9 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                             key={req}
                             className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full"
                           >
-                            {
-                              commonRequirements.find((r) => r.id === req)?.[
-                                locale === "fr" ? "labelFr" : "labelEn"
-                              ]
-                            }
+                            {commonRequirements.find((r) => r.id === req)?.[
+                              locale === "fr" ? "labelFr" : "labelEn"
+                            ] ?? req}
                           </span>
                         ))}
                       </div>
@@ -951,6 +1394,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
             disabled={loading || publishBlocked !== null}
             className="w-full"
             size="lg"
+            data-testid="job-submit"
           >
             {loading ? (
               <LoadingSpinner size="sm" />
@@ -968,6 +1412,7 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
             disabled={!isStepValid()}
             className="w-full"
             size="lg"
+            data-testid="job-next"
           >
             {locale === "fr" ? "Continuer" : "Continue"}
             <ChevronRight className="ml-2 h-4 w-4" />

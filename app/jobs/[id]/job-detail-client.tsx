@@ -51,6 +51,22 @@ import { useJobUrgent } from "@/lib/jobs/use-job-urgency";
 import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
 import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 import { doualaDateTime } from "@/lib/utils/douala-time";
+import { JobDaysList } from "@/components/jobs/job-days-list";
+import {
+  dayChoosable as isDayChoosable,
+  dayState,
+  droppedSelection,
+  type CandidateJobDay,
+} from "@/lib/jobs/day-state";
+import { useJobDays } from "@/lib/jobs/use-job-days";
+import {
+  formatDayDate,
+  formatDayHours,
+  parseBlockedDays,
+  type DayBlockReason,
+} from "@/lib/jobs/schedule";
+import { plural } from "@/lib/i18n/plural";
+import { formatXaf } from "@/lib/utils";
 
 interface JobDetailClientProps {
   job: {
@@ -68,6 +84,8 @@ interface JobDetailClientProps {
     start_time: string;
     end_time: string;
     status?: string | null;
+    /** Lot 12 : période complète ou journées au choix. */
+    schedule_format?: string | null;
     positions_available: number | null;
     positions_filled: number | null;
     /** Lot 11b : fin des candidatures (H−24, ou H−2 si publiée en urgence). */
@@ -90,6 +108,13 @@ interface JobDetailClientProps {
     dress_code?: string | null;
     special_instructions?: string | null;
   };
+  /** Lot 12 : journées de l'offre (`job_days_for_candidate`). */
+  days?: CandidateJobDay[];
+  /**
+   * Lot 12 : la lecture serveur des journées a échoué. Rien n'est alors
+   * présenté comme disponible (vérification impossible, « Réessayer »).
+   */
+  daysFailed?: boolean;
   userApplication: {
     id: string;
     status?: string | null;
@@ -142,6 +167,8 @@ function Section({
 
 export function JobDetailClient({
   job,
+  days: initialDays = [],
+  daysFailed = false,
   userApplication,
   isLoggedIn,
   missingEssentials: initialMissingEssentials = [],
@@ -162,8 +189,14 @@ export function JobDetailClient({
   const [applicationStatus, setApplicationStatus] = React.useState<
     string | null
   >(statusOf(userApplication));
+  // Lot 12 : au choix, l'offre reste proposée tant qu'une journée est
+  // accessible ; « déjà postulé » quand il ne reste rien à choisir.
   const hasApplied = applicationStatus !== null;
   const [showWithdrawModal, setShowWithdrawModal] = React.useState(false);
+  // Lot 12 : candidature d'une journée précise (journées au choix).
+  const [withdrawTarget, setWithdrawTarget] = React.useState<string | null>(
+    null,
+  );
   const [withdrawing, setWithdrawing] = React.useState(false);
   // Pré-rempli côté serveur (page) ; le POST renvoie la liste à jour.
   const [missingEssentials, setMissingEssentials] = React.useState(
@@ -196,19 +229,108 @@ export function JobDetailClient({
   // Offre retirée, modifiée ou complète ; candidature ; vérification du
   // profil : la page serveur est relue (une offre devenue invisible mène à
   // la page introuvable).
+  // Lot 12 : journées et compatibilité avec les engagements déjà
+  // sélectionnés du candidat, relues par la RPC (verdict de la base) à
+  // chaque signal privé, reconnexion ou retour au premier plan, sans
+  // relecture périodique. Une sélection reçue ailleurs pendant la
+  // consultation arrive par le signal « applications ».
+  const {
+    days,
+    status: daysStatus,
+    loading: daysLoading,
+    reload: reloadDays,
+  } = useJobDays(job.id, initialDays, daysFailed);
+  // Lecture en échec : jamais interprétée comme « disponible ».
+  const daysUnverified = daysStatus === "error";
+  const refreshAll = () => {
+    router.refresh();
+    void reloadDays();
+  };
   useLiveRefresh(
-    ["public:jobs", "jobs", "applications", "profile", "account"],
-    () => router.refresh(),
+    ["public:jobs", "jobs", "applications", "missions", "profile", "account"],
+    refreshAll,
   );
 
   const urgent = useJobUrgent(job);
   // Lot 11b : minuterie locale sur l'heure du serveur ; la base refuse de
   // toute façon après l'échéance (recruitment_closed). Le badge « Urgente »
   // n'entre pas dans ce calcul.
-  const recruitmentNow = useRecruitmentNow([job]);
+  // Lot 12 : chaque journée a sa propre échéance (format au choix) ; la
+  // même minuterie couvre l'offre et ses journées.
+  const recruitmentNow = useRecruitmentNow([job, ...days]);
+  const perDay = job.schedule_format === "per_day";
+  const multiDay = days.length > 1;
+  const [selectedDays, setSelectedDays] = React.useState<string[]>([]);
+  const dayChoosable = (d: CandidateJobDay) =>
+    perDay && isDayChoosable(d, recruitmentNow);
+  const anyChoosable = days.some(dayChoosable);
+  // Journée encore en recrutement, même incompatible pour ce candidat : une
+  // incompatibilité n'est pas une clôture.
+  const anyRecruiting =
+    perDay &&
+    days.some((d) => {
+      const state = dayState(d, recruitmentNow);
+      return state === "open" || state === "conflict";
+    });
+  const anyConflict = days.some(
+    (d) => dayState(d, recruitmentNow) === "conflict",
+  );
+  const anyDayApplied = days.some((d) => d.my_application_status);
+  // Seules les journées encore accessibles restent cochées.
+  const chosenDays = days.filter(
+    (d) => dayChoosable(d) && !!d.day_id && selectedDays.includes(d.day_id),
+  );
+  // Journée cochée devenue inaccessible (sélection reçue ailleurs, échéance,
+  // dernière place prise) : elle est décochée et le changement est expliqué
+  // avant toute confirmation. Sans lecture vérifiée, rien n'est déduit.
+  const [selectionNotice, setSelectionNotice] = React.useState<
+    { id: string; date: string; reason: DayBlockReason }[]
+  >([]);
+  const dropped =
+    perDay && !daysUnverified
+      ? droppedSelection(selectedDays, days, recruitmentNow)
+      : [];
+  if (dropped.length > 0) {
+    setSelectedDays((prev) =>
+      prev.filter((id) => !dropped.some((d) => d.id === id)),
+    );
+    // Une journée à laquelle le candidat vient de postuler porte déjà son
+    // état : seules les pertes subies sont expliquées.
+    const explained = dropped.flatMap((d) =>
+      d.reason && d.reason !== "already_applied"
+        ? [{ id: d.id, date: d.date, reason: d.reason }]
+        : [],
+    );
+    if (explained.length > 0) {
+      setSelectionNotice((prev) => [
+        ...prev.filter((p) => !explained.some((e) => e.id === p.id)),
+        ...explained,
+      ]);
+    }
+  }
+  const toggleDay = (dayId: string) => {
+    setSelectionNotice([]);
+    setSelectedDays((prev) =>
+      prev.includes(dayId) ? prev.filter((x) => x !== dayId) : [...prev, dayId],
+    );
+  };
   const recruitmentClosed =
     acceptingApplications &&
-    (recruitmentClosedAtLoad || !isRecruitmentOpen(job, recruitmentNow));
+    (perDay
+      ? !daysUnverified && !anyRecruiting
+      : recruitmentClosedAtLoad || !isRecruitmentOpen(job, recruitmentNow));
+  const appliedForAction = perDay
+    ? !daysUnverified && anyDayApplied && !anyRecruiting
+    : hasApplied;
+  // Période complète (ou offre d'une seule journée) : une seule journée
+  // incompatible empêche la candidature à l'ensemble.
+  const periodConflicts =
+    !perDay && !hasApplied
+      ? days.filter((d) => dayState(d, recruitmentNow) === "conflict")
+      : [];
+  const periodBlocked = periodConflicts.length > 0;
+  const applyBlocked =
+    daysUnverified || periodBlocked || (perDay && chosenDays.length === 0);
 
   const te = t.profile.essential;
   const essentialsMissingLabels = missingEssentials.map((k) => te[k]);
@@ -220,9 +342,12 @@ export function JobDetailClient({
   const localCni = useCniState(cni);
   const cniBlock: CniExpiredState | null =
     refusedCni ?? (localCni && isCniExpiredState(localCni) ? localCni : null);
-  const cniBlocked = isLoggedIn && !hasApplied && cniBlock !== null;
+  const cniBlocked = isLoggedIn && !appliedForAction && cniBlock !== null;
   const essentialsBlocked =
-    isLoggedIn && !cniBlocked && missingEssentials.length > 0 && !hasApplied;
+    isLoggedIn &&
+    !cniBlocked &&
+    missingEssentials.length > 0 &&
+    !appliedForAction;
 
   const categoryName =
     locale === "fr" ? job.category?.name_fr : job.category?.name_en;
@@ -263,10 +388,24 @@ export function JobDetailClient({
       const res = await fetch(`/api/jobs/${job.id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Lot 12 : journées choisies, envoyées ensemble (tout ou rien).
+        ...(perDay
+          ? {
+              body: JSON.stringify({
+                day_ids: chosenDays.map((d) => d.day_id),
+              }),
+            }
+          : {}),
       });
 
       if (res.ok) {
-        setApplicationStatus("pending");
+        if (perDay) {
+          setSelectedDays([]);
+          setSelectionNotice([]);
+        } else {
+          setApplicationStatus("pending");
+        }
+        refreshAll();
         setShowConfirmModal(false);
         toast({
           title: t.application.sentToast.title,
@@ -284,6 +423,7 @@ export function JobDetailClient({
           missing?: EssentialKey[];
           requirement?: unknown;
           state?: unknown;
+          days?: unknown;
         };
         // SRS §6.6/§11.5 (T8.3) — gate `users.is_verified` : le serveur
         // renvoie la liste informationnelle des champs à compléter.
@@ -295,6 +435,39 @@ export function JobDetailClient({
           setMissingEssentials(body.missing);
           setShowConfirmModal(false);
           setShowBlockedModal(true);
+        } else if (body.code === "job_days_unavailable") {
+          // Journées bloquantes nommées ; rien n'a été envoyé.
+          setShowConfirmModal(false);
+          const blocked = parseBlockedDays(JSON.stringify({ days: body.days }));
+          toast({
+            title: t.schedule.blocked.title,
+            description: [
+              ...blocked.map((b) =>
+                t.schedule.blocked[b.reason].replace(
+                  "{date}",
+                  formatDayDate(b.date, locale),
+                ),
+              ),
+              t.schedule.blocked.none,
+            ].join(" "),
+            variant: "destructive",
+          });
+          refreshAll();
+        } else if (body.code === "schedule_conflict") {
+          setShowConfirmModal(false);
+          const conflictDays = Array.isArray(body.days)
+            ? body.days.filter((d): d is string => typeof d === "string")
+            : [];
+          toast({
+            title: t.application.errorTitle,
+            description: t.schedule.conflict.replace(
+              "{days}",
+              conflictDays.map((d) => formatDayDate(d, locale)).join(", "),
+            ),
+            variant: "destructive",
+          });
+          // Écran périmé : le conflit est maintenant affiché.
+          refreshAll();
         } else {
           setShowConfirmModal(false);
           const cniDetail =
@@ -322,7 +495,7 @@ export function JobDetailClient({
           toast({ ...feedback, variant: "destructive" });
           // Offre complète, retirée ou déjà postulée : l'écran est relu.
           if (body.code === "already_applied" || body.code === "no_positions") {
-            router.refresh();
+            refreshAll();
           }
         }
       }
@@ -348,16 +521,22 @@ export function JobDetailClient({
     setWithdrawing(true);
     const tw = t.application.withdraw;
     try {
-      const res = await fetch(`/api/jobs/${job.id}/apply`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/jobs/${job.id}/apply${
+          withdrawTarget
+            ? `?application=${encodeURIComponent(withdrawTarget)}`
+            : ""
+        }`,
+        { method: "DELETE" },
+      );
       const body = ((await res.json().catch(() => null)) ?? {}) as {
         code?: string;
         application?: { status?: string };
       };
       // Succès seulement si la base a bien enregistré le retrait.
       if (res.ok && body.application?.status === "withdrawn") {
-        setApplicationStatus("withdrawn");
+        if (!withdrawTarget) setApplicationStatus("withdrawn");
+        setWithdrawTarget(null);
         setShowWithdrawModal(false);
         toast({
           title: tw.doneTitle,
@@ -368,7 +547,7 @@ export function JobDetailClient({
             href: "/my-jobs",
           },
         });
-        router.refresh();
+        refreshAll();
         return;
       }
       setShowWithdrawModal(false);
@@ -380,7 +559,7 @@ export function JobDetailClient({
             : tw.errors.generic,
         variant: "destructive",
       });
-      router.refresh();
+      refreshAll();
     } catch {
       setShowWithdrawModal(false);
       toast({
@@ -416,6 +595,46 @@ export function JobDetailClient({
       toast({ title: tj.shareFailed, variant: "destructive" });
     }
   };
+
+  // Journées retirées du choix : expliqué dans la section des journées, ou
+  // dans la confirmation si elle est ouverte (un seul message à la fois).
+  const selectionNoticeBlock =
+    selectionNotice.length > 0 ? (
+      <div
+        role="status"
+        data-testid="selection-changed"
+        className="rounded-xl border border-warning/20 bg-warning/10 p-3 text-sm text-foreground"
+      >
+        <div className="flex items-start gap-2">
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+            aria-hidden
+          />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">{t.schedule.selectionChanged}</p>
+            <ul className="mt-1 space-y-0.5">
+              {selectionNotice.map((n) => (
+                <li key={n.id} data-testid="selection-changed-day">
+                  {t.schedule.blocked[n.reason].replace(
+                    "{date}",
+                    formatDayDate(n.date, locale),
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1">
+              {plural(
+                selectionNotice.length,
+                t.schedule.selectionChangedHint,
+                locale,
+              )}
+              {selectionNotice.some((n) => n.reason === "schedule_conflict") &&
+                ` ${t.schedule.conflictRule}`}
+            </p>
+          </div>
+        </div>
+      </div>
+    ) : null;
 
   const applicationCard = hasApplied
     ? (() => {
@@ -546,11 +765,48 @@ export function JobDetailClient({
           title={tj.pay}
           icon={<Banknote className="h-4 w-4" />}
         >
-          <MissionPay
-            amount={job.mission_pay_per_candidate}
-            amountClassName="text-2xl text-primary"
-            testId="job-detail-pay"
-          />
+          {perDay ? (
+            <p
+              className="text-2xl font-bold text-primary"
+              data-testid="job-detail-pay"
+            >
+              {(() => {
+                const pays = days
+                  .map((d) => d.mission_pay_per_candidate)
+                  .filter((x): x is number => typeof x === "number");
+                if (pays.length === 0) return null;
+                const min = Math.min(...pays);
+                const max = Math.max(...pays);
+                return min === max
+                  ? t.schedule.payPerDay.replace(
+                      "{amount}",
+                      formatXaf(min, locale),
+                    )
+                  : t.schedule.payFromTo
+                      .replace("{min}", formatXaf(min, locale))
+                      .replace("{max}", formatXaf(max, locale));
+              })()}
+            </p>
+          ) : (
+            <>
+              <MissionPay
+                amount={job.mission_pay_per_candidate}
+                amountClassName="text-2xl text-primary"
+                testId="job-detail-pay"
+              />
+              {multiDay && (
+                <p
+                  className="mt-1 text-sm text-muted-foreground"
+                  data-testid="job-detail-pay-period"
+                >
+                  {t.schedule.payPeriod.replace(
+                    "{days}",
+                    plural(days.length, t.schedule.dayCount, locale),
+                  )}
+                </p>
+              )}
+            </>
+          )}
         </Section>
 
         {/* 3. Lieu */}
@@ -589,57 +845,138 @@ export function JobDetailClient({
           title={tj.schedule}
           icon={<Calendar className="h-4 w-4" />}
         >
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Calendar
-                className="h-5 w-5 shrink-0 text-muted-foreground"
-                aria-hidden
+          {perDay || multiDay ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {perDay
+                  ? t.schedule.chooseDaysHint
+                  : t.schedule.periodCommitment}
+              </p>
+              <JobDaysList
+                days={days}
+                perDay={perDay}
+                now={recruitmentNow}
+                selected={selectedDays}
+                onToggle={toggleDay}
+                canChoose={
+                  acceptingApplications &&
+                  !suspended &&
+                  !cniBlocked &&
+                  !essentialsBlocked
+                }
+                unverified={daysUnverified}
+                onWithdraw={(applicationId) => {
+                  setWithdrawTarget(applicationId);
+                  setShowWithdrawModal(true);
+                }}
+                withdrawDisabled={suspended || withdrawing}
               />
-              <div>
-                <p className="font-medium capitalize text-foreground">
-                  {formatDate(job.start_date, locale)}
-                </p>
-                {job.end_date && job.end_date !== job.start_date && (
-                  <p className="text-sm text-muted-foreground">
-                    {tj.dateRangeTo} {formatDate(job.end_date, locale)}
+              {anyConflict &&
+                (periodBlocked ? (
+                  <p
+                    className="text-sm text-foreground"
+                    data-testid="period-conflict-detail"
+                  >
+                    {plural(
+                      periodConflicts.length,
+                      t.schedule.periodConflict,
+                      locale,
+                    ).replace(
+                      "{dates}",
+                      periodConflicts
+                        .map((d) => formatDayDate(d.day_date, locale))
+                        .join(", "),
+                    )}{" "}
+                    {t.schedule.conflictRule}
+                  </p>
+                ) : (
+                  <p
+                    className="text-sm text-muted-foreground"
+                    data-testid="job-conflict-rule"
+                  >
+                    {t.schedule.conflictRule}
+                    {perDay && anyChoosable
+                      ? ` ${t.schedule.conflictOthersOpen}`
+                      : ""}
+                  </p>
+                ))}
+              {!showConfirmModal && selectionNoticeBlock}
+              {!perDay &&
+                acceptingApplications &&
+                !recruitmentClosed &&
+                job.applications_close_at && (
+                  <p
+                    className="text-sm text-muted-foreground"
+                    data-testid="job-closes-at"
+                  >
+                    {tj.closesAt.replace(
+                      "{date}",
+                      doualaDateTime(job.applications_close_at, locale),
+                    )}
                   </p>
                 )}
-              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Clock
-                className="h-5 w-5 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <div>
-                <p className="font-medium text-foreground">
-                  {formatTime(job.start_time, locale)} -{" "}
-                  {formatTime(job.end_time, locale)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {tj.duration.replace(
-                    "{hours}",
-                    duration.toLocaleString(
-                      locale === "en" ? "en-US" : "fr-FR",
-                    ),
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Calendar
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div>
+                  <p className="font-medium capitalize text-foreground">
+                    {formatDate(job.start_date, locale)}
+                  </p>
+                  {job.end_date && job.end_date !== job.start_date && (
+                    <p className="text-sm text-muted-foreground">
+                      {tj.dateRangeTo} {formatDate(job.end_date, locale)}
+                    </p>
                   )}
-                </p>
+                </div>
               </div>
-            </div>
-            {acceptingApplications &&
-              !recruitmentClosed &&
-              job.applications_close_at && (
+              <div className="flex items-center gap-3">
+                <Clock
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div>
+                  <p className="font-medium text-foreground">
+                    {formatTime(job.start_time, locale)} -{" "}
+                    {formatTime(job.end_time, locale)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {tj.duration.replace(
+                      "{hours}",
+                      duration.toLocaleString(
+                        locale === "en" ? "en-US" : "fr-FR",
+                      ),
+                    )}
+                  </p>
+                </div>
+              </div>
+              {acceptingApplications &&
+                !recruitmentClosed &&
+                job.applications_close_at && (
+                  <p
+                    className="text-sm text-muted-foreground"
+                    data-testid="job-closes-at"
+                  >
+                    {tj.closesAt.replace(
+                      "{date}",
+                      doualaDateTime(job.applications_close_at, locale),
+                    )}
+                  </p>
+                )}
+              {periodBlocked && (
                 <p
-                  className="text-sm text-muted-foreground"
-                  data-testid="job-closes-at"
+                  className="text-sm text-foreground"
+                  data-testid="period-conflict-detail"
                 >
-                  {tj.closesAt.replace(
-                    "{date}",
-                    doualaDateTime(job.applications_close_at, locale),
-                  )}
+                  {t.schedule.singleConflict} {t.schedule.conflictRule}
                 </p>
               )}
-          </div>
+            </div>
+          )}
         </Section>
 
         {/* 5. Exigences */}
@@ -765,7 +1102,7 @@ export function JobDetailClient({
             className="mb-2 text-sm text-muted-foreground"
             data-testid="job-unavailable-notice"
           >
-            {hasApplied ? tj.unavailableApplied : tj.unavailableBody}
+            {appliedForAction ? tj.unavailableApplied : tj.unavailableBody}
           </p>
         )}
         {recruitmentClosed && (
@@ -774,10 +1111,34 @@ export function JobDetailClient({
             className="mb-2 text-sm text-muted-foreground"
             data-testid="job-closed-notice"
           >
-            {hasApplied ? tj.closedApplied : tj.closedBody}
+            {appliedForAction ? tj.closedApplied : tj.closedBody}
           </p>
         )}
-        {(!acceptingApplications || recruitmentClosed) && !hasApplied ? (
+        {daysUnverified && (
+          <div
+            role="alert"
+            data-testid="days-unverified"
+            className="mb-2 flex items-start gap-3"
+          >
+            <p
+              id="days-unverified-reason"
+              className="min-w-0 flex-1 text-sm text-destructive"
+            >
+              {t.schedule.unverified}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => void reloadDays()}
+              disabled={daysLoading}
+              data-testid="days-retry"
+            >
+              {t.common.retry}
+            </Button>
+          </div>
+        )}
+        {(!acceptingApplications || recruitmentClosed) && !appliedForAction ? (
           <Button
             variant="outline"
             className="w-full"
@@ -787,7 +1148,7 @@ export function JobDetailClient({
           >
             {tj.backToJobs}
           </Button>
-        ) : hasApplied ? (
+        ) : appliedForAction ? (
           <Button
             variant="outline"
             className="w-full"
@@ -862,15 +1223,45 @@ export function JobDetailClient({
           </>
         ) : (
           <>
+            {!daysUnverified &&
+              (periodBlocked || (perDay && !anyChoosable)) && (
+                <p
+                  id="schedule-blocked-reason"
+                  role="status"
+                  data-testid="schedule-blocked-reason"
+                  className="mb-2 flex items-start gap-2 text-sm text-foreground"
+                >
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+                    aria-hidden
+                  />
+                  <span>
+                    {periodBlocked
+                      ? t.schedule.applyBlockedConflict
+                      : t.schedule.noCompatibleDay}
+                  </span>
+                </p>
+              )}
             <motion.div whileTap={{ scale: 0.98 }}>
               <Button
                 onClick={() => setShowConfirmModal(true)}
                 className="w-full"
                 size="lg"
-                disabled={suspended}
+                disabled={suspended || applyBlocked}
+                aria-describedby={
+                  daysUnverified
+                    ? "days-unverified-reason"
+                    : periodBlocked || (perDay && !anyChoosable)
+                      ? "schedule-blocked-reason"
+                      : undefined
+                }
                 data-testid="job-apply"
               >
-                {tj.applyNow}
+                {perDay
+                  ? chosenDays.length === 0
+                    ? t.schedule.selectDayFirst
+                    : plural(chosenDays.length, t.schedule.applyDays, locale)
+                  : tj.applyNow}
                 <ChevronRight className="ml-2 h-4 w-4" aria-hidden />
               </Button>
             </motion.div>
@@ -975,16 +1366,54 @@ export function JobDetailClient({
                 <span className="font-medium">{job.title}</span>
                 <Badge variant="outline">{job.company?.company_name}</Badge>
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" aria-hidden />
-                  {formatDate(job.start_date, locale)}
+              {perDay || multiDay ? (
+                <div data-testid="job-apply-summary">
+                  <p className="mb-1 text-sm font-medium text-foreground">
+                    {perDay
+                      ? t.schedule.summaryTitle
+                      : t.schedule.periodCommitment}
+                  </p>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {(perDay ? chosenDays : days).map((d) => (
+                      <li
+                        key={d.day_id ?? d.day_date}
+                        className="flex flex-wrap justify-between gap-x-3"
+                        data-testid="job-apply-summary-day"
+                      >
+                        <span className="text-foreground">
+                          {formatDayDate(d.day_date, locale)}
+                        </span>
+                        <span>{formatDayHours(d, t.schedule.nextDay)}</span>
+                        {perDay && (
+                          <MissionPay
+                            amount={d.mission_pay_per_candidate}
+                            className="w-full text-right"
+                            amountClassName="text-primary"
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {!perDay && (
+                    <MissionPay
+                      amount={job.mission_pay_per_candidate}
+                      className="mt-2 block text-sm"
+                      amountClassName="text-primary"
+                    />
+                  )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" aria-hidden />
-                  {formatTime(job.start_time, locale)}
+              ) : (
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" aria-hidden />
+                    {formatDate(job.start_date, locale)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" aria-hidden />
+                    {formatTime(job.start_time, locale)}
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -997,6 +1426,29 @@ export function JobDetailClient({
             </div>
           </div>
 
+          {/* Lot 12 : changement survenu pendant la confirmation (journée
+              devenue incompatible, lecture impossible) : expliqué ici, et
+              l'envoi est retiré tant que le choix n'est plus valable. */}
+          {showConfirmModal && selectionNoticeBlock}
+          {daysUnverified && (
+            <p
+              role="alert"
+              className="text-sm text-destructive"
+              data-testid="confirm-unverified"
+            >
+              {t.schedule.unverified}
+            </p>
+          )}
+          {!daysUnverified && periodBlocked && (
+            <p
+              role="alert"
+              className="text-sm text-foreground"
+              data-testid="confirm-period-conflict"
+            >
+              {t.schedule.applyBlockedConflict}
+            </p>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button
               variant="outline"
@@ -1007,7 +1459,7 @@ export function JobDetailClient({
             </Button>
             <Button
               onClick={handleApply}
-              disabled={applying}
+              disabled={applying || applyBlocked}
               className="flex-1"
               data-testid="job-apply-confirm"
             >

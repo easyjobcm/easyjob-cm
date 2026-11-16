@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
+import { formatDayDate } from "@/lib/jobs/schedule";
 import { ReviewDialog } from "@/components/missions/review-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
@@ -49,6 +50,9 @@ import {
 } from "@/lib/tasks/use-candidate-tasks";
 import {
   canStartMission,
+  canStartDay,
+  dayEndReached,
+  missionDays,
   missionEndReached,
   type ActionTask,
 } from "@/lib/tasks/candidate-tasks";
@@ -153,12 +157,12 @@ function TasksContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, serverNow]);
 
-  const [startTarget, setStartTarget] = React.useState<MissionTask | null>(
-    null,
-  );
+  // Lot 12 : journée visée (null : mission d'une seule journée).
+  type DayTarget = { mission: MissionTask; dayId: string | null };
+  const [startTarget, setStartTarget] = React.useState<DayTarget | null>(null);
   const [starting, setStarting] = React.useState(false);
   const startingRef = React.useRef(false);
-  const [codeTarget, setCodeTarget] = React.useState<MissionTask | null>(null);
+  const [codeTarget, setCodeTarget] = React.useState<DayTarget | null>(null);
   const [reviewTarget, setReviewTarget] = React.useState<MissionTask | null>(
     null,
   );
@@ -170,23 +174,35 @@ function TasksContent() {
     if (!startTarget || startingRef.current) return;
     startingRef.current = true;
     setStarting(true);
-    const res = await fetch(`/api/missions/${startTarget.mission_id}/start`, {
-      method: "POST",
-    }).catch(() => null);
+    const target = startTarget;
+    const res = await fetch(
+      `/api/missions/${target.mission.mission_id}/start`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          target.dayId ? { mission_day_id: target.dayId } : {},
+        ),
+      },
+    ).catch(() => null);
     const body = ((await res?.json().catch(() => null)) ?? {}) as {
       code?: string;
       available_at?: string;
     };
     // Relire l'état enregistré avant d'annoncer le résultat.
     const fresh = (await reload()).find(
-      (m) => m.mission_id === startTarget.mission_id,
+      (m) => m.mission_id === target.mission.mission_id,
     );
-    if (fresh?.started_at) {
+    const startedAt = target.dayId
+      ? (missionDays(fresh?.days).find((d) => d.id === target.dayId)
+          ?.started_at ?? null)
+      : (fresh?.started_at ?? null);
+    if (startedAt) {
       toast({
         title: tt.startedToast,
         description: tt.startedAt.replace(
           "{time}",
-          doualaTime(fresh.started_at, locale),
+          doualaTime(startedAt, locale),
         ),
         variant: "success",
       });
@@ -208,8 +224,22 @@ function TasksContent() {
     setStarting(false);
   }
 
-  async function onCompleted(mission: MissionTask, completedAt: string) {
+  async function onCompleted(
+    mission: MissionTask,
+    completedAt: string,
+    missionCompleted: boolean,
+  ) {
     setCodeTarget(null);
+    if (!missionCompleted) {
+      // Lot 12 : journée confirmée, la mission continue.
+      toast({
+        title: t.schedule.dayConfirmed,
+        description: t.schedule.missionDoneAfterAll,
+        variant: "success",
+      });
+      await reload();
+      return;
+    }
     toast({
       title: tm.code.successTitle,
       description: tm.code.successAt.replace(
@@ -381,7 +411,86 @@ function TasksContent() {
         ),
       );
     }
-    if (!m.started_at && ACTIVE.has(m.status ?? "")) {
+    const days = missionDays(m.days);
+    const multi = days.length > 1;
+    if (multi) {
+      // Lot 12 : actions de chaque journée ; une journée non confirmée
+      // n'empêche pas les suivantes.
+      let upcomingShown = false;
+      for (const d of days) {
+        const label = formatDayDate(d.date, locale);
+        if (!d.started_at && canStartDay(m, d, serverNow)) {
+          rows.push(
+            taskRow(
+              `task-start-${d.id}`,
+              <Play className="h-5 w-5" />,
+              `${t.schedule.startDay} · ${label}`,
+              tt.startHint.replace("{time}", doualaTime(d.starts_at, locale)),
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="sm"
+                  onClick={() => setStartTarget({ mission: m, dayId: d.id })}
+                  disabled={suspended}
+                >
+                  {t.schedule.startDay}
+                </Button>
+              </motion.div>,
+              true,
+            ),
+          );
+        } else if (
+          !d.started_at &&
+          !upcomingShown &&
+          (m.status === "pending" ||
+            m.status === "confirmed" ||
+            m.status === "in_progress")
+        ) {
+          upcomingShown = true;
+          rows.push(
+            taskRow(
+              `task-upcoming-${d.id}`,
+              <Calendar className="h-5 w-5" />,
+              `${t.schedule.startDay} · ${label}`,
+              tt.startAvailableAt.replace(
+                "{time}",
+                doualaDateTime(d.start_available_at, locale),
+              ),
+              null,
+            ),
+          );
+        }
+        if (d.started_at && !d.completed_at) {
+          const reached = dayEndReached(d, serverNow);
+          rows.push(
+            taskRow(
+              `task-finish-${d.id}`,
+              <KeyRound className="h-5 w-5" />,
+              `${
+                reached
+                  ? tt.finish
+                  : tt.inProgress.replace(
+                      "{time}",
+                      doualaTime(d.ends_at, locale),
+                    )
+              } · ${label}`,
+              tt.finishHint,
+              <motion.div whileTap={{ scale: 0.97 }}>
+                <Button
+                  size="sm"
+                  variant={reached ? "default" : "outline"}
+                  onClick={() => setCodeTarget({ mission: m, dayId: d.id })}
+                  disabled={suspended}
+                >
+                  {t.schedule.confirmDay}
+                </Button>
+              </motion.div>,
+              reached,
+            ),
+          );
+        }
+      }
+    }
+    if (!multi && !m.started_at && ACTIVE.has(m.status ?? "")) {
       rows.push(
         canStart(m)
           ? taskRow(
@@ -395,7 +504,7 @@ function TasksContent() {
               <motion.div whileTap={{ scale: 0.97 }}>
                 <Button
                   size="sm"
-                  onClick={() => setStartTarget(m)}
+                  onClick={() => setStartTarget({ mission: m, dayId: null })}
                   disabled={suspended}
                 >
                   {tt.start}
@@ -415,7 +524,7 @@ function TasksContent() {
             ),
       );
     }
-    if (m.started_at && !m.completed_at) {
+    if (!multi && m.started_at && !m.completed_at) {
       rows.push(
         taskRow(
           `task-finish-${m.mission_id}`,
@@ -431,7 +540,7 @@ function TasksContent() {
             <Button
               size="sm"
               variant={endReached(m) ? "default" : "outline"}
-              onClick={() => setCodeTarget(m)}
+              onClick={() => setCodeTarget({ mission: m, dayId: null })}
               disabled={suspended}
             >
               {tt.validate}
@@ -477,10 +586,27 @@ function TasksContent() {
               <Building2 className="h-4 w-4" aria-hidden />
               <span>{m.company_name ?? "—"}</span>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {doualaDateTime(m.scheduled_start_at, locale)} –{" "}
-              {doualaTime(m.scheduled_end_at, locale)}
-            </div>
+            {multi ? (
+              <div
+                className="mt-1 text-xs text-muted-foreground"
+                data-testid="task-mission-days"
+              >
+                {formatDayDate(days[0].date, locale)} →{" "}
+                {formatDayDate(days[days.length - 1].date, locale)}
+                {" · "}
+                {t.schedule.dayProgress
+                  .replace(
+                    "{done}",
+                    String(days.filter((d) => d.completed_at).length),
+                  )
+                  .replace("{total}", String(days.length))}
+              </div>
+            ) : (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {doualaDateTime(m.scheduled_start_at, locale)} –{" "}
+                {doualaTime(m.scheduled_end_at, locale)}
+              </div>
+            )}
             {m.completed_at && (
               <div className="mt-1 flex items-center gap-1 text-xs text-success">
                 <CheckCircle className="h-3 w-3" aria-hidden />
@@ -610,7 +736,7 @@ function TasksContent() {
             <DialogDescription>
               {tt.startConfirmDescription.replace(
                 "{job}",
-                startTarget?.job_title ?? "",
+                startTarget?.mission.job_title ?? "",
               )}
             </DialogDescription>
           </DialogHeader>
@@ -639,9 +765,12 @@ function TasksContent() {
         <CompletionCodeDialog
           open={!!codeTarget}
           onOpenChange={(open) => !open && setCodeTarget(null)}
-          missionId={codeTarget.mission_id}
-          jobTitle={codeTarget.job_title}
-          onCompleted={(at) => void onCompleted(codeTarget, at)}
+          missionId={codeTarget.mission.mission_id}
+          missionDayId={codeTarget.dayId}
+          jobTitle={codeTarget.mission.job_title}
+          onCompleted={(at, done) =>
+            void onCompleted(codeTarget.mission, at, done)
+          }
         />
       )}
 

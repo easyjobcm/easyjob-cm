@@ -31,6 +31,8 @@ import { LangSwitch } from "@/components/ui/lang-switch";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { useLiveRefresh } from "@/lib/realtime/provider";
+import { plural } from "@/lib/i18n/plural";
+import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
 
 interface AdminDashboardClientProps {
   pendingJobs: Array<{
@@ -46,6 +48,15 @@ interface AdminDashboardClientProps {
     positions_available: number | null;
     urgency?: string | null;
     updated_at: string | null;
+    /** Lot 12 : calendrier soumis (dates explicites). */
+    schedule_format?: string | null;
+    days?: Array<{
+      day_date: string;
+      start_time: string;
+      end_time: string;
+      mission_pay_per_candidate: number | null;
+      positions_available: number | null;
+    }> | null;
     company?: {
       company_name?: string;
     };
@@ -110,6 +121,7 @@ export function AdminDashboardClient({
     moderatingRef.current = true;
     setModerating(true);
     let code = "moderation_failed";
+    let tooCloseDays: string[] = [];
     try {
       const res = await fetch(`/api/admin/jobs/${job.id}/moderate`, {
         method: "POST",
@@ -124,7 +136,9 @@ export function AdminDashboardClient({
       const body = (await res.json().catch(() => ({}))) as {
         code?: string;
         status?: string;
+        days?: string[];
       };
+      tooCloseDays = Array.isArray(body.days) ? body.days : [];
       const expected = action === "approve" ? "active" : "rejected";
       if (res.ok && body.status === expected) {
         toast({
@@ -148,9 +162,16 @@ export function AdminDashboardClient({
     toast({
       title: tm.errorTitle,
       description:
-        code in tm.errors
+        (code in tm.errors
           ? tm.errors[code as keyof typeof tm.errors]
-          : tm.errors.moderation_failed,
+          : tm.errors.moderation_failed) +
+        // Lot 12 : journées non publiables nommées ; rien n'est publié.
+        (code === "job_start_too_close" && tooCloseDays.length > 0
+          ? ` ${t.schedule.tooClose.replace(
+              "{days}",
+              tooCloseDays.map((d) => formatDayDate(d, locale)).join(", "),
+            )}`
+          : ""),
       variant: "destructive",
     });
     // Décision déjà prise ou offre modifiée : l'écran est obsolète.
@@ -476,6 +497,53 @@ export function AdminDashboardClient({
               </p>
               <p className="text-sm">{selectedJob.description}</p>
             </div>
+
+            {selectedJob.days && selectedJob.days.length > 1 && (
+              <div data-testid="moderation-days">
+                <p className="text-sm text-muted-foreground mb-1">
+                  {
+                    t.schedule.formats[
+                      selectedJob.schedule_format === "per_day"
+                        ? "per_day"
+                        : "full_period"
+                    ].title
+                  }
+                  {" · "}
+                  {plural(selectedJob.days.length, t.schedule.dayCount, locale)}
+                </p>
+                <ul className="space-y-1 text-sm">
+                  {[...selectedJob.days]
+                    .sort((a, b) =>
+                      `${a.day_date}${a.start_time}`.localeCompare(
+                        `${b.day_date}${b.start_time}`,
+                      ),
+                    )
+                    .map((d) => (
+                      <li
+                        key={d.day_date}
+                        className="flex flex-wrap gap-x-2"
+                        data-testid="moderation-day"
+                      >
+                        <span className="font-medium">
+                          {formatDayDate(d.day_date, locale)}
+                        </span>
+                        <span>{formatDayHours(d, t.schedule.nextDay)}</span>
+                        {selectedJob.schedule_format === "per_day" && (
+                          <span className="text-muted-foreground">
+                            <MissionPay amount={d.mission_pay_per_candidate} />
+                            {" · "}
+                            {plural(
+                              d.positions_available ?? 1,
+                              t.schedule.perDayPositions,
+                              locale,
+                            )}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

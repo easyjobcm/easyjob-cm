@@ -33,6 +33,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
 
@@ -381,6 +382,10 @@ async function main() {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Lot 12 : un même candidat ne peut pas tenir deux engagements qui se
+    // chevauchent ou sont à moins de 3 h ; chaque offre de la preuve a donc
+    // sa propre date (la première garde JOB_BODY.start_date).
+    let seedCount = 0;
     async function seedJob(
       companyId: string,
       extra: Partial<JobInsert> = {},
@@ -389,6 +394,7 @@ async function main() {
         .from("jobs")
         .insert({
           ...JOB_BODY,
+          start_date: addDays(JOB_BODY.start_date, 2 * seedCount++),
           company_id: companyId,
           status: "active",
           ...extra,
@@ -603,12 +609,22 @@ async function main() {
       s7b.status,
     );
 
-    const jLong = await seedJob(coA, { end_date: "2099-02-13" });
+    // Lot 12 : trois journées travaillées, choisies explicitement (non
+    // consécutives) ; un intervalle de dates ne crée plus de journées.
+    const { jobId: jLong } = await insertJobWithDays(
+      serviceClient,
+      { ...JOB_BODY, company_id: coA },
+      [
+        { date: "2099-06-01", start_time: "09:00", end_time: "17:00" },
+        { date: "2099-06-03", start_time: "09:00", end_time: "17:00" },
+        { date: "2099-06-08", start_time: "09:00", end_time: "17:00" },
+      ],
+    );
     const appLong = await apply(C[0], jLong);
     await select(A, appLong);
     const stLong = await state(appLong);
     report(
-      "S9 : mission de 3 jours ou plus → contrat formalisé (SRS §6.7)",
+      "S9 : mission de 3 journées travaillées ou plus → contrat formalisé (SRS §6.7)",
       stLong.missions[0]?.contract_type === "formal" &&
         stLong.contracts[0]?.contract_template === "formal",
       stLong.contracts[0]?.contract_template,
@@ -962,6 +978,12 @@ async function main() {
       // nombre d'avis, ni nombre de missions).
       "reputation_stars",
       "skills",
+      // Lot 12 : journée visée (format « journées au choix ») ; aucune
+      // donnée du candidat.
+      "job_day_id",
+      "day_date",
+      "day_starts_at",
+      "day_ends_at",
     ].sort();
     const forbiddenStrings = [
       SECRETS.lastName,

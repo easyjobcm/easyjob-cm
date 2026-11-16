@@ -66,7 +66,9 @@ export default function EditJobPage() {
         `id, title, description, job_type, start_date, end_date,
          start_time, end_time, positions_available, positions_filled,
          mission_pay_per_candidate, required_skills, status,
-         first_published_at`,
+         first_published_at, legacy_publication, category_id, schedule_format,
+         days:job_days(day_date, start_time, end_time,
+                       mission_pay_per_candidate, positions_available)`,
       )
       .eq("id", id)
       .maybeSingle();

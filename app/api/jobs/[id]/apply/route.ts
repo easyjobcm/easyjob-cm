@@ -8,6 +8,11 @@ import {
 } from "@/lib/matching/skill-document-requirements";
 import { checkEssentialCriteria } from "@/lib/utils/profile-completion";
 import { cniExpiredDetailSchema } from "@/lib/utils/cni-validity";
+import {
+  JOB_DAYS_MAX,
+  parseBlockedDays,
+  parseDaysDetail,
+} from "@/lib/jobs/schedule";
 
 // Les règles de candidature et de retrait sont appliquées en base par les
 // RPC `apply_to_job` et `withdraw_job_application` (migration
@@ -25,6 +30,12 @@ import { cniExpiredDetailSchema } from "@/lib/utils/cni-validity";
 // visible dans l'onglet Tâches après reconnexion.
 
 const jobIdSchema = z.string().uuid();
+
+// Lot 12 : journées visées (format « journées au choix »), tout ou rien.
+// Corps absent : candidature à l'offre entière (période complète).
+const applyBodySchema = z.object({
+  day_ids: z.array(z.string().uuid()).min(1).max(JOB_DAYS_MAX).optional(),
+});
 
 type RpcError = { message: string; details?: string | null };
 
@@ -45,6 +56,14 @@ const APPLY_REFUSALS: Record<string, { status: number; error: string }> = {
   // Lot 11b : échéance de l'offre atteinte (H−24, ou H−2 si urgente).
   recruitment_closed: { status: 409, error: "Applications are closed" },
   already_applied: { status: 400, error: "Already applied to this job" },
+  // Lot 12 : journées au choix.
+  job_days_required: { status: 400, error: "Choose at least one day" },
+  job_days_invalid: { status: 400, error: "Invalid days" },
+  job_days_not_selectable: {
+    status: 400,
+    error: "This job covers the whole period",
+  },
+  job_days_missing: { status: 409, error: "Job is not available" },
 };
 
 const WITHDRAW_REFUSALS: Record<string, { status: number; error: string }> = {
@@ -76,6 +95,36 @@ export async function POST(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
+    const raw = await request.text();
+    let parsedBody: unknown = {};
+    try {
+      parsedBody = raw.trim() ? JSON.parse(raw) : {};
+    } catch {
+      parsedBody = null;
+    }
+    const body = applyBodySchema.safeParse(parsedBody);
+    if (!body.success) {
+      return NextResponse.json(
+        { error: "Invalid days", code: "job_days_invalid" },
+        { status: 400 },
+      );
+    }
+
+    if (body.data.day_ids) {
+      const { data: applications, error } = await supabase.rpc(
+        "apply_to_job_days",
+        { p_job_id: jobId.data, p_day_ids: body.data.day_ids },
+      );
+      if (error) {
+        return applyRefusalResponse(supabase, user.id, jobId.data, error);
+      }
+      return NextResponse.json({
+        success: true,
+        application: applications[0] ?? null,
+        applications,
+      });
+    }
+
     const { data: application, error } = await supabase.rpc("apply_to_job", {
       p_job_id: jobId.data,
     });
@@ -84,7 +133,6 @@ export async function POST(
       return applyRefusalResponse(supabase, user.id, jobId.data, error);
     }
 
-    // TODO: Send notification to company
     return NextResponse.json({ success: true, application });
   } catch (error) {
     logServerError("jobs.apply", error, {
@@ -108,6 +156,31 @@ async function applyRefusalResponse(
     return NextResponse.json(
       { error: refusal.error, code: error.message },
       { status: refusal.status },
+    );
+  }
+
+  // Lot 12 : journées bloquantes nommées (date, motif), rien n'est créé.
+  if (error.message === "job_days_unavailable") {
+    return NextResponse.json(
+      {
+        error: "Some days are no longer available",
+        code: "job_days_unavailable",
+        days: parseBlockedDays(error.details),
+      },
+      { status: 409 },
+    );
+  }
+
+  // Engagement du candidat lui-même incompatible (chevauchement ou moins de
+  // 3 h) : journées de cette offre concernées.
+  if (error.message === "schedule_conflict") {
+    return NextResponse.json(
+      {
+        error: "You already have a commitment at that time",
+        code: "schedule_conflict",
+        days: parseDaysDetail(error.details),
+      },
+      { status: 409 },
     );
   }
 
@@ -207,11 +280,31 @@ export async function DELETE(
       );
     }
 
+    // Lot 12 : journée précise (`?application=<id>`, journées au choix) ;
+    // sans paramètre, la candidature à l'offre entière.
+    const applicationParam = new URL(request.url).searchParams.get(
+      "application",
+    );
+    const applicationId = applicationParam
+      ? z.string().uuid().safeParse(applicationParam)
+      : null;
+    if (applicationId && !applicationId.success) {
+      return NextResponse.json(
+        { error: "Application not found", code: "application_not_found" },
+        { status: 404 },
+      );
+    }
+
     // Retrait : passage contrôlé à `withdrawn` (la ligne est conservée). Un
     // retrait déjà effectué renvoie la ligne inchangée.
     const { data: application, error } = await supabase.rpc(
       "withdraw_job_application",
-      { p_job_id: jobId.data },
+      {
+        p_job_id: jobId.data,
+        ...(applicationId?.success
+          ? { p_application_id: applicationId.data }
+          : {}),
+      },
     );
 
     if (error) {

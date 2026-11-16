@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { Constants } from "@/lib/database.types";
+import {
+  JOB_DAYS_MAX,
+  SCHEDULE_FORMATS,
+  scheduleIssue,
+} from "@/lib/jobs/schedule";
 
 /** Date du jour à Douala (YYYY-MM-DD), comme `create_job` côté base. */
 export function doualaToday(now: Date = new Date()): string {
@@ -75,6 +80,69 @@ const jobFields = z.object({
   urgency: z.enum(["normal", "urgent"]).optional().default("normal"),
 });
 
+/** Places d'une journée (format « journées au choix »). */
+export const dayPositionsSchema = z
+  .number()
+  .int("positionsInvalid")
+  .min(1, "positionsInvalid")
+  .max(10_000, "positionsInvalid");
+
+/**
+ * Journée explicite (lot 12). Montant et places seulement pour le format
+ * `per_day` ; une période complète n'a qu'un montant, celui de l'offre.
+ */
+export const jobDaySchema = z.object({
+  date: isoDate,
+  start_time: time,
+  end_time: time,
+  mission_pay_per_candidate: missionPaySchema.optional(),
+  positions_available: dayPositionsSchema.optional(),
+});
+export type JobDayInput = z.input<typeof jobDaySchema>;
+
+const scheduleFields = z.object({
+  schedule_format: z.enum(SCHEDULE_FORMATS).optional(),
+  days: z
+    .array(jobDaySchema)
+    .min(1, "daysRequired")
+    .max(JOB_DAYS_MAX, "daysTooMany")
+    .optional(),
+});
+
+type ScheduleShape = z.output<typeof scheduleFields>;
+
+/** Règles du calendrier communes à la création et à la correction. */
+function checkSchedule(d: ScheduleShape, ctx: z.RefinementCtx) {
+  const format = d.schedule_format ?? "full_period";
+  if (!d.days) {
+    if (format === "per_day") {
+      ctx.addIssue({ code: "custom", path: ["days"], message: "daysRequired" });
+    }
+    return;
+  }
+  const issue = scheduleIssue(d.days);
+  if (issue) {
+    ctx.addIssue({ code: "custom", path: ["days"], message: issue });
+    return;
+  }
+  for (const day of d.days) {
+    const hasPay = day.mission_pay_per_candidate !== undefined;
+    const hasPositions = day.positions_available !== undefined;
+    if (format === "per_day" && !hasPay) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["days"],
+        message: "dayPayRequired",
+      });
+      return;
+    }
+    if (format === "full_period" && (hasPay || hasPositions)) {
+      ctx.addIssue({ code: "custom", path: ["days"], message: "daysInvalid" });
+      return;
+    }
+  }
+}
+
 const END_AFTER_START = {
   path: ["end_date"],
   message: "endDateBeforeStart",
@@ -82,8 +150,23 @@ const END_AFTER_START = {
 const endAfterStart = (d: { start_date: string; end_date?: string }) =>
   !d.end_date || d.end_date >= d.start_date;
 
-/** Création : début à partir d'aujourd'hui (heure de Douala). */
-export const jobInputSchema = jobFields.refine(endAfterStart, END_AFTER_START);
+/**
+ * Création : début à partir d'aujourd'hui (heure de Douala). Sans `days`,
+ * une seule journée : aucun intervalle n'est accepté (lot 12, aucune
+ * journée déduite de deux dates).
+ */
+export const jobInputSchema = jobFields
+  .extend(scheduleFields.shape)
+  .refine(endAfterStart, END_AFTER_START)
+  .refine((d) => !!d.days || !d.end_date || d.end_date === d.start_date, {
+    path: ["days"],
+    message: "daysRequired",
+  })
+  .refine((d) => !d.days || d.days.every((day) => day.date >= doualaToday()), {
+    path: ["days"],
+    message: "startDatePast",
+  })
+  .superRefine(checkSchedule);
 
 /**
  * Modification (lot 11b) : après la première publication, dates et
@@ -93,7 +176,9 @@ export const jobInputSchema = jobFields.refine(endAfterStart, END_AFTER_START);
  */
 export const jobUpdateSchema = jobFields
   .extend({ start_date: isoDate })
-  .refine(endAfterStart, END_AFTER_START);
+  .extend(scheduleFields.shape)
+  .refine(endAfterStart, END_AFTER_START)
+  .superRefine(checkSchedule);
 
 export type JobInput = z.input<typeof jobInputSchema>;
 export type JobInputData = z.output<typeof jobInputSchema>;
@@ -128,6 +213,11 @@ export const JOB_RPC_REFUSALS = {
   job_start_too_close: 409,
   // Lot 11b : dates et horaires figés après la première publication.
   job_schedule_locked: 409,
+  // Lot 12 : offre antérieure à intervalle sans calendrier (publication
+  // refusée) ; candidat déjà engagé sur une plage incompatible (aucun
+  // détail de l'autre engagement).
+  job_days_missing: 409,
+  candidate_schedule_conflict: 409,
   recruitment_closed: 409,
   application_not_found: 404,
   application_not_selectable: 409,

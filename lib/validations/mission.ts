@@ -15,6 +15,14 @@ export const completionCodeSchema = z.object({
     .string({ message: "code_format" })
     .trim()
     .regex(/^[0-9]{6}$/, "code_format"),
+  // Lot 12 : journée confirmée (obligatoire pour une mission de plusieurs
+  // journées ; la base refuse mission_day_required sinon).
+  mission_day_id: z.string().uuid().optional(),
+});
+
+/** Début d'une journée de mission (lot 12) ; corps facultatif. */
+export const missionStartSchema = z.object({
+  mission_day_id: z.string().uuid().optional(),
 });
 
 /**
@@ -79,6 +87,7 @@ export const MISSION_RPC_REFUSALS = {
   too_early: 409,
   not_started: 409,
   code_unavailable: 409,
+  mission_day_required: 400,
   mission_not_completed: 409,
   rating_invalid: 400,
   comment_too_long: 400,

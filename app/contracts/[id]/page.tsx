@@ -31,6 +31,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDate, formatTime } from "@/lib/utils";
+import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
+import { plural } from "@/lib/i18n/plural";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import type { Database } from "@/lib/database.types";
 import {
@@ -74,6 +76,17 @@ const termsSchema = z
     mission_pay_per_candidate: z.number().nullish(),
     currency: z.string().nullish(),
     pay_basis: z.string().nullish(),
+    // Lot 12 : format et journées figés à la sélection.
+    schedule_format: z.string().nullish(),
+    days: z
+      .array(
+        z.object({
+          date: z.string(),
+          start_time: z.string(),
+          end_time: z.string(),
+        }),
+      )
+      .nullish(),
   })
   .partial();
 
@@ -422,39 +435,70 @@ export default function ContractSignPage() {
                   {jobTitle}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar
-                  className="h-4 w-4 text-muted-foreground shrink-0"
-                  aria-label={tc.dates}
-                />
-                <span>
-                  {terms.start_date
-                    ? formatDate(terms.start_date, locale)
-                    : "—"}
-                  {!sameDay && terms.end_date
-                    ? ` – ${formatDate(terms.end_date, locale)}`
-                    : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Clock
-                  className="h-4 w-4 text-muted-foreground shrink-0"
-                  aria-label={tc.hours}
-                />
-                <span>
-                  {formatTime(terms.start_time, locale)} –{" "}
-                  {formatTime(terms.end_time, locale)}
-                </span>
-                {terms.break_minutes ? (
-                  <span className="text-sm text-muted-foreground">
-                    ·{" "}
-                    {tc.breakMinutes.replace(
-                      "{min}",
-                      String(terms.break_minutes),
-                    )}
+              {terms.days && terms.days.length > 1 ? (
+                <div
+                  className="flex items-start gap-2"
+                  data-testid="contract-days"
+                >
+                  <Calendar
+                    className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0"
+                    aria-label={tc.dates}
+                  />
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {terms.schedule_format === "per_day"
+                        ? t.schedule.formats.per_day.title
+                        : t.schedule.formats.full_period.title}
+                      {" · "}
+                      {plural(terms.days.length, t.schedule.dayCount, locale)}
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-sm">
+                      {terms.days.map((d) => (
+                        <li key={d.date} data-testid="contract-day">
+                          {formatDayDate(d.date, locale)} ·{" "}
+                          {formatDayHours(d, t.schedule.nextDay)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Calendar
+                    className="h-4 w-4 text-muted-foreground shrink-0"
+                    aria-label={tc.dates}
+                  />
+                  <span>
+                    {terms.start_date
+                      ? formatDate(terms.start_date, locale)
+                      : "—"}
+                    {!sameDay && terms.end_date
+                      ? ` – ${formatDate(terms.end_date, locale)}`
+                      : ""}
                   </span>
-                ) : null}
-              </div>
+                </div>
+              )}
+              {!(terms.days && terms.days.length > 1) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Clock
+                    className="h-4 w-4 text-muted-foreground shrink-0"
+                    aria-label={tc.hours}
+                  />
+                  <span>
+                    {formatTime(terms.start_time, locale)} –{" "}
+                    {formatTime(terms.end_time, locale)}
+                  </span>
+                  {terms.break_minutes ? (
+                    <span className="text-sm text-muted-foreground">
+                      ·{" "}
+                      {tc.breakMinutes.replace(
+                        "{min}",
+                        String(terms.break_minutes),
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <MapPin
                   className="h-4 w-4 text-muted-foreground shrink-0"

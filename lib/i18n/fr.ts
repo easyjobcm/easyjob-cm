@@ -82,6 +82,8 @@ export const fr = {
           "Entreprise suspendue ou non vérifiée : l'offre ne peut pas être publiée.",
         job_start_too_close:
           "Début trop proche ou passé : une offre se publie plus de 24 h avant son début, ou en urgence entre 24 h et 4 h avant.",
+        job_days_missing:
+          "Offre antérieure sans dates de travail précises : l'entreprise doit indiquer ses journées avant publication.",
         job_not_found: "Offre introuvable.",
         not_authenticated: "Session expirée. Veuillez vous reconnecter.",
         invalid_action: "Action invalide.",
@@ -827,6 +829,16 @@ export const fr = {
       recruitment_closed: "Les candidatures pour cette offre sont closes.",
       no_positions: "Toutes les places de cette offre sont pourvues.",
       already_applied: "Vous avez déjà postulé à cette offre.",
+      job_days_required: "Choisissez au moins une journée pour postuler.",
+      job_days_invalid:
+        "Journées invalides : actualisez la page puis réessayez.",
+      job_days_not_selectable:
+        "Cette offre couvre toute la période : la candidature porte sur l'ensemble des journées.",
+      job_days_missing: "Cette offre n'accepte pas de candidatures.",
+      job_days_unavailable:
+        "Certaines journées ne sont plus disponibles : rien n'a été envoyé.",
+      schedule_conflict:
+        "Vous avez déjà un engagement qui chevauche cette mission ou qui en est à moins de 3 h.",
       profile_incomplete:
         "Votre profil doit être complété à au moins 60 % pour postuler.",
       profile_not_verified:
@@ -2114,7 +2126,7 @@ export const fr = {
         "Après modification, l'offre repasse en modération : elle n'est plus visible par les candidats jusqu'à la nouvelle validation.",
       // Lot 11b : règle de lancement, horaires figés après publication.
       scheduleLocked:
-        "Offre déjà publiée : la date et les horaires ne peuvent plus être modifiés. Les autres informations restent modifiables. Pour déplacer la mission, créez une nouvelle offre : elle sera de nouveau modérée, et l'offre actuelle et ses candidatures sont conservées.",
+        "Offre déjà publiée : les dates, les journées et les horaires ne peuvent plus être modifiés (ni ajout ni retrait de journée). Les autres informations restent modifiables. Pour déplacer la mission, créez une nouvelle offre : elle sera de nouveau modérée, et l'offre actuelle et ses candidatures sont conservées.",
       scheduleLockedAction: "Créer une nouvelle offre",
       errorTitle: "Offre non enregistrée",
     },
@@ -2155,6 +2167,16 @@ export const fr = {
       job_not_editable: "Cette offre ne peut plus être modifiée.",
       job_has_commitments:
         "Suppression impossible : des candidats sont sélectionnés ou une mission est engagée sur cette offre. Contactez le support.",
+      daysRequired: "Ajoutez au moins une date de travail.",
+      daysTooMany: "31 journées au maximum par offre.",
+      daysDuplicate: "Chaque date ne peut figurer qu'une fois.",
+      daysTime: "L'heure de fin doit différer de l'heure de début.",
+      daysOverlap:
+        "Deux journées se chevauchent : vérifiez les horaires de nuit qui se terminent le lendemain.",
+      daysInvalid: "Certaines journées sont invalides.",
+      dayPayRequired: "Indiquez un montant entier positif pour chaque journée.",
+      job_days_missing:
+        "Cette offre n'a pas de dates de travail précises : indiquez chaque journée avant de la soumettre.",
       job_start_too_close:
         "Début trop proche ou passé : publiez l'offre plus de 24 h avant son début, ou au moins 4 h avant pour une publication urgente.",
       job_schedule_locked:
@@ -2253,6 +2275,10 @@ export const fr = {
         "Toutes les places de cette offre sont pourvues : aucune autre sélection n'est possible.",
       candidate_unavailable:
         "Ce candidat n'est plus disponible. Choisissez un autre candidat.",
+      candidate_schedule_conflict:
+        "Ce candidat a déjà un engagement incompatible avec ces horaires (chevauchement ou moins de 3 h d'écart). Choisissez un autre candidat.",
+      job_days_missing:
+        "Cette offre n'a pas de dates de travail précises : aucune sélection n'est possible.",
       selection_incomplete:
         "Sélection enregistrée sans mission ou contrat. Contactez le support.",
       generic: "La sélection n'a pas pu être enregistrée. Réessayez.",
@@ -2573,6 +2599,121 @@ export const fr = {
       saved: "Décision enregistrée.",
       error: "Action impossible. Réessayez.",
     },
+  },
+  // Lot 12 : offres de plusieurs journées (dates choisies explicitement).
+  schedule: {
+    datesLabel: "Dates de travail",
+    datesHint:
+      "Ajoutez chaque date travaillée. Les dates peuvent ne pas se suivre : aucun jour n'est ajouté automatiquement entre deux dates.",
+    addDate: "Ajouter",
+    addDateLabel: "Date à ajouter",
+    removeDate: "Retirer le {date}",
+    noDates: "Aucune date ajoutée.",
+    sameHours: "Mêmes horaires pour toutes les journées",
+    startTime: "Début",
+    endTime: "Fin",
+    nextDay: "+1 j",
+    crossesMidnight: "Se termine le lendemain.",
+    formatLabel: "Format de la mission",
+    formats: {
+      full_period: {
+        title: "Période complète",
+        desc: "Le candidat s'engage sur toutes les dates. Un montant fixe par candidat couvre toute la période.",
+      },
+      per_day: {
+        title: "Journées au choix",
+        desc: "Le candidat choisit ses journées. Montant et places propres à chaque journée.",
+      },
+    },
+    periodPayLabel: "Montant par candidat pour toute la période (F CFA)",
+    periodPayHint:
+      "Ce montant fixe couvre toutes les journées prévues. Il n'est jamais divisé par journée.",
+    dayPayLabel: "Montant par candidat (F CFA)",
+    dayPositions: "Places",
+    copyFirstDay: "Reprendre la première journée pour toutes",
+    preview: "Aperçu des journées",
+    dayCount: { one: "{count} journée", other: "{count} journées" },
+    perDayPositions: {
+      one: "{count} place",
+      other: "{count} places",
+    },
+    payFromTo: "De {min} à {max} par journée",
+    payPerDay: "{amount} par journée",
+    payPeriod: "Pour toute la période ({days})",
+    periodCommitment:
+      "Période complète : vous vous engagez sur toutes ces journées. Le montant couvre l'ensemble.",
+    chooseDays: "Choisissez vos journées",
+    chooseDaysHint:
+      "Cochez une ou plusieurs journées encore ouvertes. Vous pourrez postuler plus tard aux autres journées ouvertes.",
+    applyDays: {
+      one: "Postuler à {count} journée",
+      other: "Postuler à {count} journées",
+    },
+    selectDayFirst: "Choisissez au moins une journée",
+    summaryTitle: "Journées choisies",
+    dayState: {
+      open: "Ouverte",
+      closed: "Candidatures closes",
+      full: "Complète",
+      pending: "Candidature envoyée",
+      shortlisted: "Présélectionnée",
+      selected: "Sélectionné(e)",
+      rejected: "Non retenue",
+      withdrawn: "Retirée",
+      no_show: "Absence enregistrée",
+      conflict: "Incompatible",
+    },
+    withdrawDay: "Retirer cette candidature",
+    blocked: {
+      title: "Certaines journées ne sont plus disponibles",
+      recruitment_closed: "{date} : candidatures closes",
+      already_applied: "{date} : candidature déjà envoyée",
+      no_positions: "{date} : journée complète",
+      schedule_conflict: "{date} : vous avez déjà un engagement trop proche",
+      none: "Rien n'a été envoyé. Modifiez votre choix puis réessayez.",
+    },
+    conflict:
+      "Vous avez déjà un engagement qui chevauche cette période ou qui en est à moins de 3 h ({days}).",
+    // Conflit expliqué avant l'envoi (verdict de la base, jamais le détail
+    // de l'autre engagement).
+    conflictDay:
+      "Vous avez déjà un engagement sélectionné qui chevauche cette journée ou en est à moins de 3 h.",
+    conflictRule:
+      "Il faut au moins 3 h entre deux engagements sélectionnés. Vos candidatures en attente ne comptent pas.",
+    conflictOthersOpen: "Les autres journées restent disponibles.",
+    periodConflict: {
+      one: "Candidature impossible : la journée du {dates} est incompatible avec un engagement déjà sélectionné (chevauchement ou moins de 3 h d'écart). Cette offre engage sur toutes ses journées.",
+      other:
+        "Candidature impossible : {count} journées sont incompatibles avec un engagement déjà sélectionné (chevauchement ou moins de 3 h d'écart) : {dates}. Cette offre engage sur toutes ses journées.",
+    },
+    singleConflict:
+      "Candidature impossible : vous avez déjà un engagement sélectionné qui chevauche cette mission ou en est à moins de 3 h.",
+    applyBlockedConflict:
+      "Candidature impossible : conflit d'horaire avec un engagement déjà sélectionné.",
+    noCompatibleDay:
+      "Aucune journée encore ouverte n'est compatible avec vos engagements sélectionnés.",
+    unverified:
+      "Impossible de vérifier votre disponibilité pour le moment. La candidature reste bloquée tant que la vérification n'a pas abouti.",
+    selectionChanged: "Votre choix a été mis à jour",
+    selectionChangedHint: {
+      one: "Cette journée a été retirée de votre choix.",
+      other: "Ces journées ont été retirées de votre choix.",
+    },
+    tooClose: "Journées trop proches pour être publiées : {days}.",
+    dayHeading: "Journée du {date}",
+    allDays: "Toutes les journées",
+    dayProgress: "{done}/{total} journées confirmées",
+    startDay: "Commencer la journée",
+    confirmDay: "Confirmer la journée",
+    dayStarted: "Commencée",
+    dayConfirmed: "Confirmée",
+    dayNotConfirmed: "Non confirmée",
+    dayUpcoming: "À venir",
+    dayCode: "Code du {date}",
+    missionDoneAfterAll:
+      "La mission sera réalisée quand toutes les journées seront confirmées.",
+    unconfirmedNote:
+      "Une journée non confirmée reste non confirmée : rien n'est annulé ni retenu automatiquement. Pour un problème, contactez le support.",
   },
   days: {
     monday: "Lun",

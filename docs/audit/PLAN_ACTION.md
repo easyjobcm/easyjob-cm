@@ -21,6 +21,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 9d | Détail d'offre mobile, tâches et CNI en cours de validité — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-10 | Fonctionnel et UX | Moyen |
 | 10 | Documentation, consignes IA, nettoyage, journaux, CSP et fiabilité des preuves — **réalisé et vérifié localement, non déployé** | F-22, F-23, F-25, F-26, F-27, F-29, F-31 | Maintenance | Moyen |
 | 11 | Dossier entreprise vérifié par EasyJob (RCCM, NIU, représentant) — **réalisé et vérifié localement, non déployé ; vérifications DGI et greffe réelles hors preuve** | Suite de F-41 (lots 5b, 6) ; décision produit du 2026-11-11 | Fonctionnel et sécurité | Grand |
+| 12 | Offres de plusieurs journées (période complète, journées au choix) — **réalisé et vérifié localement, non déployé ; arbitrages produit signalés** | Décision produit du 2026-11-11 | Fonctionnel et sécurité | Grand |
 | — | Particuliers et professionnels non formalisés — **reporté (décision produit du 2026-11-11), non commencé** | — | Fonctionnel | À cadrer |
 | — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
 
@@ -421,7 +422,36 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 >
 > **Avant déploiement** (lecture seule) : compter les offres qui seront marquées `legacy_publication` et resteront closes : `select status, count(*) from public.jobs where status in ('active', 'filled', 'expired', 'cancelled') or published_at is not null group by 1;` (plus les offres en attente déjà approuvées une fois, tracées dans `audit_logs`).
 >
-> **Règle de lancement à réexaminer** (sans retirer ces lots du plan) : horaires figés après publication, dans le lot « Engagements et annulations » (qui remplace aussi la règle historique SRS « modification jusqu'à 12 h avant le début ») et dans le lot des offres de plusieurs jours.
+> **Règle de lancement à réexaminer** (sans retirer ces lots du plan) : horaires figés après publication, dans le lot « Engagements et annulations » (qui remplace aussi la règle historique SRS « modification jusqu'à 12 h avant le début »). Lot 12 : règle étendue au calendrier entier (ajout et retrait de journées compris).
+
+## Lot 12 — Offres de plusieurs journées
+
+> **Statut (2026-11-11)** : réalisé sur `feat/lot-12-multi-day-jobs` (base `origin/main-dev`, 0a1f381, lot 11b intégré par la PR #56), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §31 ; règles produit : SRS §5.4, §6.6 à §6.8.
+> - Dates choisies une à une (1 à 31), horaires communs ou par journée, journée de nuit sur deux dates, aperçu avant envoi ; parcours d'une journée conservé ; catégorie réelle enregistrée et préremplie.
+> - **Période complète** : une candidature, un contrat et une mission globale, un montant fixe pour toute la période (jamais divisé), un code par journée et par candidat, réalisation à la dernière journée confirmée. **Journées au choix** : montant et places par journée, candidature tout ou rien sur une ou plusieurs journées, candidature ultérieure aux autres journées, une mission, un contrat et un code par journée.
+> - Échéances du lot 11b : premier début (période) ou chaque journée (au choix), fixées à la première publication ; refus de toute l'offre si une journée n'est plus publiable, journées nommées ; calendrier figé après publication pour tout auteur.
+> - Sélection sous verrou : places par journée ; conflits d'engagements du candidat (chevauchement ou moins de 3 h, 3 h admis) sous verrou consultatif propre au candidat, sans détail révélé à l'entreprise.
+> - Réputation sans double comptage : candidat +1 par mission réalisée, entreprise +1 par offre.
+> - Migration `20261113120000_multi_day_jobs.sql` ; preuve `multi-day-jobs` (67 assertions, dont la réputation entreprise, les choix confirmés et le conflit expliqué avant l'envoi) ajoutée à `pnpm test:rls` ; preuves existantes adaptées (dates distinctes : un même candidat ne tient plus deux engagements au même créneau).
+>
+> **Avant déploiement** (lecture seule) : compter les offres à intervalle, qui ne recevront aucune journée (requête dans `AUDIT.md` §31) ; prévenir les entreprises dont une offre en attente devra être ressaisie, et le support (offres publiées à intervalle : closes depuis le lot 11b, engagements conservés).
+>
+> **Décision validée (2026-11-11), appliquée** : réputation entreprise : +1 par offre, une seule fois, quand une réalisation au moins est confirmée par code, tous les engagements sont résolus et le recrutement est clos par son échéance ; sans travail, rien ; sanctions indépendantes ; recalcul à l'échéance par la tâche planifiée existante (`AUDIT.md` §31). Seul le travail confirmé est aujourd'hui une résolution : les statuts `no_show` et `cancelled` ne le sont plus.
+>
+> **Choix confirmés (2026-11-11)**, détail et preuves dans `AUDIT.md` §31 :
+> - contrat formalisé dès trois journées prévues dans le même contrat (période complète de trois journées non consécutives comprise ; trois missions journalières indépendantes restent trois contrats simples distincts) — convention produit, sans validation juridique ;
+> - 31 journées travaillées au plus par offre (pas une limite de 31 jours calendaires) ;
+> - conflits détectés dès la candidature, sur les seuls engagements déjà sélectionnés et avec la marge de 3 h ; les candidatures en attente ne bloquent rien ; contrôle définitif à la sélection, sous verrou.
+>
+> **Blocage confirmé (2026-11-12)** : les journées incompatibles sont refusées à la candidature, et le conflit est expliqué avant l'envoi (compatibilité calculée par la base, journées incompatibles visibles mais non cochables, période complète désactivée, relecture en temps réel, lecture en échec jamais tenue pour « disponible ») ; le refus en base reste pour un écran périmé (`AUDIT.md` §31).
+>
+> **Limites conservées** :
+> - recalcul planifié de la réputation toutes les 15 minutes (pg_cron) ; passage réel de pg_cron non observé dans la validation (fonction de balayage appelée par la preuve) ; à vérifier après déploiement (`cron.job`, premier passage) ;
+> - `tests/proof-db-query.test.ts` (lot 10) intermittent sous charge : 4 échecs sur 25 ; cause de la forme `isAlive` inconnue ; **correction suivie en maintenance**, sans relance ni délai allongé ;
+> - absences, remboursements et situations partielles : lots « Engagements et annulations » et paiement ; aucune résolution présumée.
+
+- **Dépendances** : lot 11b (échéances, horaires figés) ; lot 7 (sélection, contrat, codes) ; lot 9c (réputation).
+- **Hors lot** : signalement d'une journée non confirmée, absence, contestation, remplacement, sanction, remboursement (lot « Engagements et annulations ») ; résolution « absence validée avec remboursement effectivement confirmé » de la règle de réputation entreprise (lots « Engagements et annulations » et paiement) ; signature de l'entreprise avant sélection (lot contrats) ; correction encadrée des horaires (lot dédié).
 
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
@@ -448,15 +478,15 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
   - absence : qui la constate, délai et forme du justificatif, validation (SRS §11.9) ;
   - qui prononce la décision (support, parcours automatique) et comment elle est contestée ;
   - remplacer la règle historique SRS « modification ou suppression jusqu'à 12 h avant le début » (non appliquée) et réexaminer la règle de lancement du lot 11b (dates et horaires figés après publication).
-- **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement).
+- **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement). Lot 12 : produire la résolution « absence validée avec remboursement effectivement confirmé » attendue par `reputation_company_offers` (aujourd'hui seul le travail confirmé résout un engagement), et les décisions du support sur les situations partielles (journée d'une période non confirmée : aucune division du forfait).
 - **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
-- **Dépendances** : lot 9c ; lot paiement pour les pénalités.
+- **Dépendances** : lot 9c ; lot paiement pour les pénalités ; lot 12 (journées de mission : une journée non confirmée reste non confirmée, sans sanction ni annulation des suivantes ; `protect_reputation_incidents` refuse aujourd'hui une absence sur une mission globale dont une journée est confirmée, règle à préciser).
 - **Taille** : moyen.
 
 ---
 
 ## Hors plan (à cadrer séparément)
 
-- **Paiement Mobile Money** : choix du fournisseur ou agrégateur, webhooks signés avec protection contre le rejeu, idempotence, rapprochement et gestion des échecs partiels. Aucun code de production n'existe aujourd'hui. À redéfinir dans ce lot : les délais de versement liés aux étoiles (SRS §5.3 : « premium et note ≥ 4 » → 48 h, 50/50 ou 7 jours), fondés sur l'ancienne note moyenne (`AUDIT.md` §26), et les pénalités financières des annulations (avec le futur lot « Engagements et annulations »).
+- **Paiement Mobile Money** : choix du fournisseur ou agrégateur, webhooks signés avec protection contre le rejeu, idempotence, rapprochement et gestion des échecs partiels. Aucun code de production n'existe aujourd'hui. À redéfinir dans ce lot : les délais de versement liés aux étoiles (SRS §5.3 : « premium et note ≥ 4 » → 48 h, 50/50 ou 7 jours), fondés sur l'ancienne note moyenne (`AUDIT.md` §26), et les pénalités financières des annulations (avec le futur lot « Engagements et annulations »). Lot 12 : fournir la confirmation effective d'un remboursement, seule preuve admise pour résoudre une absence dans la règle de réputation entreprise (aucun remboursement présumé).
 - **Données personnelles** : validation juridique (conservation des CNI, information des personnes, suppression ou export de compte, déclaration à l'autorité compétente). Cela produira des exigences techniques à planifier ensuite.
 - **Observabilité** : choisir un outil de capture d'erreurs seulement après le lot 8, si les logs Vercel ne suffisent pas.

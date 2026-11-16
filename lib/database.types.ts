@@ -1172,6 +1172,7 @@ export type Database = {
           has_worked_here_before: boolean
           id: string
           is_direct_invite: boolean | null
+          job_day_id: string | null
           job_id: string
           match_score: number | null
           previous_rating: number | null
@@ -1192,6 +1193,7 @@ export type Database = {
           has_worked_here_before?: boolean
           id?: string
           is_direct_invite?: boolean | null
+          job_day_id?: string | null
           job_id: string
           match_score?: number | null
           previous_rating?: number | null
@@ -1212,6 +1214,7 @@ export type Database = {
           has_worked_here_before?: boolean
           id?: string
           is_direct_invite?: boolean | null
+          job_day_id?: string | null
           job_id?: string
           match_score?: number | null
           previous_rating?: number | null
@@ -1228,6 +1231,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "candidate_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_job_day_fkey"
+            columns: ["job_day_id", "job_id"]
+            isOneToOne: false
+            referencedRelation: "job_days"
+            referencedColumns: ["id", "job_id"]
           },
           {
             foreignKeyName: "job_applications_job_id_fkey"
@@ -1274,6 +1284,62 @@ export type Database = {
           sort_order?: number | null
         }
         Relationships: []
+      }
+      job_days: {
+        Row: {
+          applications_close_at: string | null
+          created_at: string
+          day_date: string
+          end_time: string
+          ends_at: string
+          id: string
+          job_id: string
+          mission_pay_per_candidate: number | null
+          positions_available: number | null
+          positions_filled: number
+          publication_regime: string | null
+          start_time: string
+          starts_at: string
+        }
+        Insert: {
+          applications_close_at?: string | null
+          created_at?: string
+          day_date: string
+          end_time: string
+          ends_at: string
+          id?: string
+          job_id: string
+          mission_pay_per_candidate?: number | null
+          positions_available?: number | null
+          positions_filled?: number
+          publication_regime?: string | null
+          start_time: string
+          starts_at: string
+        }
+        Update: {
+          applications_close_at?: string | null
+          created_at?: string
+          day_date?: string
+          end_time?: string
+          ends_at?: string
+          id?: string
+          job_id?: string
+          mission_pay_per_candidate?: number | null
+          positions_available?: number | null
+          positions_filled?: number
+          publication_regime?: string | null
+          start_time?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_days_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_favorites: {
         Row: {
@@ -1469,6 +1535,7 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
+          schedule_format: string
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -1526,6 +1593,7 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
+          schedule_format?: string
           selection_deadline?: string | null
           special_instructions?: string | null
           start_date: string
@@ -1583,6 +1651,7 @@ export type Database = {
           required_documents?: string[] | null
           required_equipment?: string[] | null
           required_skills?: string[] | null
+          schedule_format?: string
           selection_deadline?: string | null
           special_instructions?: string | null
           start_date?: string
@@ -1698,6 +1767,7 @@ export type Database = {
           failed_attempts: number
           job_id: string
           locked_until: string | null
+          mission_day_id: string
           mission_id: string
         }
         Insert: {
@@ -1708,6 +1778,7 @@ export type Database = {
           failed_attempts?: number
           job_id: string
           locked_until?: string | null
+          mission_day_id: string
           mission_id: string
         }
         Update: {
@@ -1718,6 +1789,7 @@ export type Database = {
           failed_attempts?: number
           job_id?: string
           locked_until?: string | null
+          mission_day_id?: string
           mission_id?: string
         }
         Relationships: [
@@ -1729,9 +1801,73 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mission_completion_codes_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "mission_completion_codes_mission_id_fkey"
             columns: ["mission_id"]
-            isOneToOne: true
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_days: {
+        Row: {
+          actual_end_time: string | null
+          actual_start_time: string | null
+          created_at: string
+          ends_at: string
+          id: string
+          job_day_id: string | null
+          mission_id: string
+          scheduled_date: string
+          scheduled_end_time: string
+          scheduled_start_time: string
+          starts_at: string
+        }
+        Insert: {
+          actual_end_time?: string | null
+          actual_start_time?: string | null
+          created_at?: string
+          ends_at: string
+          id?: string
+          job_day_id?: string | null
+          mission_id: string
+          scheduled_date: string
+          scheduled_end_time: string
+          scheduled_start_time: string
+          starts_at: string
+        }
+        Update: {
+          actual_end_time?: string | null
+          actual_start_time?: string | null
+          created_at?: string
+          ends_at?: string
+          id?: string
+          job_day_id?: string | null
+          mission_id?: string
+          scheduled_date?: string
+          scheduled_end_time?: string
+          scheduled_start_time?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_days_job_day_id_fkey"
+            columns: ["job_day_id"]
+            isOneToOne: false
+            referencedRelation: "job_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_days_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
             referencedRelation: "missions"
             referencedColumns: ["id"]
           },
@@ -2657,6 +2793,7 @@ export type Database = {
           has_worked_here_before: boolean
           id: string
           is_direct_invite: boolean | null
+          job_day_id: string | null
           job_id: string
           match_score: number | null
           previous_rating: number | null
@@ -2671,6 +2808,66 @@ export type Database = {
           to: "job_applications"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      apply_to_job_core: {
+        Args: { p_day_ids: string[]; p_job_id: string }
+        Returns: {
+          ai_score: number | null
+          candidate_id: string
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          contract_url: string | null
+          created_at: string | null
+          distance_km: number | null
+          has_worked_here_before: boolean
+          id: string
+          is_direct_invite: boolean | null
+          job_day_id: string | null
+          job_id: string
+          match_score: number | null
+          previous_rating: number | null
+          rejection_reason: string | null
+          selected_at: string | null
+          selected_by: string | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_applications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      apply_to_job_days: {
+        Args: { p_day_ids: string[]; p_job_id: string }
+        Returns: {
+          ai_score: number | null
+          candidate_id: string
+          contract_signed: boolean | null
+          contract_signed_at: string | null
+          contract_url: string | null
+          created_at: string | null
+          distance_km: number | null
+          has_worked_here_before: boolean
+          id: string
+          is_direct_invite: boolean | null
+          job_day_id: string | null
+          job_id: string
+          match_score: number | null
+          previous_rating: number | null
+          rejection_reason: string | null
+          selected_at: string | null
+          selected_by: string | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "job_applications"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       candidate_action_tasks: { Args: never; Returns: Json }
@@ -2696,6 +2893,10 @@ export type Database = {
         }
         Returns: number
       }
+      candidate_schedule_conflicts: {
+        Args: { p_candidate_id: string; p_ranges: unknown[] }
+        Returns: number[]
+      }
       candidate_tasks: {
         Args: never
         Returns: {
@@ -2706,6 +2907,7 @@ export type Database = {
           company_name: string
           completed_at: string
           contract_id: string
+          days: Json
           job_title: string
           mission_id: string
           scheduled_end_at: string
@@ -2770,9 +2972,13 @@ export type Database = {
         Returns: {
           application_id: string
           created_at: string
+          day_date: string
+          day_ends_at: string
+          day_starts_at: string
           distance_km: number
           first_name: string
           has_photo: boolean
+          job_day_id: string
           last_initial: string
           match_score: number
           rejection_reason: string
@@ -2789,6 +2995,10 @@ export type Database = {
           company_reviewed: boolean
           completed_at: string
           completion_code: string
+          day_count: number
+          day_date: string
+          mission_completed_at: string
+          mission_day_id: string
           mission_id: string
           scheduled_end_at: string
           scheduled_start_at: string
@@ -2907,6 +3117,7 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
+          schedule_format: string
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -2967,10 +3178,12 @@ export type Database = {
           contract_id: string
           contract_status: Database["public"]["Enums"]["contract_status"]
           currency: string
+          days: Json
           job_id: string
           job_title: string
           mission_id: string
           mission_pay_per_candidate: number
+          schedule_format: string
           scheduled_date: string
           scheduled_end_at: string
           scheduled_end_time: string
@@ -3042,6 +3255,7 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
+          schedule_format: string
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -3061,6 +3275,63 @@ export type Database = {
         }
       }
       job_availability: { Args: { p_job_id: string }; Returns: string }
+      job_days_for_candidate: {
+        Args: { p_job_id: string }
+        Returns: {
+          applications_close_at: string
+          day_date: string
+          day_id: string
+          end_time: string
+          ends_at: string
+          is_full: boolean
+          mission_pay_per_candidate: number
+          my_application_id: string
+          my_application_status: Database["public"]["Enums"]["application_status"]
+          recruitment_open: boolean
+          schedule_compatible: boolean
+          schedule_reason: string
+          server_now: string
+          start_time: string
+          starts_at: string
+        }[]
+      }
+      job_days_parse: {
+        Args: { p_days: Json; p_format: string }
+        Returns: {
+          day_date: string
+          end_time: string
+          ends_at: string
+          mission_pay_per_candidate: number
+          positions_available: number
+          start_time: string
+          starts_at: string
+        }[]
+      }
+      job_days_unpublishable: {
+        Args: {
+          p_at: string
+          p_dates: string[]
+          p_format: string
+          p_starts: string[]
+        }
+        Returns: string[]
+      }
+      job_effective_days: {
+        Args: { p_job_id: string }
+        Returns: {
+          applications_close_at: string
+          day_date: string
+          day_id: string
+          end_time: string
+          ends_at: string
+          mission_pay_per_candidate: number
+          positions_available: number
+          positions_filled: number
+          publication_regime: string
+          start_time: string
+          starts_at: string
+        }[]
+      }
       job_publication_regime: {
         Args: { p_at: string; p_start: string }
         Returns: string
@@ -3077,6 +3348,11 @@ export type Database = {
         Args: { p_required: string }
         Returns: string[]
       }
+      lock_candidate_engagements: {
+        Args: { p_candidate_id: string }
+        Returns: undefined
+      }
+      mission_days_json: { Args: { p_mission_id: string }; Returns: Json }
       mission_schedule_bounds: {
         Args: { p_date: string; p_end: string; p_start: string }
         Returns: {
@@ -3146,6 +3422,7 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
+          schedule_format: string
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -3190,8 +3467,12 @@ export type Database = {
         }
         Returns: number
       }
+      reputation_company_next_close: {
+        Args: { p_at?: string; p_company_id: string }
+        Returns: string
+      }
       reputation_company_offers: {
-        Args: { p_company_id: string }
+        Args: { p_at?: string; p_company_id: string }
         Returns: {
           offer_id: string
           realized_at: string
@@ -3290,9 +3571,10 @@ export type Database = {
         Returns: string
       }
       start_mission: {
-        Args: { p_mission_id: string }
+        Args: { p_mission_day_id?: string; p_mission_id: string }
         Returns: {
           already_started: boolean
+          mission_day_id: string
           mission_id: string
           started_at: string
           status: Database["public"]["Enums"]["mission_status"]
@@ -3300,11 +3582,17 @@ export type Database = {
       }
       submit_company_verification: { Args: never; Returns: Json }
       submit_completion_code: {
-        Args: { p_code: string; p_mission_id: string }
+        Args: {
+          p_code: string
+          p_mission_day_id?: string
+          p_mission_id: string
+        }
         Returns: {
           already_completed: boolean
           completed_at: string
           locked_until: string
+          mission_completed: boolean
+          mission_day_id: string
           mission_id: string
           remaining_attempts: number
           result: string
@@ -3373,6 +3661,7 @@ export type Database = {
           required_documents: string[] | null
           required_equipment: string[] | null
           required_skills: string[] | null
+          schedule_format: string
           selection_deadline: string | null
           special_instructions: string | null
           start_date: string
@@ -3392,7 +3681,7 @@ export type Database = {
         }
       }
       withdraw_job_application: {
-        Args: { p_job_id: string }
+        Args: { p_application_id?: string; p_job_id: string }
         Returns: {
           ai_score: number | null
           candidate_id: string
@@ -3404,6 +3693,7 @@ export type Database = {
           has_worked_here_before: boolean
           id: string
           is_direct_invite: boolean | null
+          job_day_id: string | null
           job_id: string
           match_score: number | null
           previous_rating: number | null

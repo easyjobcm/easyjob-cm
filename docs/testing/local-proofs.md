@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 30 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 31 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -66,6 +66,8 @@ Points d'attention :
 - **Retour OAuth sans Google.** `proof-oauth-callback` crée le vérificateur PKCE par `signInWithOAuth({ skipBrowserRedirect: true })` (aucune requête) et pose en base la ligne `auth.flow_state` que Supabase Auth écrirait au retour de Google.
 - **Codes SMS sans SMS.** `proof-phone-verification` pose en base ce que Supabase Auth écrit à l'envoi d'un code (`phone_change`, empreinte sha224, `phone_change_sent_at`), puis vérifie par l'API réelle. La pile est en autoconfirm (`[auth.sms] enable_confirmations = false`) : la preuve s'appuie sur ce réglage pour reproduire H-04, et simule le réglage de production (code exigé) pour la reprise après réponse perdue.
 - **Connexions keep-alive mortes.** `execSql` bloque Node plusieurs secondes (`spawnSync`) : la requête suivante vers l'application peut partir sur une connexion que Next a déjà fermée (`ECONNRESET` sous Windows, `UND_ERR_SOCKET` « other side closed » sous Linux). Les preuves passent par `scripts/lib/app-fetch.ts`, qui reprend une seule fois ces erreurs de socket, sans réponse HTTP. Une réponse HTTP, même 5xx, n'est jamais reprise.
+
+- **Offres de plusieurs journées (lot 12).** `proof-multi-day-jobs` place l'échéance d'une journée relativement à `now()` puis appelle la vraie RPC dans la même transaction (fonction temporaire `proof_l12_case`, clé service), et impose l'ordre de deux sélections concurrentes par un trigger ralenti (`scripts/lib/proof-barrier.ts`). Les fixtures de plusieurs journées passent par `scripts/lib/job-days-fixture.ts` (brouillon, journées, puis publication) : après publication, le calendrier est figé pour tout auteur. Depuis ce lot, un même candidat ne peut plus tenir deux engagements au même créneau : chaque offre d'une preuve qui réutilise un candidat a sa propre date.
 
 - **Échec borné (lot 10).** Chaque requête SQL de preuve passe par `scripts/lib/db-query.ts` : binaire natif de la CLI lancé sans shell, délai `PROOF_SQL_TIMEOUT_MS` (60 s par défaut), erreur qui nomme la preuve et l'étape (`étape « update public.jobs … »`), processus arrêté. Le runner donne à chaque preuve `PROOF_TIMEOUT_SECONDS` (600 s par défaut), arrête tout son arbre de processus au-delà, et la synthèse indique le code de sortie et la dernière ligne affichée. Aucune relance : une preuve hors délai est en échec.
 

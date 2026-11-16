@@ -27,6 +27,9 @@ import { MissionPay } from "@/components/jobs/mission-pay";
 import { doualaTime } from "@/lib/utils/douala-time";
 import type { Database } from "@/lib/database.types";
 import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
+import { missionDays } from "@/lib/tasks/candidate-tasks";
+import { formatDayDate } from "@/lib/jobs/schedule";
+import { plural } from "@/lib/i18n/plural";
 
 type MissionRow =
   Database["public"]["Functions"]["get_mission"]["Returns"][number];
@@ -310,6 +313,61 @@ export default function MissionDetailPage() {
               <CardTitle className="text-base">{tm.tracking}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2" data-testid="mission-tracking">
+              {(() => {
+                // Lot 12 : état de chaque journée ; la mission n'est réalisée
+                // qu'avec toutes ses journées confirmées.
+                const days = missionDays(mission.days);
+                if (days.length <= 1) return null;
+                return (
+                  <div className="space-y-2" data-testid="mission-days">
+                    <p className="font-medium text-foreground">
+                      {t.schedule.formats.full_period.title} ·{" "}
+                      {plural(days.length, t.schedule.dayCount, locale)} ·{" "}
+                      {t.schedule.dayProgress
+                        .replace(
+                          "{done}",
+                          String(days.filter((d) => d.completed_at).length),
+                        )
+                        .replace("{total}", String(days.length))}
+                    </p>
+                    <ul className="divide-y divide-border text-sm">
+                      {days.map((d) => (
+                        <li
+                          key={d.id}
+                          className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5"
+                          data-testid="mission-day"
+                          data-date={d.date}
+                        >
+                          <span>
+                            {formatDayDate(d.date, locale)} ·{" "}
+                            {doualaTime(d.starts_at, locale)} →{" "}
+                            {doualaTime(d.ends_at, locale)}
+                          </span>
+                          <span
+                            className={
+                              d.completed_at
+                                ? "text-success"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {d.completed_at
+                              ? t.schedule.dayConfirmed
+                              : d.started_at
+                                ? t.schedule.dayStarted
+                                : t.schedule.dayUpcoming}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {!mission.completed_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {t.schedule.missionDoneAfterAll}{" "}
+                        {t.schedule.unconfirmedNote}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {mission.started_at ? (
                 <div className="flex items-center gap-2 text-success">
                   <CheckCircle className="h-4 w-4" aria-hidden />

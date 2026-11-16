@@ -54,6 +54,7 @@ import {
 } from "@/lib/utils/profile-completion";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { addDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import {
   parseActionTasks,
@@ -472,6 +473,11 @@ async function main() {
     const today = douala(new Date());
 
     let jobSeq = 0;
+    // Lot 12 : un même candidat ne tient pas deux engagements le même jour
+    // (chevauchement ou moins de 3 h) ; chaque offre de la preuve a sa date,
+    // dans le passé (le début reste disponible, l'échéance de recrutement
+    // est fournie).
+    const jobDay = (n: number) => addDays(today, -2 * n);
     async function seedJob(
       company: string,
       opts: { status?: "active" | "filled"; positions?: number } = {},
@@ -484,7 +490,7 @@ async function main() {
           description: "Preuve du lot 9c.",
           address: "Boulevard de la Liberté",
           city: "Douala",
-          start_date: today,
+          start_date: jobDay(jobSeq),
           start_time: "00:00",
           end_time: "23:59",
           mission_pay_per_candidate: 2000,
@@ -493,10 +499,16 @@ async function main() {
           positions_available: opts.positions ?? 1,
           // Lot 11b : offre « déjà publiée » (fixture clé service), recrutement
           // ouvert le temps de la preuve ; échéances prouvées par job-deadlines.
-          first_published_at: new Date().toISOString(),
+          // Lot 12 : une offre historique (« filled », mission déjà réalisée)
+          // a son recrutement clos ; une offre active reste ouverte.
+          first_published_at: new Date(
+            Date.now() - 3 * 3_600_000,
+          ).toISOString(),
           publication_regime: "normal",
           applications_close_at: new Date(
-            Date.now() + 6 * 3_600_000,
+            opts.status === "filled"
+              ? Date.now() - 3_600_000
+              : Date.now() + 6 * 3_600_000,
           ).toISOString(),
         })
         .select("id")
@@ -524,7 +536,7 @@ async function main() {
           job_id: jobId,
           candidate_id: candidate,
           application_id: app.id,
-          scheduled_date: today,
+          scheduled_date: jobDay(jobSeq),
           scheduled_start_time: "00:00",
           scheduled_end_time: "23:59",
           status: "confirmed",
@@ -734,15 +746,35 @@ async function main() {
     await confirmByCode(M1, mp1);
     const aMid = await score("company", coA);
     await confirmByCode(M2, mp2);
+    const aOpen = await score("company", coA);
+    // Lot 12 (décision validée) : l'offre ne compte qu'une fois son
+    // recrutement clos par son échéance. Clôture simulée (verrou levé le
+    // temps du déplacement, pile jetable), puis recalcul comme le ferait la
+    // tâche planifiée à l'échéance.
+    execSql(
+      "alter table public.jobs disable trigger trg_job_publication_guard",
+    );
+    try {
+      execSql(
+        `update public.jobs set applications_close_at = now() - interval '1 second' where id = '${jobPair}'`,
+      );
+    } finally {
+      execSql(
+        "alter table public.jobs enable trigger trg_job_publication_guard",
+      );
+    }
+    execSql(`select public.refresh_reputation('company', '${coA}', 'job')`);
     const aAfter = await score("company", coA);
     report(
-      "O1 offre à 2 places : non comptée tant qu'une sélection n'est pas résolue, puis +1 unité (pas +2)",
+      "O1 offre à 2 places : non comptée tant qu'une sélection n'est pas résolue ni tant que le recrutement est ouvert, puis +1 unité à la clôture (pas +2)",
       aMid.experience_units === aBefore.experience_units &&
+        aOpen.experience_units === aBefore.experience_units &&
         aAfter.experience_units === aBefore.experience_units + 1 &&
         aAfter.confirmed_count === aBefore.confirmed_count + 1,
       {
         before: aBefore.experience_units,
         mid: aMid.experience_units,
+        open: aOpen.experience_units,
         after: aAfter.experience_units,
       },
     );
@@ -933,6 +965,11 @@ async function main() {
       "has_photo",
       "reputation_stars",
       "skills",
+      // Lot 12 : journée visée (format « journées au choix »).
+      "job_day_id",
+      "day_date",
+      "day_starts_at",
+      "day_ends_at",
     ];
     report(
       "P3 candidats vus par l'entreprise : étoiles seules (ni moyenne, ni nombre d'avis, ni missions, ni motifs, ni commentaire)",
@@ -2022,8 +2059,9 @@ async function main() {
                                in ('expired', 'renewal_pending', 'renewal_rejected'))) then
              raise exception 'state mismatch';
            end if;
+           -- Lot 12 : les contrôles de apply_to_job sont dans apply_to_job_core.
            if position('candidate_cni_state(v_profile, now())' in
-                       pg_get_functiondef('public.apply_to_job(uuid)'::regprocedure)) = 0 then
+                       pg_get_functiondef('public.apply_to_job_core(uuid, uuid[])'::regprocedure)) = 0 then
              raise exception 'apply_to_job predicate';
            end if;
          end $$;`,

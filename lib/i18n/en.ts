@@ -83,6 +83,8 @@ export const en: TranslationKeys = {
           "Company suspended or not verified: the job cannot be published.",
         job_start_too_close:
           "Start too close or past: a job is published more than 24 hours before it starts, or urgently between 24 and 4 hours before.",
+        job_days_missing:
+          "Older job without precise working dates: the company must add its days before publication.",
         job_not_found: "Job not found.",
         not_authenticated: "Session expired. Please sign in again.",
         invalid_action: "Invalid action.",
@@ -815,6 +817,15 @@ export const en: TranslationKeys = {
       recruitment_closed: "Applications for this job are closed.",
       no_positions: "All positions for this job are filled.",
       already_applied: "You have already applied to this job.",
+      job_days_required: "Choose at least one day to apply.",
+      job_days_invalid: "Invalid days: refresh the page and try again.",
+      job_days_not_selectable:
+        "This job covers the whole period: your application covers every day.",
+      job_days_missing: "This job does not accept applications.",
+      job_days_unavailable:
+        "Some days are no longer available: nothing was sent.",
+      schedule_conflict:
+        "You already have a commitment that overlaps this mission or is less than 3 hours away.",
       profile_incomplete:
         "Your profile must be at least 60% complete to apply.",
       profile_not_verified:
@@ -2070,7 +2081,7 @@ export const en: TranslationKeys = {
       editNotice:
         "After editing, the job goes back to moderation: candidates cannot see it until it is approved again.",
       scheduleLocked:
-        "This job is already published: its date and times can no longer be changed. Other details remain editable. To move the mission, create a new job: it will be moderated again, and the current job and its applications are kept.",
+        "This job is already published: its dates, days and times can no longer be changed (no day can be added or removed). Other details remain editable. To move the mission, create a new job: it will be moderated again, and the current job and its applications are kept.",
       scheduleLockedAction: "Create a new job",
       errorTitle: "Job not saved",
     },
@@ -2107,6 +2118,16 @@ export const en: TranslationKeys = {
       job_not_editable: "This job can no longer be edited.",
       job_has_commitments:
         "This job cannot be deleted: candidates have been selected or a mission is under way. Contact support.",
+      daysRequired: "Add at least one working date.",
+      daysTooMany: "31 days at most per job.",
+      daysDuplicate: "Each date can only appear once.",
+      daysTime: "The end time must differ from the start time.",
+      daysOverlap:
+        "Two days overlap: check night shifts that end the next day.",
+      daysInvalid: "Some days are invalid.",
+      dayPayRequired: "Enter a positive whole amount for each day.",
+      job_days_missing:
+        "This job has no precise working dates: add each day before submitting it.",
       job_start_too_close:
         "Start too close or past: publish the job more than 24 hours before it starts, or at least 4 hours before for an urgent publication.",
       job_schedule_locked:
@@ -2204,6 +2225,10 @@ export const en: TranslationKeys = {
         "All positions for this job are filled: no other selection is possible.",
       candidate_unavailable:
         "This candidate is no longer available. Choose another candidate.",
+      candidate_schedule_conflict:
+        "This candidate already has a commitment that conflicts with these hours (overlap or less than 3 hours apart). Choose another candidate.",
+      job_days_missing:
+        "This job has no precise working dates: no selection is possible.",
       selection_incomplete:
         "Selection saved without a mission or contract. Contact support.",
       generic: "The selection could not be saved. Please try again.",
@@ -2516,6 +2541,121 @@ export const en: TranslationKeys = {
       saved: "Decision saved.",
       error: "Action failed. Please try again.",
     },
+  },
+  // Lot 12: jobs over several days (dates chosen one by one).
+  schedule: {
+    datesLabel: "Working dates",
+    datesHint:
+      "Add each working date. Dates do not have to follow each other: no day is added automatically between two dates.",
+    addDate: "Add",
+    addDateLabel: "Date to add",
+    removeDate: "Remove {date}",
+    noDates: "No date added yet.",
+    sameHours: "Same hours for every day",
+    startTime: "Start",
+    endTime: "End",
+    nextDay: "+1 d",
+    crossesMidnight: "Ends the next day.",
+    formatLabel: "Mission format",
+    formats: {
+      full_period: {
+        title: "Whole period",
+        desc: "The candidate commits to every date. One fixed amount per candidate covers the whole period.",
+      },
+      per_day: {
+        title: "Choose your days",
+        desc: "The candidate chooses their days. Each day has its own amount and places.",
+      },
+    },
+    periodPayLabel: "Amount per candidate for the whole period (CFA F)",
+    periodPayHint:
+      "This fixed amount covers every scheduled day. It is never split by day.",
+    dayPayLabel: "Amount per candidate (CFA F)",
+    dayPositions: "Places",
+    copyFirstDay: "Use the first day for all days",
+    preview: "Days preview",
+    dayCount: { one: "{count} day", other: "{count} days" },
+    perDayPositions: {
+      one: "{count} place",
+      other: "{count} places",
+    },
+    payFromTo: "From {min} to {max} per day",
+    payPerDay: "{amount} per day",
+    payPeriod: "For the whole period ({days})",
+    periodCommitment:
+      "Whole period: you commit to every one of these days. The amount covers them all.",
+    chooseDays: "Choose your days",
+    chooseDaysHint:
+      "Tick one or more days that are still open. You can apply to the other open days later.",
+    applyDays: {
+      one: "Apply for {count} day",
+      other: "Apply for {count} days",
+    },
+    selectDayFirst: "Choose at least one day",
+    summaryTitle: "Chosen days",
+    dayState: {
+      open: "Open",
+      closed: "Applications closed",
+      full: "Full",
+      pending: "Application sent",
+      shortlisted: "Shortlisted",
+      selected: "Selected",
+      rejected: "Not selected",
+      withdrawn: "Withdrawn",
+      no_show: "Absence recorded",
+      conflict: "Conflict",
+    },
+    withdrawDay: "Withdraw this application",
+    blocked: {
+      title: "Some days are no longer available",
+      recruitment_closed: "{date}: applications closed",
+      already_applied: "{date}: application already sent",
+      no_positions: "{date}: day is full",
+      schedule_conflict: "{date}: you already have a commitment too close",
+      none: "Nothing was sent. Change your choice and try again.",
+    },
+    conflict:
+      "You already have a commitment that overlaps this period or is less than 3 hours away ({days}).",
+    // Conflict explained before sending (decided by the database, never
+    // the details of the other commitment).
+    conflictDay:
+      "You already have a selected commitment that overlaps this day or is less than 3 hours away.",
+    conflictRule:
+      "At least 3 hours are required between two selected commitments. Your pending applications do not count.",
+    conflictOthersOpen: "The other days remain available.",
+    periodConflict: {
+      one: "You cannot apply: the day of {dates} conflicts with a commitment you are already selected for (overlap or less than 3 hours apart). This job commits you to all of its days.",
+      other:
+        "You cannot apply: {count} days conflict with a commitment you are already selected for (overlap or less than 3 hours apart): {dates}. This job commits you to all of its days.",
+    },
+    singleConflict:
+      "You cannot apply: you already have a selected commitment that overlaps this mission or is less than 3 hours away.",
+    applyBlockedConflict:
+      "You cannot apply: schedule conflict with a commitment you are already selected for.",
+    noCompatibleDay:
+      "None of the days still open is compatible with your selected commitments.",
+    unverified:
+      "We can't check your availability right now. Applying stays blocked until the check succeeds.",
+    selectionChanged: "Your selection was updated",
+    selectionChangedHint: {
+      one: "This day was removed from your selection.",
+      other: "These days were removed from your selection.",
+    },
+    tooClose: "Days too close to be published: {days}.",
+    dayHeading: "Day of {date}",
+    allDays: "All days",
+    dayProgress: "{done}/{total} days confirmed",
+    startDay: "Start the day",
+    confirmDay: "Confirm the day",
+    dayStarted: "Started",
+    dayConfirmed: "Confirmed",
+    dayNotConfirmed: "Not confirmed",
+    dayUpcoming: "Upcoming",
+    dayCode: "Code for {date}",
+    missionDoneAfterAll:
+      "The mission will be completed once every day is confirmed.",
+    unconfirmedNote:
+      "A day that is not confirmed stays unconfirmed: nothing is cancelled or withheld automatically. If there is a problem, contact support.",
   },
   days: {
     monday: "Mon",

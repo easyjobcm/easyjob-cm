@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { jobModerationSchema, jobRefusal } from "@/lib/validations/job";
+import { parseDaysDetail } from "@/lib/jobs/schedule";
 import { JOB_PUBLISHED_STATUS } from "@/lib/utils/job-status";
 import { internalErrorResponse } from "@/lib/api/errors";
 
@@ -62,7 +63,14 @@ export async function POST(
       const refusal = jobRefusal(error.message);
       if (refusal) {
         return NextResponse.json(
-          { error: refusal.code, code: refusal.code },
+          {
+            error: refusal.code,
+            code: refusal.code,
+            // Lot 12 : journées non publiables nommées, rien n'est publié.
+            ...(refusal.code === "job_start_too_close"
+              ? { days: parseDaysDetail(error.details) }
+              : {}),
+          },
           { status: refusal.status },
         );
       }

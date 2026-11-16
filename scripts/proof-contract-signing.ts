@@ -49,6 +49,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database, Json } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
 
@@ -67,8 +68,9 @@ const DB_URL = readLocalDbUrl();
 const PROOF_PASSWORD = "Proof-L7b-sign-01!";
 const PROOF_USER_METADATA = { proofContractSigning: true };
 /** Version courante des clauses simples (lot 7c-bis : forfait par mission). */
-const CURRENT_SIMPLE = "simple-v2";
-const CURRENT_FORMAL = "formal-v2";
+// Lot 12 : clauses v3 (journées prévues, code de chaque journée).
+const CURRENT_SIMPLE = "simple-v3";
+const CURRENT_FORMAL = "formal-v3";
 const PROOF_VERSION_PREFIX = "simple-proof-l7b-";
 const PROOF_VERSION = `${PROOF_VERSION_PREFIX}${Date.now()}`;
 
@@ -383,13 +385,16 @@ async function main() {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    async function seedJob(title: string, endDate?: string): Promise<string> {
+    // Lot 12 : un même candidat ne tient pas deux engagements qui se
+    // chevauchent ; chaque offre a sa date (la première garde 2099-03-10).
+    let seedCount = 0;
+    async function seedJob(title: string): Promise<string> {
       const { data, error } = await serviceClient
         .from("jobs")
         .insert({
           ...JOB_BODY,
           title,
-          end_date: endDate ?? null,
+          start_date: addDays(JOB_BODY.start_date, 2 * seedCount++),
           company_id: coA,
           status: "active",
           positions_available: 4,
@@ -468,7 +473,22 @@ async function main() {
     const job7 = await seedJob("Cuisine preuve L7b");
     const job8 = await seedJob("Livraison preuve L7b");
     // Trois jours : contrat formalisé (lot 7a, SRS §6.7).
-    const job9 = await seedJob("Inventaire preuve L7b", "2099-03-12");
+    // Lot 12 : contrat formalisé à partir de 3 journées travaillées
+    // (dates explicites, non consécutives).
+    const { jobId: job9 } = await insertJobWithDays(
+      serviceClient,
+      {
+        ...JOB_BODY,
+        title: "Inventaire preuve L7b",
+        company_id: coA,
+        positions_available: 4,
+      },
+      [
+        { date: "2099-07-01", start_time: "09:00", end_time: "17:00" },
+        { date: "2099-07-02", start_time: "09:00", end_time: "17:00" },
+        { date: "2099-07-06", start_time: "09:00", end_time: "17:00" },
+      ],
+    );
     const job10 = await seedJob("Réserve preuve L7b");
 
     const k1 = await contractFor(C1, job1);
@@ -620,6 +640,8 @@ async function main() {
       .insert({
         ...JOB_BODY,
         title: "Inventaire preuve L7c-bis",
+        // Lot 12 : date propre (C1 à C3 sont déjà engagés le 2099-03-10).
+        start_date: "2099-05-02",
         start_time: "08:00",
         end_time: "12:00",
         mission_pay_per_candidate: 10000,

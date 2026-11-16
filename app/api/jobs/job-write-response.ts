@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jobRefusal } from "@/lib/validations/job";
 import { internalErrorResponse } from "@/lib/api/errors";
+import { parseDaysDetail } from "@/lib/jobs/schedule";
 
 // Messages historiques conservés : l'interface traduit `code`.
 const REFUSAL_MESSAGES: Partial<Record<string, string>> = {
@@ -40,6 +41,11 @@ export function jobWriteErrorResponse(
       code: refusal.code,
       ...(refusal.code === "invalid_job_data" && error.details
         ? { field: error.details }
+        : {}),
+      // Lot 12 : journées non publiables nommées (dates de l'offre de
+      // l'entreprise elle-même).
+      ...(refusal.code === "job_start_too_close"
+        ? { days: parseDaysDetail(error.details) }
         : {}),
     },
     { status: refusal.status },

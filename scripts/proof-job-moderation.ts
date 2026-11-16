@@ -39,6 +39,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
+import { addDays } from "./lib/job-days-fixture";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
@@ -355,6 +356,10 @@ async function notificationsFor(jobId: string) {
 }
 
 /** Offre en attente créée par une fixture (service role). */
+// Lot 12 : un même candidat ne tient pas deux engagements au même créneau ;
+// chaque offre de la preuve a sa propre date (la première garde
+// JOB_BODY.start_date).
+let seedCount = 0;
 async function seedJob(
   companyId: string,
   status: Database["public"]["Enums"]["job_status"],
@@ -362,7 +367,17 @@ async function seedJob(
 ): Promise<string> {
   const { data, error } = await serviceClient
     .from("jobs")
-    .insert({ ...JOB_BODY, company_id: companyId, status, ...extra })
+    .insert({
+      ...JOB_BODY,
+      // Offres publiées d'emblée seulement : une offre corrigée ensuite
+      // renvoie JOB_BODY.start_date (dates figées après publication).
+      ...(status === "active"
+        ? { start_date: addDays(JOB_BODY.start_date, 2 * ++seedCount) }
+        : {}),
+      company_id: companyId,
+      status,
+      ...extra,
+    })
     .select("id")
     .single();
   if (error || !data) throw new Error(`job seed: ${error?.message}`);

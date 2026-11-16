@@ -605,11 +605,49 @@ async function seedTestData() {
     },
   ];
 
-  const { error: jobsError } = await supabase.from("jobs").insert(jobs);
+  // Lot 12 : une offre de plusieurs journées a des dates explicites
+  // (job_days), jamais déduites de l'intervalle start_date → end_date. Elle
+  // est insérée en brouillon, ses journées (non consécutives) ajoutées, puis
+  // publiée : le calendrier est figé dès la publication.
+  const isoDay = (d: Date, plus: number) =>
+    new Date(d.getTime() + plus * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+  const multiDay = jobs.filter(
+    (j) => j.end_date && j.end_date !== j.start_date,
+  );
+  const { error: jobsError } = await supabase
+    .from("jobs")
+    .insert(
+      jobs.map((j) =>
+        multiDay.includes(j)
+          ? { ...j, status: "draft" as const, end_date: isoDay(inThreeDays, 3) }
+          : j,
+      ),
+    );
 
   if (jobsError) {
     fail("jobs", jobsError);
   } else {
+    for (const j of multiDay) {
+      const { error: daysError } = await supabase.from("job_days").insert(
+        [0, 1, 3].map((plus) => ({
+          job_id: j.id,
+          day_date: isoDay(inThreeDays, plus),
+          start_time: j.start_time,
+          end_time: j.end_time,
+          // Recalculées par le trigger de la table (heure de Douala).
+          starts_at: now.toISOString(),
+          ends_at: now.toISOString(),
+        })),
+      );
+      if (daysError) fail("job_days", daysError);
+      const { error: publishError } = await supabase
+        .from("jobs")
+        .update({ status: j.status })
+        .eq("id", j.id);
+      if (publishError) fail("jobs publish", publishError);
+    }
     console.log("Created jobs");
   }
 

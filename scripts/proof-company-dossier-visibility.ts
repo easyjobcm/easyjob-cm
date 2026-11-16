@@ -33,6 +33,7 @@ import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
+import { addDays } from "./lib/job-days-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -958,7 +959,9 @@ async function main() {
     // ── R. Courses (ordre imposé) ───────────────────────────────
     slow = true;
     await installBarrier(execSql, serviceClient);
-    const job2 = await seedJob("Plonge course L11", 5);
+    // Lot 12 : C3 à C5 sont déjà engagés aujourd'hui (job1, jobFull) ; la
+    // course porte sur une autre date (aucun conflict d'engagements).
+    const job2 = await seedJob("Plonge course L11", 5, addDays(today, 2));
 
     // R1 : candidature engagée, puis remise en revue.
     execSql(`

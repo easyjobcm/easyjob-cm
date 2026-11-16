@@ -96,20 +96,34 @@ export default async function JobDetailPage({ params }: PageProps) {
         const essentials = checkEssentialCriteria(candidateProfile);
         missingEssentials = essentials.missing;
       }
+      // Lot 12 : candidature à l'offre entière (période complète) ; les
+      // candidatures par journée sont lues avec les journées.
       const { data: application } = await supabase
         .from("job_applications")
         .select("id, status, created_at")
         .eq("job_id", id)
         .eq("candidate_id", candidateProfile.id)
-        .single();
+        .is("job_day_id", null)
+        .maybeSingle();
 
       userApplication = application;
     }
   }
 
+  // Lot 12 : journées (heure de Douala), ouverture, état de la candidature
+  // de la session et compatibilité avec ses engagements déjà sélectionnés,
+  // calculés par la base. Une lecture en échec est transmise comme telle :
+  // l'écran n'en déduit jamais « disponible ».
+  const { data: days, error: daysError } = await supabase.rpc(
+    "job_days_for_candidate",
+    { p_job_id: id },
+  );
+
   return (
     <JobDetailClient
       job={job}
+      days={days ?? []}
+      daysFailed={!!daysError || !days}
       userApplication={userApplication}
       isLoggedIn={!!user}
       missingEssentials={missingEssentials}

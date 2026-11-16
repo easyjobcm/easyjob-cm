@@ -31,6 +31,9 @@ export async function POST(
     const { data, error } = await ctx.supabase.rpc("submit_completion_code", {
       p_mission_id: ctx.missionId,
       p_code: parsed.data.code,
+      ...(parsed.data.mission_day_id
+        ? { p_mission_day_id: parsed.data.mission_day_id }
+        : {}),
     });
     if (error) {
       return missionRpcError(
@@ -72,6 +75,10 @@ export async function POST(
     return NextResponse.json({
       completion: {
         mission_id: row.mission_id,
+        // Lot 12 : journée confirmée ; la mission n'est réalisée qu'avec sa
+        // dernière journée.
+        mission_day_id: row.mission_day_id,
+        mission_completed: row.mission_completed,
         completed_at: row.completed_at,
         already_completed: row.already_completed,
       },

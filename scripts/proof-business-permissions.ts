@@ -618,7 +618,11 @@ async function proveApplications() {
   const coA = await makeCompany("b-coA");
   const coB = await makeCompany("b-coB");
   const job = await makeJob(coA.companyId);
-  const jobOther = await makeJob(coA.companyId);
+  // Lot 12 : autre date que `job` (un candidat sélectionné sur l'une ne
+  // peut pas tenir un engagement au même créneau sur l'autre).
+  const jobOther = await makeJob(coA.companyId, {
+    start_date: new Date(Date.now() + 5 * 864e5).toISOString().split("T")[0],
+  });
   const jobDraft = await makeJob(coA.companyId, { status: "draft" });
   const jobFull = await makeJob(coA.companyId, {
     positions_available: 1,

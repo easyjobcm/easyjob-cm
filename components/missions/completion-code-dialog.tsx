@@ -21,9 +21,14 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   missionId: string;
+  /** Lot 12 : journée confirmée (mission de plusieurs journées). */
+  missionDayId?: string | null;
   jobTitle: string;
-  /** Appelé quand la base a enregistré la réalisation (heure d'origine). */
-  onCompleted: (completedAt: string) => void;
+  /**
+   * Appelé quand la base a enregistré la journée (heure d'origine) ;
+   * `missionCompleted` : toutes les journées de la mission sont confirmées.
+   */
+  onCompleted: (completedAt: string, missionCompleted: boolean) => void;
 };
 
 /**
@@ -35,6 +40,7 @@ export function CompletionCodeDialog({
   open,
   onOpenChange,
   missionId,
+  missionDayId = null,
   jobTitle,
   onCompleted,
 }: Props) {
@@ -45,14 +51,28 @@ export function CompletionCodeDialog({
   const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
-  async function readCompletedAt(): Promise<string | null> {
+  async function readCompletion(): Promise<{
+    completedAt: string | null;
+    missionCompleted: boolean;
+  }> {
     const res = await fetch(`/api/missions/${missionId}`, {
       cache: "no-store",
     }).catch(() => null);
     const body = ((await res?.json().catch(() => null)) ?? {}) as {
-      mission?: { completed_at?: string | null };
+      mission?: {
+        completed_at?: string | null;
+        days?: { id?: string; completed_at?: string | null }[] | null;
+      };
     };
-    return body.mission?.completed_at ?? null;
+    const missionCompleted = !!body.mission?.completed_at;
+    if (missionDayId) {
+      const day = (body.mission?.days ?? []).find((d) => d.id === missionDayId);
+      return { completedAt: day?.completed_at ?? null, missionCompleted };
+    }
+    return {
+      completedAt: body.mission?.completed_at ?? null,
+      missionCompleted,
+    };
   }
 
   async function submit() {
@@ -68,22 +88,29 @@ export function CompletionCodeDialog({
     const res = await fetch(`/api/missions/${missionId}/complete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code.trim() }),
+      body: JSON.stringify({
+        code: code.trim(),
+        ...(missionDayId ? { mission_day_id: missionDayId } : {}),
+      }),
     }).catch(() => null);
     const body = ((await res?.json().catch(() => null)) ?? {}) as {
       code?: string;
       remaining_attempts?: number;
       locked_until?: string;
-      completion?: { completed_at?: string };
+      completion?: { completed_at?: string; mission_completed?: boolean };
     };
 
     // Toujours relire l'état enregistré avant d'annoncer le résultat.
-    const completedAt =
-      (res?.ok ? body.completion?.completed_at : null) ??
-      (await readCompletedAt());
-    if (completedAt) {
+    const direct =
+      res?.ok && body.completion?.completed_at
+        ? {
+            completedAt: body.completion.completed_at,
+            missionCompleted: body.completion.mission_completed !== false,
+          }
+        : await readCompletion();
+    if (direct.completedAt) {
       setCode("");
-      onCompleted(completedAt);
+      onCompleted(direct.completedAt, direct.missionCompleted);
     } else if (body.code === "invalid_code") {
       setError(plural(body.remaining_attempts ?? 0, tc.invalid, locale));
     } else if (body.code === "code_locked" && body.locked_until) {

@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { cn, formatDate } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
+import { formatDayHours } from "@/lib/jobs/schedule";
 import { frozenPayByApplication } from "@/lib/utils/mission-pay";
 import { createClient } from "@/lib/supabase/client";
 import useSWR from "swr";
@@ -65,6 +66,12 @@ const fetcher = async (_url: string) => {
       id,
       status,
       created_at,
+      day:job_days (
+        day_date,
+        start_time,
+        end_time,
+        mission_pay_per_candidate
+      ),
       job:jobs (
         id,
         title,
@@ -137,7 +144,8 @@ export default function MyJobsPage() {
     "/api/my-jobs",
     fetcher,
   );
-  const tm = useTranslations().myJobs;
+  const translations = useTranslations();
+  const tm = translations.myJobs;
 
   useLiveRefresh(["applications", "missions", "contracts", "jobs"], () =>
     mutate(),
@@ -253,12 +261,23 @@ export default function MyJobsPage() {
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              <span>{formatDate(application.job?.start_date, locale)}</span>
+              {/* Lot 12 : journée visée (journées au choix). */}
+              <span data-testid="my-application-date">
+                {formatDate(
+                  application.day?.day_date ?? application.job?.start_date,
+                  locale,
+                )}
+                {application.day &&
+                  ` · ${formatDayHours(application.day, translations.schedule.nextDay)}`}
+              </span>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
             <MissionPay
-              amount={application.job?.mission_pay_per_candidate}
+              amount={
+                application.day?.mission_pay_per_candidate ??
+                application.job?.mission_pay_per_candidate
+              }
               amountClassName="text-primary"
             />
             {application.created_at && (

@@ -158,11 +158,26 @@ begin
         applications_close_at = now() + p_offset
     where j.id = p_job;
     alter table public.jobs enable trigger trg_job_publication_guard;
+    -- Lot 12 : la journée de l'offre suit (calendrier figé pour tout
+    -- auteur après publication : verrou levé le temps du déplacement).
+    alter table public.job_days disable trigger trg_protect_job_day_writes;
+    update public.job_days d
+    set day_date = v_local::date, start_time = v_local::time,
+        starts_at = v_start,
+        ends_at = greatest(v_start + interval '1 minute',
+          (v_local::date + d.end_time) at time zone 'Africa/Douala'
+            + case when d.end_time <= v_local::time then interval '1 day' else interval '0' end)
+    where d.job_id = p_job;
+    alter table public.job_days enable trigger trg_protect_job_day_writes;
   elsif p_kind = 'moderate' then
     v_local := (now() + p_offset) at time zone 'Africa/Douala';
     update public.jobs j
     set start_date = v_local::date, start_time = v_local::time
     where j.id = p_job;
+    -- Lot 12 : la journée (non publiée, donc modifiable) suit.
+    update public.job_days d
+    set day_date = v_local::date, start_time = v_local::time
+    where d.job_id = p_job;
   end if;
   perform set_config('request.jwt.claims',
     jsonb_build_object('sub', p_actor, 'role', 'authenticated')::text, true);
@@ -673,14 +688,18 @@ async function main() {
         missions: sn3.missions,
       },
     );
+    // Lot 12 : C4 est déjà engagé sur l'offre normale (N4) ; selon l'heure
+    // de la preuve, les deux plages peuvent tomber le même jour (conflit
+    // d'engagements). La sélection acceptée porte donc sur C5 ; les refus à
+    // l'échéance sont tranchés avant tout contrôle de conflit.
     const su1 = await runCase(
       "select",
       jobSU,
       idA,
       "1 microsecond",
-      await appOf(jobSU, 3),
+      await appOf(jobSU, 4),
     );
-    const su2 = await runCase("select", jobSU, idA, "0", await appOf(jobSU, 4));
+    const su2 = await runCase("select", jobSU, idA, "0", await appOf(jobSU, 3));
     const su3 = await runCase(
       "select",
       jobSU,

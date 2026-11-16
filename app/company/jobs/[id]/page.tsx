@@ -48,6 +48,7 @@ import { ReputationStars } from "@/components/reputation/reputation-stars";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
 import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
+import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -67,19 +68,38 @@ type Job = Pick<
   | "required_documents"
   | "status"
   | "applications_close_at"
->;
+  | "schedule_format"
+> & {
+  /** Lot 12 : calendrier de l'offre (lecture du propriétaire). */
+  days: Pick<
+    Tables<"job_days">,
+    | "id"
+    | "day_date"
+    | "start_time"
+    | "end_time"
+    | "mission_pay_per_candidate"
+    | "positions_available"
+    | "positions_filled"
+    | "applications_close_at"
+  >[];
+};
 
 /** Réponse de GET /api/jobs/[id]/missions (lot 7c ; null possibles). */
 type JobMissionRow =
   Database["public"]["Functions"]["company_job_missions"]["Returns"][number];
 type JobMission = Omit<
   JobMissionRow,
-  "application_id" | "started_at" | "completed_at" | "completion_code"
+  | "application_id"
+  | "started_at"
+  | "completed_at"
+  | "completion_code"
+  | "mission_completed_at"
 > & {
   application_id: string | null;
   started_at: string | null;
   completed_at: string | null;
   completion_code: string | null;
+  mission_completed_at: string | null;
 };
 
 /** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
@@ -101,6 +121,8 @@ export default function CompanyJobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [activeTab, setActiveTab] = useState("pending");
+  // Lot 12 : filtre des candidatures par journée (journées au choix).
+  const [dayFilter, setDayFilter] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] =
     useState<Application | null>(null);
   const [actionType, setActionType] = useState<"select" | "reject" | null>(
@@ -115,7 +137,10 @@ export default function CompanyJobDetailPage() {
   // Garde synchrone contre le double clic (l'état React arrive trop tard).
   const processingRef = useRef(false);
   // Pointages et heures de chaque candidature sélectionnée (lot 7c).
-  const [missions, setMissions] = useState<Map<string, JobMission>>(new Map());
+  // Lot 12 : une ligne par journée de mission (code de chaque journée).
+  const [missions, setMissions] = useState<Map<string, JobMission[]>>(
+    new Map(),
+  );
   const [reviewMission, setReviewMission] = useState<{
     mission: JobMission;
     name: string;
@@ -163,7 +188,7 @@ export default function CompanyJobDetailPage() {
     const { data: jobData, error: jobError } = await supabase
       .from("jobs")
       .select(
-        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents, status, applications_close_at",
+        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents, status, applications_close_at, schedule_format, days:job_days(id, day_date, start_time, end_time, mission_pay_per_candidate, positions_available, positions_filled, applications_close_at)",
       )
       .eq("id", jobId)
       .single();
@@ -189,11 +214,13 @@ export default function CompanyJobDetailPage() {
       ? (((await missionsRes.json()) as { missions: JobMission[] }).missions ??
         [])
       : [];
-    const byApplication = new Map(
-      missionRows
-        .filter((m) => m.application_id)
-        .map((m) => [m.application_id as string, m]),
-    );
+    const byApplication = new Map<string, JobMission[]>();
+    for (const m of missionRows) {
+      if (!m.application_id) continue;
+      const list = byApplication.get(m.application_id) ?? [];
+      list.push(m);
+      byApplication.set(m.application_id, list);
+    }
     if (!latest.isLatest(token)) return byApplication;
     // Lecture interrompue par le réseau : rien n'est retiré de l'écran ; la
     // reprise (retour du réseau, reconnexion) relira tout.
@@ -207,7 +234,18 @@ export default function CompanyJobDetailPage() {
       return byApplication;
     }
 
-    setJob(jobData ?? null);
+    setJob(
+      jobData
+        ? {
+            ...jobData,
+            days: [...(jobData.days ?? [])].sort((a, b) =>
+              `${a.day_date}${a.start_time}`.localeCompare(
+                `${b.day_date}${b.start_time}`,
+              ),
+            ),
+          }
+        : null,
+    );
     if (nextApplications !== null) {
       setApplications(nextApplications);
       // Boîte de dialogue ouverte sur une candidature retirée ou traitée
@@ -383,17 +421,33 @@ export default function CompanyJobDetailPage() {
   const countStatus = (status: string) =>
     String(applications.filter((a) => a.status === status).length);
 
+  const perDay = job?.schedule_format === "per_day";
   const filteredApplications = applications.filter(
-    (app) => app.status === activeTab,
+    (app) =>
+      app.status === activeTab &&
+      (!perDay || !dayFilter || app.job_day_id === dayFilter),
   );
   const isFull =
     !!job && (job.positions_filled ?? 0) >= (job.positions_available ?? 1);
   // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence)
   // reflétée à l'heure du serveur sur l'écran ouvert ; la base refuse
   // recruitment_closed. Contrats et missions restent accessibles.
-  const recruitmentNow = useRecruitmentNow(job ? [job] : []);
+  const recruitmentNow = useRecruitmentNow(job ? [job, ...job.days] : []);
   const recruitmentClosed =
     !!job && job.status === "active" && !isRecruitmentOpen(job, recruitmentNow);
+  // Lot 12 : échéance et places propres à la journée d'une candidature.
+  const dayOf = (app: Application) =>
+    job?.days.find((d) => d.id === app.job_day_id) ?? null;
+  const selectionClosedFor = (app: Application) => {
+    if (!job || job.status !== "active") return false;
+    const day = dayOf(app);
+    return day
+      ? !isRecruitmentOpen(
+          { applications_close_at: day.applications_close_at },
+          recruitmentNow,
+        )
+      : recruitmentClosed;
+  };
 
   if (loading) {
     return (
@@ -447,13 +501,22 @@ export default function CompanyJobDetailPage() {
           </p>
         )}
 
-        <div className="mt-3" data-testid="company-job-pay">
-          <p className="text-xs text-muted-foreground">{t.jobDetail.pay}</p>
-          <MissionPay
-            amount={job.mission_pay_per_candidate}
-            amountClassName="text-lg text-primary"
-          />
-        </div>
+        {!perDay && (
+          <div className="mt-3" data-testid="company-job-pay">
+            <p className="text-xs text-muted-foreground">
+              {job.days.length > 1
+                ? t.schedule.payPeriod.replace(
+                    "{days}",
+                    plural(job.days.length, t.schedule.dayCount, locale),
+                  )
+                : t.jobDetail.pay}
+            </p>
+            <MissionPay
+              amount={job.mission_pay_per_candidate}
+              amountClassName="text-lg text-primary"
+            />
+          </div>
+        )}
 
         <div className="mt-3 space-y-1 text-sm text-muted-foreground">
           <p className="flex items-start gap-1">
@@ -464,17 +527,60 @@ export default function CompanyJobDetailPage() {
               {job.city}
             </span>
           </p>
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" aria-hidden />
-              {formatDate(job.start_date)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" aria-hidden />
-              {formatTime(job.start_time)} - {formatTime(job.end_time)}
-            </span>
-          </p>
+          {job.days.length > 1 || perDay ? (
+            <div data-testid="company-job-days">
+              <p className="font-medium text-foreground">
+                {t.schedule.formats[perDay ? "per_day" : "full_period"].title}
+                {" · "}
+                {plural(job.days.length, t.schedule.dayCount, locale)}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {job.days.map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex flex-wrap items-baseline gap-x-2"
+                    data-testid="company-job-day"
+                    data-date={d.day_date}
+                  >
+                    <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="text-foreground">
+                      {formatDayDate(d.day_date, locale)}
+                    </span>
+                    <span>{formatDayHours(d, t.schedule.nextDay)}</span>
+                    {perDay && (
+                      <span className="w-full pl-5">
+                        <MissionPay
+                          amount={d.mission_pay_per_candidate}
+                          amountClassName="text-primary"
+                        />
+                        {" · "}
+                        {d.positions_filled}
+                        {plural(
+                          d.positions_available ?? 1,
+                          ta.positionsFilled,
+                          locale,
+                        )}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" aria-hidden />
+                {formatDate(job.start_date)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                {formatTime(job.start_time)} - {formatTime(job.end_time)}
+              </span>
+            </p>
+          )}
+          {/* Lot 12 : au choix, chaque journée a sa propre échéance. */}
           {job.status === "active" &&
+            !perDay &&
             (recruitmentClosed ? (
               <p
                 className="text-xs text-muted-foreground"
@@ -544,6 +650,32 @@ export default function CompanyJobDetailPage() {
 
       {/* Applications */}
       <div className="p-4">
+        {perDay && job.days.length > 1 && (
+          <div
+            className="mb-3 flex gap-2 overflow-x-auto pb-1"
+            role="group"
+            aria-label={t.schedule.datesLabel}
+            data-testid="company-day-filter"
+          >
+            {[null, ...job.days.map((d) => d.id)].map((id) => {
+              const day = job.days.find((d) => d.id === id);
+              return (
+                <Button
+                  key={id ?? "all"}
+                  size="sm"
+                  variant={dayFilter === id ? "default" : "outline"}
+                  aria-pressed={dayFilter === id}
+                  className="shrink-0"
+                  onClick={() => setDayFilter(id)}
+                >
+                  {day
+                    ? formatDayDate(day.day_date, locale)
+                    : t.schedule.allDays}
+                </Button>
+              );
+            })}
+          </div>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="pending" className="text-xs">
@@ -597,6 +729,18 @@ export default function CompanyJobDetailPage() {
                           )}
                         </div>
 
+                        {app.day_date && (
+                          <p
+                            className="mt-1 text-sm font-medium text-foreground"
+                            data-testid="applicant-day"
+                            data-date={app.day_date}
+                          >
+                            {t.schedule.dayHeading.replace(
+                              "{date}",
+                              formatDayDate(app.day_date, locale),
+                            )}
+                          </p>
+                        )}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground mt-1">
                           {app.distance_km !== null && (
                             <span className="flex items-center gap-1">
@@ -646,7 +790,7 @@ export default function CompanyJobDetailPage() {
                                 >
                                   {ta.errors.company_not_verified}
                                 </p>
-                              ) : recruitmentClosed ? (
+                              ) : selectionClosedFor(app) ? (
                                 <p
                                   className="w-full text-xs text-muted-foreground"
                                   data-testid="select-blocked-closed"
@@ -727,74 +871,119 @@ export default function CompanyJobDetailPage() {
 
                         {app.status === "selected" &&
                           (() => {
-                            const m = missions.get(app.application_id);
-                            if (!m) return null;
+                            const rows = missions.get(app.application_id);
+                            if (!rows || rows.length === 0) return null;
+                            const multi = rows.length > 1;
+                            const done = rows.filter(
+                              (r) => r.completed_at,
+                            ).length;
+                            const missionDone = rows[0].mission_completed_at;
                             return (
                               <div
-                                className="mt-3 rounded-lg border p-3 text-sm space-y-2"
+                                className="mt-3 rounded-lg border p-3 text-sm space-y-3"
                                 data-testid="company-mission-completion"
                               >
-                                <div className="text-muted-foreground">
-                                  {tcomp.scheduled
-                                    .replace(
-                                      "{start}",
-                                      doualaDateTime(
-                                        m.scheduled_start_at,
-                                        locale,
-                                      ),
-                                    )
-                                    .replace(
-                                      "{end}",
-                                      doualaTime(m.scheduled_end_at, locale),
-                                    )}
-                                </div>
-                                {m.completion_code && (
-                                  <div className="rounded-lg bg-primary/5 p-3 space-y-1">
-                                    <div className="text-xs font-medium text-muted-foreground">
-                                      {tcomp.title}
-                                    </div>
-                                    <div
-                                      className="font-mono text-2xl font-bold tracking-[0.3em] text-primary"
-                                      data-testid="completion-code"
-                                    >
-                                      {m.completion_code}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                      {tcomp.instruction}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {tcomp.dispute}{" "}
-                                      <Link
-                                        href="/help"
-                                        className="text-primary underline"
-                                      >
-                                        {tcomp.support}
-                                      </Link>
-                                    </p>
-                                  </div>
+                                {multi && (
+                                  <p
+                                    className="font-medium text-foreground"
+                                    data-testid="company-mission-progress"
+                                  >
+                                    {t.schedule.dayProgress
+                                      .replace("{done}", String(done))
+                                      .replace("{total}", String(rows.length))}
+                                  </p>
                                 )}
-                                <div data-testid="company-mission-status">
-                                  {m.completed_at ? (
-                                    <span className="text-success flex items-center gap-1">
-                                      <CheckCircle className="h-4 w-4" />
-                                      {tcomp.completedAt.replace(
-                                        "{time}",
-                                        doualaTime(m.completed_at, locale),
+                                {rows.map((m) => (
+                                  <div
+                                    key={m.mission_day_id}
+                                    className={
+                                      multi
+                                        ? "space-y-2 border-t pt-3 first:border-t-0 first:pt-0"
+                                        : "space-y-2"
+                                    }
+                                    data-testid="company-mission-day"
+                                    data-date={m.day_date}
+                                  >
+                                    <div className="text-muted-foreground">
+                                      {tcomp.scheduled
+                                        .replace(
+                                          "{start}",
+                                          doualaDateTime(
+                                            m.scheduled_start_at,
+                                            locale,
+                                          ),
+                                        )
+                                        .replace(
+                                          "{end}",
+                                          doualaTime(
+                                            m.scheduled_end_at,
+                                            locale,
+                                          ),
+                                        )}
+                                    </div>
+                                    {m.completion_code && (
+                                      <div className="rounded-lg bg-primary/5 p-3 space-y-1">
+                                        <div className="text-xs font-medium text-muted-foreground">
+                                          {multi
+                                            ? t.schedule.dayCode.replace(
+                                                "{date}",
+                                                formatDayDate(
+                                                  m.day_date,
+                                                  locale,
+                                                ),
+                                              )
+                                            : tcomp.title}
+                                        </div>
+                                        <div
+                                          className="font-mono text-2xl font-bold tracking-[0.3em] text-primary"
+                                          data-testid="completion-code"
+                                        >
+                                          {m.completion_code}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          {tcomp.instruction}
+                                        </p>
+                                      </div>
+                                    )}
+                                    <div data-testid="company-mission-status">
+                                      {m.completed_at ? (
+                                        <span className="text-success flex items-center gap-1">
+                                          <CheckCircle className="h-4 w-4" />
+                                          {tcomp.completedAt.replace(
+                                            "{time}",
+                                            doualaTime(m.completed_at, locale),
+                                          )}
+                                        </span>
+                                      ) : m.started_at ? (
+                                        tcomp.startedAt.replace(
+                                          "{time}",
+                                          doualaTime(m.started_at, locale),
+                                        )
+                                      ) : (
+                                        <span className="text-muted-foreground">
+                                          {tcomp.notStarted}
+                                        </span>
                                       )}
-                                    </span>
-                                  ) : m.started_at ? (
-                                    tcomp.startedAt.replace(
-                                      "{time}",
-                                      doualaTime(m.started_at, locale),
-                                    )
-                                  ) : (
-                                    <span className="text-muted-foreground">
-                                      {tcomp.notStarted}
-                                    </span>
-                                  )}
-                                </div>
-                                {m.completed_at &&
-                                  (m.company_reviewed ? (
+                                    </div>
+                                  </div>
+                                ))}
+                                {multi && !missionDone && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {t.schedule.missionDoneAfterAll}{" "}
+                                    {t.schedule.unconfirmedNote}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {tcomp.dispute}{" "}
+                                  <Link
+                                    href="/help"
+                                    className="text-primary underline"
+                                  >
+                                    {tcomp.support}
+                                  </Link>
+                                </p>
+                                {missionDone &&
+                                  (rows[0].company_reviewed ? (
                                     <div className="text-muted-foreground">
                                       {tcomp.rated}
                                     </div>
@@ -806,7 +995,7 @@ export default function CompanyJobDetailPage() {
                                         data-testid="rate-candidate"
                                         onClick={() =>
                                           setReviewMission({
-                                            mission: m,
+                                            mission: rows[0],
                                             name: name(app),
                                           })
                                         }
