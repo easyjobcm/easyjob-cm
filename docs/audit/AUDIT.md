@@ -2637,3 +2637,76 @@ Navigateur (Chrome headless, 375 × 812 tactile, build de production relié à `
 - Effet d'une journée confirmée par le support sur le futur versement : à traiter dans le lot paiement.
 - `protect_reputation_incidents` raisonne encore à la mission (lot « Engagements et annulations »).
 - Une panne pendant la confirmation n'alerte pas le support : l'écran affiche l'erreur et l'action peut être relancée.
+
+## 37. Suivi — Lot 16 : journées contestées, double validation et révision interne (2026-11-17)
+
+Branche `feat/lot-16-completion-disputes`, créée depuis `origin/main-dev` (78331c7, lot 15 intégré, identique au travail local). Migration `20261120120000_completion_disputes.sql`. Non commité, non déployé. Règles produit : SRS §6.8 (encadré « Lot 16 »), §11.12 et §11.13.
+
+### Réutilisé
+
+Dossiers par journée, versions et justificatifs privés (lot 14) ; contacts, confirmation explicite de l'entreprise et réalisation unique (lot 15 : verrous mission puis journée) ; grades `is_admin_user` / `is_ops_admin_user` (compte actif) ; `audit_logs` ; notifications durables (`notifications`) ; signaux privés (`rt_signal_users`, `rt_signal_admin`) ; tâche planifiée `reputation-expiry-sweep` (pg_cron, toutes les 15 minutes), qui appelle désormais aussi `incident_deadline_sweep()`. Les fonctions des lots 9c à 15 modifiées sont reprises à l'identique, sauf les lignes marquées « Lot 16 ».
+
+### Réalisation
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Instruction | Situation qualifiée par le support (`admin_set_incident_situation`) ; questions adressées à une partie (`admin_request_incident_info`, notification dans l'application) et réponses (`answer_incident_info_request`, hors limite des 5 déclarations) ; notes internes (`admin_add_incident_note`) ; contacts avec `channel_verified`. Déclarations et pièces restent recevables après une décision (nouveaux éléments). |
+| Délais | Origine : `created_at` du dossier + prolongations (`deadline_extension_hours`, `admin_extend_incident_deadlines` : 1 à 168 h, 720 h au total, motif, événement et audit). Pour un dossier ouvert par le candidat : événements `opened` et `party_notified` (in-app) à l'ouverture ; `reminder_24h` (notification à l'entreprise) et `escalation_48h` (interne) posés par `incident_deadline_sweep(p_at)` si l'entreprise n'a pas répondu (déclaration ou réponse consignée). Un index unique par étape rend le balayage idempotent. Aucune confirmation ni sanction n'est déclenchée. |
+| Version du dossier | `mission_incidents.revision`, incrémentée par chaque déclaration, pièce, réponse obtenue ou requalification (déclencheurs). |
+| Double validation | `admin_propose_incident_decision` (ops ou fondateur, conflit déclaré, version courante ; « établi » sur silence : examen renforcé atteint et second canal vérifié tenté) ; `admin_review_incident_proposal` (autre ops ou fondateur, non concerné ; refus `self_review_forbidden`, `proposal_stale`, `proposer_conflict`). Décision, journée `exceptional`, fin de mission, audit, événement et notifications dans une transaction. Un dossier tranché ailleurs ou une journée déjà confirmée : `already_confirmed` ou `obsolete`, sans écriture. Relance : `already_decided`. |
+| Conflit d'intérêts | `mission_incident_conflicts` (append-only) : déclaration exigée à la proposition, à la validation et à l'affectation d'une révision ; « concerné » enregistré et bloquant. |
+| Résultats | `established`, `not_established`, `partial`, `disagreement` (tentative amiable et orientation exigées). La décision générique du lot 14 reste réservée aux retards (`use_dispute_decision` pour une absence). |
+| Révision | `request_incident_review` (partie, `now() < review_deadline` = décision + 7 jours ; l'autre partie rejoint la même révision) ; `admin_take_incident_appeal` (agent distinct du proposant et du décideur, non concerné) ; `admin_decide_incident_appeal` (maintenue, révisée, arbitrage ; une décision « établie » n'est pas annulée). Décisions successives append-only (`supersedes_id`). |
+| Lectures | Parties : chronologie publique, questions qui leur sont adressées, décisions sans éléments vérifiés, révision (échéance, statut). Support : échéances, chronologie interne, notes, propositions (version, relecture), décisions, révisions (agents distincts disponibles). |
+| Écrans | Parties : chronologie, réponse aux questions, décisions et demande de révision dans la carte de signalement (détail de mission et écran entreprise). Support : panneau d'instruction (`app/admin/incidents/incident-dispute-panel.tsx`) ; badges de liste (relancé, examen renforcé, proposition, révision) ; case « canal vérifié ». Provenance « Confirmée par décision du support » dans les écrans existants. |
+
+### Preuves
+
+Nouvelle preuve `mission-disputes` : 24 assertions, 55 s dans la suite complète.
+
+| Contrôle | Résultat |
+|---|---|
+| D1-D5 : relance à 24 h et examen renforcé à 48 h exactement (rien à −1 µs) ; balayages répétés et concurrents sans doublon ; prolongation de 12 h (relance à 36 h exactement), motif, audit, invisible des parties ; réponse de l'entreprise qui arrête les relances ; silence sans confirmation | ✅ |
+| V0-V5 : examen renforcé puis second canal vérifié exigés pour un silence ; support et entreprise refusés ; auto-approbation refusée ; déclaration de conflit exigée et bloquante ; ops suspendu avec un ancien jeton refusé (route, appel direct) ; dossier modifié pendant la seconde revue → `proposal_stale` ; double clic et relance → une décision ; journée `exceptional`, code non consommé ; révision possible exactement 7 jours | ✅ |
+| C1-C4 : code puis décision, décision puis code (ordres imposés) ; confirmation explicite de l'entreprise puis décision ; panne de la trace → 500 générique, rien d'écrit, puis reprise | ✅ |
+| R1-R3 : non établi (absence contestée) sans sanction, réputation inchangée ; partiel sans fin de journée ni division du forfait ; désaccord avec tentative amiable et orientation | ✅ |
+| A1-A4 : révision refusée à l'échéance exacte, acceptée 1 ms avant ; demandes des deux parties ; proposant et décideur exclus ; agent affecté seul décide ; décisions successives ; annulation d'une journée confirmée refusée (`arbitration_required`) ; aucun agent distinct disponible (0 observé) → attente d'affectation | ✅ |
+| I1, X1 : questions isolées par partie, réponse unique ; aucun élément vérifié, note interne ni référence privée dans les réponses des parties ; autre candidat et entreprise tierce 404 ; tables du lot fermées en session | ✅ |
+| Contrôle négatif 1 : seconde validation sans le refus d'auto-approbation | V2 en échec (et suites V3, V4, A4) |
+| Contrôle négatif 2 : seconde validation sans contrôle de version | V3 et V4 en échec ; fonction d'origine rétablie et relue |
+
+Pendant la mise au point, la preuve a révélé deux défauts de la preuve elle-même, corrigés :
+
+- instants calculés côté client à la milliseconde alors que `created_at` est à la microseconde ; la base calcule désormais l'instant ;
+- `undefined` passé à un paramètre par défaut, qui réactivait « aucun conflit ».
+
+Preuves existantes rejouées sans modification : `mission-incidents`, `mission-completion`, `mission-time-tracking`, `multi-day-jobs`, `reputation`.
+
+Navigateur (Chrome headless, 375 × 812 tactile, build de production relié à `easyjob-proof`, script et contenus fictifs hors dépôt) : ✅ 20/20 en FR puis EN, en 64 s, avec un candidat, une entreprise et deux agents ops.
+
+- Le candidat ouvre le dossier depuis la journée ; l'entreprise le voit en 0,3 s sans rechargement.
+- Question du support reçue par l'entreprise, réponse envoyée ; le candidat ne voit pas la question.
+- Proposition d'OPS1 visible chez OPS2 ; relecture affichée dès un nouvel élément de l'entreprise ; nouvelle proposition, puis validation par OPS2.
+- Décision reçue par l'entreprise en 4 à 53 ms ; le candidat, hors ligne pendant la décision, la reçoit 0,5 s après la reconnexion, sans rechargement.
+- Les parties lisent faits retenus, contradictions, justification et échéance de révision, jamais les éléments internes.
+- Révision demandée par l'entreprise : en attente d'affectation, non affectable aux deux agents.
+- Aucun défilement horizontal, aucune erreur JavaScript.
+
+### Validation de l'état final
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm test` (Vitest), puis suite RLS complète, l'un après l'autre (sorties conservées) | ✅ 578 tests, 48 fichiers, 10 s (nouveau : `mission-disputes`) ; aucun échec intermittent observé |
+| `pnpm test:rls` (pile réinitialisée depuis les seules migrations, build de production) | ✅ 35/35 au premier passage, 712 s |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` (26 s, Next.js 16.4.5, sans avertissement) | ✅ |
+| Types générés (pile réinitialisée) | ✅ identiques à `lib/database.types.ts` |
+
+### Limites et décisions nécessaires
+
+- **Annulation d'une journée confirmée** (SRS §11.13) : non introduite. Elle toucherait la réalisation immuable de la journée et de la mission, les avis déjà admissibles, la réputation rejouée (unités du candidat et de l'entreprise) et le futur versement.
+- **Réalisation partielle** : identifiée seulement ; son traitement (journée, montant) relève du lot paiement.
+- **Recours externes** : l'orientation est un texte libre ; la liste des recours à indiquer reste à valider.
+- **Notifications externes** : aucun SMS ni e-mail n'est envoyé. Une tentative externe est seulement consignée par le support.
+- **Délais** : appliqués aux dossiers ouverts par le candidat (l'entreprise doit répondre). Un dossier ouvert par l'entreprise n'a pas de relance automatique du candidat.
+- **Tâche planifiée** : passage réel de pg_cron non observé sur la pile locale ; le balayage est appelé par la preuve. À vérifier après déploiement (`cron.job`, premier passage).
+- **Journée jamais commencée** : toujours ni code ni confirmation, quelle que soit la voie.

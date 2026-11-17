@@ -190,8 +190,8 @@ Pour éviter qu'un candidat ne contrevienne aux informations personnelles et doc
 | Catégorie | Candidat | Entreprise | Règle |
 |---|---|---|---|
 | Profil | 1 étoile | 1 étoile | Complétude ≥ 50 % → ½, 100 % → 1. Candidat : `profile_completion_pct` (§6.2). Entreprise : secteur 20, description de plus de 20 caractères 20, logo 15, ville et adresse 15, RCCM ou NIU 15, nom et téléphone du contact 15 (mêmes critères que l'écran de profil). |
-| Expérience et engagements | 2 étoiles | 2 étoiles | Solde de 0 à 20 unités ; 5/10/15/20 unités → ½/1/1½/2. Candidat : +1 par mission réalisée : toutes ses journées confirmées, par le code de fin ou par le support après confirmation explicite de l'entreprise (lot 15). Entreprise : +1 par offre réalisée, une seule fois, quel que soit le nombre de places, de candidats ou de journées, sous-offres regroupées (règle du lot 12 ci-dessous). Un manquement confirmé retire 5 unités. |
-| Avis reçus | 1 étoile | 2 étoiles | Note 4 ou 5 → +1, 3 → 0, < 3 → −5. Solde de 0 à 10 (candidat) ou 0 à 20 (entreprise) ; 5 unités → ½ étoile. Seuls comptent les avis du parcours de mission, sur une mission dont le travail est confirmé (code de fin ou confirmation par le support, lot 15), non invalidés par une contestation. |
+| Expérience et engagements | 2 étoiles | 2 étoiles | Solde de 0 à 20 unités ; 5/10/15/20 unités → ½/1/1½/2. Candidat : +1 par mission réalisée : toutes ses journées confirmées, par le code de fin, par le support après confirmation explicite de l'entreprise (lot 15) ou par décision du support après instruction et double validation (lot 16). Entreprise : +1 par offre réalisée, une seule fois, quel que soit le nombre de places, de candidats ou de journées, sous-offres regroupées (règle du lot 12 ci-dessous). Un manquement confirmé retire 5 unités. |
+| Avis reçus | 1 étoile | 2 étoiles | Note 4 ou 5 → +1, 3 → 0, < 3 → −5. Solde de 0 à 10 (candidat) ou 0 à 20 (entreprise) ; 5 unités → ½ étoile. Seuls comptent les avis du parcours de mission, sur une mission dont le travail est confirmé (code de fin, confirmation par le support, lot 15, ou décision exceptionnelle, lot 16), non invalidés par une contestation. |
 | Compétences vérifiées | 1 étoile | — | ½ par compétence distincte dont un justificatif lié est approuvé et valide ; deux justificatifs d'une même compétence comptent une fois. Compétence de conduite : permis approuvé, valide et de catégorie couvrante (§6.14.2). Validité : règle de la candidature (§6.14). Un renouvellement compte après approbation ; un diplôme sans échéance reste valable. |
 
 - **Rejeu déterministe.** Les soldes sont rejoués dans l'ordre chronologique des événements, avec les bornes appliquées à chaque événement. Une contestation acceptée sur un avis ancien, ou l'annulation d'un manquement par le support, donne le même résultat qu'un calcul complet.
@@ -609,9 +609,17 @@ Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version a
 > - **Code non remis.** À la même échéance, et seulement pour une journée commencée, « Contacter le support » ouvre le dossier « code non remis » de cette journée (signalement du lot 14) ; une relance retrouve le dossier existant. La même règle s'applique à l'appel direct. Le retard et l'absence gardent leurs règles.
 > - **Instruction.** Le support (tout grade actif) consigne ses contacts avec l'entreprise : date, canal, et soit une **demande** (envoyée, sans réponse, injoignable), soit une **réponse obtenue** (travail confirmé, contesté, autre), avec une référence privée et une note interne. Ces éléments ne sont lus que par le support.
 > - **Confirmation manuelle (cas arbitré).** Quand l'entreprise confirme explicitement au support que le candidat a effectué le travail de la journée, un admin `admin_ops` ou `admin_founder` actif confirme la journée, avec le motif de sa décision et la réponse « travail confirmé » consignée sur le dossier. La journée est enregistrée comme **confirmée par le support** (jamais comme un code saisi), rattachée au candidat, à la journée et au dossier ; la décision, la trace et les notifications sont enregistrées dans la même transaction. Les parties voient « Journée confirmée par le support », sans le motif ni la référence.
-> - **Entreprise injoignable ou travail contesté** : le dossier reste en instruction ; aucune décision n'est possible par une autre voie. Les preuves suffisantes pour trancher ces deux cas restent une décision produit ouverte (§11.12).
+> - **Entreprise injoignable ou travail contesté** : depuis le lot 16, instruction contradictoire et double validation (encadré ci-dessous) ; aucune décision n'est possible par une seule personne.
 > - **Une seule réalisation.** Si le candidat saisit son code pendant que le support confirme, une seule réalisation est enregistrée ; la seconde opération retrouve le résultat acquis. Si le code arrive pendant l'instruction, la journée est confirmée par code et le dossier est clos.
 > - **Effets.** Une journée confirmée par le support compte comme travail effectué : la mission se termine quand toutes ses journées sont confirmées (forfait global inchangé), l'évaluation s'ouvre, et la réputation suit les règles du lot 12 (une unité par mission, une par offre, une seule fois). Aucun paiement, remboursement ni retrait d'étoiles ne découle du seul signalement.
+
+> **Lot 16 (2026-11-17) : journées contestées.**
+> - **Instruction.** Pour une journée précise, chaque partie expose sa version et ses justificatifs ; le support qualifie la situation (entreprise injoignable, présence ou réalisation contestée, travail partiellement effectué, qualité contestée, retard ou comportement signalé), pose des questions à une partie (qui répond depuis son dossier), consigne ses contacts (demande distincte de la réponse obtenue, canal vérifié ou non) et ses vérifications (notes internes). Aucun nombre de pièces ne vaut preuve automatiquement.
+> - **Délais** (origine : ouverture du dossier, à l'heure de la base) : notification initiale dans l'application ; à 24 h sans réponse de l'entreprise, relance dans l'application ; à 48 h, examen renforcé, avec une tentative sur un second canal vérifié à consigner par le support. Prolongation motivée, datée et historisée. Le silence ne vaut jamais confirmation. EasyJob n'envoie ni SMS ni e-mail : une tentative externe est celle que le support consigne, une réponse est celle réellement reçue. Les échéances sont calculées par la tâche planifiée existante, sans doublon.
+> - **Décision à deux agents.** Un `admin_ops` ou `admin_founder` actif propose, sur une version précise du dossier ; un autre `admin_ops` ou `admin_founder` actif examine et décide. Déclaration de conflit d'intérêts à chaque étape ; un agent concerné est bloqué sur le dossier. Toute nouvelle réponse, pièce ou requalification après la proposition impose une relecture. `admin_support` instruit, consulte et consigne sans proposer ni décider. La confirmation explicite de l'entreprise (lot 15) reste possible à un seul agent.
+> - **Contenu de la décision** : faits retenus, éléments vérifiés (internes), contradictions, justification. Les parties lisent les faits retenus, les contradictions et la justification, jamais les éléments vérifiés, références privées, notes internes ni pièces de l'autre partie.
+> - **Résultats.** *Établi* : la journée est confirmée « par décision du support » (provenance distincte), avec les règles habituelles de fin de mission, d'évaluation et de réputation. *Non établi* : décision motivée, aucune absence fautive ni sanction. *Partiel* : dossier identifié pour un traitement spécifique ; la journée n'est pas terminée et le forfait global n'est pas divisé. *Désaccord persistant* : tentative amiable et orientation vers le recours compétent consignées. Aucun paiement, remboursement ni manquement n'est créé.
+> - **Révision interne.** Chaque partie peut demander une révision pendant sept jours à compter de l'enregistrement de la décision notifiée (heure de la base, échéance affichée). Un agent habilité distinct de ceux qui ont proposé et validé l'examine ; sans agent distinct disponible, la révision attend son affectation. Les décisions successives sont conservées. Une journée confirmée n'est pas annulée par la révision (arbitrage, §11.13). Ce délai interne ne supprime aucun recours légal et n'empêche pas le support de recevoir de nouveaux éléments.
 
 **Description :** Traçabilité complète du déroulement de la mission.
 
@@ -1724,7 +1732,23 @@ admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
 
 **Questions :** quelles preuves suffisent pour trancher (témoins, photos, pointage, nombre de relances, délai de réponse) ; qui tranche, dans quel délai, avec quelle information de l'entreprise et quel recours ; effet sur la réputation et sur le futur versement.
 
-**Statut :** ⏳ Décision produit ouverte. En attendant, le dossier reste en instruction : aucune confirmation, aucune décision générique, aucune sanction.
+**Statut :** ✅ Processus décidé et livré au lot 16 (§6.8) : instruction contradictoire, délais de 24 h et 48 h, décision motivée à deux agents, révision interne de sept jours. Restent ouverts : le traitement d'une réalisation partielle et l'effet d'une décision sur le futur versement (lot paiement), les recours externes à indiquer précisément (liste à valider).
+
+---
+
+### 11.13 — Annulation d'une journée déjà confirmée (nouveau)
+
+**Contexte :** une révision interne (lot 16) peut conclure qu'une journée confirmée (par code, par l'entreprise ou par décision) ne l'aurait pas dû. Le lot 16 ne l'annule pas : l'agent maintient la décision ou consigne « arbitrage demandé ».
+
+**Effets à arbitrer avant toute annulation :**
+- la journée et la mission : la réalisation est immuable en base (`mission_days`, `missions.actual_end_time`) ; la rouvrir suppose une nouvelle règle d'écriture, tracée ;
+- la mission globale d'une période complète : annuler une journée rend la mission « non réalisée » alors que les autres journées restent confirmées ; le forfait n'est pas divisible ;
+- les évaluations déjà déposées (immuables, admissibles car le travail était confirmé) : conservées, invalidées ou réexaminées ;
+- la réputation : rejouée depuis les données, elle retirerait l'unité de mission du candidat et, le cas échéant, l'unité d'offre de l'entreprise, avec une notification de baisse ;
+- le futur versement : une annulation après versement relève du lot paiement (récupération, compensation) ;
+- l'information des parties et leur recours.
+
+**Statut :** ⏳ Décision produit ouverte. Aucune annulation n'est possible ; les protections d'immuabilité ne sont pas contournées.
 
 ---
 

@@ -2215,6 +2215,8 @@ export const fr = {
       // Lot 15 : journée confirmée par le support après votre confirmation.
       completedBySupportAt:
         "Confirmée par le support à {time}, après votre confirmation",
+      completedByDecisionAt:
+        "Confirmée à {time} par décision du support, après instruction du dossier",
       scheduled: "Prévue de {start} à {end}",
       rate: "Noter le candidat (facultatif)",
       rated: "Vous avez noté ce candidat.",
@@ -2538,6 +2540,45 @@ export const fr = {
         "Date du contact non valable (entre le début de la journée et maintenant).",
       reference_required:
         "Indiquez la référence de la confirmation (appel, message, interlocuteur).",
+      // Lot 16 : instruction, double validation et révision interne.
+      use_dispute_decision:
+        "Une absence se tranche par une proposition validée par un second agent.",
+      situation_invalid: "Choisissez une situation.",
+      extension_invalid: "Prolongation de 1 à 168 heures (720 au total).",
+      party_invalid: "Choisissez le destinataire.",
+      question_invalid: "La question doit compter de 10 à 1000 caractères.",
+      decision_text_invalid:
+        "Faits retenus, éléments vérifiés, contradictions et justification : 10 à 4000 caractères chacun.",
+      disagreement_followup_required:
+        "Désaccord persistant : indiquez la tentative amiable et l'orientation.",
+      conflict_declaration_required:
+        "Déclarez si vous êtes concerné par un conflit d'intérêts.",
+      conflict_of_interest:
+        "Vous vous êtes déclaré concerné : action impossible sur ce dossier.",
+      outcome_not_applicable:
+        "Ce résultat ne s'applique pas à ce type de signalement.",
+      escalation_pending:
+        "Entreprise silencieuse : attendez l'examen renforcé (48 h).",
+      second_channel_required:
+        "Entreprise silencieuse : consignez d'abord une tentative sur un second canal vérifié.",
+      proposal_not_found: "Proposition introuvable.",
+      proposal_closed: "Cette proposition n'est plus en attente.",
+      self_review_forbidden:
+        "Vous ne pouvez pas valider votre propre proposition.",
+      proposer_conflict:
+        "L'auteur de la proposition s'est déclaré concerné : nouvelle proposition nécessaire.",
+      proposal_stale:
+        "Le dossier a changé depuis la proposition : une nouvelle proposition est nécessaire.",
+      no_decision: "Aucune décision à réviser.",
+      review_window_closed: "Le délai de révision interne est écoulé.",
+      review_already_decided: "La révision a déjà été examinée.",
+      appeal_not_found: "Révision introuvable.",
+      reviewer_not_eligible:
+        "Un agent qui a proposé ou validé la décision ne peut pas la réviser.",
+      appeal_already_assigned: "Révision déjà affectée à un autre agent.",
+      appeal_not_assigned: "Révision affectée à un autre agent.",
+      arbitration_required:
+        "Une journée confirmée n'est pas annulée par la révision : maintenez la décision ou demandez un arbitrage.",
       day_not_started:
         "Cette journée n'a pas encore commencé : ce signalement sera possible à partir de l'heure de début.",
       incident_closed: "Ce signalement est clos.",
@@ -2545,6 +2586,73 @@ export const fr = {
       statement_limit: "Vous avez déjà envoyé 5 déclarations.",
       evidence_limit: "Vous avez déjà transmis 5 justificatifs.",
       generic: "L'action n'a pas pu être enregistrée. Réessayez.",
+    },
+    // Lot 16 : chronologie, compléments, décision et révision.
+    situation: {
+      company_unreachable: "Entreprise injoignable",
+      presence_disputed: "Présence ou réalisation contestée",
+      partial_work: "Travail partiellement effectué",
+      quality_disputed: "Qualité du travail contestée",
+      late_or_conduct: "Retard ou comportement signalé",
+    },
+    timeline: {
+      title: "Chronologie",
+      opened: "Dossier ouvert",
+      party_notified: "Notification créée dans l'application ({party})",
+      reminder_24h: "Relance créée dans l'application pour l'entreprise",
+      info_requested: "Le support vous a posé une question",
+      info_answered: "Réponse envoyée au support",
+      decision_recorded: "Décision enregistrée : {outcome}",
+      appeal_requested: "Révision demandée ({party})",
+      appeal_assigned: "Révision confiée à un agent",
+      appeal_decided: "Révision examinée",
+      inApp:
+        "EasyJob n'envoie ni SMS ni e-mail : les notifications sont dans l'application.",
+    },
+    info: {
+      title: "Question du support",
+      placeholder: "Votre réponse (10 caractères au moins)",
+      send: "Répondre",
+      answered: "Répondu le {time}",
+      sent: "Réponse envoyée au support",
+    },
+    decision: {
+      initial: "Décision du support",
+      appeal: "Révision interne",
+      facts: "Faits retenus",
+      contradictions: "Contradictions relevées",
+      justification: "Justification",
+      amicable: "Tentative amiable",
+      orientation: "Orientation",
+      outcomes: {
+        established: "Réalisation établie",
+        not_established: "Réalisation non établie",
+        partial: "Réalisation partielle",
+        disagreement: "Désaccord persistant",
+      },
+      appealResults: {
+        upheld: "Décision maintenue",
+        revised: "Décision révisée",
+        arbitration_required: "Arbitrage demandé",
+      },
+      noSanction:
+        "Cette décision ne crée ni absence fautive, ni sanction, ni paiement.",
+      partialNote:
+        "Dossier identifié pour un traitement spécifique : la journée n'est pas terminée et le forfait n'est pas divisé.",
+    },
+    review: {
+      title: "Révision interne",
+      deadline: "Vous pouvez demander une révision jusqu'au {time}.",
+      request: "Demander une révision",
+      placeholder:
+        "Pourquoi demandez-vous une révision ? (10 caractères au moins)",
+      sent: "Révision demandée",
+      pending_assignment: "Révision en attente d'un agent",
+      assigned: "Révision en cours d'examen",
+      decided: "Révision examinée",
+      closed: "Délai de révision interne écoulé.",
+      otherRemedies:
+        "Ce délai interne ne supprime pas vos autres recours, et vous pouvez toujours transmettre de nouveaux éléments au support.",
     },
     admin: {
       title: "Signalements de mission",
@@ -2569,6 +2677,8 @@ export const fr = {
       notStarted: "Début non déclaré",
       confirmedAt: "Confirmée par code : {time}",
       confirmedBySupportAt: "Confirmée par le support : {time}",
+      confirmedByDecisionAt:
+        "Confirmée par décision du support (double validation) : {time}",
       notConfirmed: "Non confirmée",
       endsAt: "Fin prévue : {time}",
       otherDays: "Autres journées",
@@ -2618,6 +2728,124 @@ export const fr = {
         submit: "Consigner le contact",
         recorded: "Contact consigné",
         by: "Consigné par : {role}",
+      },
+      // Lot 16 : instruction, échéances, double validation, révisions.
+      contactsVerified:
+        "Canal vérifié (numéro ou adresse vérifiés de l'entreprise)",
+      contactsVerifiedBadge: "canal vérifié",
+      badges: {
+        escalated: "Examen renforcé",
+        reminder: "Relancé",
+        proposal: "Proposition à valider",
+        appeal: "Révision",
+      },
+      dispute: {
+        title: "Instruction",
+        situation: "Situation",
+        situationNone: "Non qualifiée",
+        situationSave: "Qualifier",
+        situationSaved: "Situation enregistrée",
+        deadlines: "Échéances",
+        openedAt: "Ouvert le {time}",
+        reminderAt: "Relance 24 h : {time}",
+        escalationAt: "Examen renforcé 48 h : {time}",
+        reminderSent: "Relance créée dans l'application le {time}",
+        escalated: "Examen renforcé depuis le {time}",
+        companyResponded: "L'entreprise a répondu",
+        companySilent: "L'entreprise n'a pas encore répondu",
+        notApplicable:
+          "Dossier ouvert par l'entreprise : aucune relance automatique.",
+        secondChannelRequired:
+          "Tenter un second canal vérifié et consigner la demande.",
+        secondChannelDone: "Second canal vérifié tenté.",
+        extended: "Échéances prolongées de {hours} h au total",
+        silenceNote: "L'absence de réponse ne vaut jamais confirmation.",
+        extend: "Prolonger",
+        extendHours: "Heures",
+        extendReason: "Motif de la prolongation (10 caractères au moins)",
+        extendDone: "Échéances prolongées",
+        infoTitle: "Demander un complément",
+        infoParty: "Destinataire",
+        infoQuestion: "Question (10 caractères au moins)",
+        infoSend: "Envoyer la question",
+        infoDone: "Question envoyée (notification dans l'application)",
+        infoAnswered: "Répondu le {time}",
+        infoPending: "En attente de réponse",
+        notesTitle: "Notes internes de vérification",
+        notesPlaceholder: "Vérification effectuée (interne)",
+        notesAdd: "Ajouter la note",
+        eventsTitle: "Chronologie interne",
+        events: {
+          opened: "Dossier ouvert",
+          party_notified: "Notification créée dans l'application",
+          reminder_24h: "Relance 24 h créée dans l'application",
+          escalation_48h: "Examen renforcé (48 h)",
+          deadline_extended: "Prolongation : {hours} h — {reason}",
+          situation_set: "Situation qualifiée",
+          info_requested: "Complément demandé",
+          info_answered: "Complément reçu",
+          proposal_created: "Proposition de décision",
+          proposal_rejected: "Proposition refusée",
+          decision_recorded: "Décision enregistrée",
+          appeal_requested: "Révision demandée",
+          appeal_assigned: "Révision affectée",
+          appeal_decided: "Révision décidée",
+        },
+        proposeTitle: "Proposer une décision",
+        outcome: "Résultat",
+        facts: "Faits retenus",
+        elements: "Éléments vérifiés (interne)",
+        contradictions: "Contradictions",
+        justification: "Justification",
+        amicable: "Tentative amiable",
+        orientation: "Orientation vers le recours compétent",
+        conflictNone:
+          "Je déclare n'avoir aucun conflit d'intérêts sur ce dossier",
+        conflictConcerned: "Je suis concerné (conflit d'intérêts)",
+        propose: "Proposer",
+        proposed: "Proposition enregistrée : un autre agent doit la valider",
+        reservedOps:
+          "Proposer et valider : deux agents ops ou fondateur distincts. Le support instruit sans décider.",
+        viewerConcerned:
+          "Vous vous êtes déclaré concerné : ni proposition ni validation sur ce dossier.",
+        conflictRecorded: "Conflit d'intérêts enregistré",
+        proposalsTitle: "Propositions",
+        proposalStatus: {
+          pending: "En attente de seconde validation",
+          approved: "Validée",
+          rejected: "Refusée",
+          superseded: "Remplacée",
+        },
+        revision: "Version du dossier : {rev}",
+        stale:
+          "Le dossier a changé depuis cette proposition : relecture et nouvelle proposition nécessaires.",
+        mine: "Votre proposition : un autre agent doit la valider.",
+        reviewNote: "Note de seconde validation (10 caractères au moins)",
+        approve: "Valider la décision",
+        reject: "Refuser",
+        decided: "Décision enregistrée",
+        rejected: "Proposition refusée",
+        alreadyConfirmed:
+          "Journée déjà confirmée par une autre voie : aucun effet.",
+        obsolete: "Dossier déjà tranché : aucun effet.",
+        decisionsTitle: "Décisions",
+        reviewUntil: "Révision possible jusqu'au {time}",
+        appealsTitle: "Révisions internes",
+        appealStatus: {
+          pending_assignment: "En attente d'affectation",
+          assigned: "Affectée",
+          decided: "Décidée",
+        },
+        noAgent: "Aucun agent distinct disponible : en attente d'affectation.",
+        eligible: "Agents distincts disponibles : {count}",
+        take: "Prendre la révision",
+        taken: "Révision affectée",
+        appealResult: "Issue",
+        newOutcome: "Nouveau résultat",
+        decideAppeal: "Décider la révision",
+        appealDone: "Révision décidée",
+        arbitrationHint:
+          "Une journée confirmée n'est pas annulée : maintenez la décision ou demandez un arbitrage.",
       },
       confirmDay: {
         title: "Confirmer la journée",
@@ -2951,6 +3179,8 @@ export const fr = {
     dayConfirmed: "Confirmée",
     // Lot 15 : journée confirmée par le support après vérification.
     dayConfirmedBySupport: "Confirmée par le support",
+    // Lot 16 : confirmation exceptionnelle (double validation).
+    dayConfirmedByDecision: "Confirmée par décision du support",
     dayNotConfirmed: "Non confirmée",
     dayUpcoming: "À venir",
     dayCode: "Code du {date}",

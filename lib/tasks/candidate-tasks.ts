@@ -102,7 +102,8 @@ export interface MissionDayState {
   started_at: string | null;
   completed_at: string | null;
   /** Lot 15 : provenance de la confirmation (code saisi ou support). */
-  completed_via: "code" | "support" | null;
+  /** Lot 16 : « exceptional » = décision du support après double validation. */
+  completed_via: "code" | "support" | "exceptional" | null;
 }
 
 /** Journées lues dans le JSON de la base, triées par début. */
@@ -130,7 +131,9 @@ export function missionDays(raw: unknown): MissionDayState[] {
           started_at: str(r.started_at),
           completed_at: str(r.completed_at),
           completed_via:
-            r.completed_via === "code" || r.completed_via === "support"
+            r.completed_via === "code" ||
+            r.completed_via === "support" ||
+            r.completed_via === "exceptional"
               ? r.completed_via
               : null,
         },

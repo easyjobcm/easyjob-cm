@@ -486,9 +486,11 @@ export default function MissionDetailPage() {
                             }
                           >
                             {d.completed_at
-                              ? d.completed_via === "support"
-                                ? t.schedule.dayConfirmedBySupport
-                                : t.schedule.dayConfirmed
+                              ? d.completed_via === "exceptional"
+                                ? t.schedule.dayConfirmedByDecision
+                                : d.completed_via === "support"
+                                  ? t.schedule.dayConfirmedBySupport
+                                  : t.schedule.dayConfirmed
                               : d.started_at
                                 ? t.schedule.dayStarted
                                 : t.schedule.dayUpcoming}
@@ -524,7 +526,9 @@ export default function MissionDetailPage() {
                     doualaTime(mission.completed_at, locale),
                   )}
                   {missionDays(mission.days).some(
-                    (d) => d.completed_via === "support",
+                    (d) =>
+                      d.completed_via === "support" ||
+                      d.completed_via === "exceptional",
                   ) && ` · ${t.schedule.dayConfirmedBySupport}`}
                 </div>
               )}

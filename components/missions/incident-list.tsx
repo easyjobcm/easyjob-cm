@@ -1,7 +1,15 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import { Flag, Paperclip, Scale } from "lucide-react";
+import {
+  CalendarClock,
+  Flag,
+  History,
+  MessageCircleQuestion,
+  Paperclip,
+  Scale,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +19,10 @@ import { plural } from "@/lib/i18n/plural";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { doualaDateTime } from "@/lib/utils/douala-time";
 import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
-import { incidentStatementSchema } from "@/lib/validations/incident";
+import {
+  incidentStatementSchema,
+  type DisputeOutcome,
+} from "@/lib/validations/incident";
 import type { Database } from "@/lib/database.types";
 
 type Row =
@@ -24,6 +35,10 @@ export type PartyIncident = Omit<
   | "decided_at"
   | "closed_reason"
   | "resolution"
+  | "timeline"
+  | "info_requests"
+  | "decisions"
+  | "review"
 > & {
   late_minutes: number | null;
   outcome: "established" | "not_established" | null;
@@ -32,6 +47,42 @@ export type PartyIncident = Omit<
   closed_reason: string | null;
   /** Lot 15 : journée confirmée par le support (motif interne non lu). */
   resolution: "support_confirmed_day" | null;
+  /** Lot 16 : chronologie publique, compléments, décisions, révision. */
+  timeline: TimelineEvent[] | null;
+  info_requests: InfoRequest[] | null;
+  decisions: PartyDecision[] | null;
+  review: ReviewState | null;
+};
+type TimelineEvent = {
+  type: string;
+  at: string;
+  party: "candidate" | "company" | null;
+  outcome: DisputeOutcome | null;
+};
+type InfoRequest = {
+  id: string;
+  question: string;
+  created_at: string;
+  answered_at: string | null;
+};
+type PartyDecision = {
+  id: string;
+  kind: "initial" | "appeal";
+  outcome: DisputeOutcome;
+  appeal_result: "upheld" | "revised" | "arbitration_required" | null;
+  facts_retained: string;
+  contradictions: string;
+  justification: string;
+  amicable_attempt: string | null;
+  orientation: string | null;
+  decided_at: string;
+  review_deadline: string | null;
+};
+type ReviewState = {
+  deadline: string;
+  open: boolean;
+  status: "pending_assignment" | "assigned" | "decided" | null;
+  requested_by_viewer: boolean;
 };
 type Statement = {
   party: "candidate" | "company";
@@ -238,7 +289,16 @@ function IncidentCard({
           </p>
         ) : null,
       )}
-      {incident.outcome && (
+      <IncidentDisputeSections
+        incident={incident}
+        onChanged={onChanged}
+        busy={busy}
+        setBusy={setBusy}
+        busyRef={busyRef}
+        setError={setError}
+        codeOf={codeOf}
+      />
+      {incident.outcome && (incident.decisions ?? []).length === 0 && (
         <div
           className="rounded-md border border-primary/30 bg-primary/5 p-2"
           data-testid="incident-decision"
@@ -247,7 +307,10 @@ function IncidentCard({
             <Scale className="h-4 w-4" aria-hidden />
             {incident.resolution === "support_confirmed_day"
               ? ti.resolution.support_confirmed_day
-              : ti.outcome[incident.outcome]}
+              : incident.outcome === "established" ||
+                  incident.outcome === "not_established"
+                ? ti.outcome[incident.outcome]
+                : null}
           </p>
           {incident.decision_note && (
             <p className="whitespace-pre-wrap break-words">
@@ -305,5 +368,286 @@ function IncidentCard({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Lot 16 : ce qu'une partie voit de l'instruction — chronologie (sans
+ * étape interne), questions qui lui sont adressées, décisions (faits
+ * retenus, contradictions, justification ; jamais les éléments vérifiés,
+ * références ni notes) et révision interne avec son échéance (heure du
+ * serveur).
+ */
+function IncidentDisputeSections({
+  incident,
+  onChanged,
+  busy,
+  setBusy,
+  busyRef,
+  setError,
+  codeOf,
+}: {
+  incident: PartyIncident;
+  onChanged: () => void;
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+  busyRef: React.MutableRefObject<boolean>;
+  setError: (e: ErrorCode | null) => void;
+  codeOf: (code: unknown) => ErrorCode;
+}) {
+  const { t, locale } = useI18n();
+  const ti = t.incidents;
+  const { toast } = useToast();
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [reviewText, setReviewText] = useState("");
+  const timeline = incident.timeline ?? [];
+  const requests = incident.info_requests ?? [];
+  const decisions = incident.decisions ?? [];
+  const review = incident.review;
+
+  async function post(url: string, statement: string, okTitle: string) {
+    if (busyRef.current) return false;
+    const parsed = incidentStatementSchema.safeParse({ statement });
+    if (!parsed.success) {
+      setError(codeOf(parsed.error.issues[0]?.message));
+      return false;
+    }
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsed.data),
+    }).catch(() => null);
+    const body = ((await res?.json().catch(() => null)) ?? {}) as {
+      code?: string;
+    };
+    if (res?.ok) toast({ title: okTitle, variant: "success" });
+    else setError(codeOf(body.code));
+    busyRef.current = false;
+    setBusy(false);
+    onChanged();
+    return !!res?.ok;
+  }
+
+  const eventLabel = (e: TimelineEvent): string | null => {
+    const party = e.party ? ti.party[e.party] : "";
+    switch (e.type) {
+      case "opened":
+        return ti.timeline.opened;
+      case "party_notified":
+        return ti.timeline.party_notified.replace("{party}", party);
+      case "reminder_24h":
+        return ti.timeline.reminder_24h;
+      case "info_requested":
+        return ti.timeline.info_requested;
+      case "info_answered":
+        return ti.timeline.info_answered;
+      case "decision_recorded":
+        return ti.timeline.decision_recorded.replace(
+          "{outcome}",
+          e.outcome ? ti.decision.outcomes[e.outcome] : "",
+        );
+      case "appeal_requested":
+        return ti.timeline.appeal_requested.replace("{party}", party);
+      case "appeal_assigned":
+        return ti.timeline.appeal_assigned;
+      case "appeal_decided":
+        return ti.timeline.appeal_decided;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      {timeline.length > 0 && (
+        <details
+          className="rounded-md border p-2"
+          data-testid="incident-timeline"
+        >
+          <summary className="flex cursor-pointer items-center gap-1 text-xs font-medium">
+            <History className="h-3 w-3" aria-hidden />
+            {ti.timeline.title}
+          </summary>
+          <ol className="mt-2 space-y-1 text-xs">
+            {timeline.map((e, idx) => {
+              const label = eventLabel(e);
+              return label ? (
+                <li
+                  key={idx}
+                  data-testid="incident-timeline-event"
+                  data-type={e.type}
+                >
+                  <span className="text-muted-foreground">
+                    {doualaDateTime(e.at, locale)} ·{" "}
+                  </span>
+                  {label}
+                </li>
+              ) : null;
+            })}
+          </ol>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {ti.timeline.inApp}
+          </p>
+        </details>
+      )}
+      {requests.map((r) => (
+        <div
+          key={r.id}
+          className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-2"
+          data-testid="incident-info-request"
+          data-answered={r.answered_at ? "true" : "false"}
+        >
+          <p className="flex items-center gap-1 text-xs font-medium">
+            <MessageCircleQuestion className="h-3 w-3" aria-hidden />
+            {ti.info.title} · {doualaDateTime(r.created_at, locale)}
+          </p>
+          <p className="whitespace-pre-wrap break-words">{r.question}</p>
+          {r.answered_at ? (
+            <p className="text-xs text-muted-foreground">
+              {ti.info.answered.replace(
+                "{time}",
+                doualaDateTime(r.answered_at, locale),
+              )}
+            </p>
+          ) : (
+            <>
+              <Textarea
+                value={answers[r.id] ?? ""}
+                onChange={(e) =>
+                  setAnswers((a) => ({ ...a, [r.id]: e.target.value }))
+                }
+                maxLength={2000}
+                placeholder={ti.info.placeholder}
+                aria-label={ti.info.placeholder}
+                data-testid="incident-info-answer"
+              />
+              <Button
+                size="sm"
+                disabled={busy || (answers[r.id] ?? "").trim().length < 10}
+                onClick={() =>
+                  void post(
+                    `/api/incident-info/${r.id}`,
+                    answers[r.id] ?? "",
+                    ti.info.sent,
+                  ).then(
+                    (ok) => ok && setAnswers((a) => ({ ...a, [r.id]: "" })),
+                  )
+                }
+                data-testid="incident-info-send"
+              >
+                {ti.info.send}
+              </Button>
+            </>
+          )}
+        </div>
+      ))}
+      {decisions.map((d) => (
+        <div
+          key={d.id}
+          className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2"
+          data-testid="incident-dispute-decision"
+          data-kind={d.kind}
+          data-outcome={d.outcome}
+        >
+          <p className="flex flex-wrap items-center gap-1 font-medium">
+            <Scale className="h-4 w-4" aria-hidden />
+            {d.kind === "initial"
+              ? ti.decision.initial
+              : ti.decision.appeal} ·{" "}
+            {d.appeal_result && d.appeal_result !== "revised"
+              ? ti.decision.appealResults[d.appeal_result]
+              : ti.decision.outcomes[d.outcome]}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {doualaDateTime(d.decided_at, locale)}
+          </p>
+          {(
+            [
+              [ti.decision.facts, d.facts_retained],
+              [ti.decision.contradictions, d.contradictions],
+              [ti.decision.justification, d.justification],
+              [ti.decision.amicable, d.amicable_attempt],
+              [ti.decision.orientation, d.orientation],
+            ] as const
+          ).map(([label, value]) =>
+            value ? (
+              <p key={label} className="whitespace-pre-wrap break-words">
+                <span className="font-medium">{label} : </span>
+                {value}
+              </p>
+            ) : null,
+          )}
+          {d.outcome === "partial" && (
+            <p className="text-xs text-muted-foreground">
+              {ti.decision.partialNote}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {ti.decision.noSanction}
+          </p>
+        </div>
+      ))}
+      {review && (
+        <div
+          className="space-y-2 rounded-md border p-2"
+          data-testid="incident-review"
+        >
+          <p className="flex items-center gap-1 text-xs font-medium">
+            <CalendarClock className="h-3 w-3" aria-hidden />
+            {ti.review.title}
+          </p>
+          {review.status && (
+            <p className="text-xs" data-testid="incident-review-status">
+              {ti.review[review.status]}
+            </p>
+          )}
+          {review.open ? (
+            <>
+              <p className="text-xs" data-testid="incident-review-deadline">
+                {ti.review.deadline.replace(
+                  "{time}",
+                  doualaDateTime(review.deadline, locale),
+                )}
+              </p>
+              <Textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                maxLength={2000}
+                placeholder={ti.review.placeholder}
+                aria-label={ti.review.placeholder}
+                data-testid="incident-review-text"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy || reviewText.trim().length < 10}
+                onClick={() =>
+                  void post(
+                    `/api/incidents/${incident.incident_id}/review`,
+                    reviewText,
+                    ti.review.sent,
+                  ).then((ok) => ok && setReviewText(""))
+                }
+                data-testid="incident-review-request"
+              >
+                {ti.review.request}
+              </Button>
+            </>
+          ) : (
+            !review.status && (
+              <p className="text-xs text-muted-foreground">
+                {ti.review.closed}
+              </p>
+            )
+          )}
+          <p className="text-xs text-muted-foreground">
+            {ti.review.otherRemedies}
+          </p>
+        </div>
+      )}
+    </>
   );
 }

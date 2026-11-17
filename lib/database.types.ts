@@ -1961,9 +1961,156 @@ export type Database = {
           },
         ]
       }
+      mission_incident_appeal_requests: {
+        Row: {
+          appeal_id: string
+          body: string
+          created_at: string
+          id: string
+          party: string
+          requested_by: string | null
+        }
+        Insert: {
+          appeal_id: string
+          body: string
+          created_at?: string
+          id?: string
+          party: string
+          requested_by?: string | null
+        }
+        Update: {
+          appeal_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          party?: string
+          requested_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_appeal_requests_appeal_id_fkey"
+            columns: ["appeal_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incident_appeals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_appeal_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_appeals: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          created_at: string
+          decision_id: string
+          id: string
+          incident_id: string
+          result_decision_id: string | null
+          status: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          decision_id: string
+          id?: string
+          incident_id: string
+          result_decision_id?: string | null
+          status?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          decision_id?: string
+          id?: string
+          incident_id?: string
+          result_decision_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_appeals_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_appeals_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incident_decisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_appeals_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_appeals_result_decision_id_fkey"
+            columns: ["result_decision_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incident_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_conflicts: {
+        Row: {
+          admin_id: string
+          concerned: boolean
+          context: string
+          declared_at: string
+          id: string
+          incident_id: string
+        }
+        Insert: {
+          admin_id: string
+          concerned: boolean
+          context: string
+          declared_at?: string
+          id?: string
+          incident_id: string
+        }
+        Update: {
+          admin_id?: string
+          concerned?: boolean
+          context?: string
+          declared_at?: string
+          id?: string
+          incident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_conflicts_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_conflicts_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mission_incident_contacts: {
         Row: {
           channel: string
+          channel_verified: boolean
           created_at: string
           entry_type: string
           id: string
@@ -1977,6 +2124,7 @@ export type Database = {
         }
         Insert: {
           channel: string
+          channel_verified?: boolean
           created_at?: string
           entry_type: string
           id?: string
@@ -1990,6 +2138,7 @@ export type Database = {
         }
         Update: {
           channel?: string
+          channel_verified?: boolean
           created_at?: string
           entry_type?: string
           id?: string
@@ -2014,6 +2163,163 @@ export type Database = {
             columns: ["recorded_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_decisions: {
+        Row: {
+          amicable_attempt: string | null
+          appeal_id: string | null
+          appeal_result: string | null
+          contradictions: string
+          decided_at: string
+          decided_by: string | null
+          decided_by_role: string
+          elements_verified: string
+          facts_retained: string
+          id: string
+          incident_id: string
+          justification: string
+          kind: string
+          orientation: string | null
+          outcome: string
+          proposal_id: string | null
+          proposed_by: string | null
+          review_deadline: string | null
+          supersedes_id: string | null
+        }
+        Insert: {
+          amicable_attempt?: string | null
+          appeal_id?: string | null
+          appeal_result?: string | null
+          contradictions: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role: string
+          elements_verified: string
+          facts_retained: string
+          id?: string
+          incident_id: string
+          justification: string
+          kind: string
+          orientation?: string | null
+          outcome: string
+          proposal_id?: string | null
+          proposed_by?: string | null
+          review_deadline?: string | null
+          supersedes_id?: string | null
+        }
+        Update: {
+          amicable_attempt?: string | null
+          appeal_id?: string | null
+          appeal_result?: string | null
+          contradictions?: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role?: string
+          elements_verified?: string
+          facts_retained?: string
+          id?: string
+          incident_id?: string
+          justification?: string
+          kind?: string
+          orientation?: string | null
+          outcome?: string
+          proposal_id?: string | null
+          proposed_by?: string | null
+          review_deadline?: string | null
+          supersedes_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_decisions_appeal_fkey"
+            columns: ["appeal_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incident_appeals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_decisions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_decisions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_decisions_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incident_proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_decisions_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_decisions_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incident_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          data: Json
+          event_type: string
+          id: string
+          incident_id: string
+          visibility: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          data?: Json
+          event_type: string
+          id?: string
+          incident_id: string
+          visibility: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          data?: Json
+          event_type?: string
+          id?: string
+          incident_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_events_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
             referencedColumns: ["id"]
           },
         ]
@@ -2066,6 +2372,181 @@ export type Database = {
           },
         ]
       }
+      mission_incident_info_requests: {
+        Row: {
+          answer_statement_id: string | null
+          answered_at: string | null
+          created_at: string
+          id: string
+          incident_id: string
+          party: string
+          question: string
+          requested_by: string | null
+          requested_by_role: string
+        }
+        Insert: {
+          answer_statement_id?: string | null
+          answered_at?: string | null
+          created_at?: string
+          id?: string
+          incident_id: string
+          party: string
+          question: string
+          requested_by?: string | null
+          requested_by_role: string
+        }
+        Update: {
+          answer_statement_id?: string | null
+          answered_at?: string | null
+          created_at?: string
+          id?: string
+          incident_id?: string
+          party?: string
+          question?: string
+          requested_by?: string | null
+          requested_by_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_info_requests_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_info_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_notes: {
+        Row: {
+          author_id: string | null
+          author_role: string
+          body: string
+          created_at: string
+          id: string
+          incident_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_role: string
+          body: string
+          created_at?: string
+          id?: string
+          incident_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_role?: string
+          body?: string
+          created_at?: string
+          id?: string
+          incident_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_notes_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_proposals: {
+        Row: {
+          amicable_attempt: string | null
+          contradictions: string
+          created_at: string
+          dossier_revision: number
+          elements_verified: string
+          facts_retained: string
+          id: string
+          incident_id: string
+          justification: string
+          orientation: string | null
+          outcome: string
+          proposed_by: string | null
+          proposed_by_role: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          amicable_attempt?: string | null
+          contradictions: string
+          created_at?: string
+          dossier_revision: number
+          elements_verified: string
+          facts_retained: string
+          id?: string
+          incident_id: string
+          justification: string
+          orientation?: string | null
+          outcome: string
+          proposed_by?: string | null
+          proposed_by_role: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          amicable_attempt?: string | null
+          contradictions?: string
+          created_at?: string
+          dossier_revision?: number
+          elements_verified?: string
+          facts_retained?: string
+          id?: string
+          incident_id?: string
+          justification?: string
+          orientation?: string | null
+          outcome?: string
+          proposed_by?: string | null
+          proposed_by_role?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_proposals_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_proposals_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_proposals_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mission_incident_statements: {
         Row: {
           author_id: string | null
@@ -2073,6 +2554,7 @@ export type Database = {
           created_at: string
           id: string
           incident_id: string
+          info_request_id: string | null
           party: string
         }
         Insert: {
@@ -2081,6 +2563,7 @@ export type Database = {
           created_at?: string
           id?: string
           incident_id: string
+          info_request_id?: string | null
           party: string
         }
         Update: {
@@ -2089,6 +2572,7 @@ export type Database = {
           created_at?: string
           id?: string
           incident_id?: string
+          info_request_id?: string | null
           party?: string
         }
         Relationships: [
@@ -2106,6 +2590,13 @@ export type Database = {
             referencedRelation: "mission_incidents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "mission_incident_statements_info_request_id_fkey"
+            columns: ["info_request_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incident_info_requests"
+            referencedColumns: ["id"]
+          },
         ]
       }
       mission_incidents: {
@@ -2115,6 +2606,7 @@ export type Database = {
           closed_reason: string | null
           company_id: string
           created_at: string
+          deadline_extension_hours: number
           decided_at: string | null
           decided_by: string | null
           decision_note: string | null
@@ -2127,6 +2619,8 @@ export type Database = {
           outcome: string | null
           reported_by: string | null
           reported_by_party: string
+          revision: number
+          situation: string | null
           status: string
           updated_at: string
         }
@@ -2136,6 +2630,7 @@ export type Database = {
           closed_reason?: string | null
           company_id: string
           created_at?: string
+          deadline_extension_hours?: number
           decided_at?: string | null
           decided_by?: string | null
           decision_note?: string | null
@@ -2148,6 +2643,8 @@ export type Database = {
           outcome?: string | null
           reported_by?: string | null
           reported_by_party: string
+          revision?: number
+          situation?: string | null
           status?: string
           updated_at?: string
         }
@@ -2157,6 +2654,7 @@ export type Database = {
           closed_reason?: string | null
           company_id?: string
           created_at?: string
+          deadline_extension_hours?: number
           decided_at?: string | null
           decided_by?: string | null
           decision_note?: string | null
@@ -2169,6 +2667,8 @@ export type Database = {
           outcome?: string | null
           reported_by?: string | null
           reported_by_party?: string
+          revision?: number
+          situation?: string | null
           status?: string
           updated_at?: string
         }
@@ -3080,6 +3580,10 @@ export type Database = {
           status: string
         }[]
       }
+      admin_add_incident_note: {
+        Args: { p_body: string; p_incident_id: string }
+        Returns: string
+      }
       admin_confirm_mission_day: {
         Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
         Returns: {
@@ -3090,6 +3594,26 @@ export type Database = {
           incident_id: string
           mission_completed: boolean
           mission_day_id: string
+          result: string
+        }[]
+      }
+      admin_decide_incident_appeal: {
+        Args: {
+          p_amicable_attempt?: string
+          p_appeal_id: string
+          p_contradictions: string
+          p_elements_verified: string
+          p_facts_retained: string
+          p_justification: string
+          p_new_outcome: string
+          p_orientation?: string
+          p_result: string
+        }
+        Returns: {
+          completed_via: string
+          decision_id: string
+          mission_completed: boolean
+          outcome: string
           result: string
         }[]
       }
@@ -3110,24 +3634,42 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_extend_incident_deadlines: {
+        Args: { p_hours: number; p_incident_id: string; p_reason: string }
+        Returns: {
+          escalation_at: string
+          extension_hours: number
+          incident_id: string
+          reminder_at: string
+        }[]
+      }
       admin_incident_evidence_path: {
         Args: { p_evidence_id: string }
         Returns: string
       }
       admin_mission_incident: { Args: { p_incident_id: string }; Returns: Json }
+      admin_mission_incident_base: {
+        Args: { p_incident_id: string }
+        Returns: Json
+      }
       admin_mission_incidents: {
         Args: { p_status?: string }
         Returns: {
+          appeal_status: string
           candidate_name: string
           company_name: string
           created_at: string
           day_date: string
+          escalated: boolean
           evidence_count: number
           incident_id: string
           job_title: string
           kind: string
           outcome: string
+          pending_proposal: boolean
+          reminder_sent: boolean
           reported_by_party: string
+          situation: string
           statement_count: number
           status: string
         }[]
@@ -3135,6 +3677,24 @@ export type Database = {
       admin_open_review_contest: {
         Args: { p_note: string; p_review_id: string }
         Returns: string
+      }
+      admin_propose_incident_decision: {
+        Args: {
+          p_amicable_attempt?: string
+          p_conflict?: string
+          p_contradictions: string
+          p_elements_verified: string
+          p_facts_retained: string
+          p_incident_id: string
+          p_justification: string
+          p_orientation?: string
+          p_outcome: string
+        }
+        Returns: {
+          dossier_revision: number
+          proposal_id: string
+          result: string
+        }[]
       }
       admin_record_company_check: {
         Args: {
@@ -3152,6 +3712,7 @@ export type Database = {
       admin_record_incident_contact: {
         Args: {
           p_channel: string
+          p_channel_verified?: boolean
           p_entry_type: string
           p_incident_id: string
           p_note?: string
@@ -3174,6 +3735,13 @@ export type Database = {
           review_id: string
         }[]
       }
+      admin_request_incident_info: {
+        Args: { p_incident_id: string; p_party: string; p_question: string }
+        Returns: {
+          already_requested: boolean
+          request_id: string
+        }[]
+      }
       admin_resolve_review_contest: {
         Args: { p_note: string; p_outcome: string; p_review_id: string }
         Returns: {
@@ -3192,9 +3760,50 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_review_incident_proposal: {
+        Args: {
+          p_approve: boolean
+          p_conflict?: string
+          p_note: string
+          p_proposal_id: string
+        }
+        Returns: {
+          completed_via: string
+          decision_id: string
+          mission_completed: boolean
+          mission_day_id: string
+          outcome: string
+          result: string
+          review_deadline: string
+        }[]
+      }
+      admin_set_incident_situation: {
+        Args: { p_incident_id: string; p_situation: string }
+        Returns: {
+          incident_id: string
+          revision: number
+          situation: string
+        }[]
+      }
       admin_set_user_active: {
         Args: { p_active: boolean; p_user_id: string }
         Returns: undefined
+      }
+      admin_take_incident_appeal: {
+        Args: { p_appeal_id: string; p_conflict?: string }
+        Returns: {
+          appeal_id: string
+          assigned_to: string
+          result: string
+        }[]
+      }
+      answer_incident_info_request: {
+        Args: { p_body: string; p_request_id: string }
+        Returns: {
+          already_answered: boolean
+          request_id: string
+          statement_id: string
+        }[]
       }
       apply_momo_verification: {
         Args: {
@@ -3441,6 +4050,7 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: boolean
       }
+      completion_counts: { Args: { p_source: string }; Returns: boolean }
       compute_reputation: {
         Args: { p_at?: string; p_subject_id: string; p_subject_type: string }
         Returns: {
@@ -3660,6 +4270,65 @@ export type Database = {
         Args: { p_candidate_id: string; p_skill_name: string }
         Returns: boolean
       }
+      incident_agent_concerned: {
+        Args: { p_incident_id: string; p_uid: string }
+        Returns: boolean
+      }
+      incident_appeal_eligible_count: {
+        Args: { p_appeal_id: string }
+        Returns: number
+      }
+      incident_company_responded: {
+        Args: { p_at?: string; p_incident_id: string }
+        Returns: boolean
+      }
+      incident_confirm_day_exceptional: {
+        Args: { p_day_id: string; p_mission_id: string }
+        Returns: boolean
+      }
+      incident_conflict_gate: {
+        Args: {
+          p_conflict: string
+          p_context: string
+          p_incident_id: string
+          p_uid: string
+        }
+        Returns: boolean
+      }
+      incident_deadline_base: {
+        Args: { p_incident_id: string }
+        Returns: string
+      }
+      incident_deadline_sweep: { Args: { p_at?: string }; Returns: number }
+      incident_event: {
+        Args: {
+          p_actor: string
+          p_data?: Json
+          p_incident_id: string
+          p_type: string
+          p_visibility: string
+        }
+        Returns: undefined
+      }
+      incident_notify: {
+        Args: {
+          p_body_en: string
+          p_body_fr: string
+          p_data: Json
+          p_title_en: string
+          p_title_fr: string
+          p_user: string
+        }
+        Returns: undefined
+      }
+      incident_notify_decision: {
+        Args: { p_decision_id: string; p_incident_id: string }
+        Returns: undefined
+      }
+      incident_second_channel_done: {
+        Args: { p_incident_id: string }
+        Returns: boolean
+      }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
@@ -3831,16 +4500,21 @@ export type Database = {
           day_starts_at: string
           decided_at: string
           decision_note: string
+          decisions: Json
           evidence_counts: Json
           incident_id: string
+          info_requests: Json
           kind: string
           late_minutes: number
           mission_day_id: string
           outcome: string
           reported_by_party: string
           resolution: string
+          review: Json
+          server_now: string
           statements: Json
           status: string
+          timeline: Json
           viewer_party: string
         }[]
       }
@@ -4023,6 +4697,15 @@ export type Database = {
       reputation_stars_text: {
         Args: { p_locale: string; p_stars: number }
         Returns: string
+      }
+      request_incident_review: {
+        Args: { p_incident_id: string; p_statement: string }
+        Returns: {
+          already_requested: boolean
+          appeal_id: string
+          review_deadline: string
+          status: string
+        }[]
       }
       review_reason_label: {
         Args: { p_code: string; p_locale: string }

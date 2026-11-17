@@ -33,6 +33,7 @@ export type IncidentContact = {
   note: string | null;
   recorded_by_role: string;
   created_at: string;
+  channel_verified?: boolean;
 };
 
 export type DayConfirmation = {
@@ -80,7 +81,7 @@ export function IncidentCompletionPanel({
   dayStarted: boolean;
   dayEndsAt: string;
   dayConfirmedAt: string | null;
-  dayCompletedVia: "code" | "support" | null;
+  dayCompletedVia: "code" | "support" | "exceptional" | null;
   serverNow: number;
   onChanged: () => Promise<unknown>;
 }) {
@@ -98,6 +99,7 @@ export function IncidentCompletionPanel({
     doualaLocalInput(serverNow),
   );
   const [reference, setReference] = useState("");
+  const [channelVerified, setChannelVerified] = useState(false);
   const [note, setNote] = useState("");
   const [contactError, setContactError] = useState<ErrorCode | null>(null);
 
@@ -138,6 +140,7 @@ export function IncidentCompletionPanel({
       result,
       reference,
       note,
+      channel_verified: channelVerified,
     });
     if (!parsed.success) {
       setContactError(codeOf(parsed.error.issues[0]?.message));
@@ -211,7 +214,14 @@ export function IncidentCompletionPanel({
                     {tc.entryType[c.entry_type]} · {tc.channel[c.channel]} ·{" "}
                     {doualaDateTime(c.occurred_at, locale)}
                   </p>
-                  <p className="font-medium">{tc.result[c.result]}</p>
+                  <p className="font-medium">
+                    {tc.result[c.result]}
+                    {c.channel_verified && (
+                      <span className="ml-1 text-xs font-normal text-success">
+                        · {t.incidents.admin.contactsVerifiedBadge}
+                      </span>
+                    )}
+                  </p>
                   {c.reference && (
                     <p className="break-words">
                       {tc.referenceValue.replace("{ref}", c.reference)}
@@ -295,6 +305,16 @@ export function IncidentCompletionPanel({
                   data-testid="contact-occurred-at"
                 />
               </label>
+              <label className="flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={channelVerified}
+                  onChange={(e) => setChannelVerified(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-primary"
+                  data-testid="contact-channel-verified"
+                />
+                {t.incidents.admin.contactsVerified}
+              </label>
               <label className="block">
                 <span className="text-xs font-medium">{tc.reference}</span>
                 <input
@@ -363,7 +383,8 @@ export function IncidentCompletionPanel({
             ) : dayConfirmedAt ? (
               <p className="font-medium">
                 {td.already} ·{" "}
-                {(dayCompletedVia === "support"
+                {(dayCompletedVia === "support" ||
+                dayCompletedVia === "exceptional"
                   ? ti.admin.confirmedBySupportAt
                   : ti.admin.confirmedAt
                 ).replace("{time}", doualaDateTime(dayConfirmedAt, locale))}

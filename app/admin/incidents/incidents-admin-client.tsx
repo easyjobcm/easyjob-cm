@@ -14,6 +14,10 @@ import { doualaDateTime } from "@/lib/utils/douala-time";
 import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
 import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
 import {
+  IncidentDisputePanel,
+  type DisputeDetail,
+} from "./incident-dispute-panel";
+import {
   IncidentCompletionPanel,
   type DayConfirmation,
   type IncidentContact,
@@ -24,7 +28,7 @@ import type { Database } from "@/lib/database.types";
 type Row =
   Database["public"]["Functions"]["admin_mission_incidents"]["Returns"][number];
 type Status = "open" | "answered" | "decided" | "closed";
-type Detail = {
+type Detail = Omit<DisputeDetail, "status"> & {
   incident_id: string;
   kind: "late" | "absence" | "code_not_received";
   status: Status;
@@ -48,12 +52,12 @@ type Detail = {
     ends_at: string;
     started_at: string | null;
     confirmed_at: string | null;
-    completed_via: "code" | "support" | null;
+    completed_via: "code" | "support" | "exceptional" | null;
   };
   other_days: {
     date: string;
     confirmed_at: string | null;
-    completed_via: "code" | "support" | null;
+    completed_via: "code" | "support" | "exceptional" | null;
   }[];
   statements: {
     party: "candidate" | "company";
@@ -144,11 +148,16 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
   const serverNow = useDeadlineNow(
     detail ? [Date.parse(detail.day.ends_at)] : [],
   );
-  const confirmedLabel = (at: string, via: "code" | "support" | null): string =>
-    (via === "support" ? ta.confirmedBySupportAt : ta.confirmedAt).replace(
-      "{time}",
-      doualaDateTime(at, locale),
-    );
+  const confirmedLabel = (
+    at: string,
+    via: "code" | "support" | "exceptional" | null,
+  ): string =>
+    (via === "exceptional"
+      ? ta.confirmedByDecisionAt
+      : via === "support"
+        ? ta.confirmedBySupportAt
+        : ta.confirmedAt
+    ).replace("{time}", doualaDateTime(at, locale));
 
   async function openEvidence(id: string) {
     if (!detail) return;
@@ -254,6 +263,18 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
                     <Badge variant="outline">
                       {ti.status[r.status as Status]}
                     </Badge>
+                    {r.escalated && (
+                      <Badge variant="destructive">{ta.badges.escalated}</Badge>
+                    )}
+                    {r.reminder_sent && !r.escalated && (
+                      <Badge variant="warning">{ta.badges.reminder}</Badge>
+                    )}
+                    {r.pending_proposal && (
+                      <Badge variant="default">{ta.badges.proposal}</Badge>
+                    )}
+                    {r.appeal_status && r.appeal_status !== "decided" && (
+                      <Badge variant="warning">{ta.badges.appeal}</Badge>
+                    )}
                   </div>
                   <p className="mt-1 text-muted-foreground">
                     {r.job_title} · {r.company_name} · {r.candidate_name}
@@ -418,6 +439,12 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
               dayConfirmedAt={detail.day.confirmed_at}
               dayCompletedVia={detail.day.completed_via}
               serverNow={serverNow}
+              onChanged={() => Promise.all([loadList(), loadDetail()])}
+            />
+
+            <IncidentDisputePanel
+              key={`dispute-${detail.incident_id}`}
+              detail={detail}
               onChanged={() => Promise.all([loadList(), loadDetail()])}
             />
 

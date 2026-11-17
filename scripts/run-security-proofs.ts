@@ -50,6 +50,7 @@ const PROOFS = [
   "multi-day-jobs",
   "mission-incidents",
   "mission-completion",
+  "mission-disputes",
   "reputation",
   "realtime",
   "chat-quota",

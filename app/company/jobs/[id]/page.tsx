@@ -107,7 +107,7 @@ type JobMission = Omit<
   started_at: string | null;
   completed_at: string | null;
   completion_code: string | null;
-  completed_via: "code" | "support" | null;
+  completed_via: "code" | "support" | "exceptional" | null;
   mission_completed_at: string | null;
 };
 
@@ -907,9 +907,11 @@ export default function CompanyJobDetailPage() {
                                       {m.completed_at ? (
                                         <span className="text-success flex items-center gap-1">
                                           <CheckCircle className="h-4 w-4" />
-                                          {(m.completed_via === "support"
-                                            ? tcomp.completedBySupportAt
-                                            : tcomp.completedAt
+                                          {(m.completed_via === "exceptional"
+                                            ? tcomp.completedByDecisionAt
+                                            : m.completed_via === "support"
+                                              ? tcomp.completedBySupportAt
+                                              : tcomp.completedAt
                                           ).replace(
                                             "{time}",
                                             doualaTime(m.completed_at, locale),

@@ -38,6 +38,7 @@ export async function POST(
           ? { p_reference: parsed.data.reference }
           : {}),
         ...(parsed.data.note ? { p_note: parsed.data.note } : {}),
+        p_channel_verified: parsed.data.channel_verified,
       },
     );
     if (error)

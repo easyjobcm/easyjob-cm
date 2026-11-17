@@ -509,10 +509,25 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - **Effets** : journée confirmée par le support = travail effectué (mission, évaluation, réputation candidat et entreprise selon le lot 12, une fois) ; aucun paiement, remboursement ni retrait d'étoiles. Mentions « confirmée par code » des écrans, du SRS et des règles de réputation alignées.
 > - Migration `20261119120000_mission_day_completion.sql` ; preuve `mission-completion` (27 assertions) ajoutée à `pnpm test:rls` ; `mission-incidents`, `mission-time-tracking`, `multi-day-jobs` et `reputation` adaptées (journées terminées avant la saisie du code ; fixtures de réalisation portées par la journée).
 >
-> **Décision ouverte** : entreprise injoignable ou travail contesté (preuves suffisantes, délai, recours, effet sur la réputation et le versement) — SRS §11.12. Le dossier reste en instruction.
+> **Décision ouverte** : entreprise injoignable ou travail contesté (preuves suffisantes, délai, recours, effet sur la réputation et le versement) — SRS §11.12. **Traitée au lot 16** (instruction, délais, double validation, révision interne).
 
 - **Dépendances** : lots 12 (journées, réputation), 14 (signalements, grades), 7d (signaux), 11b (minuterie des échéances).
 - **Hors lot** : issue des cas injoignable ou contesté ; effet sur le versement (lot paiement) ; sanctions (lot « Engagements et annulations »).
+
+## Lot 16 — Journées contestées : instruction, double validation et révision interne
+
+> **Statut (2026-11-17)** : réalisé sur `feat/lot-16-completion-disputes` (base `origin/main-dev`, 78331c7, lot 15 intégré), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §37 ; règles produit : SRS §6.8 (encadré « Lot 16 »), §11.12 et §11.13.
+> - **Instruction** par journée sur les dossiers des lots 14 et 15 : versions et justificatifs des deux parties ; situation qualifiée par le support (entreprise injoignable, présence ou réalisation contestée, travail partiel, qualité contestée, retard ou comportement) ; compléments demandés à une partie et réponses ; contacts (demande distincte de la réponse obtenue, canal vérifié) ; notes internes.
+> - **Délais** depuis l'ouverture (heure de la base) : notification initiale, relance dans l'application à 24 h, examen renforcé à 48 h avec second canal vérifié à consigner ; prolongation motivée et historisée ; balayage idempotent rattaché à la tâche planifiée existante (`reputation-expiry-sweep`) ; le silence ne confirme jamais rien ; aucune notification externe annoncée.
+> - **Double validation** : proposition d'un `admin_ops`/`admin_founder` actif sur une version du dossier, décision par un autre ; conflit d'intérêts déclaré à chaque étape et bloquant ; relecture exigée après tout nouvel élément ; `admin_support` sans proposition ni décision. Parcours du lot 15 (confirmation explicite) conservé.
+> - **Résultats** : établi (journée « exceptional », mêmes effets que les autres confirmations), non établi (aucune sanction), partiel (identifié, journée et forfait inchangés), désaccord persistant (tentative amiable, orientation). Décision, réalisation, audit et notifications atomiques ; réalisation unique face au code et à la confirmation de l'entreprise.
+> - **Révision interne** : sept jours, échéance affichée ; agent distinct du proposant et du décideur ; attente d'affectation sans agent disponible ; décisions successives conservées ; une journée confirmée n'est pas annulée (arbitrage, SRS §11.13).
+> - Migration `20261120120000_completion_disputes.sql` ; preuve `mission-disputes` (24 assertions) ajoutée à `pnpm test:rls` ; écrans des parties (chronologie, questions, décisions, révision) et du support (instruction, échéances, propositions, révisions).
+>
+> **Décisions encore nécessaires** : annulation d'une journée confirmée (SRS §11.13) ; traitement d'une réalisation partielle et effet des décisions sur le versement (lot paiement) ; liste des recours externes à indiquer ; envoi effectif de SMS ou d'e-mails (aucun service branché).
+
+- **Dépendances** : lots 14 (dossiers), 15 (contacts, confirmation, réalisation unique), 9c (réputation), 7d (signaux privés), tâche planifiée du lot 9c.
+- **Hors lot** : paiements, sanctions, annulations, Free/Premium, EasyBot, design entreprise, notifications push.
 
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
