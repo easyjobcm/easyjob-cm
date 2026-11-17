@@ -2212,6 +2212,9 @@ export const fr = {
       notStarted: "Début non confirmé",
       startedAt: "Début confirmé à {time}",
       completedAt: "Réalisée à {time} (code utilisé)",
+      // Lot 15 : journée confirmée par le support après votre confirmation.
+      completedBySupportAt:
+        "Confirmée par le support à {time}, après votre confirmation",
       scheduled: "Prévue de {start} à {end}",
       rate: "Noter le candidat (facultatif)",
       rated: "Vous avez noté ce candidat.",
@@ -2350,6 +2353,14 @@ export const fr = {
       finishHint:
         "Demandez à l'entreprise votre code de fin, puis saisissez-le.",
       validate: "Valider",
+      // Lot 15 : saisie du code à la fin prévue de chaque journée.
+      validateDay: "Valider ma journée",
+      validateDayHint: "Saisissez le code de fin remis par l'entreprise.",
+      completionAvailableAt: "Validation possible à partir de {time}",
+      contactSupport: "Contacter le support",
+      contactSupportHint:
+        "Code non remis ? Le support vérifie auprès de l'entreprise.",
+      openCase: "Voir mon dossier",
       endReminderTitle: "Heure de fin",
       endReminder:
         "« {job} » se termine : saisissez le code remis par l'entreprise.",
@@ -2402,6 +2413,8 @@ export const fr = {
       mission_not_active: "Cette mission n'est plus active.",
       too_early: "La mission pourra commencer à partir de {time}.",
       not_started: "Confirmez d'abord le début de la mission.",
+      completion_not_open:
+        "Vous pourrez valider cette journée à partir de {time}.",
       code_unavailable:
         "Aucun code n'est disponible pour cette mission. Contactez le support.",
       mission_not_completed: "La mission n'est pas encore réalisée.",
@@ -2449,7 +2462,7 @@ export const fr = {
     evidenceHint:
       "Image ou PDF, 5 Mo au plus. Seul le support EasyJob peut l'ouvrir.",
     noConsequence:
-      "Le support examine le signalement. Il ne modifie ni la journée, ni les autres journées, ni le contrat.",
+      "Le support examine le signalement. Il ne modifie ni les autres journées, ni le contrat. Pour un code non remis, il peut confirmer la journée après confirmation de l'entreprise.",
     confirm: "Envoyer le signalement",
     sending: "Envoi…",
     cancel: "Annuler",
@@ -2457,7 +2470,7 @@ export const fr = {
       open: "En attente de la version de l'autre partie",
       answered: "Versions des deux parties reçues",
       decided: "Examiné par le support",
-      closed: "Clos : journée confirmée par code",
+      closed: "Clos : journée confirmée",
     },
     reportedBy: {
       candidate: "Signalé par le candidat",
@@ -2479,12 +2492,19 @@ export const fr = {
       not_established: "Fait non établi par le support",
     },
     decisionNote: "Motif du support : {note}",
+    // Lot 15 : journée confirmée par le support (motif interne).
+    resolution: {
+      support_confirmed_day:
+        "Journée confirmée par le support après confirmation de l'entreprise.",
+    },
     decisionScope:
       "Cette décision enregistre le fait. Elle ne modifie ni la journée, ni le contrat, ni la réputation.",
     toasts: {
       reported: "Signalement envoyé",
       alreadyReported:
         "Ce signalement existait déjà : il n'a pas été envoyé une seconde fois.",
+      caseSent: "Votre dossier est transmis au support",
+      caseExists: "Votre dossier existe déjà : le support l'a reçu.",
       statementSent: "Version envoyée",
       evidenceSent: "Justificatif transmis au support",
       errorTitle: "Action non enregistrée",
@@ -2505,7 +2525,19 @@ export const fr = {
       evidence_too_large: "Fichier trop lourd (5 Mo au plus).",
       mission_not_active: "Cette mission n'est plus active.",
       day_already_confirmed:
-        "Cette journée est confirmée par code : une absence ou un code non remis ne peuvent plus être signalés.",
+        "Cette journée est déjà confirmée : une absence ou un code non remis ne peuvent plus être signalés.",
+      day_not_ended:
+        "Possible à partir de la fin prévue de la journée, si l'entreprise ne vous a pas remis le code.",
+      start_not_confirmed: "Confirmez d'abord le début de cette journée.",
+      use_day_confirmation:
+        "Un code non remis se traite par la confirmation de la journée.",
+      company_confirmation_required:
+        "Consignez d'abord la confirmation de l'entreprise (réponse « travail confirmé »).",
+      contact_invalid: "Contact incomplet ou non valable.",
+      contact_date_invalid:
+        "Date du contact non valable (entre le début de la journée et maintenant).",
+      reference_required:
+        "Indiquez la référence de la confirmation (appel, message, interlocuteur).",
       day_not_started:
         "Cette journée n'a pas encore commencé : ce signalement sera possible à partir de l'heure de début.",
       incident_closed: "Ce signalement est clos.",
@@ -2536,7 +2568,9 @@ export const fr = {
       startedAt: "Début déclaré : {time}",
       notStarted: "Début non déclaré",
       confirmedAt: "Confirmée par code : {time}",
-      notConfirmed: "Non confirmée par code",
+      confirmedBySupportAt: "Confirmée par le support : {time}",
+      notConfirmed: "Non confirmée",
+      endsAt: "Fin prévue : {time}",
       otherDays: "Autres journées",
       decide: "Décision motivée",
       decisionPlaceholder: "Motif de la décision (10 caractères au moins)",
@@ -2546,6 +2580,65 @@ export const fr = {
       decided: "Décision enregistrée",
       back: "Retour",
       quickAction: "Signalements",
+      codeNotReceivedDecision:
+        "Un code non remis se tranche par la confirmation de la journée, ci-dessous.",
+      // Lot 15 : contacts avec l'entreprise et confirmation de la journée.
+      contacts: {
+        title: "Contacts avec l'entreprise",
+        privateNotice:
+          "Visibles du seul support : référence et note ne sont jamais montrées aux parties.",
+        none: "Aucun contact consigné.",
+        entryType: {
+          request: "Demande de contact",
+          response: "Réponse obtenue",
+        },
+        channel: {
+          phone: "Téléphone",
+          sms: "SMS",
+          whatsapp: "WhatsApp",
+          email: "E-mail",
+          in_person: "En personne",
+          other: "Autre",
+        },
+        result: {
+          sent: "Demande envoyée",
+          no_answer: "Sans réponse",
+          unreachable: "Injoignable",
+          work_confirmed: "Travail confirmé par l'entreprise",
+          work_disputed: "Travail contesté par l'entreprise",
+          other: "Autre réponse",
+        },
+        type: "Type",
+        channelLabel: "Canal",
+        resultLabel: "Résultat",
+        occurredAt: "Date et heure du contact (heure de Douala)",
+        reference: "Référence privée (appel, message, interlocuteur)",
+        referenceValue: "Référence : {ref}",
+        note: "Note interne (facultative)",
+        submit: "Consigner le contact",
+        recorded: "Contact consigné",
+        by: "Consigné par : {role}",
+      },
+      confirmDay: {
+        title: "Confirmer la journée",
+        hint: "Réservé aux grades ops et fondateur, sur confirmation explicite de l'entreprise. La journée est enregistrée comme confirmée par le support ; le code n'est pas marqué comme saisi.",
+        inquiry:
+          "Entreprise injoignable ou travail contesté : le dossier reste en instruction.",
+        chooseContact: "Confirmation de l'entreprise",
+        noConfirmation:
+          "Aucune réponse « travail confirmé » consignée sur ce dossier.",
+        reason: "Motif de la décision (10 caractères au moins)",
+        submit: "Confirmer la journée",
+        done: "Journée confirmée",
+        already: "Journée déjà confirmée",
+        notYet: "Possible à partir de la fin prévue : {time}.",
+        needsStart:
+          "Début de la journée non confirmé : confirmation impossible.",
+        confirmedAt: "Confirmée par le support le {time}",
+        reasonLabel: "Motif interne : {reason}",
+        readOnly:
+          "Lecture seule : confirmation réservée aux grades ops et fondateur.",
+      },
     },
   },
 
@@ -2856,6 +2949,8 @@ export const fr = {
     confirmDay: "Confirmer la journée",
     dayStarted: "Commencée",
     dayConfirmed: "Confirmée",
+    // Lot 15 : journée confirmée par le support après vérification.
+    dayConfirmedBySupport: "Confirmée par le support",
     dayNotConfirmed: "Non confirmée",
     dayUpcoming: "À venir",
     dayCode: "Code du {date}",

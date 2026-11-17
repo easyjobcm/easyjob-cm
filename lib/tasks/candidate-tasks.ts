@@ -94,8 +94,15 @@ export interface MissionDayState {
   starts_at: string;
   ends_at: string;
   start_available_at: string;
+  /**
+   * Lot 15 : saisie du code et « code non remis » à partir de la fin
+   * prévue (`mission_days.ends_at`, calculée par la base).
+   */
+  completion_available_at: string;
   started_at: string | null;
   completed_at: string | null;
+  /** Lot 15 : provenance de la confirmation (code saisi ou support). */
+  completed_via: "code" | "support" | null;
 }
 
 /** Journées lues dans le JSON de la base, triées par début. */
@@ -119,8 +126,13 @@ export function missionDays(raw: unknown): MissionDayState[] {
           starts_at: startsAt,
           ends_at: endsAt,
           start_available_at: available,
+          completion_available_at: str(r.completion_available_at) ?? endsAt,
           started_at: str(r.started_at),
           completed_at: str(r.completed_at),
+          completed_via:
+            r.completed_via === "code" || r.completed_via === "support"
+              ? r.completed_via
+              : null,
         },
       ];
     })
@@ -144,9 +156,38 @@ export function canStartDay(
   );
 }
 
-/** Fin prévue d'une journée commencée et non confirmée atteinte. */
+/**
+ * Fin prévue d'une journée commencée et non confirmée atteinte : saisie du
+ * code et « code non remis » ouverts (lot 15 ; la base refuse avant).
+ */
 export function dayEndReached(d: MissionDayState, now: number): boolean {
-  return !!d.started_at && !d.completed_at && now >= Date.parse(d.ends_at);
+  return (
+    !!d.started_at &&
+    !d.completed_at &&
+    now >= Date.parse(d.completion_available_at)
+  );
+}
+
+/**
+ * Instants où l'état des tâches d'une mission change (début disponible,
+ * fin prévue) : la minuterie calée sur le serveur s'y déclenche.
+ */
+export function missionTaskInstants(m: MissionTaskState): number[] {
+  const days = missionDays(m.days);
+  if (days.length === 0) {
+    return [
+      Date.parse(m.start_available_at),
+      Date.parse(m.scheduled_end_at),
+    ].filter((t) => !Number.isNaN(t));
+  }
+  return days.flatMap((d) =>
+    d.completed_at
+      ? []
+      : [
+          Date.parse(d.start_available_at),
+          Date.parse(d.completion_available_at),
+        ],
+  );
 }
 
 export function canStartMission(m: MissionTaskState, now: number): boolean {

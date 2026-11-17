@@ -14,6 +14,8 @@ import {
   Clock,
   FileText,
   Flag,
+  KeyRound,
+  LifeBuoy,
   MapPin,
   RefreshCw,
 } from "lucide-react";
@@ -25,17 +27,31 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { useI18n } from "@/lib/i18n";
 import { formatTime } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
-import { doualaTime } from "@/lib/utils/douala-time";
+import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
 import type { Database } from "@/lib/database.types";
-import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
-import { missionDays } from "@/lib/tasks/candidate-tasks";
+import {
+  useAccountSuspended,
+  useLatestRequest,
+  useLiveRefresh,
+} from "@/lib/realtime/provider";
+import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
+import {
+  dayEndReached,
+  missionDays,
+  missionTaskInstants,
+} from "@/lib/tasks/candidate-tasks";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { plural } from "@/lib/i18n/plural";
 import {
   IncidentList,
   useMissionIncidents,
 } from "@/components/missions/incident-list";
-import { IncidentReportDialog } from "@/components/missions/incident-report-dialog";
+import {
+  IncidentReportDialog,
+  incidentDaysOf,
+} from "@/components/missions/incident-report-dialog";
+import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 type MissionRow =
   Database["public"]["Functions"]["get_mission"]["Returns"][number];
@@ -124,6 +140,27 @@ export default function MissionDetailPage() {
     mission ? missionId : null,
   );
   const [reportOpen, setReportOpen] = useState(false);
+  // Lot 15 : actions de fin de journée à l'échéance (heure du serveur),
+  // sur un écran déjà ouvert : saisie du code ou contact du support.
+  const { toast } = useToast();
+  const suspended = useAccountSuspended();
+  const [reportPreset, setReportPreset] = useState<string | null>(null);
+  const [codeDay, setCodeDay] = useState<string | null>(null);
+  const serverNow = useDeadlineNow(
+    mission
+      ? missionTaskInstants({
+          status: mission.status,
+          contract_id: mission.contract_id,
+          candidate_signed: null,
+          started_at: mission.started_at,
+          completed_at: mission.completed_at,
+          candidate_reviewed: mission.candidate_reviewed,
+          start_available_at: mission.start_available_at,
+          scheduled_end_at: mission.scheduled_end_at,
+          days: mission.days,
+        })
+      : [],
+  );
 
   const calendarDay = (day: string) =>
     new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
@@ -321,6 +358,90 @@ export default function MissionDetailPage() {
           </motion.div>
         )}
 
+        {mission.viewer_party === "candidate" &&
+          active &&
+          (() => {
+            const days = missionDays(mission.days);
+            const open = days.filter((d) => d.started_at && !d.completed_at);
+            if (open.length === 0) return null;
+            const multi = days.length > 1;
+            return (
+              <motion.div {...item(3)}>
+                <Card data-testid="mission-day-actions">
+                  <CardContent className="space-y-3 p-4">
+                    {open.map((d) => {
+                      const reached = dayEndReached(d, serverNow);
+                      return (
+                        <div
+                          key={d.id}
+                          className="space-y-2"
+                          data-testid="mission-day-action"
+                          data-reached={reached ? "true" : "false"}
+                        >
+                          <p className="flex items-center gap-2 font-medium">
+                            <KeyRound
+                              className="h-4 w-4 text-primary"
+                              aria-hidden
+                            />
+                            {reached
+                              ? tm.tasks.validateDay
+                              : tm.tasks.inProgress.replace(
+                                  "{time}",
+                                  doualaTime(d.ends_at, locale),
+                                )}
+                            {multi ? ` · ${formatDayDate(d.date, locale)}` : ""}
+                          </p>
+                          {reached ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <motion.div whileTap={{ scale: 0.98 }}>
+                                <Button
+                                  className="w-full"
+                                  onClick={() => setCodeDay(d.id)}
+                                  disabled={suspended}
+                                  data-testid="mission-validate-day"
+                                >
+                                  {tm.tasks.validateDay}
+                                </Button>
+                              </motion.div>
+                              <motion.div whileTap={{ scale: 0.98 }}>
+                                <Button
+                                  variant="outline"
+                                  className="w-full"
+                                  onClick={() => {
+                                    setReportPreset(d.id);
+                                    setReportOpen(true);
+                                  }}
+                                  disabled={suspended}
+                                  data-testid="mission-contact-support"
+                                >
+                                  <LifeBuoy
+                                    className="mr-1 h-4 w-4"
+                                    aria-hidden
+                                  />
+                                  {tm.tasks.contactSupport}
+                                </Button>
+                              </motion.div>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              {tm.tasks.completionAvailableAt.replace(
+                                "{time}",
+                                doualaDateTime(
+                                  d.completion_available_at,
+                                  locale,
+                                ),
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })()}
+
         <motion.div {...item(3)}>
           <Card>
             <CardHeader className="pb-3">
@@ -365,7 +486,9 @@ export default function MissionDetailPage() {
                             }
                           >
                             {d.completed_at
-                              ? t.schedule.dayConfirmed
+                              ? d.completed_via === "support"
+                                ? t.schedule.dayConfirmedBySupport
+                                : t.schedule.dayConfirmed
                               : d.started_at
                                 ? t.schedule.dayStarted
                                 : t.schedule.dayUpcoming}
@@ -400,6 +523,9 @@ export default function MissionDetailPage() {
                     "{time}",
                     doualaTime(mission.completed_at, locale),
                   )}
+                  {missionDays(mission.days).some(
+                    (d) => d.completed_via === "support",
+                  ) && ` · ${t.schedule.dayConfirmedBySupport}`}
                 </div>
               )}
             </CardContent>
@@ -436,22 +562,42 @@ export default function MissionDetailPage() {
 
       <IncidentReportDialog
         open={reportOpen}
-        onClose={() => setReportOpen(false)}
+        onClose={() => {
+          setReportOpen(false);
+          setReportPreset(null);
+        }}
         onDone={() => {
           setReportOpen(false);
+          setReportPreset(null);
           void reloadIncidents();
         }}
         missionId={mission.mission_id}
         jobTitle={mission.job_title}
         party={mission.viewer_party === "company" ? "company" : "candidate"}
-        days={missionDays(mission.days).map((d) => ({
-          id: d.id,
-          date: d.date,
-          starts_at: d.starts_at,
-          confirmed: !!d.completed_at,
-        }))}
-        serverNow={Date.parse(mission.server_now)}
+        days={incidentDaysOf(mission.days)}
+        initialDayId={reportPreset}
+        initialKind={reportPreset ? "code_not_received" : null}
+        serverNow={serverNow}
       />
+
+      {codeDay && (
+        <CompletionCodeDialog
+          open={!!codeDay}
+          onOpenChange={(o) => !o && setCodeDay(null)}
+          missionId={mission.mission_id}
+          missionDayId={missionDays(mission.days).length > 1 ? codeDay : null}
+          jobTitle={mission.job_title}
+          onCompleted={(_at, done) => {
+            setCodeDay(null);
+            toast({
+              title: done ? tm.code.successTitle : t.schedule.dayConfirmed,
+              description: done ? undefined : t.schedule.missionDoneAfterAll,
+              variant: "success",
+            });
+            void loadMission();
+          }}
+        />
+      )}
 
       <BottomNav />
     </div>

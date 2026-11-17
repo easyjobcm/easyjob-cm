@@ -556,6 +556,17 @@ async function main() {
         .from("mission_completion_codes")
         .update({ consumed_at: at })
         .eq("mission_id", m.id);
+      // Lot 15 : la journée porte la réalisation et sa provenance (code),
+      // comme l'écrit submit_completion_code.
+      const { error: dayErr } = await service
+        .from("mission_days")
+        .update({
+          actual_start_time: at,
+          actual_end_time: at,
+          completion_source: "code",
+        })
+        .eq("mission_id", m.id);
+      if (dayErr) throw new Error(`mission day: ${dayErr.message}`);
       const { error: endErr } = await service
         .from("missions")
         .update({ actual_end_time: at, status: "completed" })

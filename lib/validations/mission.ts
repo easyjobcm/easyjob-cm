@@ -86,6 +86,8 @@ export const MISSION_RPC_REFUSALS = {
   mission_not_active: 409,
   too_early: 409,
   not_started: 409,
+  // Lot 15 : code reçu à partir de la fin prévue de la journée.
+  completion_not_open: 409,
   code_unavailable: 409,
   mission_day_required: 400,
   mission_not_completed: 409,

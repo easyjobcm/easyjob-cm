@@ -2163,6 +2163,8 @@ export const en: TranslationKeys = {
       notStarted: "Start not confirmed",
       startedAt: "Start confirmed at {time}",
       completedAt: "Completed at {time} (code used)",
+      completedBySupportAt:
+        "Confirmed by support at {time}, after your confirmation",
       scheduled: "Scheduled from {start} to {end}",
       rate: "Rate the candidate (optional)",
       rated: "You rated this candidate.",
@@ -2295,6 +2297,12 @@ export const en: TranslationKeys = {
       finish: "End of mission",
       finishHint: "Ask the company for your completion code, then enter it.",
       validate: "Validate",
+      validateDay: "Validate my day",
+      validateDayHint: "Enter the completion code given by the company.",
+      completionAvailableAt: "Validation available from {time}",
+      contactSupport: "Contact support",
+      contactSupportHint: "No code given? Support checks with the company.",
+      openCase: "View my case",
       endReminderTitle: "End time",
       endReminder: '"{job}" is ending: enter the code given by the company.',
       review: "Rate the company",
@@ -2345,6 +2353,7 @@ export const en: TranslationKeys = {
       mission_not_active: "This mission is no longer active.",
       too_early: "The mission can start from {time}.",
       not_started: "Confirm the start of the mission first.",
+      completion_not_open: "You can validate this day from {time}.",
       code_unavailable:
         "No code is available for this mission. Please contact support.",
       mission_not_completed: "The mission is not completed yet.",
@@ -2390,7 +2399,7 @@ export const en: TranslationKeys = {
     evidence: "Supporting document (optional)",
     evidenceHint: "Image or PDF, up to 5 MB. Only EasyJob support can open it.",
     noConsequence:
-      "Support reviews the report. It does not change the day, the other days or the contract.",
+      "Support reviews the report. It does not change the other days or the contract. For a missing code, support may confirm the day once the company confirms it.",
     confirm: "Send the report",
     sending: "Sending…",
     cancel: "Cancel",
@@ -2398,7 +2407,7 @@ export const en: TranslationKeys = {
       open: "Waiting for the other party's version",
       answered: "Both parties' versions received",
       decided: "Reviewed by support",
-      closed: "Closed: day confirmed by code",
+      closed: "Closed: day confirmed",
     },
     reportedBy: {
       candidate: "Reported by the candidate",
@@ -2420,11 +2429,17 @@ export const en: TranslationKeys = {
       not_established: "Fact not established by support",
     },
     decisionNote: "Support's reason: {note}",
+    resolution: {
+      support_confirmed_day:
+        "Day confirmed by support after the company confirmed it.",
+    },
     decisionScope:
       "This decision records the fact. It does not change the day, the contract or the reputation.",
     toasts: {
       reported: "Report sent",
       alreadyReported: "This report already existed: it was not sent twice.",
+      caseSent: "Your case has been sent to support",
+      caseExists: "Your case already exists: support has received it.",
       statementSent: "Version sent",
       evidenceSent: "Document sent to support",
       errorTitle: "Action not saved",
@@ -2445,7 +2460,18 @@ export const en: TranslationKeys = {
       evidence_too_large: "File too large (5 MB maximum).",
       mission_not_active: "This mission is no longer active.",
       day_already_confirmed:
-        "This day is confirmed by code: an absence or a missing code can no longer be reported.",
+        "This day is already confirmed: an absence or a missing code can no longer be reported.",
+      day_not_ended:
+        "Available from the scheduled end of the day, if the company has not given you the code.",
+      start_not_confirmed: "Confirm the start of this day first.",
+      use_day_confirmation: "A missing code is handled by confirming the day.",
+      company_confirmation_required:
+        'First record the company\'s confirmation ("work confirmed" answer).',
+      contact_invalid: "Incomplete or invalid contact.",
+      contact_date_invalid:
+        "Invalid contact date (between the start of the day and now).",
+      reference_required:
+        "Enter the reference of the confirmation (call, message, contact person).",
       day_not_started:
         "This day has not started yet: this report will be possible from its start time.",
       incident_closed: "This report is closed.",
@@ -2476,7 +2502,9 @@ export const en: TranslationKeys = {
       startedAt: "Start declared: {time}",
       notStarted: "Start not declared",
       confirmedAt: "Confirmed by code: {time}",
-      notConfirmed: "Not confirmed by code",
+      confirmedBySupportAt: "Confirmed by support: {time}",
+      notConfirmed: "Not confirmed",
+      endsAt: "Scheduled end: {time}",
       otherDays: "Other days",
       decide: "Reasoned decision",
       decisionPlaceholder: "Reason for the decision (at least 10 characters)",
@@ -2485,6 +2513,63 @@ export const en: TranslationKeys = {
       decided: "Decision saved",
       back: "Back",
       quickAction: "Incidents",
+      codeNotReceivedDecision:
+        "A missing code is settled by confirming the day, below.",
+      contacts: {
+        title: "Contacts with the company",
+        privateNotice:
+          "Visible to support only: reference and note are never shown to the parties.",
+        none: "No contact recorded.",
+        entryType: {
+          request: "Contact request",
+          response: "Answer obtained",
+        },
+        channel: {
+          phone: "Phone",
+          sms: "SMS",
+          whatsapp: "WhatsApp",
+          email: "Email",
+          in_person: "In person",
+          other: "Other",
+        },
+        result: {
+          sent: "Request sent",
+          no_answer: "No answer",
+          unreachable: "Unreachable",
+          work_confirmed: "Work confirmed by the company",
+          work_disputed: "Work disputed by the company",
+          other: "Other answer",
+        },
+        type: "Type",
+        channelLabel: "Channel",
+        resultLabel: "Result",
+        occurredAt: "Date and time of contact (Douala time)",
+        reference: "Private reference (call, message, contact person)",
+        referenceValue: "Reference: {ref}",
+        note: "Internal note (optional)",
+        submit: "Record the contact",
+        recorded: "Contact recorded",
+        by: "Recorded by: {role}",
+      },
+      confirmDay: {
+        title: "Confirm the day",
+        hint: "Reserved for ops and founder roles, on the company's explicit confirmation. The day is recorded as confirmed by support; the code is not marked as entered.",
+        inquiry:
+          "Company unreachable or work disputed: the case stays under review.",
+        chooseContact: "Company confirmation",
+        noConfirmation: 'No "work confirmed" answer recorded on this case.',
+        reason: "Reason for the decision (at least 10 characters)",
+        submit: "Confirm the day",
+        done: "Day confirmed",
+        already: "Day already confirmed",
+        notYet: "Available from the scheduled end: {time}.",
+        needsStart:
+          "Start of the day not confirmed: confirmation not possible.",
+        confirmedAt: "Confirmed by support on {time}",
+        reasonLabel: "Internal reason: {reason}",
+        readOnly:
+          "Read only: confirmation is reserved for ops and founder roles.",
+      },
     },
   },
 
@@ -2790,6 +2875,7 @@ export const en: TranslationKeys = {
     confirmDay: "Confirm the day",
     dayStarted: "Started",
     dayConfirmed: "Confirmed",
+    dayConfirmedBySupport: "Confirmed by support",
     dayNotConfirmed: "Not confirmed",
     dayUpcoming: "Upcoming",
     dayCode: "Code for {date}",

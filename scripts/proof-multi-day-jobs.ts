@@ -2098,8 +2098,9 @@ async function main() {
     // ── M. Réalisation par journée ──────────────────────────────
     const missionFull = fullSel?.mission_id ?? "";
     const [md1, md2, md3] = fullDaysRows ?? [];
-    // Journées 1 et 2 recalées sur hier et aujourd'hui (clé service, jamais
-    // commencées) ; la troisième reste future.
+    // Journées 1 et 2 recalées sur des journées passées et terminées (clé
+    // service, jamais commencées) : depuis le lot 15, le code n'est reçu
+    // qu'à la fin prévue (`mission-completion`). La troisième reste future.
     const yesterday = doualaDay(-1);
     const today = doualaDay(0);
     await serviceClient
@@ -2113,9 +2114,9 @@ async function main() {
     await serviceClient
       .from("mission_days")
       .update({
-        scheduled_date: today,
+        scheduled_date: addDays(today, -3),
         scheduled_start_time: "00:00",
-        scheduled_end_time: "23:59",
+        scheduled_end_time: "23:00",
       })
       .eq("id", md2.id);
     const mStartNoDay = await http(
@@ -2675,6 +2676,16 @@ async function main() {
       await serviceClient
         .from("mission_completion_codes")
         .update({ consumed_at: at })
+        .eq("mission_id", hm?.id ?? "");
+      // Lot 15 : la journée porte la réalisation et sa provenance (code),
+      // comme l'écrit submit_completion_code.
+      await serviceClient
+        .from("mission_days")
+        .update({
+          actual_start_time: at,
+          actual_end_time: at,
+          completion_source: "code",
+        })
         .eq("mission_id", hm?.id ?? "");
       await serviceClient
         .from("missions")

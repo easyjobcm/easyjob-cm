@@ -666,6 +666,16 @@ async function main() {
       C2.cookie,
       { terms_hash: termsHash, consent: true },
     );
+    // Lot 15 : code reçu à partir de la fin prévue ; journée recalée sur
+    // hier (clé service, avant le début).
+    await serviceClient
+      .from("missions")
+      .update({
+        scheduled_date: douala(new Date(Date.now() - 86_400_000)),
+        scheduled_start_time: "00:00",
+        scheduled_end_time: "23:00",
+      })
+      .eq("id", selection2?.mission_id ?? "");
     const started = await http(
       "POST",
       `/api/missions/${selection2?.mission_id}/start`,

@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import useSWR from "swr";
 import { createClient } from "@/lib/supabase/client";
 import { useLiveRefresh } from "@/lib/realtime/provider";
@@ -9,7 +8,9 @@ import {
   type ProfileLockGroup,
 } from "@/lib/utils/profile-lock";
 import type { Database } from "@/lib/database.types";
+import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
 import {
+  missionTaskInstants,
   parseActionTasks,
   pendingActionCount,
   type ActionTask,
@@ -120,16 +121,14 @@ export function useCandidateTasks(enabled = true) {
 }
 
 /**
- * Nombre d'actions en attente, recalculé avec l'horloge du serveur : un
- * début de mission qui devient disponible allume le point sans signal.
+ * Nombre d'actions en attente, recalculé à l'heure du serveur à chaque
+ * échéance (début disponible, fin prévue d'une journée) : le point
+ * s'allume sans signal ni rechargement (minuterie `useDeadlineNow`).
  */
 export function usePendingTaskCount(enabled = true): number {
   const { data } = useCandidateTasks(enabled);
-  const [now, setNow] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    if (!enabled) return;
-    const id = window.setInterval(() => setNow(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, [enabled]);
-  return pendingActionCount(data, now + (data?.clockOffset ?? 0));
+  const now = useDeadlineNow(
+    enabled ? (data?.missions ?? []).flatMap(missionTaskInstants) : [],
+  );
+  return pendingActionCount(data, now);
 }

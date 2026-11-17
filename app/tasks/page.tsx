@@ -17,6 +17,7 @@ import {
   FileSignature,
   Flag,
   KeyRound,
+  LifeBuoy,
   Loader2,
   Phone,
   Play,
@@ -39,12 +40,16 @@ import {
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { ReviewDialog } from "@/components/missions/review-dialog";
-import { IncidentReportDialog } from "@/components/missions/incident-report-dialog";
+import {
+  IncidentReportDialog,
+  incidentDaysOf,
+} from "@/components/missions/incident-report-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/profile-status";
 import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
 import { useAccountSuspended } from "@/lib/realtime/provider";
+import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
 import type { ProfileLockGroup } from "@/lib/utils/profile-lock";
 import {
   useCandidateTasks,
@@ -56,7 +61,9 @@ import {
   dayEndReached,
   missionDays,
   missionEndReached,
+  missionTaskInstants,
   type ActionTask,
+  type MissionDayState,
 } from "@/lib/tasks/candidate-tasks";
 import { actionTaskView } from "@/lib/tasks/action-task-view";
 
@@ -105,15 +112,10 @@ function TasksContent() {
   // façon : start_mission, submit_completion_code, submit_mission_review).
   const suspended = useAccountSuspended();
 
-  // Horloge locale recalée sur le serveur : les tâches apparaissent à H−15
-  // et à l'heure de fin sans recharger la page.
-  const offset = data?.clockOffset ?? 0;
-  const [now, setNow] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 5000);
-    return () => window.clearInterval(id);
-  }, []);
-  const serverNow = now + offset;
+  // Heure du serveur recalculée à chaque échéance (H−15, fin prévue d'une
+  // journée) : les tâches apparaissent à l'instant prévu sur un écran déjà
+  // ouvert, sans recharger (lot 15, minuterie partagée du lot 11b).
+  const serverNow = useDeadlineNow(missions.flatMap(missionTaskInstants));
 
   const canStart = (m: MissionTask) => canStartMission(m, serverNow);
   const endReached = (m: MissionTask) => missionEndReached(m, serverNow);
@@ -170,7 +172,13 @@ function TasksContent() {
   );
   const [highlightSign, setHighlightSign] = React.useState<string | null>(null);
   // Lot 14 : signalement d'une journée (retard, absence, code non remis).
-  const [reportTarget, setReportTarget] = React.useState<MissionTask | null>(
+  // Lot 15 : « Contacter le support » ouvre le dossier de la journée.
+  type ReportTarget = {
+    mission: MissionTask;
+    dayId: string | null;
+    kind: "code_not_received" | null;
+  };
+  const [reportTarget, setReportTarget] = React.useState<ReportTarget | null>(
     null,
   );
 
@@ -396,6 +404,69 @@ function TasksContent() {
     </div>
   );
 
+  /**
+   * Lot 15 : fin d'une journée commencée. Avant la fin prévue, l'heure
+   * d'ouverture seulement ; à l'échéance (heure du serveur), « Valider ma
+   * journée » et « Contacter le support » (code non remis).
+   */
+  const finishRow = (
+    m: MissionTask,
+    d: MissionDayState,
+    label: string | null,
+  ) => {
+    const reached = dayEndReached(d, serverNow);
+    const suffix = label ? ` · ${label}` : "";
+    const multiDay = missionDays(m.days).length > 1;
+    return taskRow(
+      `task-finish-${d.id}`,
+      <KeyRound className="h-5 w-5" />,
+      reached
+        ? `${tt.validateDay}${suffix}`
+        : `${tt.inProgress.replace("{time}", doualaTime(d.ends_at, locale))}${suffix}`,
+      reached
+        ? tt.validateDayHint
+        : tt.completionAvailableAt.replace(
+            "{time}",
+            doualaDateTime(d.completion_available_at, locale),
+          ),
+      reached ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <motion.div whileTap={{ scale: 0.97 }}>
+            <Button
+              size="sm"
+              onClick={() =>
+                setCodeTarget({ mission: m, dayId: multiDay ? d.id : null })
+              }
+              disabled={suspended}
+              data-testid="task-validate-day"
+            >
+              {tt.validateDay}
+            </Button>
+          </motion.div>
+          <motion.div whileTap={{ scale: 0.97 }}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setReportTarget({
+                  mission: m,
+                  dayId: d.id,
+                  kind: "code_not_received",
+                })
+              }
+              disabled={suspended}
+              data-testid="task-contact-support"
+            >
+              <LifeBuoy className="mr-1 h-4 w-4" aria-hidden />
+              {tt.contactSupport}
+            </Button>
+          </motion.div>
+        </div>
+      ) : null,
+      reached,
+    );
+  };
+
   const renderMission = (m: MissionTask) => {
     const rows: React.ReactNode[] = [];
     if (m.contract_id && !m.candidate_signed) {
@@ -466,33 +537,7 @@ function TasksContent() {
           );
         }
         if (d.started_at && !d.completed_at) {
-          const reached = dayEndReached(d, serverNow);
-          rows.push(
-            taskRow(
-              `task-finish-${d.id}`,
-              <KeyRound className="h-5 w-5" />,
-              `${
-                reached
-                  ? tt.finish
-                  : tt.inProgress.replace(
-                      "{time}",
-                      doualaTime(d.ends_at, locale),
-                    )
-              } · ${label}`,
-              tt.finishHint,
-              <motion.div whileTap={{ scale: 0.97 }}>
-                <Button
-                  size="sm"
-                  variant={reached ? "default" : "outline"}
-                  onClick={() => setCodeTarget({ mission: m, dayId: d.id })}
-                  disabled={suspended}
-                >
-                  {t.schedule.confirmDay}
-                </Button>
-              </motion.div>,
-              reached,
-            ),
-          );
+          rows.push(finishRow(m, d, `${label}`));
         }
       }
     }
@@ -531,29 +576,33 @@ function TasksContent() {
       );
     }
     if (!multi && m.started_at && !m.completed_at) {
+      const only = days[0];
       rows.push(
-        taskRow(
-          `task-finish-${m.mission_id}`,
-          <KeyRound className="h-5 w-5" />,
-          endReached(m)
-            ? tt.finish
-            : tt.inProgress.replace(
-                "{time}",
-                doualaTime(m.scheduled_end_at, locale),
-              ),
-          tt.finishHint,
-          <motion.div whileTap={{ scale: 0.97 }}>
-            <Button
-              size="sm"
-              variant={endReached(m) ? "default" : "outline"}
-              onClick={() => setCodeTarget({ mission: m, dayId: null })}
-              disabled={suspended}
-            >
-              {tt.validate}
-            </Button>
-          </motion.div>,
-          endReached(m),
-        ),
+        only
+          ? finishRow(m, only, null)
+          : taskRow(
+              `task-finish-${m.mission_id}`,
+              <KeyRound className="h-5 w-5" />,
+              endReached(m)
+                ? tt.finish
+                : tt.inProgress.replace(
+                    "{time}",
+                    doualaTime(m.scheduled_end_at, locale),
+                  ),
+              tt.finishHint,
+              endReached(m) ? (
+                <motion.div whileTap={{ scale: 0.97 }}>
+                  <Button
+                    size="sm"
+                    onClick={() => setCodeTarget({ mission: m, dayId: null })}
+                    disabled={suspended}
+                  >
+                    {tt.validate}
+                  </Button>
+                </motion.div>
+              ) : null,
+              endReached(m),
+            ),
       );
     }
     if (m.completed_at && !m.candidate_reviewed) {
@@ -632,7 +681,9 @@ function TasksContent() {
               size="sm"
               variant="ghost"
               className="h-8 px-2 text-muted-foreground"
-              onClick={() => setReportTarget(m)}
+              onClick={() =>
+                setReportTarget({ mission: m, dayId: null, kind: null })
+              }
               disabled={suspended}
               data-testid="task-report-incident"
             >
@@ -801,19 +852,18 @@ function TasksContent() {
           open={!!reportTarget}
           onClose={() => setReportTarget(null)}
           onDone={() => setReportTarget(null)}
-          missionId={reportTarget.mission_id}
-          jobTitle={reportTarget.job_title}
+          missionId={reportTarget.mission.mission_id}
+          jobTitle={reportTarget.mission.job_title}
           party="candidate"
-          days={missionDays(reportTarget.days).map((d) => ({
-            id: d.id,
-            date: d.date,
-            starts_at: d.starts_at,
-            confirmed: !!d.completed_at,
-          }))}
+          days={incidentDaysOf(reportTarget.mission.days)}
           initialDayId={
-            missionDays(reportTarget.days).find((d) => !d.completed_at)?.id ??
+            reportTarget.dayId ??
+            missionDays(reportTarget.mission.days).find((d) => !d.completed_at)
+              ?.id ??
             null
           }
+          initialKind={reportTarget.kind}
+          caseHref={`/missions/${reportTarget.mission.mission_id}`}
           serverNow={serverNow}
         />
       )}

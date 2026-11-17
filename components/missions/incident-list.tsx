@@ -18,13 +18,20 @@ type Row =
   Database["public"]["Functions"]["mission_incidents_for_party"]["Returns"][number];
 export type PartyIncident = Omit<
   Row,
-  "late_minutes" | "outcome" | "decision_note" | "decided_at" | "closed_reason"
+  | "late_minutes"
+  | "outcome"
+  | "decision_note"
+  | "decided_at"
+  | "closed_reason"
+  | "resolution"
 > & {
   late_minutes: number | null;
   outcome: "established" | "not_established" | null;
   decision_note: string | null;
   decided_at: string | null;
   closed_reason: string | null;
+  /** Lot 15 : journée confirmée par le support (motif interne non lu). */
+  resolution: "support_confirmed_day" | null;
 };
 type Statement = {
   party: "candidate" | "company";
@@ -185,6 +192,7 @@ function IncidentCard({
       data-testid="incident-card"
       data-kind={incident.kind}
       data-status={incident.status}
+      data-resolution={incident.resolution ?? ""}
       data-date={incident.day_date}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -237,16 +245,20 @@ function IncidentCard({
         >
           <p className="flex items-center gap-1 font-medium">
             <Scale className="h-4 w-4" aria-hidden />
-            {ti.outcome[incident.outcome]}
+            {incident.resolution === "support_confirmed_day"
+              ? ti.resolution.support_confirmed_day
+              : ti.outcome[incident.outcome]}
           </p>
           {incident.decision_note && (
             <p className="whitespace-pre-wrap break-words">
               {ti.decisionNote.replace("{note}", incident.decision_note)}
             </p>
           )}
-          <p className="mt-1 text-xs text-muted-foreground">
-            {ti.decisionScope}
-          </p>
+          {incident.resolution !== "support_confirmed_day" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {ti.decisionScope}
+            </p>
+          )}
         </div>
       )}
       {incident.can_add_statement && (

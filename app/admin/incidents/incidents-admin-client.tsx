@@ -12,6 +12,12 @@ import { useI18n } from "@/lib/i18n";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { doualaDateTime } from "@/lib/utils/douala-time";
 import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
+import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
+import {
+  IncidentCompletionPanel,
+  type DayConfirmation,
+  type IncidentContact,
+} from "./incident-completion-panel";
 import { incidentDecisionSchema } from "@/lib/validations/incident";
 import type { Database } from "@/lib/database.types";
 
@@ -31,13 +37,24 @@ type Detail = {
   company_name: string;
   candidate_name: string | null;
   can_decide: boolean;
+  // Lot 15 : contacts avec l'entreprise et confirmation de la journée.
+  can_record_contact: boolean;
+  can_confirm_day: boolean;
+  contacts: IncidentContact[];
+  confirmation: DayConfirmation | null;
   day: {
     date: string;
     starts_at: string;
+    ends_at: string;
     started_at: string | null;
     confirmed_at: string | null;
+    completed_via: "code" | "support" | null;
   };
-  other_days: { date: string; confirmed_at: string | null }[];
+  other_days: {
+    date: string;
+    confirmed_at: string | null;
+    completed_via: "code" | "support" | null;
+  }[];
   statements: {
     party: "candidate" | "company";
     body: string;
@@ -123,6 +140,15 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
   useLiveRefresh(["admin:incidents"], async () => {
     await Promise.all([loadList(), loadDetail()]);
   });
+  // Lot 15 : la confirmation s'ouvre à la fin prévue de la journée.
+  const serverNow = useDeadlineNow(
+    detail ? [Date.parse(detail.day.ends_at)] : [],
+  );
+  const confirmedLabel = (at: string, via: "code" | "support" | null): string =>
+    (via === "support" ? ta.confirmedBySupportAt : ta.confirmedAt).replace(
+      "{time}",
+      doualaDateTime(at, locale),
+    );
 
   async function openEvidence(id: string) {
     if (!detail) return;
@@ -297,10 +323,16 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
                     : ta.notStarted}
                 </p>
                 <p>
+                  {ta.endsAt.replace(
+                    "{time}",
+                    doualaDateTime(detail.day.ends_at, locale),
+                  )}
+                </p>
+                <p data-testid="admin-incident-day-status">
                   {detail.day.confirmed_at
-                    ? ta.confirmedAt.replace(
-                        "{time}",
-                        doualaDateTime(detail.day.confirmed_at, locale),
+                    ? confirmedLabel(
+                        detail.day.confirmed_at,
+                        detail.day.completed_via,
                       )
                     : ta.notConfirmed}
                 </p>
@@ -312,10 +344,7 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
                         <li key={d.date}>
                           {formatDayDate(d.date, locale)} ·{" "}
                           {d.confirmed_at
-                            ? ta.confirmedAt.replace(
-                                "{time}",
-                                doualaDateTime(d.confirmed_at, locale),
-                              )
+                            ? confirmedLabel(d.confirmed_at, d.completed_via)
                             : ta.notConfirmed}
                         </li>
                       ))}
@@ -375,6 +404,23 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
               </CardContent>
             </Card>
 
+            <IncidentCompletionPanel
+              key={detail.incident_id}
+              incidentId={detail.incident_id}
+              kind={detail.kind}
+              contacts={detail.contacts}
+              confirmation={detail.confirmation}
+              canRecordContact={detail.can_record_contact}
+              canConfirmDay={detail.can_confirm_day}
+              canConfirmRole={canDecide}
+              dayStarted={!!detail.day.started_at}
+              dayEndsAt={detail.day.ends_at}
+              dayConfirmedAt={detail.day.confirmed_at}
+              dayCompletedVia={detail.day.completed_via}
+              serverNow={serverNow}
+              onChanged={() => Promise.all([loadList(), loadDetail()])}
+            />
+
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -383,7 +429,11 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                {detail.outcome ? (
+                {detail.kind === "code_not_received" && !detail.outcome ? (
+                  <p className="text-muted-foreground">
+                    {ta.codeNotReceivedDecision}
+                  </p>
+                ) : detail.outcome ? (
                   <div data-testid="admin-incident-outcome">
                     <p className="font-medium">{ti.outcome[detail.outcome]}</p>
                     {detail.decision_note && (

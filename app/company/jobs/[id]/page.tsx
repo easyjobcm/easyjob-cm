@@ -100,12 +100,14 @@ type JobMission = Omit<
   | "started_at"
   | "completed_at"
   | "completion_code"
+  | "completed_via"
   | "mission_completed_at"
 > & {
   application_id: string | null;
   started_at: string | null;
   completed_at: string | null;
   completion_code: string | null;
+  completed_via: "code" | "support" | null;
   mission_completed_at: string | null;
 };
 
@@ -905,7 +907,10 @@ export default function CompanyJobDetailPage() {
                                       {m.completed_at ? (
                                         <span className="text-success flex items-center gap-1">
                                           <CheckCircle className="h-4 w-4" />
-                                          {tcomp.completedAt.replace(
+                                          {(m.completed_via === "support"
+                                            ? tcomp.completedBySupportAt
+                                            : tcomp.completedAt
+                                          ).replace(
                                             "{time}",
                                             doualaTime(m.completed_at, locale),
                                           )}
@@ -939,6 +944,8 @@ export default function CompanyJobDetailPage() {
                                     date: r.day_date,
                                     starts_at: r.scheduled_start_at,
                                     confirmed: !!r.completed_at,
+                                    started: !!r.started_at,
+                                    completion_available_at: r.scheduled_end_at,
                                   }))}
                                 />
                                 <p className="text-xs text-muted-foreground">

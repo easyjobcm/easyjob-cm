@@ -6,7 +6,9 @@
  * journée, sélections par « Signer et sélectionner ») ; tentatives en
  * sessions RÉELLES (routes avec cookies, RPC et Storage avec le JWT) ;
  * état relu en clé service. Journées recalées en clé service avant tout
- * début (lundi passé, mercredi aujourd'hui, vendredi futur).
+ * début (lundi et mercredi passés et terminés, vendredi futur) : depuis le
+ * lot 15, le code et le « code non remis » ne sont reçus qu'à la fin prévue
+ * d'une journée commencée (preuve `mission-completion`).
  *
  *   J. Règle par journée : lundi confirmé par code → absence et « code non
  *      remis » refusés ce jour-là, retard accepté ; mercredi signalé absent ;
@@ -19,7 +21,9 @@
  *   A. Accès : tiers, autre candidat, anonyme ; tables, bucket et RPC de
  *      service fermés en session ; parties sans pièce ; support (lecture),
  *      ops (décision), admin suspendu refusé.
- *   S. Décision motivée : tracée, notifiée, sans conséquence ; relance.
+ *   S. Décision motivée (retard) : tracée, notifiée, sans conséquence ;
+ *      relance. Lot 15 : un « code non remis » ne se tranche que par la
+ *      confirmation de la journée (refus use_day_confirmation).
  *   R. Course confirmation par code / absence : jamais une absence ouverte
  *      sur une journée confirmée.
  *   H. Table historique `disputes` (lot 14b) : aucune création, modification
@@ -365,10 +369,10 @@ async function main() {
       .eq("mission_id", missionId)
       .order("scheduled_date");
     const [mon, wed, fri] = mdays!;
-    // Lundi passé, mercredi aujourd'hui, vendredi futur (jamais commencés).
+    // Lundi et mercredi passés et terminés, vendredi futur (jamais commencés).
     for (const [d, date, start, end] of [
-      [mon, doualaDay(-2), "00:00", "23:00"],
-      [wed, doualaDay(0), "00:00", "23:59"],
+      [mon, doualaDay(-3), "00:00", "23:00"],
+      [wed, doualaDay(-1), "00:00", "23:00"],
       [fri, doualaDay(2), "08:00", "16:00"],
     ] as const) {
       const { error } = await serviceClient
@@ -403,6 +407,12 @@ async function main() {
     if (s1.error || c1.data?.[0]?.result !== "completed") {
       throw new Error(`lundi: ${s1.error?.message ?? c1.error?.message}`);
     }
+    // Mercredi : début confirmé, code jamais saisi (« code non remis »).
+    const s3 = await C1.client.rpc("start_mission", {
+      p_mission_id: missionId,
+      p_mission_day_id: wed.id,
+    });
+    if (s3.error) throw new Error(`mercredi: ${s3.error.message}`);
 
     const reportUrl = `/api/missions/${missionId}/incidents`;
     const reportAs = (
@@ -495,6 +505,12 @@ async function main() {
       "absence",
       "Je préviens : je ne pourrai pas venir vendredi.",
     );
+    const friCode = await reportAs(
+      C1,
+      fri.id,
+      "code_not_received",
+      "Code non reçu vendredi (trop tôt).",
+    );
     const after = await snapshot();
     report(
       "J2 code accepté lundi n'empêche pas l'absence de mercredi (signalée par l'entreprise)",
@@ -503,11 +519,13 @@ async function main() {
       wedAbs.body,
     );
     report(
-      "J3 vendredi : l'entreprise ne peut constater une absence avant le début (day_not_started) ; le candidat peut prévenir ; vendredi reste prévu",
+      "J3 vendredi : l'entreprise ne peut constater une absence avant le début (day_not_started) ; le candidat peut prévenir ; code non remis refusé sur une journée non commencée (start_not_confirmed) ; vendredi reste prévu",
       friAbsA.status === 409 &&
         friAbsA.body.code === "day_not_started" &&
-        friWarn.status === 200,
-      [friAbsA.body.code, friWarn.status],
+        friWarn.status === 200 &&
+        friCode.status === 409 &&
+        friCode.body.code === "start_not_confirmed",
+      [friAbsA.body.code, friWarn.status, friCode.body.code],
     );
     report(
       "J4 aucune conséquence : journées, mission, contrat, réputation et manquements inchangés",
@@ -787,12 +805,36 @@ async function main() {
 
     // ── S. Décision motivée ──────────────────────────────────────
     console.log("\n── S. Décision du support ──");
-    const decide = (s: Session, outcome: string, note: string) =>
-      http("POST", `/api/admin/incidents/${codeId}`, s.cookie, {
+    // Lot 15 : un code non remis ne se tranche que par la confirmation de
+    // la journée ; la décision générique porte ici sur le retard de lundi.
+    const decId = (monLate.body.incident as { incident_id: string })
+      .incident_id;
+    incidentIds.push(decId);
+    const decide = (
+      s: Session,
+      outcome: string,
+      note: string,
+      id: string = decId,
+    ) =>
+      http("POST", `/api/admin/incidents/${id}`, s.cookie, {
         outcome,
         note,
       });
     const note = "Témoignage du chef de salle et photo cohérents.";
+    const dCode = await decide(OPS, "established", note, codeId);
+    const { data: codeStill } = await serviceClient
+      .from("mission_incidents")
+      .select("status, outcome")
+      .eq("id", codeId)
+      .single();
+    report(
+      "S0 code non remis : décision générique refusée (use_day_confirmation), dossier toujours en instruction",
+      dCode.status === 409 &&
+        dCode.body.code === "use_day_confirmation" &&
+        codeStill?.status === "answered" &&
+        codeStill.outcome === null,
+      { status: dCode.status, code: dCode.body.code, codeStill },
+    );
     const [dSup, dOff, dNoNote] = await Promise.all([
       decide(SUP, "established", note),
       decide(OFF, "established", note),
@@ -806,7 +848,7 @@ async function main() {
     const { data: audit } = await serviceClient
       .from("audit_logs")
       .select("actor_id, action, metadata")
-      .eq("resource_id", codeId);
+      .eq("resource_id", decId);
     report(
       "S1 décision réservée à ops actif et motivée : support et suspendu refusés (403), motif trop court refusé",
       dSup.status === 403 &&
@@ -830,8 +872,8 @@ async function main() {
     report(
       "S3 aucune conséquence de la décision : journée de mercredi non confirmée, mission, contrat, réputation et manquements inchangés ; parties notifiées",
       afterDecision === beforeDecision &&
-        (await notifCount(idC1, codeId)) >= 1 &&
-        (await notifCount(idA, codeId)) >= 2,
+        (await notifCount(idC1, decId)) >= 2 &&
+        (await notifCount(idA, decId)) >= 1,
       afterDecision === beforeDecision
         ? undefined
         : { beforeDecision, afterDecision },
@@ -847,7 +889,7 @@ async function main() {
     ]);
     const decided = (r: HttpResult) =>
       ((r.body.incidents ?? []) as Incident[]).find(
-        (i) => i.incident_id === codeId,
+        (i) => i.incident_id === decId,
       );
     report(
       "S4 après reconnexion, candidat et entreprise lisent la même décision",
@@ -880,10 +922,10 @@ async function main() {
       .single();
     const lateNow = await stmt(A, wedId!, "Complément après la clôture.");
     report(
-      "S5 mercredi confirmé ensuite par code : l'absence ouverte est close (journée confirmée), la décision déjà prise reste, plus aucune déclaration",
+      "S5 mercredi confirmé ensuite par code : l'absence ouverte et le code non remis en instruction sont clos (journée confirmée), plus aucune déclaration",
       wedAbsRow?.status === "closed" &&
         wedAbsRow.closed_reason === "day_confirmed" &&
-        codeAfter?.status === "decided" &&
+        codeAfter?.status === "closed" &&
         lateNow.status === 409 &&
         lateNow.body.code === "incident_closed",
       wedAbsRow,
@@ -912,12 +954,13 @@ async function main() {
       .select("id")
       .eq("mission_id", mission2)
       .single();
+    // Journée terminée (lot 15 : code reçu à partir de la fin prévue).
     await serviceClient
       .from("mission_days")
       .update({
-        scheduled_date: doualaDay(0),
+        scheduled_date: doualaDay(-1),
         scheduled_start_time: "00:00",
-        scheduled_end_time: "23:59",
+        scheduled_end_time: "23:00",
       })
       .eq("id", day2!.id);
     await C2.client.rpc("start_mission", {

@@ -1816,10 +1816,96 @@ export type Database = {
           },
         ]
       }
+      mission_day_confirmations: {
+        Row: {
+          basis: string
+          candidate_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          confirmed_by_role: string
+          contact_id: string
+          id: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          reason: string
+        }
+        Insert: {
+          basis?: string
+          candidate_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          confirmed_by_role: string
+          contact_id: string
+          id?: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          reason: string
+        }
+        Update: {
+          basis?: string
+          candidate_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          confirmed_by_role?: string
+          contact_id?: string
+          id?: string
+          incident_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_day_confirmations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_confirmations_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_confirmations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incident_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_confirmations_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_confirmations_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_confirmations_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mission_days: {
         Row: {
           actual_end_time: string | null
           actual_start_time: string | null
+          completion_source: string | null
           created_at: string
           ends_at: string
           id: string
@@ -1833,6 +1919,7 @@ export type Database = {
         Insert: {
           actual_end_time?: string | null
           actual_start_time?: string | null
+          completion_source?: string | null
           created_at?: string
           ends_at: string
           id?: string
@@ -1846,6 +1933,7 @@ export type Database = {
         Update: {
           actual_end_time?: string | null
           actual_start_time?: string | null
+          completion_source?: string | null
           created_at?: string
           ends_at?: string
           id?: string
@@ -1869,6 +1957,63 @@ export type Database = {
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_incident_contacts: {
+        Row: {
+          channel: string
+          created_at: string
+          entry_type: string
+          id: string
+          incident_id: string
+          note: string | null
+          occurred_at: string
+          recorded_by: string | null
+          recorded_by_role: string
+          reference: string | null
+          result: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          entry_type: string
+          id?: string
+          incident_id: string
+          note?: string | null
+          occurred_at: string
+          recorded_by?: string | null
+          recorded_by_role: string
+          reference?: string | null
+          result: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          entry_type?: string
+          id?: string
+          incident_id?: string
+          note?: string | null
+          occurred_at?: string
+          recorded_by?: string | null
+          recorded_by_role?: string
+          reference?: string | null
+          result?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_incident_contacts_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_incident_contacts_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2935,6 +3080,19 @@ export type Database = {
           status: string
         }[]
       }
+      admin_confirm_mission_day: {
+        Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
+        Returns: {
+          already_confirmed: boolean
+          completed_at: string
+          completed_via: string
+          confirmation_id: string
+          incident_id: string
+          mission_completed: boolean
+          mission_day_id: string
+          result: string
+        }[]
+      }
       admin_decide_mission_incident: {
         Args: { p_incident_id: string; p_note: string; p_outcome: string }
         Returns: {
@@ -2990,6 +3148,21 @@ export type Database = {
           p_source: string
         }
         Returns: Json
+      }
+      admin_record_incident_contact: {
+        Args: {
+          p_channel: string
+          p_entry_type: string
+          p_incident_id: string
+          p_note?: string
+          p_occurred_at: string
+          p_reference?: string
+          p_result: string
+        }
+        Returns: {
+          already_recorded: boolean
+          contact_id: string
+        }[]
       }
       admin_reputation_review_impacts: {
         Args: { p_subject_id: string; p_subject_type: string }
@@ -3247,6 +3420,7 @@ export type Database = {
           code_used: boolean
           company_reviewed: boolean
           completed_at: string
+          completed_via: string
           completion_code: string
           day_count: number
           day_date: string
@@ -3664,6 +3838,7 @@ export type Database = {
           mission_day_id: string
           outcome: string
           reported_by_party: string
+          resolution: string
           statements: Json
           status: string
           viewer_party: string
@@ -3675,6 +3850,10 @@ export type Database = {
           ends_at: string
           starts_at: string
         }[]
+      }
+      mission_work_confirmed: {
+        Args: { p_mission_id: string }
+        Returns: boolean
       }
       moderate_cni: {
         Args: {

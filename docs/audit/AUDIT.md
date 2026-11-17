@@ -2469,7 +2469,7 @@ Candidat : bouton « Signaler » dans *Tâches* et carte « Signalements » du d
 ### Limites
 
 - Aucune conséquence des décisions (choix du lot) ; règle de `reputation_incidents` encore à la mission.
-- Code non remis : la décision « établi » ne confirme pas la journée ; pouvoir non introduit (décision produit, `PLAN_ACTION.md` lot 14).
+- Code non remis : la décision « établi » ne confirme pas la journée ; pouvoir non introduit (décision produit, `PLAN_ACTION.md` lot 14). **Arbitré et livré au lot 15 (§36)** pour la confirmation explicite de l'entreprise ; la décision générique est depuis refusée sur un « code non remis ».
 - Aucun délai maximal pour signaler après la journée ; aucun retrait d'un signalement par son auteur ; pas d'écriture de complément par le support (seulement la décision).
 - Les justificatifs restent stockés après la décision (aucune règle de conservation).
 
@@ -2561,3 +2561,79 @@ Le message « ⚠ Your version of Next.js is affected by a known security vulner
 | Suite RLS complète | non relancée en local (aucune route, RPC, politique ni preuve modifiée) ; couverte par la CI |
 
 Observation sans lien avec la mise à jour : l'écran d'accueil (`components/ui/splash-screen.tsx`, environ 2,5 s à la première visite de la session) est un calque `fixed inset-0 z-100` qui capte les clics tant qu'il est affiché. Un script qui clique dès le chargement n'atteint pas le formulaire ; le composant est inchangé et le comportement est antérieur au lot.
+
+## 36. Suivi — Lot 15 : fin de journée, code non remis et confirmation par le support (2026-11-17)
+
+Branche `feat/lot-15-mission-completion`, créée depuis `origin/main-dev` (021c5e6, lot 14c intégré). Migration `20261119120000_mission_day_completion.sql`. Non commité, non déployé. Règles produit : SRS §6.8 (encadré « Lot 15 ») et §11.12.
+
+### Constats de départ
+
+- Le code d'une journée était accepté dès le début confirmé : *Tâches* affichait « En cours – fin prévue à … » avec un bouton actif, et `submit_completion_code` ne contrôlait aucune échéance.
+- Le « code non remis » (lot 14) s'ouvrait dès le début prévu, même sans début confirmé.
+- Aucune voie ne permettait de confirmer une journée sans code. L'expérience du candidat, l'unité d'offre, l'admissibilité des avis et le garde-fou des manquements ne reconnaissaient qu'un code consommé.
+
+### Réalisation
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Échéance | `submit_completion_code` refuse `completion_not_open` (détail : fin prévue) tant que `now() < mission_days.ends_at`. Le contrôle vient après ceux qui existaient déjà (mission active, candidature sélectionnée, début confirmé) et **avant** toute lecture du code : code, compteur, fenêtre, blocage et réalisation restent intacts. `ends_at` est l'horaire figé, calculé en Africa/Douala (22 h → 6 h : fin le lendemain). |
+| Code non remis | `report_mission_incident`, pour `code_not_received` : début confirmé exigé (`start_not_confirmed`) et fin prévue atteinte (`day_not_ended`), y compris en appel direct. Retard et absence inchangés. Une relance renvoie le dossier existant. |
+| Provenance | `mission_days.completion_source` : `code`, `support` ou `legacy`. `legacy` marque à la reprise une réalisation antérieure sans code consommé, qui reste non comptée comme avant. Une contrainte lie réalisation et provenance, et la provenance est immuable une fois posée. La voie manuelle ne consomme jamais le code. |
+| Contacts | `mission_incident_contacts` (append-only, aucun accès de session), par `admin_record_incident_contact` (tout admin actif). Une entrée est soit une demande (`sent`, `no_answer`, `unreachable`), soit une réponse obtenue (`work_confirmed`, `work_disputed`, `other`). Elle porte une date comprise entre le début de la journée et maintenant, un canal, une référence privée (obligatoire pour `work_confirmed`) et une note interne. Un double envoi ne crée pas de doublon ; l'audit ne reprend ni la référence ni la note. |
+| Confirmation | `admin_confirm_mission_day` (`is_ops_admin_user`, compte actif). Conditions : dossier `code_not_received` ouvert, journée commencée, fin atteinte, réponse `work_confirmed` sur ce même dossier, motif. Verrous dans l'ordre mission, journée, dossier. Dans une seule transaction : décision (`decided`, `established`), ligne `mission_day_confirmations` (candidat, journée, dossier, contact, motif), journée marquée `support`, mission réalisée si c'était la dernière journée, trace `confirm_mission_day` dans `audit_logs` et notifications aux deux parties. Si la journée est déjà confirmée, le résultat acquis est renvoyé sans écriture. |
+| Décision générique | `admin_decide_mission_incident` renvoie `use_day_confirmation` sur un « code non remis ». Entreprise injoignable ou travail contesté : le dossier reste en instruction. |
+| Lectures | `mission_days_json` : `completion_available_at`, `completed_via`. `company_job_missions` : `completed_via`, et le code n'est plus renvoyé une fois la journée confirmée. `mission_incidents_for_party` : `resolution = support_confirmed_day`, motif masqué. `admin_mission_incident` : contacts, confirmation, `can_record_contact`, `can_confirm_day`. |
+| Réputation et avis | Nouvelle fonction `mission_work_confirmed`. `compute_reputation` (candidat : une unité par mission dont toutes les journées sont `code` ou `support`), `reputation_company_offers`, `reputation_review_admissible` et `protect_reputation_incidents` acceptent une journée confirmée par code **ou** par le support. Les autres règles du lot 12 sont inchangées. |
+| Écrans | La minuterie `useDeadlineNow` (`lib/realtime/use-deadline-now.ts`) est extraite de `useRecruitmentNow` (lot 11b), qui l'utilise désormais. Elle sert à *Tâches*, au point rouge de l'onglet, au détail de mission et au dossier admin. Dans *Tâches* et le détail : avant la fin, « Validation possible à partir de … » sans bouton ; à l'échéance, « Valider ma journée » et « Contacter le support » (dialogue du lot 14, nature présélectionnée, dossier existant retrouvé). Côté entreprise : « Confirmée par le support à …, après votre confirmation ». Côté support : contacts et confirmation (`app/admin/incidents/incident-completion-panel.tsx`). Les libellés « confirmée par code » sont corrigés là où la journée peut l'être par le support. |
+
+### Preuves
+
+La nouvelle preuve `mission-completion` (27 assertions) contrôle les horaires de trois façons : la fonction temporaire `proof_l15_case` pour l'instant exact, les horaires réels pour la nuit et le passage de minuit, la barrière du lot 11 pour les courses. Un trigger temporaire provoque la panne.
+
+| Contrôle | Résultat |
+|---|---|
+| T1-T4 : juste avant la fin (+1 ms, heure de la base), le bon code et un code saisi pendant un blocage sont refusés sans rien modifier ; route (409 + `available_at`) et appel direct ; accepté à l'instant exact | ✅ |
+| T5 : journée de 22 h à 6 h, fin à 6 h le lendemain (base, écran et refus) ; T6 : journée commencée la veille à 23:59 et finie après minuit, code accepté | ✅ |
+| R1-R2 : code non remis refusé sans début, avant la fin (route et appel direct) et juste avant ; accepté à l'instant exact ; une relance renvoie le même dossier ; retard inchangé | ✅ |
+| S1-S5 : contacts (demande, réponse contestée), validations, doublons ; confirmation refusée sans « travail confirmé » ; décision générique refusée ; refus pour le support, les parties, l'anonyme et un ops suspendu avec un jeton émis avant sa suspension (route, appel direct, contact, lecture) | ✅ |
+| S6-S9 : confirmation avec provenance `support`, code non consommé, aucun départ enregistré, mission réalisée, décision rattachée, une trace, une notification par partie ; relance sans écriture ; un code saisi ensuite renvoie le résultat acquis ; confidentialité côté parties ; écrans entreprise et *Tâches* à jour | ✅ |
+| C1 code puis support et C2 support puis code (ordres imposés) : une seule réalisation ; C3 code reçu pendant l'instruction | ✅ |
+| P1-P2 : panne de la trace pendant la confirmation → 500 générique, rien n'est écrit ; la reprise aboutit | ✅ |
+| E1-E3 : période complète (journée 1 par code, journée 2 par le support) réalisée à la dernière journée, candidat +1 une seule fois ; avis admissible ; offre +1 une seule fois après la clôture ; aucun manquement ni paiement | ✅ |
+| X1-X2 : tables du lot fermées en session, provenance non modifiable, tiers 404, anonyme refusé | ✅ |
+| Contrôle négatif 1 : `submit_completion_code` sans échéance | T1-T5 en échec (régression détectée) |
+| Contrôle négatif 2 : confirmation ouverte à `is_admin_user` | S5 en échec (régression détectée) ; fonctions d'origine rétablies et relues |
+
+Preuves existantes adaptées à l'échéance :
+
+- `mission-time-tracking` et `multi-day-jobs` (journée 2 de la section M) ;
+- `mission-incidents` : mercredi terminé et commencé ; la section S porte sur le retard de lundi ; S0 vérifie le refus de la décision générique sur un code non remis, S5 la clôture du code non remis par le code, J3 le refus `start_not_confirmed` ;
+- `realtime` et `company-dossier-visibility`.
+
+Les fixtures de `multi-day-jobs` (section Q) et de `reputation` marquaient une mission réalisée en clé service sans confirmer ses journées, un état impossible par les RPC. Elles confirment désormais les journées, comme `submit_completion_code`.
+
+Navigateur (Chrome headless, 375 × 812 tactile, build de production relié à `easyjob-proof`, script et fixtures fictives hors dépôt) : ✅ 24/24, FR puis EN.
+
+- La fin prévue est placée 40 s plus tard en base. « Valider ma journée » et « Contacter le support » apparaissent dans *Tâches* et dans le détail déjà ouverts 64 à 86 ms après l'échéance, sans rechargement.
+- Contact du support depuis la tâche : nature présélectionnée, lien « Voir mon dossier » ; une relance indique que le dossier existe déjà.
+- Le support consigne une demande puis une réponse « travail confirmé » ; la confirmation lui reste en lecture seule.
+- Ops reçoit la réponse sur son écran ouvert, puis confirme la journée.
+- Sans rechargement : *Tâches* propose « Noter l'entreprise », le détail affiche « Confirmée par le support » sans le motif, l'entreprise voit la confirmation et le code n'est plus affiché.
+- Aucun défilement horizontal, aucune erreur JavaScript.
+
+### Validation de l'état final
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm test` (Vitest), puis suite RLS complète, l'un après l'autre | ✅ 570 tests (47 fichiers ; nouveaux : `mission-day-completion`, `douala-time`). Au premier passage, un échec intermittent sous charge, sortie non conservée et test non identifié (le lot 10 signale déjà `proof-db-query` comme intermittent) ; quatre passages suivants verts. |
+| `pnpm test:rls` (pile réinitialisée depuis les seules migrations, build de production) | ✅ 34/34 au premier passage, 731 s. Un passage précédent avait révélé `realtime` (M4, M5) et `company-dossier-visibility` (M7), qui saisissaient un code avant la fin prévue ; corrigés ci-dessus |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ (Next.js 16.4.5, sans avertissement) |
+| Types générés (`supabase gen types` sur la pile réinitialisée) | ✅ identiques à `lib/database.types.ts` |
+
+### Limites
+
+- Entreprise injoignable ou travail contesté : aucune issue (SRS §11.12) ; le dossier reste en instruction.
+- Journée jamais commencée : ni code ni confirmation manuelle possibles, le début confirmé étant exigé comme pour le code.
+- Effet d'une journée confirmée par le support sur le futur versement : à traiter dans le lot paiement.
+- `protect_reputation_incidents` raisonne encore à la mission (lot « Engagements et annulations »).
+- Une panne pendant la confirmation n'alerte pas le support : l'écran affiche l'erreur et l'action peut être relancée.

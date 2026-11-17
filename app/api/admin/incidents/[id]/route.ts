@@ -1,38 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { adminIncidentContext } from "@/lib/api/admin-incident-route";
 import { incidentRpcError, readJson } from "@/lib/api/incident-route";
 import { internalErrorResponse } from "@/lib/api/errors";
 import {
   incidentBodyRefusal,
   incidentDecisionSchema,
 } from "@/lib/validations/incident";
-
-async function context(params: Promise<{ id: string }>) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      error: NextResponse.json(
-        { error: "Unauthorized", code: "not_authenticated" },
-        { status: 401 },
-      ),
-    } as const;
-  }
-  const incidentId = z.string().uuid().safeParse(id);
-  if (!incidentId.success) {
-    return {
-      error: NextResponse.json(
-        { error: "incident_not_found", code: "incident_not_found" },
-        { status: 404 },
-      ),
-    } as const;
-  }
-  return { error: null, supabase, incidentId: incidentId.data } as const;
-}
 
 /**
  * Dossier complet d'un signalement pour le support (lot 14, RPC
@@ -44,7 +17,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const ctx = await context(params);
+    const ctx = await adminIncidentContext(params);
     if (ctx.error) return ctx.error;
     const { data, error } = await ctx.supabase.rpc("admin_mission_incident", {
       p_incident_id: ctx.incidentId,
@@ -78,7 +51,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const ctx = await context(params);
+    const ctx = await adminIncidentContext(params);
     if (ctx.error) return ctx.error;
     const parsed = incidentDecisionSchema.safeParse(await readJson(request));
     if (!parsed.success) {

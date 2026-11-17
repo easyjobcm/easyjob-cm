@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDayDate } from "@/lib/jobs/schedule";
+import { missionDays } from "@/lib/tasks/candidate-tasks";
 import {
   INCIDENT_KINDS_BY_PARTY,
   incidentReportSchema,
@@ -25,9 +26,25 @@ export type IncidentDay = {
   id: string;
   date: string;
   starts_at: string;
-  /** Journée confirmée par code (actual_end_time). */
+  /** Journée confirmée, par code ou par le support (actual_end_time). */
   confirmed: boolean;
+  /** Lot 15 : début de la journée confirmé par le candidat. */
+  started: boolean;
+  /** Lot 15 : fin prévue, ouverture du « code non remis ». */
+  completion_available_at: string;
 };
+
+/** Journées d'une mission (JSON de la base) pour le signalement. */
+export function incidentDaysOf(raw: unknown): IncidentDay[] {
+  return missionDays(raw).map((d) => ({
+    id: d.id,
+    date: d.date,
+    starts_at: d.starts_at,
+    confirmed: !!d.completed_at,
+    started: !!d.started_at,
+    completion_available_at: d.completion_available_at,
+  }));
+}
 
 type Errors = ReturnType<typeof useI18n>["t"]["incidents"]["errors"];
 type ErrorCode = keyof Errors;
@@ -37,8 +54,9 @@ type ErrorCode = keyof Errors;
  *
  * La mission et la date de la journée sont affichées avant l'envoi. Les
  * natures impossibles sont désactivées avec leur motif (journée confirmée,
- * journée non commencée) ; la base revérifie tout. Un justificatif
- * facultatif est transmis au seul support.
+ * journée non commencée, fin prévue non atteinte pour un code non remis,
+ * lot 15) ; la base revérifie tout. Un justificatif facultatif est transmis
+ * au seul support. Une relance retrouve le dossier existant.
  */
 export function IncidentReportDialog({
   open,
@@ -49,6 +67,8 @@ export function IncidentReportDialog({
   party,
   days,
   initialDayId,
+  initialKind = null,
+  caseHref,
   serverNow,
 }: {
   open: boolean;
@@ -59,6 +79,10 @@ export function IncidentReportDialog({
   party: "candidate" | "company";
   days: IncidentDay[];
   initialDayId?: string | null;
+  /** Lot 15 : nature présélectionnée (« Contacter le support »). */
+  initialKind?: IncidentKind | null;
+  /** Lien vers le dossier, proposé après l'envoi (absent : même écran). */
+  caseHref?: string;
   /** Heure du serveur (ms) pour la disponibilité des natures. */
   serverNow: number;
 }) {
@@ -79,12 +103,12 @@ export function IncidentReportDialog({
     if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDayId(initialDayId ?? days[0]?.id ?? null);
-    setKind(null);
+    setKind(initialKind);
     setStatement("");
     setLateMinutes("");
     setFile(null);
     setError(null);
-  }, [open, initialDayId, days]);
+  }, [open, initialDayId, initialKind, days]);
 
   const day = days.find((d) => d.id === dayId) ?? null;
   const started = !!day && serverNow >= Date.parse(day.starts_at);
@@ -92,8 +116,12 @@ export function IncidentReportDialog({
     if (!day) return null;
     if ((k === "absence" || k === "code_not_received") && day.confirmed)
       return "day_already_confirmed";
-    if ((party === "company" || k === "code_not_received") && !started)
-      return "day_not_started";
+    if (party === "company" && !started) return "day_not_started";
+    if (k === "code_not_received") {
+      if (!day.started) return "start_not_confirmed";
+      if (serverNow < Date.parse(day.completion_available_at))
+        return "day_not_ended";
+    }
     return null;
   };
 
@@ -146,12 +174,18 @@ export function IncidentReportDialog({
           });
         }
       }
+      const isCase = kind === "code_not_received";
       toast({
-        title: ti.toasts.reported,
+        title: isCase ? ti.toasts.caseSent : ti.toasts.reported,
         description: body.incident.already_reported
-          ? ti.toasts.alreadyReported
+          ? isCase
+            ? ti.toasts.caseExists
+            : ti.toasts.alreadyReported
           : undefined,
         variant: "success",
+        ...(isCase && caseHref
+          ? { action: { label: t.mission.tasks.openCase, href: caseHref } }
+          : {}),
       });
       onDone();
     } else {

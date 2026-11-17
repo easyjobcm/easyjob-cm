@@ -59,7 +59,11 @@ export function missionRpcError(
       {
         error: refusal.code,
         code: refusal.code,
-        ...(refusal.code === "too_early" && error.details
+        // Instant d'ouverture (heure de la base) : début (H−15) ou fin
+        // prévue de la journée (lot 15).
+        ...((refusal.code === "too_early" ||
+          refusal.code === "completion_not_open") &&
+        error.details
           ? { available_at: error.details }
           : {}),
       },

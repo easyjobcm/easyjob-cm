@@ -7,7 +7,7 @@ import { incidentRefusal } from "@/lib/validations/incident";
  * sinon 500 journalisé sans paramètre ni déclaration.
  */
 export function incidentRpcError(
-  error: { message?: string; code?: string },
+  error: { message?: string; code?: string; details?: string },
   op: string,
   fallbackCode: string,
   request?: { headers: Pick<Headers, "get"> } | null,
@@ -15,7 +15,14 @@ export function incidentRpcError(
   const refusal = incidentRefusal(error.message);
   if (refusal) {
     return NextResponse.json(
-      { error: refusal.code, code: refusal.code },
+      {
+        error: refusal.code,
+        code: refusal.code,
+        // Lot 15 : fin prévue de la journée (heure de la base).
+        ...(refusal.code === "day_not_ended" && error.details
+          ? { available_at: error.details }
+          : {}),
+      },
       { status: refusal.status },
     );
   }

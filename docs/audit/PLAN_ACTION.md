@@ -478,6 +478,8 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - Migration `20261117120000_mission_incidents.sql` ; preuve `mission-incidents` ajoutée à `pnpm test:rls`.
 >
 > **Décision métier à prendre avant d'aller plus loin (code non remis)** : le support peut aujourd'hui instruire et déclarer le travail « établi », sans effet. Confirmer la journée **au nom de l'entreprise** serait un nouveau pouvoir : qui l'exerce (grade), sur quelles preuves minimales, dans quel délai, avec quelle information de l'entreprise et quel recours ; effet sur la mission globale, le forfait, la réputation (+1 mission, +1 offre) et le futur paiement. Rien n'est introduit tant que cette décision n'est pas prise.
+>
+> **Arbitrée pour un cas au lot 15** : confirmation de la journée par `admin_ops` ou `admin_founder` actif quand l'entreprise confirme explicitement le travail au support (voir « Lot 15 »). Entreprise injoignable ou travail contesté : toujours ouvert (SRS §11.12).
 
 - **Dépendances** : lots 7c et 12 (journées, codes), 9c (grades et contestations, `audit_logs`), 7d (signaux privés), 13 (contrats inchangés).
 - **Hors lot** : barèmes de sanction, annulations, remplacements, remboursements et indemnités (lot « Engagements et annulations », à arbitrer ensemble) ; formulaire public de contestation.
@@ -495,6 +497,22 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - `next` et `eslint-config-next` : 16.4.3 → **16.4.5** (première version corrigée de GHSA-mfr8-8qww-v76h, moderate ; aucun avis publié depuis n'affecte 16.4.5 ; 16.4.6 sans correctif de sécurité, non retenue). Lockfile limité aux paquets `next` / `@next/*` et à cinq doublons transitifs retirés ; `--frozen-lockfile` ✅.
 > - `pnpm audit --prod` : GHSA-mfr8-8qww-v76h disparu, aucun nouvel avis ; reste GHSA-866g-f22w-33x8 (low, `@ai-sdk/provider-utils`, hors périmètre). Avertissement de sécurité du build disparu.
 > - Validation : typage, lint, formatage, 558 tests, build ; sur `easyjob-proof` (build de production) : `oauth-callback`, `admin-centralization`, `contract-selection`, `essentials-gate` ✅ et 13/13 vérifications navigateur (retour après connexion, refus de `/admin` au candidat). Suite RLS complète laissée à la CI.
+
+## Lot 15 — Fin de journée : code à l'heure de fin et confirmation par le support
+
+> **Statut (2026-11-17)** : réalisé sur `feat/lot-15-mission-completion` (base `origin/main-dev`, 021c5e6, lot 14c intégré), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §36 ; règles produit : SRS §6.8 et §11.12.
+> - **Échéance** : le code d'une journée n'est reçu qu'à sa fin prévue (horaire figé, heure de la base, Africa/Douala ; 22 h → 6 h : 6 h le lendemain). Envoi anticipé, même avec le bon code : refusé avant toute lecture du code (code, essais, blocage et réalisation intacts). *Tâches* et le détail de la mission affichent « Valider ma journée » à l'heure dite sur un écran déjà ouvert (minuterie partagée `useDeadlineNow`, extraite de celle du lot 11b ; relecture à la reconnexion inchangée).
+> - **Code non remis** : « Contacter le support » à la même échéance, depuis la tâche ou le détail ; dossier du lot 14 de la journée, retrouvé en cas de relance ; même règle en appel direct (début confirmé, fin atteinte). Retard et absence inchangés.
+> - **Instruction** : contacts du support avec l'entreprise (`mission_incident_contacts`) : date, canal, demande (envoyée, sans réponse, injoignable) distincte de la réponse obtenue (travail confirmé, contesté, autre), référence privée, note interne ; tout admin actif ; support seulement.
+> - **Confirmation manuelle** (`admin_confirm_mission_day`) : ops ou fondateur actif, sur une réponse « travail confirmé » consignée sur le dossier ; provenance `support` de la journée (`mission_days.completion_source`), code jamais consommé ; décision liée au candidat, à la journée et au dossier (`mission_day_confirmations`, motif interne) ; réalisation, décision, audit et notifications dans une transaction. Décision générique refusée sur un « code non remis » (`use_day_confirmation`).
+> - **Une seule réalisation** : verrous mission puis journée dans les deux voies ; la seconde opération retrouve le résultat acquis (prouvé dans les deux ordres).
+> - **Effets** : journée confirmée par le support = travail effectué (mission, évaluation, réputation candidat et entreprise selon le lot 12, une fois) ; aucun paiement, remboursement ni retrait d'étoiles. Mentions « confirmée par code » des écrans, du SRS et des règles de réputation alignées.
+> - Migration `20261119120000_mission_day_completion.sql` ; preuve `mission-completion` (27 assertions) ajoutée à `pnpm test:rls` ; `mission-incidents`, `mission-time-tracking`, `multi-day-jobs` et `reputation` adaptées (journées terminées avant la saisie du code ; fixtures de réalisation portées par la journée).
+>
+> **Décision ouverte** : entreprise injoignable ou travail contesté (preuves suffisantes, délai, recours, effet sur la réputation et le versement) — SRS §11.12. Le dossier reste en instruction.
+
+- **Dépendances** : lots 12 (journées, réputation), 14 (signalements, grades), 7d (signaux), 11b (minuterie des échéances).
+- **Hors lot** : issue des cas injoignable ou contesté ; effet sur le versement (lot paiement) ; sanctions (lot « Engagements et annulations »).
 
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
@@ -522,7 +540,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
   - qui prononce la décision (support, parcours automatique) et comment elle est contestée ;
   - remplacer la règle historique SRS « modification ou suppression jusqu'à 12 h avant le début » (non appliquée) et réexaminer la règle de lancement du lot 11b (dates et horaires figés après publication).
 - **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement). Lot 12 : produire la résolution « absence validée avec remboursement effectivement confirmé » attendue par `reputation_company_offers` (aujourd'hui seul le travail confirmé résout un engagement), et les décisions du support sur les situations partielles (journée d'une période non confirmée : aucune division du forfait).
-- **Lot 14** : les faits (retard, absence, code non remis) et leur examen par le support existent désormais par journée (`mission_incidents`) ; ce lot décidera si et comment une décision « établie » produit une conséquence. `protect_reputation_incidents` raisonne encore à la mission (une journée confirmée suffit à refuser une absence) : à aligner sur la journée.
+- **Lot 14** : les faits (retard, absence, code non remis) et leur examen par le support existent désormais par journée (`mission_incidents`) ; ce lot décidera si et comment une décision « établie » produit une conséquence. `protect_reputation_incidents` raisonne encore à la mission (une journée confirmée, par code ou par le support depuis le lot 15, suffit à refuser une absence) : à aligner sur la journée.
 - **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
 - **Dépendances** : lot 9c ; lot paiement pour les pénalités ; lot 12 (journées de mission : une journée non confirmée reste non confirmée, sans sanction ni annulation des suivantes ; `protect_reputation_incidents` refuse aujourd'hui une absence sur une mission globale dont une journée est confirmée, règle à préciser).
 - **Taille** : moyen.

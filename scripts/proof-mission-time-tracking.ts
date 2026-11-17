@@ -26,6 +26,10 @@
  *      K. Contrat déjà signé : plus aucune tâche après la note.
  *      X. Tiers et écritures directes ; validation des heures supprimée.
  *      L. Mission sans code (antérieure, non reprise) : refus explicite.
+ *   Depuis le lot 15, le code n'est reçu qu'à la fin prévue de la journée :
+ *   les missions qui saisissent un code sont recalées (clé service, avant
+ *   tout début) sur une journée terminée. Le refus avant l'échéance est
+ *   prouvé par `mission-completion`.
  *   4. Nettoyage : notifications, avis, codes, événements, contrats,
  *      missions, candidatures, offres, profils, comptes.
  */
@@ -300,6 +304,20 @@ async function main() {
 
     const today = douala(new Date());
     const tomorrow = douala(new Date(Date.now() + 86_400_000));
+    const yesterday = douala(new Date(Date.now() - 86_400_000));
+
+    /** Journée terminée (hier, 00:00–23:00), recalée avant tout début. */
+    async function endedDay(missionId: string) {
+      const { error } = await serviceClient
+        .from("missions")
+        .update({
+          scheduled_date: yesterday,
+          scheduled_start_time: "00:00",
+          scheduled_end_time: "23:00",
+        })
+        .eq("id", missionId);
+      if (error) throw new Error(`ended day: ${error.message}`);
+    }
 
     async function seedJob(
       title: string,
@@ -412,6 +430,8 @@ async function main() {
     });
     const m1 = await missionFor(C1, jobPair);
     const m2 = await missionFor(C2, jobPair);
+    await endedDay(m1.missionId);
+    await endedDay(m2.missionId);
     const code1 = (await codeRow(m1.missionId))!.code;
     const code2 = (await codeRow(m2.missionId))!.code;
     report(
@@ -877,6 +897,7 @@ async function main() {
 
     // ── K. Contrat déjà signé ────────────────────────────────────
     const m3 = await missionFor(C3, await seedJob("Signé preuve L7c"));
+    await endedDay(m3.missionId);
     const contractView = await http(
       "GET",
       `/api/contracts/${m3.contractId}`,
@@ -1024,19 +1045,16 @@ async function main() {
     );
 
     // ── L. Mission sans code (antérieure, non reprise) ───────────
-    // Lot 12 : C2 est déjà engagé aujourd'hui (jobPair) ; l'offre est créée
-    // à une autre date puis la mission est recalée sur aujourd'hui par la
-    // clé service, comme une donnée antérieure au contrôle des conflits.
+    // Lot 12 : C2 est déjà engagé (jobPair) ; l'offre est créée à une autre
+    // date puis la mission est recalée sur une journée terminée par la clé
+    // service, comme une donnée antérieure au contrôle des conflits.
     const mL = await missionFor(
       C2,
       await seedJob("Ancienne preuve L7c", {
         date: douala(new Date(Date.now() + 4 * 86_400_000)),
       }),
     );
-    await serviceClient
-      .from("missions")
-      .update({ scheduled_date: today })
-      .eq("id", mL.missionId);
+    await endedDay(mL.missionId);
     await serviceClient
       .from("mission_completion_codes")
       .delete()

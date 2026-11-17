@@ -812,10 +812,15 @@ async function main() {
           0,
       { status: signE.status, code: signE.body.code },
     );
-    // Temps écoulé : la mission (sélectionnée à J−3) commence aujourd'hui.
+    // Temps écoulé : la mission (sélectionnée à J−3) a eu lieu hier et sa
+    // fin prévue est passée (lot 15 : code reçu à partir de la fin prévue).
     await serviceClient
       .from("missions")
-      .update({ scheduled_date: today, scheduled_start_time: "00:00" })
+      .update({
+        scheduled_date: douala(new Date(Date.now() - 86_400_000)),
+        scheduled_start_time: "00:00",
+        scheduled_end_time: "23:00",
+      })
       .eq("id", missionId);
     await sleep(500);
     m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };

@@ -47,6 +47,72 @@ export const incidentDecisionSchema = z.object({
   note: z.string().trim().min(10, "note_invalid").max(2000, "note_invalid"),
 });
 
+/**
+ * Contact du support avec l'entreprise (lot 15) : une demande (request)
+ * se distingue de la réponse effectivement obtenue (response). Une
+ * confirmation du travail porte toujours sa référence privée.
+ */
+export const CONTACT_CHANNELS = [
+  "phone",
+  "sms",
+  "whatsapp",
+  "email",
+  "in_person",
+  "other",
+] as const;
+export const CONTACT_RESULTS = {
+  request: ["sent", "no_answer", "unreachable"],
+  response: ["work_confirmed", "work_disputed", "other"],
+} as const;
+export type ContactEntryType = keyof typeof CONTACT_RESULTS;
+export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+export type ContactResult = (typeof CONTACT_RESULTS)[ContactEntryType][number];
+
+export const incidentContactSchema = z
+  .object({
+    entry_type: z.enum(["request", "response"], { message: "contact_invalid" }),
+    channel: z.enum(CONTACT_CHANNELS, { message: "contact_invalid" }),
+    occurred_at: z.iso.datetime({
+      offset: true,
+      message: "contact_date_invalid",
+    }),
+    result: z.string({ message: "contact_invalid" }),
+    reference: z
+      .string()
+      .trim()
+      .max(500, "contact_invalid")
+      .nullish()
+      .transform((v) => (v ? v : null)),
+    note: z
+      .string()
+      .trim()
+      .max(2000, "contact_invalid")
+      .nullish()
+      .transform((v) => (v ? v : null)),
+  })
+  .superRefine((d, ctx) => {
+    const allowed: readonly string[] = CONTACT_RESULTS[d.entry_type];
+    if (!allowed.includes(d.result)) {
+      ctx.addIssue({ code: "custom", message: "contact_invalid" });
+      return;
+    }
+    if (d.result === "work_confirmed" && !d.reference) {
+      ctx.addIssue({ code: "custom", message: "reference_required" });
+      return;
+    }
+    if (d.reference && d.reference.length < 3) {
+      ctx.addIssue({ code: "custom", message: "contact_invalid" });
+    }
+  });
+
+export type IncidentContactInput = z.infer<typeof incidentContactSchema>;
+
+/** Confirmation de la journée par le support (lot 15). */
+export const dayConfirmationSchema = z.object({
+  contact_id: z.string().uuid("company_confirmation_required"),
+  reason: z.string().trim().min(10, "note_invalid").max(2000, "note_invalid"),
+});
+
 /** Codes des RPC d'incident et statut HTTP de chacun. */
 export const INCIDENT_RPC_REFUSALS = {
   not_authenticated: 401,
@@ -68,6 +134,15 @@ export const INCIDENT_RPC_REFUSALS = {
   incident_already_decided: 409,
   statement_limit: 409,
   evidence_limit: 409,
+  // Lot 15 : « code non remis » à la fin prévue, journée commencée.
+  day_not_ended: 409,
+  start_not_confirmed: 409,
+  // Lot 15 : contacts et confirmation de la journée par le support.
+  use_day_confirmation: 409,
+  company_confirmation_required: 409,
+  contact_invalid: 400,
+  contact_date_invalid: 400,
+  reference_required: 400,
 } as const;
 
 export type IncidentRefusal = keyof typeof INCIDENT_RPC_REFUSALS;
