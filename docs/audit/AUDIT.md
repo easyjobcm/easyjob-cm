@@ -2518,5 +2518,46 @@ Privilèges effectifs : avant, `anon` et `authenticated` avaient SELECT, INSERT,
 - Version résolue (`pnpm-lock.yaml`) : `next@16.4.3` (et `eslint-config-next@16.4.3`).
 - Identification par l'API citée (`{"next": ["16.4.3"]}`) : un seul avis, **GHSA-mfr8-8qww-v76h** (CVE-2026-119790), « Information disclosure across root params when a 'use cache' function is called through unstable_cache() », sévérité modérée (CVSS 4.0 : 6.3), versions affectées ≥ 16.3.0 et ≤ 16.4.4, **première version corrigée 16.4.5**. Avis : https://github.com/vercel/next.js/security/advisories/GHSA-mfr8-8qww-v76h.
 - Conditions d'exposition : une fonction `'use cache'` qui lit un paramètre de la racine (root param), appelée à la fois directement et via `unstable_cache()`, pendant le premier remplissage après un démarrage. **Absentes du dépôt** : aucun `'use cache'`, aucun `unstable_cache`, aucun `cacheComponents`, aucun segment de racine dynamique (`app/[locale]` n'existe pas).
-- Priorité : **basse** (version affectée, chemin vulnérable inutilisé). Correctif minimal à préparer dans un lot de dépendances distinct : `next` et `eslint-config-next` en 16.4.5, `pnpm install` (lockfile), puis la validation habituelle (typage, lint, tests, build, suite RLS, navigateur).
+- Priorité : **basse** (version affectée, chemin vulnérable inutilisé). Correctif minimal à préparer dans un lot de dépendances distinct : `next` et `eslint-config-next` en 16.4.5, `pnpm install` (lockfile), puis la validation habituelle (typage, lint, tests, build, suite RLS, navigateur). **Corrigé au lot 14c (§35).**
 
+
+## 35. Suivi — Lot 14c : Next.js 16.4.5 (GHSA-mfr8-8qww-v76h) (2026-11-17)
+
+Branche `fix/lot-14c-next-security`, créée depuis `origin/main-dev` (7bb5278, lot 14b intégré). Mise à jour de dépendances seule : aucun fichier applicatif, aucune migration. Non commité, non déployé.
+
+### Version retenue
+
+- Avant : `next@16.4.3` et `eslint-config-next@16.4.3` (versions exactes dans `package.json`, résolues telles quelles dans `pnpm-lock.yaml`).
+- Avis officiel relu (API GitHub Advisory, publié le 2026-11-16, non retiré) : GHSA-mfr8-8qww-v76h (CVE-2026-119790), sévérité modérée, `next` ≥ 16.3.0 et ≤ 16.4.4, **première version corrigée 16.4.5**. Les notes de version de 16.4.5 listent cet avis avec six autres correctifs modérés (GHSA-vc7v-qv4w-wrv8, GHSA-vvgp-ww4w-46vf, GHSA-rhh4-g77r-r9qj, GHSA-pc58-hwjq-p385, GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2) ; à cette date, seul le premier figure dans la base GitHub.
+- Avis publiés depuis : la base GitHub ne renvoie **aucun avis** affectant `next@16.4.5`, et un seul (le ciblé) pour 16.4.3. La 16.4.6 (`latest`, 2026-11-09) ne contient que des reports de corrections (dont la compression automatique des réponses de route handler, changement de comportement non souhaité ici), sans avis de sécurité.
+- Retenu : **`next@16.4.5` et `eslint-config-next@16.4.5`**, épinglés comme avant.
+
+### Diff de dépendances
+
+`package.json` (2 lignes) et `pnpm-lock.yaml` : `next`, `@next/env`, `@next/swc-*`, `eslint-config-next` et `@next/eslint-plugin-next` passent de 16.4.3 à 16.4.5 ; cinq doublons transitifs devenus inutiles sont retirés (`caniuse-lite@1.0.30001793`, `@babel/parser@7.29.3`, `@babel/types@7.29.0`, `@babel/helper-string-parser@7.27.1`, `@babel/helper-validator-identifier@7.28.5`). Aucun nouveau paquet. Les dépendances déclarées par `next` sont identiques entre les deux versions. Installation avec pnpm 11.1.3 (`packageManager`) ; `pnpm install --frozen-lockfile` ✅.
+
+### Audit `pnpm audit --prod`, par identifiant
+
+| Avis | Paquet | Avant | Après |
+|---|---|---|---|
+| GHSA-mfr8-8qww-v76h (moderate) | `next` 16.4.3 | présent | **disparu** |
+| GHSA-866g-f22w-33x8 (low) | `@ai-sdk/provider-utils` 4.0.27 (via `ai`) | présent | présent, inchangé (hors périmètre) |
+
+Aucun nouvel avis.
+
+### Avertissement du build
+
+Le message « ⚠ Your version of Next.js is affected by a known security vulnerability… » (§34) n'apparaît plus : deux builds (`pnpm build` normal, puis relié à `easyjob-proof`), « ▲ Next.js 16.4.5 (Turbopack) », aucune occurrence de l'avertissement, de `SecurityFatalError` ni de l'URL `advisories/bulk`.
+
+### Validation
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 45 fichiers, 558 tests |
+| `pnpm build` | ✅ Next.js 16.4.5, sans avertissement |
+| Preuves ciblées sur `easyjob-proof` (migrations à jour, 44/44), build de production + `next start` | ✅ `oauth-callback` 15/15 (retour vers `next`, chemins externes refusés), `admin-centralization` 32/32 (pages et routes admin), `contract-selection` 29/29 (dont F1-F3 : PDF du candidat et de l'entreprise, refus tiers 404 et anonyme 401), `essentials-gate` 6/6 (candidature par `POST /api/jobs/[id]/apply`, refus 403 `profile_not_verified`) |
+| Navigateur : Chrome headless, 375×812 tactile, même build (script et fixtures hors dépôt, compte supprimé ensuite) | ✅ 13/13 : `/my-jobs?tab=history` sans session → `/auth/login?next=…` → connexion par le formulaire → retour à `/my-jobs?tab=history` ; `next=//evil.example/x` → reste sur l'application (`/profile`) ; candidat au téléphone vérifié refusé sur `/admin`, `/admin/dashboard`, `/admin/candidates`, `/admin/incidents` et par navigation client (renvoyé sur `/`) ; aucune erreur JavaScript ni d'hydratation ; pas de défilement horizontal |
+| Suite RLS complète | non relancée en local (aucune route, RPC, politique ni preuve modifiée) ; couverte par la CI |
+
+Observation sans lien avec la mise à jour : l'écran d'accueil (`components/ui/splash-screen.tsx`, environ 2,5 s à la première visite de la session) est un calque `fixed inset-0 z-100` qui capte les clics tant qu'il est affiché. Un script qui clique dès le chargement n'atteint pas le formulaire ; le composant est inchangé et le comportement est antérieur au lot.

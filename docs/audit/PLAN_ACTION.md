@@ -489,9 +489,12 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 > - Correctif (migration `20261118120000_disputes_permissions.sql`) : privilèges d'écriture retirés aux sessions (`authenticated` garde SELECT, `anon` rien), politiques INSERT et UPDATE supprimées, trigger refusant toute écriture de session ; table et historique conservés ; écriture légitime inchangée (RPC admin des contestations d'avis).
 > - Preuve : `mission-incidents` H1 à H4 ; régression détectée par les deux contrôles négatifs.
 
-## Futur lot — Dépendances : Next.js 16.4.5 (à numéroter)
+## Lot 14c — Dépendances : Next.js 16.4.5
 
-> **Statut** : à préparer, priorité basse. `next@16.4.3` est concerné par GHSA-mfr8-8qww-v76h (moderate, ≥ 16.3.0 ≤ 16.4.4, corrigé en 16.4.5), mais ses conditions d'exposition (`'use cache'` lisant un paramètre de racine et appelé via `unstable_cache()`) sont absentes du dépôt (`AUDIT.md` §34). Correctif minimal : `next` et `eslint-config-next` en 16.4.5, lockfile régénéré, validation complète. Séparé de tout correctif SQL.
+> **Statut (2026-11-17)** : réalisé sur `fix/lot-14c-next-security` (base `origin/main-dev`, 7bb5278, lot 14b intégré), **non commité, non déployé**. Détail : `AUDIT.md` §35.
+> - `next` et `eslint-config-next` : 16.4.3 → **16.4.5** (première version corrigée de GHSA-mfr8-8qww-v76h, moderate ; aucun avis publié depuis n'affecte 16.4.5 ; 16.4.6 sans correctif de sécurité, non retenue). Lockfile limité aux paquets `next` / `@next/*` et à cinq doublons transitifs retirés ; `--frozen-lockfile` ✅.
+> - `pnpm audit --prod` : GHSA-mfr8-8qww-v76h disparu, aucun nouvel avis ; reste GHSA-866g-f22w-33x8 (low, `@ai-sdk/provider-utils`, hors périmètre). Avertissement de sécurité du build disparu.
+> - Validation : typage, lint, formatage, 558 tests, build ; sur `easyjob-proof` (build de production) : `oauth-callback`, `admin-centralization`, `contract-selection`, `essentials-gate` ✅ et 13/13 vérifications navigateur (retour après connexion, refus de `/admin` au candidat). Suite RLS complète laissée à la CI.
 
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
