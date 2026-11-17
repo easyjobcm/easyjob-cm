@@ -468,6 +468,20 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 
 - **Dépendances** : lots 7a et 7b (sélection, empreinte, clauses figées), 7d (signaux), 11 et 11b (dossier, échéances), 12 (journées, conflits de 3 h).
 
+## Lot 14 — Incidents de mission par journée
+
+> **Statut (2026-11-17)** : réalisé sur `feat/lot-14-mission-incidents` (base `origin/main-dev`, 63bdaf6, lot 13 intégré), **non commité, non déployé**. Détails, résultats et limites : `AUDIT.md` §33 ; règles produit : SRS §6.8.
+> - Candidat (Tâches, détail de mission) : retard, absence prévenue, code de fin non remis ; entreprise (journée du candidat) : retard, absence. Mission et date affichées avant l'envoi.
+> - Dossier par journée : fait déclaré, versions des deux parties, justificatifs privés (support seulement ; l'autre partie n'en voit que le nombre), décision motivée du support (`admin_ops`, `admin_founder`), tracée dans `audit_logs`, notifiée, signaux privés `incidents`.
+> - Règle par journée : journée confirmée par code → ni absence ni code non remis ; retard toujours signalable ; un code accepté un autre jour n'empêche rien ; absence ou code non remis encore ouverts → clos si la journée est confirmée ensuite. Double envoi → même signalement.
+> - **Aucune conséquence** : ni sanction (`reputation_incidents` non écrite), ni annulation, remplacement, remboursement, indemnité ou paiement ; journée, autres journées, contrat et réputation (règle du lot 12) inchangés.
+> - Migration `20261117120000_mission_incidents.sql` ; preuve `mission-incidents` ajoutée à `pnpm test:rls`.
+>
+> **Décision métier à prendre avant d'aller plus loin (code non remis)** : le support peut aujourd'hui instruire et déclarer le travail « établi », sans effet. Confirmer la journée **au nom de l'entreprise** serait un nouveau pouvoir : qui l'exerce (grade), sur quelles preuves minimales, dans quel délai, avec quelle information de l'entreprise et quel recours ; effet sur la mission globale, le forfait, la réputation (+1 mission, +1 offre) et le futur paiement. Rien n'est introduit tant que cette décision n'est pas prise.
+
+- **Dépendances** : lots 7c et 12 (journées, codes), 9c (grades et contestations, `audit_logs`), 7d (signaux privés), 13 (contrats inchangés).
+- **Hors lot** : barèmes de sanction, annulations, remplacements, remboursements et indemnités (lot « Engagements et annulations », à arbitrer ensemble) ; formulaire public de contestation.
+
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
 > **Statut** : demandé, **non commencé**. Depuis le lot 11b, aucune correction d'horaire n'est possible après la première publication, ni par l'entreprise ni par le support.
@@ -494,11 +508,22 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
   - qui prononce la décision (support, parcours automatique) et comment elle est contestée ;
   - remplacer la règle historique SRS « modification ou suppression jusqu'à 12 h avant le début » (non appliquée) et réexaminer la règle de lancement du lot 11b (dates et horaires figés après publication).
 - **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement). Lot 12 : produire la résolution « absence validée avec remboursement effectivement confirmé » attendue par `reputation_company_offers` (aujourd'hui seul le travail confirmé résout un engagement), et les décisions du support sur les situations partielles (journée d'une période non confirmée : aucune division du forfait).
+- **Lot 14** : les faits (retard, absence, code non remis) et leur examen par le support existent désormais par journée (`mission_incidents`) ; ce lot décidera si et comment une décision « établie » produit une conséquence. `protect_reputation_incidents` raisonne encore à la mission (une journée confirmée suffit à refuser une absence) : à aligner sur la journée.
 - **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
 - **Dépendances** : lot 9c ; lot paiement pour les pénalités ; lot 12 (journées de mission : une journée non confirmée reste non confirmée, sans sanction ni annulation des suivantes ; `protect_reputation_incidents` refuse aujourd'hui une absence sur une mission globale dont une journée est confirmée, règle à préciser).
 - **Taille** : moyen.
 
 ---
+
+## Lots conservés au plan (à cadrer, non commencés)
+
+- **Free / Premium** : parcours d'abonnement (activation, changement, renouvellement, régularisation, essai, quotas d'offres actives) et affichage des seuls avantages livrés (lots 7d et 9, dépendances notées ci-dessus).
+- **Paiement** : voir « Hors plan » ci-dessous (Mobile Money, versements, pénalités, preuve de remboursement).
+- **EasyBot** : évolutions de l'assistant (`docs/chatbot.md`, quota du lot 8), sans nouvelle annonce de fonction non livrée.
+- **Design entreprise** : écrans entreprise (offres, candidatures, journées, signalements) à harmoniser avec le design candidat.
+- **Notifications push** (et SMS, e-mail) : aujourd'hui, notifications en base et signaux Realtime seulement ; rappels hors page ouverte non livrés.
+- **Contrats — limites suivies (lot 13)** : PDF à polices standard, non archivé, sans signature graphique ni identité civile figée ; détail des signatures lisible par le support en clé service seulement, sans écran admin.
+- **Contestations existantes (`disputes`)** : la table héritée de la base initiale accepte encore une insertion en session pour n'importe quelle mission (constat du lot 14, `AUDIT.md` §33) ; à fermer ou à remplacer par les signalements du lot 14.
 
 ## Hors plan (à cadrer séparément)
 

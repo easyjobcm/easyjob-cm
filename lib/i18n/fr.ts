@@ -2414,6 +2414,141 @@ export const fr = {
     },
   },
 
+  // Signalements de mission par journée (lot 14)
+  incidents: {
+    title: "Signalements",
+    report: "Signaler",
+    reportTitle: "Signaler un incident",
+    reportFor: "Journée concernée",
+    mission: "Mission",
+    day: "Journée",
+    chooseKind: "Que voulez-vous signaler ?",
+    kinds: {
+      late: "Retard",
+      absence: "Absence",
+      code_not_received: "Code de fin non remis",
+    },
+    hints: {
+      candidate: {
+        late: "Prévenez d'un retard, ou signalez un retard déjà passé.",
+        absence: "Prévenez que vous ne pourrez pas venir ce jour-là.",
+        code_not_received:
+          "Vous avez effectué le travail, mais l'entreprise ne vous a pas remis le code de fin.",
+      },
+      company: {
+        late: "Le candidat est arrivé en retard ce jour-là.",
+        absence: "Le candidat ne s'est pas présenté ce jour-là.",
+        code_not_received: "",
+      },
+    },
+    statement: "Votre déclaration",
+    statementHint:
+      "10 caractères au moins. Elle est visible par l'autre partie et par le support.",
+    lateMinutes: "Retard (minutes, facultatif)",
+    evidence: "Justificatif (facultatif)",
+    evidenceHint:
+      "Image ou PDF, 5 Mo au plus. Seul le support EasyJob peut l'ouvrir.",
+    noConsequence:
+      "Le support examine le signalement. Il ne modifie ni la journée, ni les autres journées, ni le contrat.",
+    confirm: "Envoyer le signalement",
+    sending: "Envoi…",
+    cancel: "Annuler",
+    status: {
+      open: "En attente de la version de l'autre partie",
+      answered: "Versions des deux parties reçues",
+      decided: "Examiné par le support",
+      closed: "Clos : journée confirmée par code",
+    },
+    reportedBy: {
+      candidate: "Signalé par le candidat",
+      company: "Signalé par l'entreprise",
+    },
+    party: { candidate: "Candidat", company: "Entreprise" },
+    you: "vous",
+    lateDeclared: "Retard déclaré : {min} min",
+    evidenceCount: {
+      one: "{count} justificatif transmis au support",
+      other: "{count} justificatifs transmis au support",
+    },
+    giveVersion: "Donner ma version",
+    addToVersion: "Compléter ma version",
+    sendVersion: "Envoyer",
+    addEvidence: "Joindre un justificatif",
+    outcome: {
+      established: "Fait établi par le support",
+      not_established: "Fait non établi par le support",
+    },
+    decisionNote: "Motif du support : {note}",
+    decisionScope:
+      "Cette décision enregistre le fait. Elle ne modifie ni la journée, ni le contrat, ni la réputation.",
+    toasts: {
+      reported: "Signalement envoyé",
+      alreadyReported:
+        "Ce signalement existait déjà : il n'a pas été envoyé une seconde fois.",
+      statementSent: "Version envoyée",
+      evidenceSent: "Justificatif transmis au support",
+      errorTitle: "Action non enregistrée",
+    },
+    errors: {
+      not_authenticated: "Session expirée. Veuillez vous reconnecter.",
+      account_suspended: "Votre compte est suspendu.",
+      forbidden: "Action réservée au support habilité.",
+      mission_not_found: "Mission introuvable ou inaccessible.",
+      incident_not_found: "Signalement introuvable ou inaccessible.",
+      evidence_not_found: "Justificatif introuvable.",
+      incident_kind_invalid: "Ce type de signalement n'est pas disponible.",
+      statement_invalid: "La déclaration doit compter de 10 à 2000 caractères.",
+      late_minutes_invalid: "Indiquez un retard de 1 à 720 minutes.",
+      outcome_invalid: "Choisissez une décision.",
+      note_invalid: "Le motif doit compter de 10 à 2000 caractères.",
+      evidence_invalid: "Fichier refusé : image (JPEG, PNG, WebP) ou PDF.",
+      evidence_too_large: "Fichier trop lourd (5 Mo au plus).",
+      mission_not_active: "Cette mission n'est plus active.",
+      day_already_confirmed:
+        "Cette journée est confirmée par code : une absence ou un code non remis ne peuvent plus être signalés.",
+      day_not_started:
+        "Cette journée n'a pas encore commencé : ce signalement sera possible à partir de l'heure de début.",
+      incident_closed: "Ce signalement est clos.",
+      incident_already_decided: "Ce signalement a déjà été examiné.",
+      statement_limit: "Vous avez déjà envoyé 5 déclarations.",
+      evidence_limit: "Vous avez déjà transmis 5 justificatifs.",
+      generic: "L'action n'a pas pu être enregistrée. Réessayez.",
+    },
+    admin: {
+      title: "Signalements de mission",
+      subtitle:
+        "Faits déclarés par journée, versions des parties et justificatifs privés.",
+      filters: {
+        all: "Tous",
+        open: "En attente",
+        answered: "Versions reçues",
+        decided: "Examinés",
+        closed: "Clos",
+      },
+      empty: "Aucun signalement",
+      candidate: "Candidat",
+      company: "Entreprise",
+      statements: "Versions",
+      evidence: "Justificatifs privés",
+      openEvidence: "Ouvrir",
+      noEvidence: "Aucun justificatif",
+      dayFacts: "Journée concernée",
+      startedAt: "Début déclaré : {time}",
+      notStarted: "Début non déclaré",
+      confirmedAt: "Confirmée par code : {time}",
+      notConfirmed: "Non confirmée par code",
+      otherDays: "Autres journées",
+      decide: "Décision motivée",
+      decisionPlaceholder: "Motif de la décision (10 caractères au moins)",
+      submitDecision: "Enregistrer la décision",
+      readOnly:
+        "Lecture seule : la décision est réservée aux grades ops et fondateur.",
+      decided: "Décision enregistrée",
+      back: "Retour",
+      quickAction: "Signalements",
+    },
+  },
+
   // Contrat de mission (lot 7b)
   contract: {
     back: "Retour",

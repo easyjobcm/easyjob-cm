@@ -51,6 +51,7 @@ import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
 import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
 import { displayApplicationStatus } from "@/lib/jobs/application-status";
+import { CompanyMissionIncidents } from "@/components/missions/company-mission-incidents";
 import {
   SelectionContractDialog,
   type SelectionResult,
@@ -928,6 +929,18 @@ export default function CompanyJobDetailPage() {
                                     {t.schedule.unconfirmedNote}
                                   </p>
                                 )}
+                                {/* Lot 14 : signalements par journée. */}
+                                <CompanyMissionIncidents
+                                  missionId={rows[0].mission_id}
+                                  jobTitle={job.title}
+                                  disabled={suspended}
+                                  days={rows.map((r) => ({
+                                    id: r.mission_day_id,
+                                    date: r.day_date,
+                                    starts_at: r.scheduled_start_at,
+                                    confirmed: !!r.completed_at,
+                                  }))}
+                                />
                                 <p className="text-xs text-muted-foreground">
                                   {tcomp.dispute}{" "}
                                   <Link

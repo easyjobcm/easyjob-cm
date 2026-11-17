@@ -598,6 +598,12 @@ Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version a
 
 ### 6.8 Suivi de mission
 
+> **Lot 14 (2026-11-17) : incidents par journée.** Depuis *Tâches* ou le détail de la mission, le candidat peut signaler un retard, prévenir d'une absence ou signaler qu'il a travaillé sans recevoir son code de fin ; depuis la journée du candidat concerné, l'entreprise peut signaler un retard ou une absence. La mission et la date sont affichées avant l'envoi. Chaque partie consulte l'état du dossier et donne sa version ; les justificatifs (image ou PDF) ne sont lisibles que par le support habilité, l'autre partie n'en voit que le nombre. Le support (grades ops et fondateur) rend une décision motivée « fait établi » ou « fait non établi », tracée et notifiée aux deux parties.
+>
+> Règles : une journée confirmée par code ne peut pas être déclarée absente ni faire l'objet d'un « code non remis » ; un retard reste signalable ; la règle s'apprécie sur la journée concernée (un code accepté le lundi n'empêche pas l'examen d'une absence le mercredi). L'entreprise ne constate un retard ou une absence qu'à partir du début prévu de la journée ; le candidat peut prévenir à l'avance. Un code manquant laisse la journée non confirmée. Si la journée est confirmée par code après une absence ou un « code non remis » signalés, le signalement est clos. Un double envoi retrouve le même signalement.
+>
+> **Aucune conséquence n'est appliquée** par ce lot : ni sanction, ni annulation, remplacement, remboursement, indemnité ou paiement ; les autres journées, le contrat et la réputation sont inchangés. Une décision d'absence n'est jamais une preuve de remboursement. Pour un code non remis, le support instruit le dossier mais ne confirme pas la journée au nom de l'entreprise : ce pouvoir demande une décision produit préalable (PLAN_ACTION.md, lot 14).
+
 **Description :** Traçabilité complète du déroulement de la mission.
 
 **Statuts candidat :**

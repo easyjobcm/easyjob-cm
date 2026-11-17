@@ -15,6 +15,7 @@ import {
   IdCard,
   FileEdit,
   FileSignature,
+  Flag,
   KeyRound,
   Loader2,
   Phone,
@@ -38,6 +39,7 @@ import {
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { ReviewDialog } from "@/components/missions/review-dialog";
+import { IncidentReportDialog } from "@/components/missions/incident-report-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/profile-status";
@@ -167,6 +169,10 @@ function TasksContent() {
     null,
   );
   const [highlightSign, setHighlightSign] = React.useState<string | null>(null);
+  // Lot 14 : signalement d'une journée (retard, absence, code non remis).
+  const [reportTarget, setReportTarget] = React.useState<MissionTask | null>(
+    null,
+  );
 
   const reload = async () => (await mutate())?.missions ?? [];
 
@@ -621,6 +627,19 @@ function TasksContent() {
             )}
           </Link>
           <div className="space-y-2">{rows}</div>
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-muted-foreground"
+              onClick={() => setReportTarget(m)}
+              disabled={suspended}
+              data-testid="task-report-incident"
+            >
+              <Flag className="mr-1 h-4 w-4" aria-hidden />
+              {t.incidents.report}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -774,6 +793,28 @@ function TasksContent() {
           onCompleted={(at, done) =>
             void onCompleted(codeTarget.mission, at, done)
           }
+        />
+      )}
+
+      {reportTarget && (
+        <IncidentReportDialog
+          open={!!reportTarget}
+          onClose={() => setReportTarget(null)}
+          onDone={() => setReportTarget(null)}
+          missionId={reportTarget.mission_id}
+          jobTitle={reportTarget.job_title}
+          party="candidate"
+          days={missionDays(reportTarget.days).map((d) => ({
+            id: d.id,
+            date: d.date,
+            starts_at: d.starts_at,
+            confirmed: !!d.completed_at,
+          }))}
+          initialDayId={
+            missionDays(reportTarget.days).find((d) => !d.completed_at)?.id ??
+            null
+          }
+          serverNow={serverNow}
         />
       )}
 

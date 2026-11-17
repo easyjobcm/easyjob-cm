@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Clock,
   FileText,
+  Flag,
   MapPin,
   RefreshCw,
 } from "lucide-react";
@@ -30,6 +31,11 @@ import { useLatestRequest, useLiveRefresh } from "@/lib/realtime/provider";
 import { missionDays } from "@/lib/tasks/candidate-tasks";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { plural } from "@/lib/i18n/plural";
+import {
+  IncidentList,
+  useMissionIncidents,
+} from "@/components/missions/incident-list";
+import { IncidentReportDialog } from "@/components/missions/incident-report-dialog";
 
 type MissionRow =
   Database["public"]["Functions"]["get_mission"]["Returns"][number];
@@ -113,6 +119,11 @@ export default function MissionDetailPage() {
   }, [missionId]);
 
   useLiveRefresh(["missions", "contracts"], loadMission);
+  // Lot 14 : signalements de la mission (parties seulement).
+  const { incidents, reload: reloadIncidents } = useMissionIncidents(
+    mission ? missionId : null,
+  );
+  const [reportOpen, setReportOpen] = useState(false);
 
   const calendarDay = (day: string) =>
     new Intl.DateTimeFormat(locale === "en" ? "en-US" : "fr-FR", {
@@ -394,7 +405,53 @@ export default function MissionDetailPage() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {active && (
+          <motion.div {...item(4)}>
+            <Card data-testid="mission-incidents">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2 space-y-0">
+                <CardTitle className="text-base">{t.incidents.title}</CardTitle>
+                <motion.div whileTap={{ scale: 0.97 }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReportOpen(true)}
+                    data-testid="mission-report-incident"
+                  >
+                    <Flag className="h-4 w-4 mr-1" aria-hidden />
+                    {t.incidents.report}
+                  </Button>
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <IncidentList
+                  incidents={incidents ?? []}
+                  onChanged={() => void reloadIncidents()}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
+
+      <IncidentReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        onDone={() => {
+          setReportOpen(false);
+          void reloadIncidents();
+        }}
+        missionId={mission.mission_id}
+        jobTitle={mission.job_title}
+        party={mission.viewer_party === "company" ? "company" : "candidate"}
+        days={missionDays(mission.days).map((d) => ({
+          id: d.id,
+          date: d.date,
+          starts_at: d.starts_at,
+          confirmed: !!d.completed_at,
+        }))}
+        serverNow={Date.parse(mission.server_now)}
+      />
 
       <BottomNav />
     </div>

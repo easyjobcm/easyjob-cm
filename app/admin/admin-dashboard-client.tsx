@@ -24,6 +24,7 @@ import {
   FileCheck,
   LogOut,
 } from "lucide-react";
+import { Flag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import packageJson from "@/package.json";
 import { motion } from "framer-motion";
@@ -289,7 +290,7 @@ export function AdminDashboardClient({
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
           <Link href="/admin/candidates">
             <Card className="hover:shadow-md transition-all cursor-pointer h-full">
               <CardContent className="p-4 flex flex-col items-center text-center">
@@ -329,6 +330,18 @@ export function AdminDashboardClient({
                 <FileCheck className="w-6 h-6 text-primary mb-2" />
                 <p className="text-xs font-medium text-foreground">
                   {t.admin.quickActions.skillProofs}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Lot 14 : signalements de mission par journée. */}
+          <Link href="/admin/incidents" data-testid="admin-incidents-link">
+            <Card className="hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <Flag className="w-6 h-6 text-destructive mb-2" />
+                <p className="text-xs font-medium text-foreground">
+                  {t.incidents.admin.quickAction}
                 </p>
               </CardContent>
             </Card>

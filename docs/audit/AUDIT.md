@@ -2432,3 +2432,44 @@ Branche `feat/lot-13-contracts-selection`, créée depuis `origin/main-dev` (83a
 - PDF à polices standard (un caractère hors WinAnsi devient « ? »), sans signature graphique ni identité civile figée, produit à la demande et non archivé. Contenu légal du contrat formalisé toujours à valider (SRS §11.1).
 - Une ancienne présélection perd ce statut quand elle est sélectionnée, refusée ou retirée, comme toute candidature en attente ; aucune table d'historique des statuts.
 - La signature du candidat n'est plus signalée à l'entreprise (sa propre vue ne change pas) ; la création du contrat l'est.
+
+## 33. Suivi — Lot 14 : incidents de mission par journée (2026-11-17)
+
+Branche `feat/lot-14-mission-incidents`, créée depuis `origin/main-dev` (63bdaf6, lot 13 intégré). Migration `20261117120000_mission_incidents.sql`. Non commité, non déployé.
+
+### Inventaire et choix
+
+- `reputation_incidents` (lot 9c) enregistre des **décisions de manquement** qui retirent 5 unités : ce lot n'y écrit rien. Son garde-fou raisonne à la mission (une journée confirmée suffit à refuser une absence) : inchangé, noté pour le lot « Engagements et annulations ».
+- `disputes` (base initiale, réutilisée pour les contestations d'avis) n'a ni journée, ni nature, ni séparation des pièces, et ses droits sont trop larges (constat ci-dessous) : non réutilisée. Réutilisés : grades (`is_admin_user`, `is_ops_admin_user`, compte actif), décision définitive tracée dans `audit_logs` et notifiée (modèle des contestations d'avis), notifications, signaux privés (`rt_signal_users`, `rt_signal_admin`), stockage privé et URL signée de 60 s (modèle des justificatifs), verrous mission puis journée de `submit_completion_code`.
+
+### Mécanisme
+
+- Tables `mission_incidents` (un signalement par journée, nature et partie : idempotence), `mission_incident_statements` (versions, append-only, 5 par partie), `mission_incident_evidence` (pièces, 5 par partie). RLS active, aucun privilège de session ; triggers : faits immuables, décision définitive, déclarations et pièces non modifiables.
+- RPC en session : `report_mission_incident`, `add_mission_incident_statement`, `mission_incidents_for_party` (versions et nombre de pièces, sans pièce, chemin ni auteur) ; support : `admin_mission_incidents`, `admin_mission_incident` (tout admin actif), `admin_decide_mission_incident` (ops et fondateur actifs, motif de 10 à 2000 caractères), `admin_incident_evidence_path`. Clé service : `record_incident_evidence` (route de dépôt, type lu dans les octets, 5 Mio). Bucket `incident-evidence` privé, sans politique.
+- Trigger `mission_incident_close_on_confirmation` : journée confirmée par code → absence et code non remis ouverts clos (« journée confirmée »).
+- Signaux `incidents` aux deux parties et au canal admin ; notifications à l'autre partie (signalement, version) et aux deux parties (décision), sans pièce.
+
+### Écrans (FR/EN, 375 px)
+
+Candidat : bouton « Signaler » dans *Tâches* et carte « Signalements » du détail de mission (version, justificatif). Entreprise : bloc « Signalements » dans les journées du candidat sélectionné. Dialogue : mission et date avant l'envoi, natures indisponibles désactivées avec leur motif. Support : `/admin/incidents` (filtres, dossier, journée et autres journées, versions, pièces à ouvrir, décision ; lecture seule pour `admin_support`).
+
+### Validation (pile `easyjob-proof`, données fictives)
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `mission-incidents` (sessions réelles) | ✅ 18/18 au premier passage : lundi confirmé (absence et code non remis refusés, retard accepté), mercredi signalé absent, vendredi toujours prévu (entreprise refusée avant le début, candidat prévient) ; aucune conséquence (journées, mission, contrat, réputation, manquements) ; double envoi simultané et relance ; versions contradictoires, pièce privée, faux PNG refusé ; tiers, autre candidat, anonyme refusés ; tables, bucket et RPC de service fermés en session ; support (dossier, pièce par URL signée), `admin_support` sans décision, admin suspendu refusé ; décision motivée tracée, relance, décision contraire refusée, sans conséquence ; reconnexion ; absence ouverte close quand la journée est confirmée ; course code / absence (l'exécution observée a confirmé le code d'abord : absence refusée ; l'ordre inverse est couvert par S5) |
+| Navigateur (Chrome headless 375 × 812, deux sessions et le support) | ✅ 7/7 : entreprise FR (mission et date avant l'envoi, natures désactivées lundi et vendredi), candidat EN (signalement reçu sans rechargement en 0,4 s, version envoyée et reçue côté entreprise sans rechargement), Tâches EN (code non remis), support FR (liste, dossier, décision), décision reçue par le candidat sans rechargement (0,9 s), reconnexion FR ; aucun défilement horizontal |
+| Tests unitaires, typage, lint, formatage, build, types | ✅ 558 tests (45 fichiers, dont `mission-incidents`), `tsc`, `eslint`, `prettier --check`, `next build` (23 s), types générés identiques au schéma de la pile réinitialisée |
+| `pnpm test:rls` complet (pile réinitialisée depuis les seules migrations, application reconstruite) | ✅ 33/33 en 696 s, au premier passage |
+
+### Constat hors lot
+
+`public.disputes` garde les droits de la base initiale : `GRANT ALL` à `anon` et `authenticated`, politique `INSERT` limitée à `opened_by = auth.uid()`. Tout compte connecté peut donc créer une ligne (hors contestation d'avis, protégée par trigger) pour **n'importe quelle mission**, lisible ensuite par les parties de cette mission. Aucun écran n'en crée. Vérifié sur la pile de preuve (`has_table_privilege('authenticated','public.disputes','INSERT')` vrai). Non corrigé ici (hors périmètre) : à fermer (privilèges de session retirés) ou à remplacer par les signalements du lot 14.
+
+### Limites
+
+- Aucune conséquence des décisions (choix du lot) ; règle de `reputation_incidents` encore à la mission.
+- Code non remis : la décision « établi » ne confirme pas la journée ; pouvoir non introduit (décision produit, `PLAN_ACTION.md` lot 14).
+- Aucun délai maximal pour signaler après la journée ; aucun retrait d'un signalement par son auteur ; pas d'écriture de complément par le support (seulement la décision).
+- Les justificatifs restent stockés après la décision (aucune règle de conservation).
+
