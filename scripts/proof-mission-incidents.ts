@@ -22,11 +22,18 @@
  *   S. Décision motivée : tracée, notifiée, sans conséquence ; relance.
  *   R. Course confirmation par code / absence : jamais une absence ouverte
  *      sur une journée confirmée.
+ *   H. Table historique `disputes` (lot 14b) : aucune création, modification
+ *      ni suppression en session (tiers, partie, anonyme, admin en appel
+ *      direct), ni usurpation de l'auteur, ni rattachement à une autre
+ *      mission ; lectures autorisées inchangées ; privilèges effectifs.
+ *      Le chemin légitime (admin_open_review_contest) est prouvé par
+ *      `reputation` C2.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
-import { readLocalProofEnv } from "./lib/local-supabase";
+import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
@@ -49,6 +56,15 @@ const HOUR = 3600_000;
 const PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8,
 ]);
+
+const DB_URL = readLocalDbUrl();
+function execSql(sql: string): string {
+  const r = runSupabaseQuery(DB_URL, sql, { proof: "mission-incidents" });
+  if (r.status !== 0) {
+    throw new Error(`supabase db query : ${r.out.slice(0, 300)}`);
+  }
+  return r.stdout;
+}
 
 const serviceClient: DB = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { autoRefreshToken: false },
@@ -947,6 +963,143 @@ async function main() {
         absence: raceAbs.status,
         incident: raceInc,
       },
+    );
+
+    // ── H. Table historique disputes (lot 14b) ───────────────────
+    console.log("\n── H. Contestations historiques (disputes) ──");
+    const disputesOf = async () =>
+      (
+        await serviceClient
+          .from("disputes")
+          .select("id, mission_id, opened_by, status, resolution, description")
+          .in("mission_id", [missionId, mission2])
+          .order("created_at")
+      ).data ?? [];
+    // Ligne historique (antérieure, créée en clé service) sur la mission de C1.
+    const { data: legacy, error: legacyErr } = await serviceClient
+      .from("disputes")
+      .insert({
+        mission_id: missionId,
+        opened_by: idC1,
+        type: "absence",
+        description: "Litige historique de la preuve 14b.",
+      })
+      .select("id")
+      .single();
+    if (legacyErr || !legacy)
+      throw new Error(`legacy dispute: ${legacyErr?.message}`);
+    const beforeH = JSON.stringify(await disputesOf());
+    const attempt = (client: DB, row: Record<string, unknown>) =>
+      client
+        .from("disputes")
+        .insert({
+          mission_id: missionId,
+          type: "absence",
+          description: "Tentative de création directe.",
+          ...row,
+        } as Database["public"]["Tables"]["disputes"]["Insert"])
+        .select("id");
+    const [hThird, hSpoof, hParty, hAnon, hAdmin] = await Promise.all([
+      attempt(C3.client, { opened_by: idC3 }),
+      attempt(C3.client, { opened_by: idC1 }),
+      attempt(C1.client, { opened_by: idC1 }),
+      attempt(anon, { opened_by: idC1 }),
+      attempt(SUP.client, { opened_by: idC1 }),
+    ]);
+    const afterInsert = JSON.stringify(await disputesOf());
+    report(
+      "H1 création directe refusée : tiers (pour lui-même ou au nom de la partie), partie elle-même, anonyme, support ; aucune ligne créée",
+      [hThird, hSpoof, hParty, hAnon, hAdmin].every(
+        (r) => !!r.error && (r.data ?? []).length === 0,
+      ) && afterInsert === beforeH,
+      {
+        attempts: [hThird, hSpoof, hParty, hAnon, hAdmin].map(
+          (r) => r.error?.code ?? "créée",
+        ),
+        // Relecture en base des lignes créées par ces tentatives.
+        created: (await disputesOf())
+          .filter((d) => d.id !== legacy.id)
+          .map((d) => ({
+            opened_by:
+              d.opened_by === idC3
+                ? "tiers C3"
+                : d.opened_by === idC1
+                  ? "candidat C1"
+                  : d.opened_by,
+            mission:
+              d.mission_id === missionId ? "mission de C1" : d.mission_id,
+          })),
+      },
+    );
+    const change = (client: DB, values: Record<string, unknown>) =>
+      client
+        .from("disputes")
+        .update(values as Database["public"]["Tables"]["disputes"]["Update"])
+        .eq("id", legacy.id)
+        .select("id");
+    const [uMove, uOwner, uSupMove, uSupResolve, hDelParty, hDelSup] =
+      await Promise.all([
+        change(C1.client, { mission_id: mission2 }),
+        change(C1.client, { opened_by: idC3, description: "Réécrit" }),
+        change(SUP.client, { mission_id: mission2 }),
+        change(SUP.client, { status: "resolved", resolution: "Clos hors RPC" }),
+        C1.client.from("disputes").delete().eq("id", legacy.id).select("id"),
+        SUP.client.from("disputes").delete().eq("id", legacy.id).select("id"),
+      ]);
+    const afterWrites = JSON.stringify(await disputesOf());
+    report(
+      "H2 ligne existante : ni rattachement à une autre mission, ni changement d'auteur, ni décision hors RPC, ni suppression (partie, support) ; ligne inchangée",
+      [uMove, uOwner, uSupMove, uSupResolve, hDelParty, hDelSup].every(
+        (r) => !!r.error || (r.data ?? []).length === 0,
+      ) && afterWrites === beforeH,
+      [uMove, uOwner, uSupMove, uSupResolve, hDelParty, hDelSup].map(
+        (r) => r.error?.code ?? (r.data ?? []).length,
+      ),
+    );
+    const [rC1, rA, rC3, rAnon] = await Promise.all([
+      C1.client.from("disputes").select("id").eq("id", legacy.id),
+      A.client.from("disputes").select("id").eq("id", legacy.id),
+      C3.client.from("disputes").select("id").eq("id", legacy.id),
+      anon.from("disputes").select("id").eq("id", legacy.id),
+    ]);
+    report(
+      "H3 lectures : historique conservé et lisible par les parties de la mission, invisible pour un tiers et pour l'anonyme",
+      (rC1.data ?? []).length === 1 &&
+        (rA.data ?? []).length === 1 &&
+        (rC3.data ?? []).length === 0 &&
+        (rAnon.data ?? []).length === 0,
+      [
+        rC1.data?.length,
+        rA.data?.length,
+        rC3.data?.length,
+        rAnon.data?.length ?? rAnon.error?.code,
+      ],
+    );
+    const privileges = execSql(
+      `select r.rolname as role, p.priv,
+              has_table_privilege(r.rolname, 'public.disputes', p.priv) as granted
+       from (values ('anon'), ('authenticated')) r(rolname)
+       cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'),
+                          ('TRUNCATE'), ('REFERENCES'), ('TRIGGER')) p(priv)
+       order by 1, 2`,
+    );
+    // Une ligne par objet JSON de la CLI ; ordre des clés indifférent.
+    const granted = [...privileges.matchAll(/\{[^{}]*\}/g)]
+      .map((m) => m[0])
+      .filter((o) => /"granted"\s*:\s*true/.test(o))
+      .map(
+        (o) =>
+          `${/"role"\s*:\s*"(\w+)"/.exec(o)?.[1]}:${/"priv"\s*:\s*"(\w+)"/.exec(o)?.[1]}`,
+      )
+      .sort();
+    const policies = execSql(
+      "select policyname, cmd from pg_policies where schemaname = 'public' and tablename = 'disputes' order by 1",
+    );
+    report(
+      "H4 privilèges effectifs : seul SELECT reste à authenticated ; aucune politique d'écriture",
+      granted.join(",") === "authenticated:SELECT" &&
+        !/"cmd"\s*:\s*"(INSERT|UPDATE|DELETE|ALL)"/.test(policies),
+      { granted, policies: policies.replace(/\s+/g, " ").slice(0, 200) },
     );
     void cand2;
   } catch (error) {

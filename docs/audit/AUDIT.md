@@ -2464,7 +2464,7 @@ Candidat : bouton « Signaler » dans *Tâches* et carte « Signalements » du d
 
 ### Constat hors lot
 
-`public.disputes` garde les droits de la base initiale : `GRANT ALL` à `anon` et `authenticated`, politique `INSERT` limitée à `opened_by = auth.uid()`. Tout compte connecté peut donc créer une ligne (hors contestation d'avis, protégée par trigger) pour **n'importe quelle mission**, lisible ensuite par les parties de cette mission. Aucun écran n'en crée. Vérifié sur la pile de preuve (`has_table_privilege('authenticated','public.disputes','INSERT')` vrai). Non corrigé ici (hors périmètre) : à fermer (privilèges de session retirés) ou à remplacer par les signalements du lot 14.
+`public.disputes` garde les droits de la base initiale : `GRANT ALL` à `anon` et `authenticated`, politique `INSERT` limitée à `opened_by = auth.uid()`. Tout compte connecté peut donc créer une ligne (hors contestation d'avis, protégée par trigger) pour **n'importe quelle mission**, lisible ensuite par les parties de cette mission. Aucun écran n'en crée. Vérifié sur la pile de preuve (`has_table_privilege('authenticated','public.disputes','INSERT')` vrai). Non corrigé ici (hors périmètre) : **corrigé au lot 14b (§34)**.
 
 ### Limites
 
@@ -2472,4 +2472,51 @@ Candidat : bouton « Signaler » dans *Tâches* et carte « Signalements » du d
 - Code non remis : la décision « établi » ne confirme pas la journée ; pouvoir non introduit (décision produit, `PLAN_ACTION.md` lot 14).
 - Aucun délai maximal pour signaler après la journée ; aucun retrait d'un signalement par son auteur ; pas d'écriture de complément par le support (seulement la décision).
 - Les justificatifs restent stockés après la décision (aucune règle de conservation).
+
+## 34. Suivi — Lot 14b : création de contestations sur les missions d'un tiers (2026-11-18)
+
+Branche `fix/lot-14b-disputes-permissions`, créée depuis `origin/main-dev` (45d522e, lot 14 intégré). Migration `20261118120000_disputes_permissions.sql`. Non commité, non déployé.
+
+### Parcours réels de `public.disputes`
+
+- Écritures légitimes : `admin_open_review_contest` et `admin_resolve_review_contest` (lot 9c, `SECURITY DEFINER`, grade vérifié, `audit_logs`), qui ne passent ni par les privilèges ni par la RLS de la session.
+- Lectures : route admin de réputation (clé service, après contrôle du grade) ; partie concernée en session (`disputes_select_party_or_admin`, contestation d'avis visible de la partie évaluée, preuve `reputation` C2).
+- Aucun écran, route, script ni RPC n'écrit directement dans la table ; les signalements par journée du lot 14 vivent dans `mission_incidents`, sans lien avec `disputes`.
+
+### Défaut reproduit (pile `easyjob-proof`, deux missions, sessions réelles)
+
+| Tentative en session | Avant | Après |
+|---|---|---|
+| Tiers C3, étranger à la mission, crée une contestation à son nom | **créée** (relue en base : `opened_by` = C3, mission de C1), lisible ensuite par les deux parties | refusée (42501), aucune ligne |
+| Tiers C3 au nom du candidat C1 | refusée (politique `opened_by = auth.uid()`) | refusée |
+| Partie C1 sur sa propre mission, hors de tout parcours | **créée** | refusée |
+| Anonyme | refusée (RLS) | refusée |
+| Support (`admin_support`) au nom de C1 | **créée** (auteur usurpé) | refusée |
+| Support : rattacher une ligne à une autre mission, la clore (`status`, `resolution`) | **acceptées**, sans `audit_logs` | refusées, ligne inchangée |
+| Partie : rattachement, changement d'auteur, suppression ; support : suppression | 0 ligne (politiques absentes) | refusées |
+| Lecture : parties de la mission | 1 ligne | 1 ligne (inchangé) |
+| Lecture : tiers, anonyme | 0 | 0 |
+
+Privilèges effectifs : avant, `anon` et `authenticated` avaient SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES et TRIGGER ; politiques INSERT (`opened_by = auth.uid()` ou admin, mission non vérifiée), SELECT, UPDATE (tout admin). Après : `authenticated` garde SELECT, `anon` n'a plus rien ; seule la politique SELECT reste ; le trigger `protect_review_contest_writes` refuse toute écriture de session (seconde barrière). Table, lignes existantes et historique conservés ; règles du lot 14 (incidents, réputation, paiement) inchangées. TRUNCATE n'est pas exposé par PostgREST : retiré par principe.
+
+### Preuve
+
+`mission-incidents`, section H (H1 à H4) : création par un tiers, au nom d'une partie, par la partie, par l'anonyme, par le support ; rattachement à une autre mission, changement d'auteur, décision hors RPC, suppression ; état relu en clé service ; lectures autorisées ; privilèges et politiques effectifs. Chemin légitime : `reputation` C2 (contestation ouverte et décidée par les RPC admin).
+
+| Contrôle | Résultat |
+|---|---|
+| Reproduction sur la pile non corrigée | H1, H2, H4 en échec (trois lignes créées sur la mission de C1, rattachement et clôture par le support acceptés) |
+| Après correctif | `mission-incidents` 22/22, `reputation` ✅ (C2 inchangé) ; types générés identiques |
+| Contrôle négatif 1 : privilèges et politiques d'origine réintroduits, trigger corrigé conservé | H4 en échec (régression détectée) ; H1 et H2 tenus par le trigger |
+| Contrôle négatif 2 : en plus, trigger du lot 9c remis | H1, H2 et H4 en échec ; pile réinitialisée ensuite, privilèges relus (`authenticated:SELECT` seul) |
+| Suite RLS complète (pile réinitialisée depuis les seules migrations) | ✅ 33/33 en 593 s, au premier passage |
+| Vitest (séparément), typage, lint, formatage | ✅ 558 tests, `tsc`, `eslint`, `prettier --check` ; aucun écran modifié, pas de parcours navigateur |
+
+### Avertissement Next.js (diagnostic, sans changement de dépendance)
+
+- Message exact du build : « ⚠ Your version of Next.js is affected by a known security vulnerability. This command is continuing after the upgrade reminder. » puis « Reference: https://registry.npmjs.org/-/npm/v1/security/advisories/bulk » ; certains builds s'arrêtent sur `SecurityFatalError` et passent à la relance. Le message ne nomme pas l'avis.
+- Version résolue (`pnpm-lock.yaml`) : `next@16.4.3` (et `eslint-config-next@16.4.3`).
+- Identification par l'API citée (`{"next": ["16.4.3"]}`) : un seul avis, **GHSA-mfr8-8qww-v76h** (CVE-2026-119790), « Information disclosure across root params when a 'use cache' function is called through unstable_cache() », sévérité modérée (CVSS 4.0 : 6.3), versions affectées ≥ 16.3.0 et ≤ 16.4.4, **première version corrigée 16.4.5**. Avis : https://github.com/vercel/next.js/security/advisories/GHSA-mfr8-8qww-v76h.
+- Conditions d'exposition : une fonction `'use cache'` qui lit un paramètre de la racine (root param), appelée à la fois directement et via `unstable_cache()`, pendant le premier remplissage après un démarrage. **Absentes du dépôt** : aucun `'use cache'`, aucun `unstable_cache`, aucun `cacheComponents`, aucun segment de racine dynamique (`app/[locale]` n'existe pas).
+- Priorité : **basse** (version affectée, chemin vulnérable inutilisé). Correctif minimal à préparer dans un lot de dépendances distinct : `next` et `eslint-config-next` en 16.4.5, `pnpm install` (lockfile), puis la validation habituelle (typage, lint, tests, build, suite RLS, navigateur).
 

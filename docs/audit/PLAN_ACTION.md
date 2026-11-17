@@ -482,6 +482,17 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Dépendances** : lots 7c et 12 (journées, codes), 9c (grades et contestations, `audit_logs`), 7d (signaux privés), 13 (contrats inchangés).
 - **Hors lot** : barèmes de sanction, annulations, remplacements, remboursements et indemnités (lot « Engagements et annulations », à arbitrer ensemble) ; formulaire public de contestation.
 
+## Lot 14b — Contestations historiques : création réservée aux RPC admin
+
+> **Statut (2026-11-18)** : réalisé sur `fix/lot-14b-disputes-permissions` (base `origin/main-dev`, 45d522e, lot 14 intégré), **non commité, non déployé**. Détail : `AUDIT.md` §34.
+> - Défaut reproduit : un compte étranger à une mission y créait une contestation (`public.disputes`) lisible par les parties ; la partie et le support en créaient aussi (le support au nom d'un autre), et le support réécrivait une ligne (autre mission, clôture) sans audit.
+> - Correctif (migration `20261118120000_disputes_permissions.sql`) : privilèges d'écriture retirés aux sessions (`authenticated` garde SELECT, `anon` rien), politiques INSERT et UPDATE supprimées, trigger refusant toute écriture de session ; table et historique conservés ; écriture légitime inchangée (RPC admin des contestations d'avis).
+> - Preuve : `mission-incidents` H1 à H4 ; régression détectée par les deux contrôles négatifs.
+
+## Futur lot — Dépendances : Next.js 16.4.5 (à numéroter)
+
+> **Statut** : à préparer, priorité basse. `next@16.4.3` est concerné par GHSA-mfr8-8qww-v76h (moderate, ≥ 16.3.0 ≤ 16.4.4, corrigé en 16.4.5), mais ses conditions d'exposition (`'use cache'` lisant un paramètre de racine et appelé via `unstable_cache()`) sont absentes du dépôt (`AUDIT.md` §34). Correctif minimal : `next` et `eslint-config-next` en 16.4.5, lockfile régénéré, validation complète. Séparé de tout correctif SQL.
+
 ## Futur lot — Correction encadrée des horaires par le support (à numéroter)
 
 > **Statut** : demandé, **non commencé**. Depuis le lot 11b, aucune correction d'horaire n'est possible après la première publication, ni par l'entreprise ni par le support.
@@ -523,7 +534,7 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **Design entreprise** : écrans entreprise (offres, candidatures, journées, signalements) à harmoniser avec le design candidat.
 - **Notifications push** (et SMS, e-mail) : aujourd'hui, notifications en base et signaux Realtime seulement ; rappels hors page ouverte non livrés.
 - **Contrats — limites suivies (lot 13)** : PDF à polices standard, non archivé, sans signature graphique ni identité civile figée ; détail des signatures lisible par le support en clé service seulement, sans écran admin.
-- **Contestations existantes (`disputes`)** : la table héritée de la base initiale accepte encore une insertion en session pour n'importe quelle mission (constat du lot 14, `AUDIT.md` §33) ; à fermer ou à remplacer par les signalements du lot 14.
+- **Contestations existantes (`disputes`)** : écritures de session fermées au lot 14b (`AUDIT.md` §34) ; reste à décider si les lignes historiques hors contestation d'avis doivent être migrées vers les signalements du lot 14 ou laissées en lecture.
 
 ## Hors plan (à cadrer séparément)
 
