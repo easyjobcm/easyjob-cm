@@ -145,7 +145,11 @@ export const accountStateSchema = z.object({
     .optional(),
   candidate: z
     .object({
+      // Lot 17a : plan effectif calculé en base (candidate_effective_plan).
+      // Absent d'une réponse antérieure : déduit de `premium`.
+      plan: z.enum(["free", "premium"]).optional(),
       premium_until: isoDate,
+      premium_started_at: isoDate.optional(),
       premium: z.boolean(),
       renews: z.boolean().nullable(),
     })
@@ -200,7 +204,15 @@ export function expireLocally(
   }
   const k = state.candidate;
   if (k && k.premium_until && Date.parse(k.premium_until) <= serverNowMs) {
-    next = { ...next, candidate: { ...k, premium: false } };
+    next = {
+      ...next,
+      candidate: {
+        ...k,
+        premium: false,
+        plan: "free",
+        premium_started_at: null,
+      },
+    };
   }
   return next;
 }

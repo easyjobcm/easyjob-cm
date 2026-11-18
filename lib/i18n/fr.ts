@@ -350,6 +350,52 @@ export const fr = {
           "L'approbation exige les trois contrôles validés sur la version actuelle du dossier.",
       },
     },
+    // Lot 17a : attribution administrative de Premium (aucun paiement).
+    candidatePremium: {
+      title: "Premium (attribution administrative)",
+      plan: "Plan effectif",
+      free: "Free",
+      premium: "Premium",
+      until: "Fin",
+      since: "Début",
+      unknown: "Inconnu",
+      endedOn: "Dernière fin : {date}",
+      noPayment:
+        "Attribution par l'équipe EasyJob : aucun paiement n'est enregistré.",
+      readOnly:
+        "Lecture seule : seuls admin_ops et admin_founder modifient Premium.",
+      activate: "Activer",
+      extend: "Prolonger",
+      stop: "Arrêter",
+      operation: "Opération",
+      endLabel: "Fin (heure de Douala)",
+      reasonLabel: "Motif",
+      reasonHint: "10 à 500 caractères, visible dans l'historique.",
+      submit: "Enregistrer",
+      history: "Historique",
+      noHistory: "Aucune opération enregistrée.",
+      opActivate: "Activation",
+      opExtend: "Prolongation",
+      opStop: "Arrêt",
+      by: "par {who}",
+      periodLine: "Période : {start} → {end}",
+      previousEnd: "Fin précédente : {date}",
+      success: "Opération enregistrée.",
+      already: "Opération déjà enregistrée.",
+      errors: {
+        forbidden: "Action réservée à admin_ops et admin_founder.",
+        candidate_not_found: "Candidat introuvable.",
+        reason_invalid: "Motif requis (10 à 500 caractères).",
+        period_invalid:
+          "Date de fin invalide : elle doit être future et, pour prolonger, postérieure à la fin actuelle.",
+        premium_already_active: "Premium est déjà actif.",
+        premium_not_active: "Premium n'est pas actif.",
+        premium_state_changed:
+          "Premium a changé entre-temps : relisez la fiche avant de recommencer.",
+        request_conflict: "Envoi en conflit : recommencez.",
+        generic: "Opération impossible. Réessayez.",
+      },
+    },
     candidateProfile: {
       title: "Profil candidat",
       back: "Tous les candidats",
@@ -384,9 +430,6 @@ export const fr = {
       statNoShows: "Absences",
       statReliability: "Fiabilité",
       statRating: "Note moyenne",
-      premiumLabel: "Premium",
-      premiumNone: "Aucun abonnement Premium",
-      premiumUntil: "jusqu'au",
       createdAt: "Inscrit le",
       updatedAt: "Mis à jour le",
       editTitle: "Modifier l'identité",
@@ -1153,7 +1196,6 @@ export const fr = {
       required60: "60% requis pour postuler",
       essentialsTitle: "Essentiels pour postuler",
       optionalTitle: "Pour renforcer votre profil",
-      premiumCta: "Passez à Premium",
       done: "Fait",
       todo: "À compléter",
       criteria: {
@@ -1575,7 +1617,7 @@ export const fr = {
         },
         {
           q: "Comment fonctionne Premium ?",
-          a: "Premium coûte 1 000 FCFA par mois. La souscription en libre-service n'est pas encore disponible : contactez le support pour l'activer et connaître les avantages proposés.",
+          a: "Premium est attribué par l'équipe EasyJob, pour une période dont la date de fin est indiquée dans Profil > Mon plan. Aucun paiement n'est effectué dans l'application. Free et Premium suivent les mêmes règles pour postuler et la même réputation.",
         },
         {
           q: "Comment obtenir de l'aide ?",
@@ -1611,40 +1653,19 @@ export const fr = {
       companyPremium: "Entreprise Premium",
       new: "Nouveau",
     },
-    premium: {
-      sectionTitle: "Mon avantage Premium",
-      activeBadge: "Premium actif",
-      expiresOn: "Expire le {date}",
-      renewSoon: "Renouvellement imminent",
-      benefits: {
-        priority: {
-          title: "Priorité dans les candidatures",
-          desc: "Votre profil remonte en premier auprès des entreprises.",
-        },
-        exclusive: {
-          title: "Offres exclusives",
-          desc: "Accédez aux missions réservées aux candidats Premium.",
-        },
-      },
-    },
-    upgradePremium: {
-      title: "Passez à Premium",
-      tagline: "Démarquez-vous auprès des entreprises.",
-      price: "1 000 FCFA",
-      pricePeriod: "/ mois",
-      ctaPrimary: "Devenir Premium",
-      ctaSecondary: "Voir les avantages",
-      bullets: {
-        priority: "Priorité sur toutes les candidatures",
-        exclusive: "Accès aux offres exclusives Premium",
-      },
-      statusActive: "Premium actif jusqu'au {date}",
-      statusExpired: "Votre abonnement Premium a expiré le {date}",
-      statusNone: "Vous n'êtes pas encore abonné Premium",
-      subscribeUnavailable:
-        "Le paiement en libre-service n'est pas encore disponible. Contactez le support pour activer votre abonnement Premium.",
-      renewalNote:
-        "Le renouvellement et l'annulation sont gérés manuellement par le support tant que le paiement en ligne n'est pas disponible.",
+    // Lot 17a : plan effectif (Free ou Premium), attribué par l'équipe.
+    candidatePlan: {
+      title: "Mon plan",
+      free: "Free",
+      premium: "Premium",
+      current: "Votre plan : {plan}",
+      until: "Premium jusqu'au {date} (heure de Douala)",
+      since: "Depuis le {date}",
+      ended: "Premium terminé le {date}",
+      granted:
+        "Premium est attribué par l'équipe EasyJob. Aucun paiement n'est effectué dans l'application.",
+      sameRules:
+        "Free et Premium suivent les mêmes règles pour postuler, la même réputation, les mêmes vérifications et le même accès au support et aux contestations.",
       contactSupport: "Contacter le support",
     },
     paymentDelay: {
@@ -1870,10 +1891,6 @@ export const fr = {
         aiTalent: {
           title: "Indicateurs de fiabilité",
           desc: "Note, missions réalisées et vérifications de chaque candidat.",
-        },
-        priorityPool: {
-          title: "Pool de talents prioritaire",
-          desc: "Vos offres remontent en premier auprès des candidats Premium et notés 4★+.",
         },
         reporting: {
           title: "Reporting & Analytics",

@@ -13,8 +13,8 @@ import { ProfileCompletionWidget } from "@/components/profile/profile-completion
 import { ProfileMenu } from "@/components/profile/profile-menu";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { PremiumBadge } from "@/components/candidate/profile/premium-badge";
-import { PremiumBanner } from "@/components/candidate/profile/premium-banner";
-import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
+import { CandidatePlanCard } from "@/components/candidate/profile/candidate-plan-card";
+import { useCandidatePlan } from "@/hooks/use-candidate-plan";
 import { PaymentDelayInfo } from "@/components/candidate/profile/payment-delay-info";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -22,12 +22,10 @@ import {
   getCandidateCompletionCtaHref,
   type Criterion,
 } from "@/lib/utils/profile-completion";
-import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
 import { ReputationStars } from "@/components/reputation/reputation-stars";
 import { ReputationProgressCard } from "@/components/reputation/reputation-progress-card";
 import { useMyReputation } from "@/components/reputation/use-my-reputation";
 import { formatStars, formatStarsNumber } from "@/lib/reputation/progress";
-import { useAccountState, useServerNow } from "@/lib/realtime/provider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 
@@ -146,17 +144,13 @@ export function CandidateProfileClient({
   const te = t.profile.essential;
   const tpe = t.profile.photo;
   const tsk = t.profile.skillsOverview;
-  // Lot 7d : premium effectif relu en direct (rôle ET échéance future,
-  // heure du serveur) ; rendu serveur en attendant.
-  const account = useAccountState();
-  const serverNow = useServerNow();
-  const premium = account?.candidate
-    ? account.candidate.premium
-    : isCandidatePremiumActive(
-        user.role,
-        profile?.premium_until ?? null,
-        serverNow(),
-      );
+  // Lot 17a : plan effectif calculé en base (my_account_state), relu en
+  // direct et basculé à l'échéance (heure du serveur).
+  const planView = useCandidatePlan({
+    role: user.role,
+    premiumUntil: profile?.premium_until ?? null,
+  });
+  const premium = planView.plan === "premium";
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [showPhotoModal, setShowPhotoModal] = React.useState(false);
   const essentials = React.useMemo(
@@ -648,16 +642,8 @@ export function CandidateProfileClient({
           </motion.div>
           {/* Délai de paiement (contenu adapté au statut) */}
           <PaymentDelayInfo role={user.role} averageRating={reputationStars} />
-          {/* Différenciation Premium ↔ Standard */}
-          {premium ? (
-            <PremiumBenefits
-              averageRating={reputationStars}
-              premiumUntil={profile?.premium_until ?? null}
-              locale={locale}
-            />
-          ) : (
-            <PremiumBanner />
-          )}
+          {/* Plan effectif et date de fin (lot 17a) */}
+          <CandidatePlanCard view={planView} linkToDetails />
           {/* Menu */}
           <ProfileMenu isCandidate />
         </div>

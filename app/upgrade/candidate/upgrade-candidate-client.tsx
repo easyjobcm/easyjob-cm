@@ -2,51 +2,32 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, CheckCircle2, Info } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PremiumBenefits } from "@/components/candidate/profile/premium-benefits";
+import { CandidatePlanCard } from "@/components/candidate/profile/candidate-plan-card";
 import { useI18n } from "@/lib/i18n";
-import { formatDateShort } from "@/lib/utils/profile-status";
-import { useAccountState, useServerNow } from "@/lib/realtime/provider";
-import { isCandidatePremiumActive } from "@/lib/utils/company-plan";
+import { useCandidatePlan } from "@/hooks/use-candidate-plan";
 
 interface UpgradeCandidateClientProps {
   role: string;
-  averageRating: number;
   premiumUntil: string | null;
 }
 
+/**
+ * Lot 17a — « Mon plan » : plan effectif et date de fin, relus en direct
+ * (my_account_state, minuterie sur l'heure du serveur). Premium est
+ * attribué par l'équipe EasyJob ; aucun prix ni avantage non livré n'est
+ * annoncé, aucun parcours de paiement n'est simulé.
+ */
 export function UpgradeCandidateClient({
   role,
-  averageRating,
-  premiumUntil: initialPremiumUntil,
+  premiumUntil,
 }: UpgradeCandidateClientProps) {
   const router = useRouter();
-  const { t, locale } = useI18n();
-  const tr = t.profile.upgradePremium;
-
-  // Lot 7d : état relu en direct (échéance sur l'heure du serveur).
-  const account = useAccountState();
-  const serverNow = useServerNow();
-  const premiumUntil = account?.candidate
-    ? account.candidate.premium_until
-    : initialPremiumUntil;
-  const isPremiumRole = (account?.role ?? role) === "candidate_premium";
-  const isActive = account?.candidate
-    ? account.candidate.premium
-    : isCandidatePremiumActive(role, premiumUntil, serverNow());
-  const isExpired = isPremiumRole && !!premiumUntil && !isActive;
-
-  const statusLabel = isActive
-    ? tr.statusActive.replace("{date}", formatDateShort(premiumUntil!, locale))
-    : isExpired
-      ? tr.statusExpired.replace(
-          "{date}",
-          formatDateShort(premiumUntil!, locale),
-        )
-      : tr.statusNone;
+  const { t } = useI18n();
+  const tp = t.profile.candidatePlan;
+  const view = useCandidatePlan({ role, premiumUntil });
 
   return (
     <AppShell>
@@ -60,69 +41,14 @@ export function UpgradeCandidateClient({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-foreground">{tr.title}</h1>
+          <h1 className="text-lg font-semibold text-foreground">{tp.title}</h1>
         </div>
 
-        <div className="space-y-4 px-4 pb-10 pt-6">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-sm font-medium text-foreground">
-                {statusLabel}
-              </p>
-            </CardContent>
-          </Card>
-
-          {isActive ? (
-            <PremiumBenefits
-              averageRating={averageRating}
-              premiumUntil={premiumUntil}
-              locale={locale}
-            />
-          ) : (
-            <Card>
-              <CardContent className="space-y-4 p-5">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-[#5B21B6]">
-                    {tr.price}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {tr.pricePeriod}
-                  </span>
-                </div>
-                <ul className="space-y-2">
-                  {[tr.bullets.priority, tr.bullets.exclusive].map((label) => (
-                    <li
-                      key={label}
-                      className="flex items-center gap-2.5 text-sm text-foreground/80"
-                    >
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-[#7C3AED]" />
-                      <span>{label}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Souscription : aucune infrastructure de paiement d'abonnement
-              n'existe encore (pas d'API, pas de webhook) — on ne simule pas
-              un parcours de paiement fonctionnel. */}
-          <Card className="border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
-            <CardContent className="flex items-start gap-3 p-4">
-              <Info className="h-5 w-5 shrink-0 text-amber-600" />
-              <div className="space-y-2">
-                <p className="text-sm text-amber-800 dark:text-amber-400">
-                  {tr.subscribeUnavailable}
-                </p>
-                <p className="text-xs text-amber-700 dark:text-amber-500/80">
-                  {tr.renewalNote}
-                </p>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/help">{tr.contactSupport}</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4 px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-6">
+          <CandidatePlanCard view={view} detailed />
+          <Button asChild variant="outline" size="sm">
+            <Link href="/help">{tp.contactSupport}</Link>
+          </Button>
         </div>
       </div>
     </AppShell>

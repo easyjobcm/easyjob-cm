@@ -348,6 +348,50 @@ export const en: TranslationKeys = {
           "Approval requires all three checks approved on the current version of the file.",
       },
     },
+    // Lot 17a: administrative Premium grant (no payment).
+    candidatePremium: {
+      title: "Premium (administrative grant)",
+      plan: "Effective plan",
+      free: "Free",
+      premium: "Premium",
+      until: "End",
+      since: "Start",
+      unknown: "Unknown",
+      endedOn: "Last end: {date}",
+      noPayment: "Granted by the EasyJob team: no payment is recorded.",
+      readOnly: "Read-only: only admin_ops and admin_founder change Premium.",
+      activate: "Activate",
+      extend: "Extend",
+      stop: "Stop",
+      operation: "Operation",
+      endLabel: "End (Douala time)",
+      reasonLabel: "Reason",
+      reasonHint: "10 to 500 characters, shown in the history.",
+      submit: "Save",
+      history: "History",
+      noHistory: "No operation recorded.",
+      opActivate: "Activation",
+      opExtend: "Extension",
+      opStop: "Stop",
+      by: "by {who}",
+      periodLine: "Period: {start} → {end}",
+      previousEnd: "Previous end: {date}",
+      success: "Operation saved.",
+      already: "Operation already saved.",
+      errors: {
+        forbidden: "Reserved to admin_ops and admin_founder.",
+        candidate_not_found: "Candidate not found.",
+        reason_invalid: "Reason required (10 to 500 characters).",
+        period_invalid:
+          "Invalid end date: it must be in the future and, to extend, after the current end.",
+        premium_already_active: "Premium is already active.",
+        premium_not_active: "Premium is not active.",
+        premium_state_changed:
+          "Premium changed in the meantime: reload before trying again.",
+        request_conflict: "Conflicting submission: try again.",
+        generic: "Operation failed. Try again.",
+      },
+    },
     candidateProfile: {
       title: "Candidate profile",
       back: "All candidates",
@@ -381,9 +425,6 @@ export const en: TranslationKeys = {
       statNoShows: "No-shows",
       statReliability: "Reliability",
       statRating: "Average rating",
-      premiumLabel: "Premium",
-      premiumNone: "No Premium subscription",
-      premiumUntil: "until",
       createdAt: "Registered on",
       updatedAt: "Updated on",
       editTitle: "Edit identity",
@@ -1129,7 +1170,6 @@ export const en: TranslationKeys = {
       required60: "60% required to apply",
       essentialsTitle: "Essentials to apply",
       optionalTitle: "To strengthen your profile",
-      premiumCta: "Go Premium",
       done: "Done",
       todo: "To complete",
       criteria: {
@@ -1540,7 +1580,7 @@ export const en: TranslationKeys = {
         },
         {
           q: "How does Premium work?",
-          a: "Premium costs 1,000 FCFA per month. Self-service subscription isn't available yet: contact support to activate it and learn about the benefits offered.",
+          a: "Premium is granted by the EasyJob team, for a period whose end date is shown in Profile > My plan. No payment is made through the app. Free and Premium follow the same rules to apply and the same reputation.",
         },
         {
           q: "How do I get help?",
@@ -1576,40 +1616,19 @@ export const en: TranslationKeys = {
       companyPremium: "Premium Company",
       new: "New",
     },
-    premium: {
-      sectionTitle: "My Premium benefits",
-      activeBadge: "Premium active",
-      expiresOn: "Expires on {date}",
-      renewSoon: "Renewing soon",
-      benefits: {
-        priority: {
-          title: "Priority on applications",
-          desc: "Your profile is shown first to companies.",
-        },
-        exclusive: {
-          title: "Exclusive jobs",
-          desc: "Access missions reserved for Premium candidates.",
-        },
-      },
-    },
-    upgradePremium: {
-      title: "Go Premium",
-      tagline: "Stand out to companies.",
-      price: "1,000 FCFA",
-      pricePeriod: "/ month",
-      ctaPrimary: "Become Premium",
-      ctaSecondary: "See benefits",
-      bullets: {
-        priority: "Priority on every application",
-        exclusive: "Access to exclusive Premium jobs",
-      },
-      statusActive: "Premium active until {date}",
-      statusExpired: "Your Premium subscription expired on {date}",
-      statusNone: "You're not subscribed to Premium yet",
-      subscribeUnavailable:
-        "Self-service payment isn't available yet. Contact support to activate your Premium subscription.",
-      renewalNote:
-        "Renewal and cancellation are handled manually by support until online payment is available.",
+    // Lot 17a: effective plan (Free or Premium), granted by the team.
+    candidatePlan: {
+      title: "My plan",
+      free: "Free",
+      premium: "Premium",
+      current: "Your plan: {plan}",
+      until: "Premium until {date} (Douala time)",
+      since: "Since {date}",
+      ended: "Premium ended on {date}",
+      granted:
+        "Premium is granted by the EasyJob team. No payment is made through the app.",
+      sameRules:
+        "Free and Premium follow the same rules to apply, the same reputation, the same checks and the same access to support and disputes.",
       contactSupport: "Contact support",
     },
     paymentDelay: {
@@ -1832,10 +1851,6 @@ export const en: TranslationKeys = {
         aiTalent: {
           title: "Reliability indicators",
           desc: "Each candidate's rating, completed missions and verifications.",
-        },
-        priorityPool: {
-          title: "Priority talent pool",
-          desc: "Your jobs appear first to Premium and 4★+ rated candidates.",
         },
         reporting: {
           title: "Reporting & Analytics",

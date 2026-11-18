@@ -196,7 +196,8 @@ Pour éviter qu'un candidat ne contrevienne aux informations personnelles et doc
 
 - **Rejeu déterministe.** Les soldes sont rejoués dans l'ordre chronologique des événements, avec les bornes appliquées à chaque événement. Une contestation acceptée sur un avis ancien, ou l'annulation d'un manquement par le support, donne le même résultat qu'un calcul complet.
 - **Manquements — application (implémentée).** Une décision de manquement confirmée (ligne non annulée de `reputation_incidents`) retire 5 unités d'expérience, au moment du fait, dans le rejeu. Pour l'entreprise, trois décisions en 90 jours donnent un seul retrait. L'annulation d'une décision par le support rétablit le solde. La base ne contrôle que la cohérence des faits (mission ou offre de la partie concernée ; pas de manquement sur une mission dont une journée est confirmée, par code ou par le support).
-- **Manquements — conditions pour prononcer une décision (à arbitrer, non implémentées).** Délai d'une annulation tardive (24 h pour le candidat et 12 h pour l'entreprise, repris du §5.3, provisoires), cas d'une offre partiellement pourvue, imputabilité, justificatif d'absence (§11.9). Aucun de ces seuils n'est encodé : ils ne déclenchent ni n'écartent aucune sanction. Ils seront appliqués par le parcours qui écrira la décision (lot « Engagements et annulations », `docs/audit/PLAN_ACTION.md`). Un code jamais saisi ou une correction du support ne sont pas des fautes. **Dépendance :** aucun parcours d'annulation ni de constat d'absence n'existe encore ; aucune sanction n'est déduite.
+- **Manquements du candidat — décisions validées le 2026-11-17 (lot 17, non implémentées).** Après sélection, le candidat Free annule sans sanction au moins **48 h** avant la journée, le candidat Premium au moins **24 h** avant ; les limites exactes sont incluses. Après ce délai, l'annulation reste possible et est signalée au support, dont la décision précède toute sanction : empêchement reconnu → aucune sanction ; annulation tardive injustifiée ou absence injustifiée confirmée → retrait de 5 unités d'expérience. Un même événement ne produit qu'un manquement ; l'abandon de plusieurs journées dans une même demande est un seul événement. Journées au choix : l'annulation vise les journées désignées ; période complète : le support examine la poursuite de l'engagement et le remplacement éventuel ; les réalisations antérieures sont conservées. Le retrait avant sélection reste sans sanction. Un retard suivi du travail peut figurer dans l'avis privé, sans sanction automatique. **Plan retenu (décision validée, appliquée au lot 17a)** : le délai dépend du plan effectif **au moment de la sélection réussie**. Il est figé avec l'instant de sélection pour chaque journée de l'engagement (`mission_day_commitment_terms`) ; une activation, une prolongation, un arrêt ou une échéance ultérieurs ne le modifient pas. **Délai de réaction (décision validée le 2026-11-18, lot 17b)** : si la sélection intervient après le seuil personnel (48 h ou 24 h), le candidat peut se désister sans sanction jusqu'à **sélection + 1 h inclus**. L'origine est l'heure de sélection enregistrée en base. **Notification découverte tardivement (décision du 2026-11-18, lot 17b)** : le candidat peut signaler cette circonstance au support, qui l'examine avant toute sanction ; la création de la notification et sa consultation restent deux faits distincts, sans effet sur l'origine du délai. **Engagements historiques (décision du 2026-11-18, appliquée au lot 17a)** : les journées sélectionnées avant le lot 17a sont marquées `legacy` (plan et délai inconnus). Aucune sanction automatique d'annulation tardive ne leur est appliquée sur la base d'un plan ou d'un délai supposé ; les autres faits restent examinés par le support selon leurs règles. **À arbitrer** (options : `docs/audit/AUDIT.md` §38) : abandon mêlant journées dans et hors délai, remplacement.
+- **Manquements de l'entreprise — conditions (à arbitrer, non implémentées).** Délai d'une annulation tardive (12 h, repris du §5.3, provisoire), cas d'une offre partiellement pourvue, imputabilité, justificatif d'absence (§11.9). Aucun de ces seuils, ni les délais du candidat, n'est encodé : ils ne déclenchent ni n'écartent aucune sanction. Ils seront appliqués par le parcours qui écrira la décision (lot 17 « Engagements et annulations », `docs/audit/PLAN_ACTION.md`). Un code jamais saisi ou une correction du support ne sont pas des fautes. **Dépendance :** aucun parcours d'annulation ni de constat d'absence n'existe encore ; aucune sanction n'est déduite.
 - **Indépendance.** Le score ne dépend ni de l'abonnement ni du premium. Il ne conditionne pas la candidature : restent exigés le compte actif, l'inscription terminée, le profil ≥ 60 %, l'identité vérifiée (§6.6), une offre publiée avec des places disponibles, les documents requis valides (dont le permis) et les justificatifs des compétences.
 - **Confidentialité.** Un tiers ne voit que les étoiles graphiques, avec un libellé accessible (« Réputation EasyJob : 3,5 étoiles sur 5 »), jamais la moyenne, le nombre d'avis, les motifs ni les commentaires (§6.9).
 - **Données sources.** `average_rating` et `review_count` restent calculés comme données sources ; la réputation est une projection distincte (`reputation_scores`). `completed_missions` compte désormais les missions réalisées (toutes leurs journées confirmées, par code ou par le support).
@@ -231,9 +232,9 @@ Le délai de paiement dépend du profil du candidat, après validation de la mis
 - En cas de litige non résolu sous 48h, le paiement est suspendu et escaladé vers `admin_ops`.
 - Les frais de service Easyjob CM sont prélevés automatiquement sur le montant bloqué avant libération.
 - En cas d'annulation par l'entreprise à moins de 12h du début, une pénalité de 20% du montant est due au candidat.
-- En cas d'annulation par le candidat à **moins de 24h** du début, il perd son accès aux missions de niveau supérieur pendant **7 jours**.
-- En cas d'**absence sans justificatif** (no-show), le compte du candidat est **bloqué temporairement pendant 7 jours**.
-- Si le candidat cumule **3 absences sans justificatif valable**, son compte est **banni définitivement**.
+- ~~En cas d'annulation par le candidat à **moins de 24h** du début, il perd son accès aux missions de niveau supérieur pendant **7 jours**.~~ Remplacé (décision du 2026-11-17, lot 17) : délais de 48 h (Free) et 24 h (Premium), décision du support, retrait de 5 unités d'expérience (§5.2).
+- En cas d'**absence sans justificatif** (no-show), le compte du candidat est **bloqué temporairement pendant 7 jours**. *(Non appliqué. Depuis le 2026-11-17, une absence injustifiée confirmée par le support retire 5 unités d'expérience, §5.2 ; maintien ou abandon du blocage à décider au lot 17.)*
+- Si le candidat cumule **3 absences sans justificatif valable**, son compte est **banni définitivement**. *(Non appliqué ; à décider au lot 17, comme le blocage.)*
 
 > ⚠️ **Point ambigu #3** — Voir section 11.3 sur l'agrégateur de paiement (décision encore à prendre).
 
@@ -503,8 +504,10 @@ Le NIU reste en lecture seule pour l'entreprise. Une décision sur une version a
 | Complétude du profil | 10% |
 | Disponibilité déclarée | 10% |
 | Proximité géographique (GPS domicile -> lieu de mission) | 10% |
-| Statut premium | 5% |
+| ~~Statut premium~~ (retiré, lot 17a) | ~~5%~~ |
 
+> **Lot 17a, décision validée le 2026-11-18 :** le critère « Statut premium » est retiré du calcul (`lib/matching/ai-matching.ts`, cinq critères ramenés sur 100). Il favorisait un candidat selon son abonnement et renvoyait son plan à l'appelant, alors que le plan n'est jamais montré à une entreprise et qu'aucune priorité n'est livrée. La route de matching n'a aucun appelant dans l'interface. Une priorité éventuelle sera définie avec la future grille commerciale.
+>
 > **Décision produit du 2026-11-08 (lot 9b) :** le critère « Niveau Sandbox » disparaît. Les six autres critères gardent leurs proportions, ramenées sur 100 (`lib/matching/ai-matching.ts`). La note reste un critère pondéré parmi d'autres, sans seuil ni tri dédié ; un candidat sans avis reçoit la valeur neutre prévue pour « nouveau candidat ».
 
 **Priorité aux anciens travailleurs :**
@@ -735,6 +738,10 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 | Gratuit | 0 FCFA | Accès aux offres standard, paiement dans les 7 jours |
 | Premium | 1 000 FCFA | Priorisation dans les candidatures, badge premium visible par les entreprises, accès aux offres exclusives, paiement accéléré selon règle section 5.3 |
 
+> **État des avantages candidat (audit du 2026-11-17, `docs/audit/AUDIT.md` §38).** Aucun des avantages ci-dessus n'est appliqué : l'ordre des candidats vus par l'entreprise est la date de candidature (`match_score` jamais écrit), aucune offre n'est réservée, le plan n'est pas montré aux entreprises, aucun versement n'existe. Les écrans annoncent encore « priorité » et « offres exclusives » : retrait prévu au lot 17a. **Décision validée (lot 17)** : souplesse d'annulation après sélection, 48 h pour Free et 24 h pour Premium (§5.2). Prix existant : 1 000 FCFA / mois, durée à fixer. Pour les deux plans : réputation, vérifications, support, signalements, contestations et montant fixé par le contrat identiques. Grille proposée, à valider : même section de l'audit.
+>
+> **Lot 17a (réalisé, non commité ; `docs/audit/AUDIT.md` §39).** Plan effectif calculé en base (`candidate_effective_plan`) : Premium si le rôle est `candidate_premium` **et** si la fin est dans le futur ; à l'instant exact de la fin, le plan est Free. Premium est une **attribution administrative** : `admin_ops` et `admin_founder` actifs l'activent, la prolongent ou l'arrêtent depuis la fiche admin du candidat, avec une date de fin explicite et future (aucune durée imposée ; borne technique : avant l'an 10000) et un motif ; `admin_support` consulte. Chaque opération écrit le plan, l'historique (`candidate_premium_grants`, en ajout seul), l'audit et une notification au candidat dans une transaction ; aucune ligne d'abonnement ni de paiement. Les écrans candidat affichent le plan et sa date de fin (heure de Douala), sans prix ni avantage non livré ; « priorité » et « offres exclusives » sont retirées. Les sessions candidat ne peuvent modifier ni leur plan ni ses dates.
+
 **Critères d'acceptation :**
 - Un essai gratuit de 14 jours est disponible pour le plan Pro.
 - L'abonnement est géré via Mobile Money avec renouvellement automatique.
@@ -761,7 +768,7 @@ CONFIRMÉ → EN ROUTE → ARRIVÉ → EN COURS → TERMINÉ (en attente validat
 - Modération des offres : approbation, rejet, demande de correction.
 - Suivi et intervention sur les missions en cours.
 - Gestion des litiges : décision, libération ou remboursement.
-- Gestion des abonnements et essais gratuits.
+- Gestion des abonnements et essais gratuits. *(Lot 17a : Premium candidat attribué, prolongé ou arrêté depuis la fiche du candidat, par `admin_ops` et `admin_founder` ; `admin_support` en lecture.)*
 - Paramètres dynamiques : ~~seuils Sandbox~~ (retirés, lot 9b), règles de matching, base de connaissances chatbot.
 
 **Niveau `admin_founder` (fondateur) :**
@@ -1350,6 +1357,23 @@ id, user_id, plan, price, started_at, expires_at,
 is_trial, auto_renew, status (active/cancelled/expired)
 ```
 
+**`candidate_premium_grants`** (lot 17a — historique en ajout seul des attributions de Premium ; jamais un paiement)
+```
+id, request_id (unique, idempotence), candidate_user_id,
+operation (activate/extend/stop), period_started_at, previous_ends_at,
+ends_at, reason, source ('admin_grant'), actor_id, actor_role, created_at
+```
+
+**`mission_day_commitment_terms`** (lot 17a — conditions figées à la sélection, une ligne par journée ; immuables, illisibles en session)
+```
+mission_day_id, mission_id, application_id, candidate_id,
+terms_source (selection/legacy),
+candidate_plan (free/premium ; null si legacy),
+cancellation_notice_hours (48/24 ; null si legacy),
+selected_at, recorded_at
+```
+`candidate_profiles.premium_started_at` : début de la période Premium en cours (null si inconnu).
+
 **`disputes`**
 ```
 id, mission_id, opened_by, type, description, evidence_urls[],
@@ -1692,7 +1716,9 @@ admin MANUELLE + notification/audit. Preuve OTP **retirée** au lancement
 - Quel délai pour soumettre le justificatif après l'absence ?
 - Qui valide : `admin_support` ou `admin_ops` ?
 
-**Statut :** ☐ Décision à prendre.
+> **Décision partielle du 2026-11-17 (lot 17).** La décision du support précède toute sanction ; un empêchement reconnu n'entraîne aucune sanction ; une absence injustifiée confirmée retire 5 unités d'expérience (§5.2), un seul manquement par événement. Restent ouverts : format et délai du justificatif, grade qui décide, maintien ou abandon du blocage de 7 jours et du bannissement ci-dessus.
+
+**Statut :** ☐ Décision à prendre (partiellement tranchée, voir ci-dessus).
 
 ---
 

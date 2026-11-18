@@ -32,6 +32,7 @@ import { UpdateRequestModal } from "@/components/admin/update-request-modal";
 import { useLiveRefresh } from "@/lib/realtime/provider";
 import { formatReputation } from "@/lib/utils/reputation";
 import { ReputationAdminPanel } from "@/components/admin/reputation-admin-panel";
+import { CandidatePremiumPanel } from "@/components/admin/candidate-premium-panel";
 
 /**
  * T8.4b — Profil candidat complet (client).
@@ -542,14 +543,6 @@ export function CandidateProfileAdminClient({
               )}
             />
             <Stat
-              label={cp.premiumLabel}
-              value={
-                c.stats.premium_until
-                  ? `${cp.premiumUntil} ${formatDate(c.stats.premium_until, locale)}`
-                  : cp.premiumNone
-              }
-            />
-            <Stat
               label={cp.createdAt}
               value={
                 c.stats.created_at
@@ -560,6 +553,9 @@ export function CandidateProfileAdminClient({
           </div>
         </CardContent>
       </Card>
+
+      {/* Premium : attribution administrative, historique (lot 17a) */}
+      <CandidatePremiumPanel candidateUserId={id} canManage={canModerate} />
 
       {/* Réputation EasyJob : avis complets, impact, contestations (lot 9c) */}
       <ReputationAdminPanel subjectType="candidate" subjectId={c.profile_id} />

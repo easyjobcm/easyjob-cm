@@ -1,11 +1,11 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/auth/admin-page";
 import { CandidateProfileAdminClient } from "./candidate-profile-admin-client";
 
 /**
  * T8.4b — Profil candidat complet (/admin/candidates/[id]).
  *
- * Garde de rôle : `app/admin/layout.tsx` (lecture = 3 grades admin).
+ * Garde de rôle : `requireAdminPage` (trois grades, compte actif), en plus
+ * du layout.
  * Cette page dérive `canEdit` (admin_founder UNIQUEMENT) — l'édition de
  * l'identité (prénom / nom / date de naissance) est réservée au fondateur
  * (décision produit). Le client consomme `/api/admin/candidates/[id]`
@@ -25,35 +25,19 @@ export default async function AdminCandidateProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/auth/login?next=/admin/candidates");
-  }
-
-  const { data: userData } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (
-    !userData?.role ||
-    !["admin_support", "admin_ops", "admin_founder"].includes(userData.role)
-  ) {
-    redirect("/");
-  }
+  // Garde commune (lot 17a) : session, grade admin et compte actif relus en
+  // base à chaque rendu, comme is_admin_user() ; un admin suspendu, même
+  // avec un jeton émis avant la suspension, est renvoyé à l'accueil.
+  const { role } = await requireAdminPage(`/admin/candidates/${id}`);
 
   // Édition réservée à admin_founder (plus strict que le gate ops/founder
   // des autres mutations T8) — la route RPC le re-vérifie en profondeur.
-  const canEdit = userData.role === "admin_founder";
+  const canEdit = role === "admin_founder";
 
   // T8.5 — Mises à jour de profil : demande/annulation/purge réservées à
   // admin_ops + admin_founder (admin_support = lecture seule des 3 grades).
-  const canModerate = ["admin_ops", "admin_founder"].includes(userData.role);
+  // Lot 17a : même règle pour Premium (revérifiée par la RPC).
+  const canModerate = role === "admin_ops" || role === "admin_founder";
 
   return (
     <CandidateProfileAdminClient

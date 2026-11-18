@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Shield,
   Sparkles,
-  Star,
   BarChart3,
   HeadphonesIcon,
   Palette,
@@ -136,7 +135,6 @@ type PillarKey =
   | "control"
   | "security"
   | "aiTalent"
-  | "priorityPool"
   | "reporting"
   | "accountManager"
   | "branding"
@@ -146,7 +144,6 @@ const PILLAR_ICONS: Record<PillarKey, LucideIcon> = {
   control: Settings2,
   security: Shield,
   aiTalent: Sparkles,
-  priorityPool: Star,
   reporting: BarChart3,
   accountManager: HeadphonesIcon,
   branding: Palette,
@@ -156,14 +153,13 @@ const PILLAR_ICONS: Record<PillarKey, LucideIcon> = {
 function pillarsForPlan(plan: CompanyPlan): PillarKey[] {
   switch (plan) {
     case "starter":
-      return ["control", "security", "priorityPool"];
+      return ["control", "security"];
     case "pro":
-      return ["control", "security", "priorityPool", "aiTalent", "reporting"];
+      return ["control", "security", "aiTalent", "reporting"];
     case "business":
       return [
         "control",
         "security",
-        "priorityPool",
         "aiTalent",
         "reporting",
         "accountManager",

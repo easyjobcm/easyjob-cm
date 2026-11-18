@@ -176,6 +176,9 @@ describe("échéance d'un plan", () => {
     };
     expect(nextEntitlementDeadline(both, NOW)).toBe(10_000);
     expect(expireLocally(both, NOW + 10_000).candidate?.premium).toBe(false);
+    // Lot 17a : à l'échéance exacte, le plan affiché devient Free.
+    expect(expireLocally(both, NOW + 10_000).candidate?.plan).toBe("free");
+    expect(expireLocally(both, NOW + 9_999).candidate?.premium).toBe(true);
   });
 
   it("valide la réponse de my_account_state", () => {

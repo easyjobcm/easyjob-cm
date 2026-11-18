@@ -1,5 +1,6 @@
 // Helpers de différenciation des statuts utilisateurs (candidat / entreprise).
-// Source de vérité : users.role + subscriptions.plan + candidate_profiles.premium_until.
+// Plan candidat effectif : candidate_effective_plan en base (lot 17a),
+// lu par my_account_state ; jamais le rôle seul.
 
 export type UserRole =
   | "candidate"
@@ -11,10 +12,6 @@ export type UserRole =
   | "admin_founder";
 
 export type CompanyPlan = "free" | "starter" | "pro" | "business";
-
-export function isCandidatePremium(role: string): boolean {
-  return role === "candidate_premium";
-}
 
 /**
  * Rôle entreprise, standard ou premium : mêmes écrans entreprise, comme les

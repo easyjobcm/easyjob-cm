@@ -14,7 +14,6 @@ interface MatchResult {
     completion: number;
     availability: number;
     location: number;
-    premium: number;
   };
   reasons: string[];
 }
@@ -56,7 +55,6 @@ export async function calculateMatchScore(
         completion: 0,
         availability: 0,
         location: 0,
-        premium: 0,
       },
       reasons: ["Candidat ou offre non trouve"],
     };
@@ -68,7 +66,6 @@ export async function calculateMatchScore(
     completion: 0,
     availability: 0,
     location: 0,
-    premium: 0,
   };
   const reasons: string[] = [];
 
@@ -127,11 +124,8 @@ export async function calculateMatchScore(
     breakdown.location = 30;
   }
 
-  // 7. Premium status (5% — SRS §6.5)
-  const isPremium =
-    candidate.premium_until && new Date(candidate.premium_until) > new Date();
-  breakdown.premium = isPremium ? 100 : 0;
-  if (isPremium) reasons.push("Candidat premium");
+  // Statut premium : retiré au lot 17a. Le plan d'un candidat n'est jamais
+  // communiqué à une entreprise et ne classe personne (AUDIT.md §39).
 
   // 5. Availability Match (10% — SRS §6.5)
   if (
@@ -188,17 +182,17 @@ export async function calculateMatchScore(
   if (completion >= 90) reasons.push("Profil très complet");
   else if (completion >= 60) reasons.push("Profil complet");
 
-  // Pondérations SRS §6.5 sans le niveau Sandbox (20 %, retiré au lot 9b) :
-  // 30/15/10/10/10/5, ramenées sur 100 en gardant leurs proportions. La
-  // note n'est ni un seuil ni un critère de tri à part.
+  // Pondérations SRS §6.5 sans le niveau Sandbox (20 %, lot 9b) ni le
+  // statut premium (5 %, lot 17a) : 30/15/10/10/10, ramenées sur 100 en
+  // gardant leurs proportions. La note n'est ni un seuil ni un critère de
+  // tri à part.
   const score = Math.round(
     (breakdown.skills * 0.3 +
       breakdown.rating * 0.15 +
       breakdown.completion * 0.1 +
       breakdown.availability * 0.1 +
-      breakdown.location * 0.1 +
-      breakdown.premium * 0.05) /
-      0.8,
+      breakdown.location * 0.1) /
+      0.75,
   );
 
   return {

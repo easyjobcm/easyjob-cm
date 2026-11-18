@@ -44,3 +44,15 @@ export function doualaLocalToIso(value: string): string | null {
   const iso = `${value}:00+01:00`;
   return Number.isNaN(Date.parse(iso)) ? null : iso;
 }
+
+/** Date complète (année comprise) et heure d'un instant, en heure de Douala. */
+export function doualaFullDateTime(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(tag(locale), {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: MISSION_TIME_ZONE,
+  }).format(new Date(iso));
+}

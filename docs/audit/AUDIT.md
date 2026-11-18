@@ -2710,3 +2710,195 @@ Navigateur (Chrome headless, 375 × 812 tactile, build de production relié à `
 - **Délais** : appliqués aux dossiers ouverts par le candidat (l'entreprise doit répondre). Un dossier ouvert par l'entreprise n'a pas de relance automatique du candidat.
 - **Tâche planifiée** : passage réel de pg_cron non observé sur la pile locale ; le balayage est appelé par la preuve. À vérifier après déploiement (`cron.job`, premier passage).
 - **Journée jamais commencée** : toujours ni code ni confirmation, quelle que soit la voie.
+
+---
+
+## 38. Audit ciblé — abonnements candidat Free/Premium, préparation du lot 17 (2026-11-17)
+
+Branche `feat/lot-16-completion-disputes`, commit `071f4b7` (lot 16), arbre propre ; stash `lint-staged automatic backup` conservé. Revue documentaire : aucun code, aucune migration ni aucun écran modifié ; aucune preuve RLS rejouée. Décisions inscrites : `PLAN_ACTION.md` (lot 17), SRS §5.2, §5.3, §6.11 et §11.9.
+
+### Grille actuelle : annoncée et appliquée
+
+| Avantage annoncé | Emplacement | Comportement réel | Contrôle côté serveur | Écart | Traitement proposé |
+|---|---|---|---|---|---|
+| Prix 1 000 FCFA / mois | `lib/i18n/fr.ts` et `en.ts` (`profile.upgradePremium.price`, `pricePeriod` ; FAQ « Comment fonctionne Premium ? ») ; SRS §6.11 ; US-SUB-01 (J+30) | Prix affiché, sans paiement. « Contactez le support » (`subscribeUnavailable`, `renewalNote`) | Aucun : `subscriptions` n'est écrite que par la clé service (lot 2, F-06) et n'est pas reliée au candidat | Durée non encodée (« mois » à l'écran, J+30 dans US-SUB-01) | Conserver le prix existant comme référence. Durée à fixer (30 jours ou mois civil) |
+| Activation, échéance, plan effectif | `my_account_state` (`20261107150000_app_realtime_signals.sql`) ; miroir `isCandidatePremiumActive` (`lib/utils/company-plan.ts`) ; `/upgrade/candidate` | Premium actif si `users.role = candidate_premium` **et** `premium_until > now()`. Bascule à l'échéance sur l'heure du serveur, sans écriture | Colonnes protégées (lots 1 et 2) ; aucune RPC d'activation ; aucun écran admin (la fiche admin lit seulement `premium_until`) | Activation par SQL en clé service, sans audit ni motif. Deux sources : `profile-completion-widget.tsx:123` lit le rôle seul (CTA masqué pour un Premium expiré) ; `lib/matching/ai-matching.ts:131` lit `premium_until` seul | RPC admin gardée et auditée ; fonction SQL unique du plan effectif à un instant donné, réutilisée par le lot 17 |
+| « Priorité sur toutes les candidatures », « Votre profil remonte en premier auprès des entreprises » | `profile.upgradePremium.bullets.priority`, `profile.premium.benefits.priority` (FR/EN) ; `PremiumBanner`, `PremiumBenefits`, `/upgrade/candidate` ; SRS §6.5 (5 %), §6.11 | `company_job_applicants` (`20261116120000_contract_selection.sql`) trie par `starts_at`, `match_score`, `created_at`. `match_score` n'est écrit par aucune RPC : l'ordre réel est la date de candidature. Le plan n'est pas transmis à l'entreprise | Aucun | **Promesse affichée non tenue.** Le poids de 5 % existe dans `ai-matching.ts`, mais `/api/matching` n'a aucun appelant et n'écrit rien | Retirer le texte (lot 17a). Toute priorité future suit les mécanismes ci-dessous |
+| « Accès aux offres exclusives Premium » | `bullets.exclusive`, `premium.benefits.exclusive` (FR/EN) ; SRS §6.11 | Aucune offre réservée : ni colonne sur `jobs`, ni filtre de liste, ni contrôle dans `apply_to_job` | Aucun | **Promesse affichée non tenue** | Retirer, sans la remplacer (voir grille proposée) |
+| Badge Premium visible par les entreprises | SRS §6.11, US-SUB-01 ; slogan « Démarquez-vous auprès des entreprises » | `PremiumBadge` seulement sur le profil du candidat (`candidate-profile-client.tsx:366`). La RPC des candidats n'expose aucun indicateur de plan | — | Le slogan suggère une visibilité qui n'existe pas | Ne pas exposer le plan aux entreprises ; reformuler le slogan |
+| Paiement accéléré (48 h, 50/50, 7 jours) | SRS §5.3, §6.11, §7 ; US paiement et US EasyBot (trois paliers) | Retiré des écrans au lot 9 (`premium-benefits.tsx`, `payment-delay-info.tsx` ignore le rôle). EasyBot n'en parle pas et refuse tout délai (`lib/chat/system-prompt.ts`). Aucun versement | — | Reste dans le SRS et les user stories seulement | Ne pas réintroduire avant le lot paiement |
+| Annulation, frais, sanctions | SRS §5.3 (moins de 24 h : perte des niveaux supérieurs ; absence : blocage 7 jours, bannissement à 3) ; SRS §11.9 | Aucun parcours d'annulation après sélection : `withdraw_job_application` refuse hors `pending` et `shortlisted` (`application_not_withdrawable`). `reputation_incidents` sans producteur. `cancellation_penalties`, `no_show_count`, `late_cancellation_count` jamais écrits. Aucune différence entre les plans | Base : manquement appliqué (−5) si une ligne existe (lot 9c) | Règles du SRS obsolètes (niveaux retirés) ; aucune souplesse Premium | Lot 17 (décisions ci-dessous) |
+| Accompagnement, support | Centre d'aide, dossiers et contestations (lots 14 à 16) | Identiques pour tous les candidats ; aucune file prioritaire | Grades admin seuls | Aucun | Conserver l'égalité d'accès |
+| Alertes, filtres, favoris | Aucune annonce candidat Premium ; `job_favorites` lu par `app/api/jobs/[id]/route.ts` | Pas d'alerte de nouvelle offre ; filtres de liste communs | — | Aucun | Option future (grille proposée) |
+| Accueil et EasyBot | `home` (« Inscription gratuite ») ; `CHAT_SYSTEM_PROMPT` | Aucune mention de Premium | — | Aucun | Mettre EasyBot à jour quand la grille est livrée |
+
+Trois constats transverses :
+
+- les deux avantages présentés aujourd'hui sur la page d'abonnement, le profil et la bannière ne sont pas livrés. `tests/user-facing-claims.test.ts` ne les détecte pas : ajouter ces formules au test lors de leur retrait ;
+- la réputation est indépendante du plan, en base (`20261109120000_reputation_stars.sql`, en-tête) comme dans le SRS §5.2 ;
+- côté entreprise, `premiumCompany…priorityPool` (« Vos offres remontent en premier auprès des candidats Premium et notés 4★+ ») annonce aussi un mécanisme inexistant. Ce texte relève du futur lot « Design entreprise » ou d'un lot sur les plans entreprise.
+
+### Décisions validées pour le lot 17 (2026-11-17)
+
+Elles figurent dans `PLAN_ACTION.md` (lot 17) et dans le SRS §5.2. Après sélection : Free annule sans sanction jusqu'à 48 h avant la journée, Premium jusqu'à 24 h ; les limites exactes sont incluses ; une annulation reste signalable après le délai ; la décision du support précède toute sanction ; un empêchement reconnu ne donne aucune sanction ; une annulation tardive injustifiée ou une absence injustifiée confirmée retire 5 unités d'expérience ; un événement (y compris l'abandon de plusieurs journées dans une même demande) donne un seul manquement ; le retrait avant sélection reste sans sanction ; un retard suivi du travail peut figurer dans l'avis privé, sans sanction automatique. Journées au choix : l'annulation vise les journées désignées. Période complète : le support examine la poursuite et le remplacement. Les réalisations antérieures sont conservées.
+
+Référence horaire proposée pour l'implémentation : début figé de la journée (lot 11b), heure de la base, affichage `Africa/Douala` (UTC+1, sans heure d'été). Exemple : journée du samedi 21 novembre à 08:00. Free sans sanction jusqu'au jeudi 19 à 08:00:00 inclus, Premium jusqu'au vendredi 20 à 08:00:00 inclus ; à 08:00:01, l'annulation est tardive et transmise au support. Une journée de nuit 22:00 → 06:00 se compte depuis 22:00.
+
+### Points à arbitrer avant l'implémentation
+
+**1. Plan retenu pour le délai.** Exemple commun : journée du samedi 21 novembre à 08:00, sélection le lundi 16 à 10:00.
+
+| Option | Cas A : Free à la sélection, Premium activé jeudi 19 à 11:00, annulation jeudi 19 à 12:00 (J−44 h) | Cas B : Premium à la sélection, échu mercredi 18 à 23:59, annulation vendredi 20 à 07:30 (J−24 h 30) | Conséquences |
+|---|---|---|---|
+| Plan à l'annulation | Sans sanction (limite Premium : vendredi 08:00) | Tardive (limite Free : jeudi 08:00) | Simple, mais permet d'acheter Premium pour annuler. L'entreprise ne peut pas prévoir le préavis |
+| **Plan figé à la sélection (recommandé)** | Tardive, transmise au support | Sans sanction | Prévisible pour les deux parties, comme les conditions figées du contrat. Valeur à enregistrer par `sign_and_select` sur l'engagement, hors empreinte du contrat. Journées au choix : figée à chaque sélection |
+| Le plus favorable des deux | Sans sanction | Sans sanction | Protège le candidat ; garde l'effet d'aubaine |
+| Premium aux deux instants | Tardive | Tardive | Le plus strict ; difficile à expliquer |
+
+Si le plan est figé, l'entreprise doit voir la date limite d'annulation sans sanction de chaque engagement, sans mention du plan.
+
+**2. Expiration ou activation après sélection.** Avec un plan figé, ni l'échéance ni l'activation ne changent un engagement déjà pris. Avec le plan à l'annulation, l'échéance raccourcit le préavis (cas B) et l'activation l'allonge (cas A). À trancher dans les deux cas : une activation retirée par le support pour erreur rétablit-elle le délai Free sur les engagements pris pendant cette activation ?
+
+**3. Sélection faite quand le délai sans sanction est déjà passé.** Le cas n'est pas réservé aux offres urgentes. En régime normal, la sélection reste ouverte jusqu'à H−24 (lot 11b) :
+
+- journée du samedi 21 à 08:00 et sélection le jeudi 19 à 20:00 (J−36 h) : le délai Free est dépassé depuis 12 h ; il reste 12 h à un Premium ;
+- offre urgente publiée le vendredi 20 à 12:00 pour le samedi 21 à 06:00, sélection le vendredi 20 à 15:00 : les deux délais sont dépassés (Free : jeudi 06:00, Premium : vendredi 06:00). La sélection reste possible jusqu'au samedi 04:00 (H−2).
+
+| Option | Effet | Conséquences |
+|---|---|---|
+| Stricte | Toute annulation après une telle sélection est tardive et examinée | Simple. Lourd pour un candidat qui a postulé des jours plus tôt et n'est prévenu que dans l'application (aucune notification push) |
+| **Délai de réaction après la sélection (recommandé)** | Annulation sans sanction pendant N heures après la sélection, sans dépasser un seuil avant le début (valeurs à fixer ; exemple : 2 h, au plus tard H−3) | Exemple urgent : sélection vendredi 15:00 → sans sanction jusqu'à 17:00 ; l'entreprise peut encore resélectionner jusqu'au samedi 04:00. Délai et date affichés dans *Tâches* |
+| Sans sanction jusqu'à la signature du contrat par le candidat | Le délai part de la signature | Incite à ne pas signer (la mission peut commencer sans signature, lot 13) ; déconseillé |
+
+Dans tous les cas, afficher avant l'envoi de la candidature la règle applicable si la sélection arrive tard.
+
+**4. Abandon de plusieurs journées dont certaines sont hors délai.** Exemple : journées au choix lundi 23, mardi 24 et mercredi 25 novembre à 08:00, candidat Free, demande le samedi 21 à 10:00. Lundi est à J−46 h (hors délai) ; mardi (J−70 h) et mercredi (J−94 h) sont dans le délai.
+
+| Option | Effet | Conséquences |
+|---|---|---|
+| Demande jugée en bloc | Un dossier pour les trois journées ; un seul manquement (−5) au plus | Simple ; libère mardi et mercredi seulement après la décision du support |
+| **Partage de la demande (recommandé)** | Mardi et mercredi annulés aussitôt, sans examen ; lundi forme l'événement unique soumis au support | Même sanction maximale (−5, une fois) ; places libérées aussitôt (sélection de mardi ouverte jusqu'au lundi 08:00) |
+| En complément | Avant l'envoi, état de chaque journée affiché (« sans sanction » ou « examinée par le support ») ; le candidat peut garder lundi | Moins d'abandons tardifs |
+
+Période complète (lundi 23 à mercredi 25), annulation le lundi 23 à 20:00 après une journée de lundi confirmée : mardi est à J−12 h, la demande est tardive. Elle forme un seul événement et le support examine la poursuite et le remplacement. La journée de lundi reste acquise. La mission n'étant pas entièrement réalisée, elle ne rapporte pas d'unité (règle du lot 12). Le forfait n'est pas divisé (lot paiement).
+
+**Point découvert : préavis Premium et fermeture de la sélection.** Une annulation Premium faite à J−24 h exactement arrive quand la sélection d'une offre normale vient de se fermer (refus à H−24 exact, lot 11b). L'entreprise ne peut alors plus remplacer la place par la plateforme. Avec le délai Free (J−48 h), il lui reste 24 h. La souplesse Premium suppose donc une règle de remplacement : sélection rouverte pour la seule place libérée jusqu'à H−2, remplacement par le support, ou aucun remplacement. C'est à décider au lot 17d, car aucune réouverture silencieuse n'est admise (lot 11b).
+
+### Grille Free/Premium proposée
+
+Constantes pour les deux plans : candidature à toutes les offres publiées selon les mêmes exigences (CNI valide, documents, compétences, profil ≥ 60 %) ; réputation selon les règles d'étoiles du §5.2 ; vérification des documents ; support, signalements, contestations et révision interne ; contrat, PDF et montant fixe selon le contrat. Prix : seul existe 1 000 FCFA / mois (textes FR/EN, SRS §6.11) ; aucun nouveau prix n'est proposé.
+
+| Avantage | Plan | Bénéfice candidat | Valeur entreprise | Dépendance technique, coût opérationnel | Effet sur Free | Quand |
+|---|---|---|---|---|---|---|
+| Annulation sans sanction jusqu'à J−48 h | Free | Règle claire, affichée par engagement | Préavis qui laisse 24 h pour resélectionner en régime normal | Lot 17 ; dossiers support pour les annulations tardives | — | Lot 17 |
+| Annulation sans sanction jusqu'à J−24 h (acquis) | Premium | Souplesse face aux imprévus | Faible, voire négative : préavis plus court. À compenser par la règle de remplacement | Lot 17 ; plan effectif fiable et tracé (17a) | Aucun | Lot 17 |
+| Relevé d'expérience PDF (missions et journées confirmées, entreprises, dates ; sans avis ni montant) | Premium | Preuve d'expérience hors plateforme | Indirecte : candidats plus investis | Générateur PDF du lot 13 et données existantes ; coût faible ; à ne pas présenter comme une attestation officielle | Aucun : l'historique reste visible dans l'application | Réalisable après le lot 17 |
+| Alerte de nouvelle offre correspondant aux compétences et à la ville | Premium | Être informé plus tôt | Plus de candidatures rapides, surtout pour les offres urgentes | Notification dans l'application et signal temps réel, déclenchés à la publication (`moderate_job`) ; volume à limiter. Pleine valeur avec les notifications push (non livrées) | Léger avantage de rapidité ; la liste reste commune et toutes les offres restent visibles | Partielle maintenant ; complète avec les notifications push |
+| Priorité d'affichage (option à arbitrer) | Premium | Être vu plus tôt dans la liste | Discutable : le tri ne reflète plus le mérite | Voir les mécanismes ci-dessous | Recul dans la liste | Non recommandée tant que le classement n'est pas défini |
+| Paiement de l'abonnement en libre-service | Les deux | Activation sans le support | — | Lot paiement (fournisseur, webhooks, rapprochement) | — | Lot paiement |
+
+Mécanismes de priorité envisageables, tous sans effet sur la liberté de choix (l'entreprise voit tous les candidats et sélectionne qui elle veut) :
+
+1. **Tri secondaire.** Premium avant Free à l'intérieur de chaque journée, puis par date. Comme `match_score` est vide, l'abonnement deviendrait le premier critère de tri réel : un Free arrivé plus tôt passerait derrière un Premium arrivé plus tard. À limiter à des candidats à égalité sur un critère de mérite défini, s'il en existe un.
+2. **Candidature anticipée.** Premium avant Free pendant un temps après la publication. Défavorable aux Free et aux offres urgentes ; déconseillé.
+3. **Mise en avant signalée.** Libellé « Premium » visible par l'entreprise. Ce n'est pas un signal de fiabilité, puisque le préavis Premium est plus court ; déconseillé.
+
+Ne sont pas proposés : offres exclusives (moins de candidats par offre, Free exclus), paiement accéléré (aucun versement), sélection garantie, file prioritaire de vérification documentaire (ralentirait l'inscription des Free).
+
+**Lecture commerciale.** Après retrait des promesses non livrées, Premium repose sur la souplesse d'annulation, puis sur le relevé et les alertes. Sa valeur reste mince tant que le paiement et les notifications push ne sont pas livrés. Il est conseillé de ne pas promouvoir Premium avant la livraison du lot 17.
+
+### Décisions encore nécessaires
+
+1. Plan retenu pour le délai : à la sélection (recommandé) ou à l'annulation ; sort d'une activation retirée par le support.
+2. Sélection après le délai : option, durée N du délai de réaction et seuil avant le début.
+3. Abandon mixte : partage de la demande (recommandé) ou demande jugée en bloc.
+4. Remplacement après annulation : réouverture de la sélection pour la place libérée, remplacement par le support ou aucun remplacement (règle du lot 11b à amender explicitement).
+5. Empêchement : justificatifs acceptés, délai de dépôt, grade qui décide (`admin_ops`/`admin_founder` comme aux lots 14 à 16, double validation ou non) ; constat d'une absence injustifiée sur les dossiers du lot 14.
+6. Blocage de 7 jours et bannissement à trois absences (SRS §5.3, §11.9) : remplacés par le retrait de 5 unités ou conservés en plus.
+7. Côté entreprise, encore ouvert : délai de 12 h, trois décisions en 90 jours, offre partiellement pourvue, imputabilité, pénalité de 20 % (lot paiement).
+8. Premium : durée (30 jours ou mois civil), priorité retenue ou non, relevé et alertes retenus ou non, visibilité du plan par l'entreprise (déconseillée).
+
+### Ordre d'implémentation proposé
+
+1. **17a — Plan effectif candidat et textes.** Fonction SQL unique du plan à un instant donné ; RPC admin d'activation et de prolongation (grade, motif, `audit_logs`, signal `subscription`) ; widget et matching alignés ; promesses « priorité » et « offres exclusives » retirées en FR et EN, puis ajoutées à `user-facing-claims`.
+2. **17b — Annulation par le candidat après sélection.** Journées désignées ou période complète ; délai figé et limite incluse ; date limite affichée aux deux parties ; demande partagée selon le point 4 ; annulation tardive transmise comme signalement.
+3. **17c — Décision du support et manquement unique.** Producteur de `reputation_incidents` (un événement, un retrait) ; empêchement reconnu ; absence injustifiée confirmée sur les dossiers du lot 14 ; `protect_reputation_incidents` aligné sur la journée ; annulation de décision (solde rétabli, déjà en base).
+4. **17d — Entreprise.** Information, place libérée, remplacement ; annulation par l'entreprise (arbitrages du point 7).
+5. **Lot Free/Premium**, après le lot 17 : page d'abonnement réécrite, relevé d'expérience, alertes dans l'application, EasyBot. Puis notifications push, puis paiement (abonnement en libre-service, pénalités, versements).
+
+---
+
+## 39. Suivi — Lot 17a : plan candidat effectif, attribution administrative de Premium et conditions figées à la sélection (2026-11-17)
+
+Branche `feat/lot-17a-candidate-subscriptions`, créée depuis `origin/main-dev` (`071f4b7`, lot 16 intégré). Les trois documents de l'audit du §38 sont conservés tels quels dans la branche. Migration `20261121120000_candidate_premium_plan.sql`. Non commité (travail local ; aucun déploiement effectué depuis ce travail). Essais sur la pile `easyjob-proof` uniquement. Règles produit : SRS §5.2, §6.5 et §6.11.
+
+### Lectures du plan, avant et après
+
+| Lecture | Avant | Après (lot 17a) |
+|---|---|---|
+| Base | `my_account_state` : rôle `candidate_premium` et `premium_until > now()`, règle écrite en ligne | `candidate_effective_plan(utilisateur, instant)` : même règle, en un seul endroit, fin exacte exclue. Fonction fermée aux sessions. Lue par `my_account_state`, `admin_candidate_premium`, `admin_manage_candidate_premium` et le trigger de sélection |
+| État du compte (client) | `candidate.premium` ; bascule locale à l'échéance | Ajout de `candidate.plan` (`free`, `premium`) et `premium_started_at` ; `expireLocally` repasse en Free à l'instant exact (test unitaire) ; minuterie sur l'heure du serveur inchangée |
+| Profil candidat, `/upgrade/candidate` | `useAccountState` + `isCandidatePremiumActive` réécrits dans chaque écran | Hook unique `useCandidatePlan` (`my_account_state`, puis rendu serveur avec la même règle en attendant) |
+| Widget de complétude | `isCandidatePremium(role)` : rôle seul, un Premium échu passait pour Premium | Incitation retirée ; `isCandidatePremium` supprimée |
+| Matching (`lib/matching/ai-matching.ts`) | `premium_until` seul, poids 5 %, motif « Candidat premium » renvoyé à l'appelant | Critère retiré (poids ramenés sur 75 %) — **décision validée le 2026-11-18** ; une priorité éventuelle sera définie avec la future grille commerciale. La route `/api/matching` n'a aucun appelant ; le plan n'est jamais renvoyé à une entreprise |
+| Fiche admin | `premium_until` brut (« jusqu'au » une date passée) | Panneau « Premium (attribution administrative) » : plan effectif, début, fin, historique |
+| Routes de profil candidat | Rôle `candidate` ou `candidate_premium` : contrôle d'accès, pas de plan | Inchangées |
+| RPC métier | `apply_to_job`, `sign_and_select`, réputation, signalements : aucune lecture du plan | Inchangées ; seul le trigger des conditions d'engagement lit le plan |
+
+`users.role` reste `candidate_premium` après une échéance naturelle (aucune écriture à l'échéance, décision du lot 7d) ; seul le calcul fait foi. `app_metadata.role` du jeton n'est pas mis à jour : le middleware ne l'utilise que pour reconnaître un admin.
+
+### Réalisation
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Attribution | `admin_manage_candidate_premium(request_id, candidat, opération, fin, fin attendue, motif)`. Grade : `is_ops_admin_user` (`admin_ops`, `admin_founder`, compte actif) ; auteur = `auth.uid()`. Verrous `users` puis `candidate_profiles`. Activer : Free exigé, fin explicite et future (borne technique : avant le 10000-01-01 UTC, voir « Points de revue »), début = maintenant, rôle `candidate_premium`. Prolonger : Premium exigé, fin postérieure à la fin actuelle, début conservé. Arrêter : fin = instant de l'arrêt (Free aussitôt), rôle `candidate`. Motif de 10 à 500 caractères. |
+| Idempotence, concurrence | Relance du même `request_id` : résultat d'origine (`already_applied`), sans nouvel historique, audit ni notification. Même clé avec d'autres paramètres ou un autre candidat : `request_conflict`. « Fin attendue » différente de l'état verrouillé : `premium_state_changed` (deux agents ne s'écrasent pas). |
+| Trace | `candidate_premium_grants` en ajout seul (opération, début de période, fin précédente, fin, motif, auteur et grade, `source = 'admin_grant'`). Écriture du plan, historique, `audit_logs` (`candidate_premium_<opération>`) et notification FR/EN dans la même transaction. Aucune ligne dans `subscriptions` ni `payments` : ce n'est pas une preuve de paiement. |
+| Lecture | `admin_candidate_premium` (`is_admin_user` : les trois grades actifs) ; route `GET/POST /api/admin/candidates/[id]/premium` (Zod, codes traduits, session sans clé service). |
+| Conditions d'engagement | `mission_day_commitment_terms` : une ligne par journée créée par une sélection réussie (`trg_record_mission_day_commitment_terms`, `AFTER INSERT` sur `mission_days`, dans la transaction « Signer et sélectionner »). Champs : plan effectif à `job_applications.selected_at`, délai (Free 48, Premium 24, contrainte de cohérence), instant de sélection. Période complète : mêmes conditions pour chaque journée. Journées au choix : une sélection par journée, donc des conditions propres. Immuables pour tout auteur (clé service comprise), fermées aux sessions, sans signal temps réel. Le contrat, son empreinte et l'aperçu ne changent pas. |
+| Temps réel | Signaux existants : `candidate_profiles` → `subscription` (candidat et canal admin), `users` → `account`, `notifications`. Le panneau admin écoute `admin:subscription`. Aucun signal vers l'entreprise. |
+| Écrans | Profil : carte « Mon plan » (Free ou Premium, fin en heure de Douala). `/upgrade/candidate` : plan, début ou dernière fin, attribution par l'équipe, mêmes règles pour les deux plans, contact du support ; ni prix, ni avantage, ni bouton d'abonnement. FAQ et EasyBot alignés. Souplesse d'annulation non annoncée avant le lot 17b. |
+| Promesses retirées | « Priorité sur toutes les candidatures », « Votre profil remonte en premier », « Offres exclusives », « Passez à Premium », prix 1 000 FCFA à l'écran ; côté entreprise, pilier « Pool de talents prioritaire » (offres « remontant en premier auprès des candidats Premium »). `user-facing-claims` les refuse dans les dictionnaires, EasyBot, l'accueil et tout fichier de `app`, `components` et `hooks`. |
+
+### Arbitrages du 2026-11-18 (validés)
+
+1. **Matching** : le retrait du bonus Premium de 5 % est conservé. Une priorité éventuelle sera définie avec la future grille commerciale (mécanisme, effet sur le classement, liberté de choix de l'entreprise).
+2. **Engagements antérieurs sans plan connu** : chaque journée déjà sélectionnée au moment de la migration reçoit une ligne `terms_source = 'legacy'` dans `mission_day_commitment_terms` : plan et délai `null`, instant de sélection repris de `job_applications.selected_at` s'il existe. La reprise (`mark_legacy_commitment_terms()`, appelée par la migration) est idempotente et ne remplace jamais une ligne. Règle pour le lot 17b : **aucune sanction automatique d'annulation tardive** sur une journée `legacy` (ni sur une journée sans ligne), sur la base d'un plan ou d'un délai supposé. Les autres faits (absence, retard, code non remis…) restent examinés par le support selon leurs règles. Les nouvelles sélections gardent leurs conditions figées (`terms_source = 'selection'`). Comptage avant déploiement : requête en tête de la migration.
+3. **Délai de réaction (lot 17b)** : pour une sélection faite après le seuil personnel (48 h ou 24 h avant la journée), désistement sans sanction **jusqu'à `selected_at` + 1 h inclus**. L'origine est l'heure de sélection enregistrée en base (`mission_day_commitment_terms.selected_at`, égale à `job_applications.selected_at`). Exemple : journée le samedi à 08:00, candidat Free sélectionné le jeudi à 20:00:00 (J−36 h) → sans sanction jusqu'au jeudi 21:00:00 inclus. Une sélection urgente a lieu au plus tard à H−2 : le délai se termine donc au plus tard à H−1.
+4. **Notification découverte tardivement (lot 17b)** : le candidat peut signaler cette circonstance au support, qui l'examine avant toute sanction. La création d'une notification (`notifications.created_at`) et sa consultation (`read_at`, `is_read`) restent deux faits distincts ; aucun des deux ne déplace l'origine du délai. Aucune notification push n'existe.
+
+### Points de revue du lot 17a (2026-11-18)
+
+- **Page admin du candidat** : `app/admin/candidates/[id]/page.tsx` passe par `requireAdminPage` (session, grade, compte actif, relus en base à chaque rendu). Preuve A1 : un `admin_ops` suspendu avec une session ouverte avant la suspension est redirigé (`NEXT_REDIRECT`), `admin_ops` et `admin_support` actifs restent admis. Le layout redirige déjà ce cas ; la garde de la page couvre la navigation sans layout (audit F-31). Test `admin-guard` : la fiche doit utiliser la garde. Six autres pages admin lisent encore le grade sans filtre `is_active` : `candidates`, `cni`, `companies`, `momo`, `skill-documents`, `update-requests`. Elles sont antérieures au lot, hors périmètre, à corriger. Le test les liste et refuse toute nouvelle page dans ce cas.
+- **Limite de 366 jours** : elle n'avait aucune justification technique. C'était un garde-fou contre une faute de saisie, qui revenait à imposer une durée commerciale supposée. Elle est **retirée** (code `period_too_long` supprimé). Restent exigées une date de fin explicite et future, et pour prolonger postérieure à la fin actuelle. **Limite technique réelle** : fin strictement avant le `10000-01-01 00:00:00 UTC` (`candidate_premium_max_end()`, même borne dans Zod et `max` du champ). Postgres accepte bien plus loin, mais l'API (ISO 8601), Zod et le champ `datetime-local` n'acceptent que des années à quatre chiffres. La borne refuse aussi `infinity`. La minuterie client est déjà plafonnée (`MAX_TIMER_MS`). Preuve G7 : fins à trois ans puis au 9999-12-31 acceptées ; `infinity` et le 10000-01-01 refusés.
+- **Test `user-facing-claims`** : les motifs visent désormais les promesses non livrées dans leur contexte : priorité de candidature ou d'affichage, offres « exclusives » ou « réservées » aux Premium, versement accéléré. L'interdiction générale de « Passez à Premium », « Devenir Premium » et du prix est retirée, puisque le parcours commercial reste prévu au plan. Un test vérifie que les huit textes retirés au lot 17a sont détectés, et que ces appels et un prix restent autorisés.
+
+### Validation (pile `easyjob-proof`, build de production)
+
+- **Preuve `candidate-premium`** (26 assertions depuis les points de revue) : P1-P2 plan effectif et échéance exacte ; W1-W5 écritures refusées (candidat, tiers, `admin_support`, ops suspendu avec un jeton antérieur, anonyme ; fonction de plan fermée) ; G1-G6 activation, refus, prolongation, arrêt, historique, audit, notification, aucune ligne de paiement, signaux ; I1-I3 cinq relances simultanées, clé réutilisée, deux agents simultanés ; S1-S6 sélection Free puis activation, période complète Premium puis arrêt et relance, immuabilité, journées au choix avant et après expiration, instant exact de l'expiration (Free) et 1 µs avant (Premium), journée créée hors sélection ; L1 engagement historique (`legacy`, reprise idempotente) ; G7 fin lointaine acceptée, borne technique ; A1 page admin et admin suspendu ; C1 entreprise sans plan (aperçu, sélection, liste des candidats, signaux, lecture directe refusée).
+- Preuves ciblées pendant le développement : `account-security`, `business-permissions`, `contract-selection`, `multi-day-jobs`, `realtime`, `admin-candidate-profile` ✅ (172 s).
+- **Navigateur** (Chrome headless piloté par CDP, 375 × 812 tactile, script et comptes hors dépôt, deux sessions ops et candidat) : ✅ 27/27 en FR puis EN, en 40 s, puis 27/27 en 34 s après les points de revue. Plan Free puis Premium sur le profil sans rechargement (0,33 s après l'enregistrement), fin en heure de Douala, historique admin, « Mon plan » sans prix, arrêt reçu en 0,4 à 0,9 s, échéance sur écran ouvert (bascule 0,2 à 0,3 s après la fin), aucune ancienne promesse, aucun défilement horizontal, aucune erreur JavaScript.
+
+### Validation de l'état final
+
+Premier passage (2026-11-17), avant les points de revue : pile réinitialisée (57 s), Vitest 583 tests, suite RLS 36/36 (764 s), typage, lint, formatage, build, types identiques.
+
+Après les arbitrages et les points de revue (2026-11-18) :
+
+| Contrôle | Résultat |
+|---|---|
+| Pile `easyjob-proof` réinitialisée depuis les seules migrations (migration 17a modifiée : marquage `legacy`, borne technique) | ✅ 43 s |
+| `pnpm test` (Vitest), puis suite RLS complète, l'un après l'autre | ✅ 590 tests, 49 fichiers, 11 s (nouveau : `candidate-premium-validation`) |
+| `pnpm test:rls` (build de production relié à la pile) | ✅ 36/36 au premier passage, 797 s (`candidate-premium` : 26 assertions, 32 s) |
+| `pnpm exec prettier --check .` | ❌ au premier essai : `lib/i18n/fr.ts` et `en.ts` (nouveaux messages `period_invalid` trop longs), sortie conservée ; ✅ après `prettier --write` (formatage seul) |
+| `pnpm typecheck` (9 s), `pnpm lint` (45 s), `pnpm build` (27 s, sans avertissement), test `user-facing-claims` relancés après le reformatage | ✅ |
+| Types générés (pile réinitialisée) | ✅ identiques à `lib/database.types.ts` |
+| Navigateur, FR et EN, 375 px, deux sessions | ✅ 27/27 (34 s) |
+
+### Limites
+
+- Prix et durée commerciale non fixés ; aucun parcours de paiement ; l'attribution reste un acte du support.
+- Le candidat ne voit pas l'historique de ses attributions (notification dans l'application seulement).
+- Une activation antérieure faite en SQL a un début inconnu (affiché « Inconnu » côté admin).
+- Six pages admin antérieures lisent le grade sans filtre `is_active` (voir « Points de revue ») ; leurs données passent par des routes ou une RLS qui revérifient un compte actif.
+- Le test A1 ne sépare pas la garde de la page de celle du layout (les deux redirigent) ; la garde propre à la page est vérifiée par le test statique.

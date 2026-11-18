@@ -3,13 +3,12 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle2, Circle, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   type Criterion,
   getCandidateCompletionCtaHref,
 } from "@/lib/utils/profile-completion";
-import { isCandidatePremium } from "@/lib/utils/profile-status";
 
 interface ProfileCompletionWidgetProps {
   role: string;
@@ -95,8 +94,10 @@ export function ProfileCompletionWidget({
         <EssentialsSection criteria={criteria} isCandidate={isCandidate} />
         <OptionalCriteria criteria={criteria} isCandidate={isCandidate} />
 
-        {/* CTA */}
-        {clampedPct < 100 ? (
+        {/* CTA. Lot 17a : plus d'incitation à souscrire Premium (aucun
+            avantage livré à promettre) ; le plan reste visible sur le
+            profil et sur /upgrade/candidate. */}
+        {clampedPct < 100 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -118,30 +119,6 @@ export function ProfileCompletionWidget({
               </motion.span>
             </Link>
           </motion.div>
-        ) : (
-          isCandidate &&
-          !isCandidatePremium(role) && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="mt-5"
-            >
-              <Link href="/upgrade/candidate">
-                <motion.span
-                  whileTap={{ scale: 0.98 }}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full font-bold text-white shadow-lg shadow-[#7C3AED]/40"
-                  style={{
-                    background:
-                      "linear-gradient(135deg,#7C3AED 0%,#5B21B6 100%)",
-                  }}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {tc.premiumCta}
-                </motion.span>
-              </Link>
-            </motion.div>
-          )
         )}
       </motion.div>
     </div>

@@ -21,9 +21,18 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 | 9d | Détail d'offre mobile, tâches et CNI en cours de validité — **réalisé et vérifié localement, non déployé** | Décision produit du 2026-11-10 | Fonctionnel et UX | Moyen |
 | 10 | Documentation, consignes IA, nettoyage, journaux, CSP et fiabilité des preuves — **réalisé et vérifié localement, non déployé** | F-22, F-23, F-25, F-26, F-27, F-29, F-31 | Maintenance | Moyen |
 | 11 | Dossier entreprise vérifié par EasyJob (RCCM, NIU, représentant) — **réalisé et vérifié localement, non déployé ; vérifications DGI et greffe réelles hors preuve** | Suite de F-41 (lots 5b, 6) ; décision produit du 2026-11-11 | Fonctionnel et sécurité | Grand |
+| 11b | Échéances de candidature et de sélection, horaires figés après publication — **intégré à `origin/main-dev` (`f7b5259`), absent de `origin/main` ; déploiement distant non vérifié** ; compte rendu `AUDIT.md` §30 | Décision produit du 2026-11-11 | Fonctionnel et sécurité | Moyen |
 | 12 | Offres de plusieurs journées (période complète, journées au choix) — **réalisé et vérifié localement, non déployé ; arbitrages produit signalés** | Décision produit du 2026-11-11 | Fonctionnel et sécurité | Grand |
+| 13 | Contrat signé à la sélection — **intégré à `origin/main-dev` (`63bdaf6`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §32 | Décision produit (lot 13) | Fonctionnel et sécurité | Grand |
+| 14 | Incidents de mission par journée — **intégré à `origin/main-dev` (`45d522e`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §33 | Décision produit (lot 14) | Fonctionnel | Grand |
+| 14b | Contestations historiques réservées aux RPC admin — **intégré à `origin/main-dev` (`7bb5278`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §34 | Défaut constaté au lot 14 | Sécurité | Petit |
+| 14c | Next.js 16.4.5 (GHSA-mfr8-8qww-v76h) — **intégré à `origin/main-dev` (`021c5e6`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §35 | Avis de sécurité | Sécurité | Petit |
+| 15 | Fin de journée : code à l'heure de fin, confirmation par le support — **intégré à `origin/main-dev` (`78331c7`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §36 | Décision produit (lot 15) | Fonctionnel | Moyen |
+| 16 | Journées contestées : instruction, double validation, révision interne — **intégré à `origin/main-dev` (`071f4b7`), absent de `origin/main` ; déploiement distant non vérifié** ; `AUDIT.md` §37 | Décision produit (lot 16) | Fonctionnel | Grand |
 | — | Particuliers et professionnels non formalisés — **reporté (décision produit du 2026-11-11), non commencé** | — | Fonctionnel | À cadrer |
-| — | Engagements et annulations — **futur lot, à numéroter ; arbitrages produit attendus** | Dépendance du lot 9c | Fonctionnel | Moyen |
+| 17 | Engagements et annulations — **17a réalisé et vérifié localement, non commité ; 17b à 17d non commencés ; arbitrages restants** (audit Free/Premium : `AUDIT.md` §38 ; 17a : §39) | Dépendance du lot 9c | Fonctionnel | Grand (4 sous-lots) |
+
+Constats Git (2026-11-18) : `origin/main-dev` = `071f4b7` (lots 11 à 16 intégrés) ; `origin/main` = `e536ee1` (v0.1.10), sans aucun de ces lots. **Déploiements distants non vérifiés** : ni la production ni les previews n'ont été observées. Des previews Vercel peuvent exister (`vercel.json` les conserve, lot 4b). Dans ce tableau et les statuts des lots, « non déployé » reprend l'état noté par chaque lot à sa clôture ; ce n'est pas une observation du projet distant.
 
 ---
 
@@ -543,28 +552,51 @@ Convention de migration du dépôt : en-tête avec tables affectées et rollback
 - **À cadrer** : pièces exigibles sans RCCM ni NIU (identité, justificatif d'activité), limites de publication, libellé public distinct de « Dossier vérifié par EasyJob », obligations (contrat, déclaration) et responsabilité d'EasyJob.
 - **Dépendances** : lot 11 (mêmes contrôles manuels, historique et droit de publier en base).
 
-## Futur lot — Engagements et annulations (à numéroter)
+## Lot 17 — Engagements et annulations
 
-> **Statut** : à arbitrer avec le produit. Le lot 9c applique déjà une décision confirmée (−5 unités ; entreprise : trois décisions en 90 jours → un retrait ; annulation par le support → solde rétabli). Ce lot doit produire ces décisions.
+> **Statut** : **17a réalisé** sur `feat/lot-17a-candidate-subscriptions` (base `origin/main-dev`, `071f4b7`), **non commité** (`AUDIT.md` §39), points de revue traités le 2026-11-18 ; 17b à 17d non commencés. Décisions candidat validées le 2026-11-17 (ci-dessous, SRS §5.2) ; audit préalable des abonnements candidat et options chiffrées : `AUDIT.md` §38.
+>
+> **17a, en bref** : plan effectif calculé en un seul endroit (`candidate_effective_plan` : rôle `candidate_premium` et fin future, Free à l'instant exact de la fin) ; Premium attribué, prolongé ou arrêté par `admin_ops`/`admin_founder` actifs avec motif, historique en ajout seul, audit et notification dans une transaction, relances idempotentes, agents concurrents départagés par l'état lu ; aucune ligne de paiement. À chaque journée sélectionnée : plan, délai (Free 48 h, Premium 24 h) et instant de sélection figés (`mission_day_commitment_terms`), immuables et invisibles de l'entreprise. Promesses « priorité » et « offres exclusives » retirées, test `user-facing-claims` étendu. Journées sélectionnées avant le lot marquées `legacy` (plan et délai inconnus). Aucune durée de Premium imposée (borne technique : avant l'an 10000). Fiche admin du candidat derrière `requireAdminPage`. Preuve `candidate-premium` (26 assertions).
+>
+> **Avant déploiement** (lecture seule) : compter les journées sélectionnées qui seront marquées `legacy` (requête en tête de la migration `20261121120000`) et les candidats Premium en cours (`select count(*) from public.users u join public.candidate_profiles cp on cp.user_id = u.id where u.role = 'candidate_premium' and cp.premium_until > now();`) : leur début de période est inconnu. Le lot 9c applique déjà une décision confirmée (−5 unités ; entreprise : trois décisions en 90 jours → un retrait ; annulation par le support → solde rétabli). Ce lot doit produire ces décisions.
 
-- **Arbitrages attendus** :
-  - délai d'une annulation tardive : 24 h pour le candidat et 12 h pour l'entreprise (SRS §5.3), à confirmer ; même délai ou non pour le regroupement par trois de l'entreprise ;
+- **Décisions validées (2026-11-17), après sélection** :
+  - Free annule sans sanction au moins 48 h avant la journée, Premium au moins 24 h avant ; limites exactes incluses ;
+  - une annulation reste signalable après le délai ; la décision du support précède toute sanction ;
+  - empêchement reconnu par le support → aucune sanction ; annulation tardive injustifiée ou absence injustifiée confirmée → retrait de 5 unités d'expérience ;
+  - un même événement ne produit qu'un manquement ; l'abandon de plusieurs journées dans une même demande est un seul événement ;
+  - retrait avant sélection : sans sanction (inchangé) ; retard suivi du travail : mention possible dans l'avis privé, sans sanction automatique ;
+  - journées au choix : l'annulation vise les journées désignées ; période complète : le support examine la poursuite de l'engagement et le remplacement éventuel ; réalisations antérieures conservées.
+- **Décisions validées ensuite** : le délai dépend du plan effectif **au moment de la sélection réussie** (appliqué en 17a : une activation, une prolongation, un arrêt ou une échéance ultérieurs ne changent pas l'engagement) ; si la sélection intervient après le seuil personnel (48 h ou 24 h), le candidat peut se désister sans sanction jusqu'à **sélection + 1 h inclus** (17b).
+- **Arbitrages du 2026-11-18 (validés, `AUDIT.md` §39)** :
+  - matching : retrait du bonus Premium de 5 % conservé ; une priorité éventuelle sera définie avec la future grille commerciale ;
+  - engagements antérieurs sans plan connu : journées marquées `legacy` en 17a ; aucune sanction automatique d'annulation tardive sur la base d'un plan ou d'un délai supposé ; autres faits examinés par le support selon leurs règles ;
+  - délai de réaction : désistement sans sanction jusqu'à sélection + 1 h **inclus**, origine = heure de sélection enregistrée en base ;
+  - notification découverte tardivement : le candidat peut la signaler au support, qui l'examine avant toute sanction ; création et consultation de la notification restent deux faits distincts.
+- **Arbitrages candidat restants** (options et exemples horaires : `AUDIT.md` §38) : abandon mêlant journées dans et hors délai ; remplacement après une annulation Premium à J−24 h (sélection normale fermée au même instant, lot 11b) ; justificatifs, délai et grade de décision de l'empêchement ; sort du blocage de 7 jours et du bannissement (SRS §5.3, §11.9).
+- **Sous-lots proposés** (ordre d'implémentation) :
+  - **17a — réalisé** (§39) : plan effectif candidat unique en base, activation, prolongation et arrêt par RPC admin auditée, conditions figées à la sélection, écrans et matching alignés, promesses Premium non livrées retirées et refusées par `user-facing-claims` ;
+  - **17b** — annulation par le candidat après sélection (journées désignées ou période), à partir des conditions figées en 17a (délai et instant de sélection), délai de réaction jusqu'à sélection + 1 h inclus, aucune sanction automatique sur une journée `legacy` ou sans conditions, signalement d'une notification découverte tardivement examiné avant toute sanction, date limite affichée aux deux parties sans révéler le plan, annulation tardive transmise comme signalement ; souplesse d'annulation annoncée à la livraison ;
+  - **17c** — décision du support et manquement unique (producteur de `reputation_incidents`, absence injustifiée confirmée sur les dossiers du lot 14, `protect_reputation_incidents` aligné sur la journée) ;
+  - **17d** — entreprise : information, place libérée, remplacement, annulation par l'entreprise (arbitrages ci-dessous).
+- **Arbitrages attendus (entreprise et règles d'offre)** :
+  - délai d'une annulation tardive de l'entreprise : 12 h (SRS §5.3), à confirmer ; même délai ou non pour le regroupement par trois de l'entreprise ;
   - offre partiellement pourvue : une annulation compte-t-elle si une partie seulement des places est pourvue, ou si aucune sélection n'a eu lieu ;
   - imputabilité d'une annulation d'entreprise (motif, force majeure) ;
-  - absence : qui la constate, délai et forme du justificatif, validation (SRS §11.9) ;
-  - qui prononce la décision (support, parcours automatique) et comment elle est contestée ;
+  - absence de l'entreprise ou du candidat : qui la constate, délai et forme du justificatif, grade qui valide (SRS §11.9) ; pour le candidat, la décision revient au support (validé le 2026-11-17) ;
+  - contestation d'une décision de manquement (révision interne du lot 16 ou parcours propre) ;
   - remplacer la règle historique SRS « modification ou suppression jusqu'à 12 h avant le début » (non appliquée) et réexaminer la règle de lancement du lot 11b (dates et horaires figés après publication).
 - **Périmètre** : parcours d'annulation après sélection (candidat, entreprise, support), constat d'absence, écriture de `reputation_incidents` avec la décision et ses conditions vérifiées par le producteur, notifications, pénalités financières éventuelles (avec le lot paiement). Lot 12 : produire la résolution « absence validée avec remboursement effectivement confirmé » attendue par `reputation_company_offers` (aujourd'hui seul le travail confirmé résout un engagement), et les décisions du support sur les situations partielles (journée d'une période non confirmée : aucune division du forfait).
 - **Lot 14** : les faits (retard, absence, code non remis) et leur examen par le support existent désormais par journée (`mission_incidents`) ; ce lot décidera si et comment une décision « établie » produit une conséquence. `protect_reputation_incidents` raisonne encore à la mission (une journée confirmée, par code ou par le support depuis le lot 15, suffit à refuser une absence) : à aligner sur la journée.
-- **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5).
-- **Dépendances** : lot 9c ; lot paiement pour les pénalités ; lot 12 (journées de mission : une journée non confirmée reste non confirmée, sans sanction ni annulation des suivantes ; `protect_reputation_incidents` refuse aujourd'hui une absence sur une mission globale dont une journée est confirmée, règle à préciser).
-- **Taille** : moyen.
+- **Invariant à conserver** : la base applique une décision ; aucun seuil provisoire ne déclenche ni n'écarte une sanction (preuve `reputation`, B0 à B5). Les délais de 48 h et 24 h ne sanctionnent rien par eux-mêmes : ils distinguent l'annulation sans sanction de l'annulation transmise au support.
+- **Dépendances** : lot 9c ; lots 14 à 16 (dossiers par journée, double validation, révision interne) ; 11b et 12 (échéances, journées) ; lot paiement pour les pénalités ; lot 12 (journées de mission : une journée non confirmée reste non confirmée, sans sanction ni annulation des suivantes ; `protect_reputation_incidents` refuse aujourd'hui une absence sur une mission globale dont une journée est confirmée, règle à préciser).
+- **Taille** : grand (sous-lots 17a à 17d).
 
 ---
 
 ## Lots conservés au plan (à cadrer, non commencés)
 
-- **Free / Premium** : parcours d'abonnement (activation, changement, renouvellement, régularisation, essai, quotas d'offres actives) et affichage des seuls avantages livrés (lots 7d et 9, dépendances notées ci-dessus).
+- **Free / Premium** : parcours d'abonnement (activation, changement, renouvellement, régularisation, essai, quotas d'offres actives) et affichage des seuls avantages livrés (lots 7d et 9, dépendances notées ci-dessus). Audit candidat et grille proposée : `AUDIT.md` §38. Fait en 17a : plan effectif, attribution administrative auditée, page « Mon plan » sans prix ni avantage non livré, FAQ et EasyBot alignés. Restent des **propositions** : relevé d'expérience PDF, alertes dans l'application ; priorité d'affichage seulement dans la future grille commerciale (bonus de matching de 5 % retiré, décision du 2026-11-18) ; souplesse d'annulation annoncée à la livraison du lot 17b. **À décider** : prix (seul existe 1 000 FCFA / mois dans le SRS, retiré des écrans) et durée commerciale ; souscription en libre-service avec le lot paiement.
 - **Paiement** : voir « Hors plan » ci-dessous (Mobile Money, versements, pénalités, preuve de remboursement).
 - **EasyBot** : évolutions de l'assistant (`docs/chatbot.md`, quota du lot 8), sans nouvelle annonce de fonction non livrée.
 - **Design entreprise** : écrans entreprise (offres, candidatures, journées, signalements) à harmoniser avec le design candidat.

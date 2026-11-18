@@ -42,6 +42,44 @@ describe("garde admin : compte actif exigé", () => {
     expect(missing).toEqual([]);
   });
 
+  it("pages admin : le grade de session passe par requireAdminPage (compte actif)", () => {
+    // Lot 17a : la fiche candidat utilise la garde commune. Pages encore
+    // lues sans filtre is_active (antérieures, signalées AUDIT.md §39, à
+    // corriger) : la liste ne doit que diminuer.
+    const KNOWN_UNGUARDED = [
+      "app/admin/candidates/page.tsx",
+      "app/admin/cni/page.tsx",
+      "app/admin/companies/page.tsx",
+      "app/admin/momo/page.tsx",
+      "app/admin/skill-documents/page.tsx",
+      "app/admin/update-requests/page.tsx",
+    ];
+    const pages: string[] = [];
+    (function walkPages(dir: string) {
+      for (const e of fs.readdirSync(path.join(ROOT, dir), {
+        withFileTypes: true,
+      })) {
+        const rel = path.join(dir, e.name);
+        if (e.isDirectory()) walkPages(rel);
+        else if (e.name === "page.tsx") pages.push(rel.replace(/\\/g, "/"));
+      }
+    })("app/admin");
+    const unguarded = pages.filter((f) => {
+      const text = fs.readFileSync(path.join(ROOT, f), "utf8");
+      return [
+        ...text.matchAll(/\.from\("users"\)[\s\S]{0,400}?\.single\(\)/g),
+      ].some((m) => /\.select\("role/.test(m[0]) && !/is_active/.test(m[0]));
+    });
+    expect(unguarded).not.toContain("app/admin/candidates/[id]/page.tsx");
+    expect(
+      fs.readFileSync(
+        path.join(ROOT, "app/admin/candidates/[id]/page.tsx"),
+        "utf8",
+      ),
+    ).toMatch(/requireAdminPage\(/);
+    expect(unguarded.filter((f) => !KNOWN_UNGUARDED.includes(f))).toEqual([]);
+  });
+
   it("isAdminRole ne reconnaît que les trois grades", () => {
     expect(isAdminRole("admin_support")).toBe(true);
     expect(isAdminRole("admin_founder")).toBe(true);

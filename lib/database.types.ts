@@ -260,6 +260,66 @@ export type Database = {
           },
         ]
       }
+      candidate_premium_grants: {
+        Row: {
+          actor_id: string
+          actor_role: string
+          candidate_user_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          operation: string
+          period_started_at: string | null
+          previous_ends_at: string | null
+          reason: string
+          request_id: string
+          source: string
+        }
+        Insert: {
+          actor_id: string
+          actor_role: string
+          candidate_user_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          operation: string
+          period_started_at?: string | null
+          previous_ends_at?: string | null
+          reason: string
+          request_id: string
+          source?: string
+        }
+        Update: {
+          actor_id?: string
+          actor_role?: string
+          candidate_user_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          operation?: string
+          period_started_at?: string | null
+          previous_ends_at?: string | null
+          reason?: string
+          request_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_premium_grants_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_premium_grants_candidate_user_id_fkey"
+            columns: ["candidate_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_profiles: {
         Row: {
           address: string | null
@@ -300,6 +360,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step: number | null
+          premium_started_at: string | null
           premium_until: string | null
           profile_completion_pct: number
           profile_photo_url: string | null
@@ -349,6 +410,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step?: number | null
+          premium_started_at?: string | null
           premium_until?: string | null
           profile_completion_pct?: number
           profile_photo_url?: string | null
@@ -398,6 +460,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step?: number | null
+          premium_started_at?: string | null
           premium_until?: string | null
           profile_completion_pct?: number
           profile_photo_url?: string | null
@@ -1809,6 +1872,71 @@ export type Database = {
           },
           {
             foreignKeyName: "mission_completion_codes_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_day_commitment_terms: {
+        Row: {
+          application_id: string
+          cancellation_notice_hours: number | null
+          candidate_id: string
+          candidate_plan: string | null
+          mission_day_id: string
+          mission_id: string
+          recorded_at: string
+          selected_at: string | null
+          terms_source: string
+        }
+        Insert: {
+          application_id: string
+          cancellation_notice_hours?: number | null
+          candidate_id: string
+          candidate_plan?: string | null
+          mission_day_id: string
+          mission_id: string
+          recorded_at?: string
+          selected_at?: string | null
+          terms_source?: string
+        }
+        Update: {
+          application_id?: string
+          cancellation_notice_hours?: number | null
+          candidate_id?: string
+          candidate_plan?: string | null
+          mission_day_id?: string
+          mission_id?: string
+          recorded_at?: string
+          selected_at?: string | null
+          terms_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_day_commitment_terms_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_commitment_terms_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_commitment_terms_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_commitment_terms_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
@@ -3584,6 +3712,7 @@ export type Database = {
         Args: { p_body: string; p_incident_id: string }
         Returns: string
       }
+      admin_candidate_premium: { Args: { p_user_id: string }; Returns: Json }
       admin_confirm_mission_day: {
         Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
         Returns: {
@@ -3646,6 +3775,24 @@ export type Database = {
       admin_incident_evidence_path: {
         Args: { p_evidence_id: string }
         Returns: string
+      }
+      admin_manage_candidate_premium: {
+        Args: {
+          p_ends_at: string
+          p_expected_until: string
+          p_operation: string
+          p_reason: string
+          p_request_id: string
+          p_user_id: string
+        }
+        Returns: {
+          already_applied: boolean
+          grant_id: string
+          operation: string
+          plan: string
+          premium_started_at: string
+          premium_until: string
+        }[]
       }
       admin_mission_incident: { Args: { p_incident_id: string }; Returns: Json }
       admin_mission_incident_base: {
@@ -3919,6 +4066,11 @@ export type Database = {
         }
         Returns: Json
       }
+      candidate_effective_plan: {
+        Args: { p_at: string; p_user_id: string }
+        Returns: string
+      }
+      candidate_premium_max_end: { Args: never; Returns: string }
       candidate_profile_completion_pct: {
         Args: {
           p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
@@ -4481,6 +4633,7 @@ export type Database = {
         Args: { p_candidate_id: string }
         Returns: undefined
       }
+      mark_legacy_commitment_terms: { Args: never; Returns: number }
       mission_days_json: { Args: { p_mission_id: string }; Returns: Json }
       mission_incident_parties: {
         Args: { p_incident_id: string }

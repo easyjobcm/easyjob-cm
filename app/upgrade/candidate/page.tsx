@@ -30,7 +30,7 @@ export default async function UpgradeCandidatePage() {
 
   const { data: candidateProfile } = await supabase
     .from("candidate_profiles")
-    .select("average_rating, premium_until")
+    .select("premium_until")
     .eq("user_id", user.id)
     .single();
 
@@ -39,7 +39,6 @@ export default async function UpgradeCandidatePage() {
       <LiveRefresh keys={["subscription", "profile"]} />
       <UpgradeCandidateClient
         role={userData.role}
-        averageRating={candidateProfile?.average_rating ?? 0}
         premiumUntil={candidateProfile?.premium_until ?? null}
       />
     </>

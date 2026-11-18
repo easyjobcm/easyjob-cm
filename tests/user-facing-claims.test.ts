@@ -52,6 +52,39 @@ const FORBIDDEN: RegExp[] = [
   /score de fiabilité|reliability score/i,
 ];
 
+/**
+ * Lot 17a : avantages Premium NON LIVRÉS, reconnus dans leur contexte
+ * (mécanisme promis + objet : candidatures, entreprises, offres réservées
+ * aux Premium, versement). L'existence d'une offre Premium, un appel comme
+ * « Passez à Premium » ou un prix ne sont pas visés : le parcours commercial
+ * reste prévu au plan (lot Free/Premium) et ses textes seront revus avec la
+ * grille validée.
+ */
+const PREMIUM_FORBIDDEN: RegExp[] = [
+  // Priorité de candidature, de sélection ou d'affichage.
+  /priorit[ée] (sur|dans) (toutes )?(les |vos )?candidatures/i,
+  /priority (on|in) (every |all |your )?applications?/i,
+  /(profil|offres?) remonte(nt)? en premier/i,
+  /(shown|appears?) first to (companies|premium)/i,
+  /candidats premium (prioritaires|en premier)/i,
+  // Offres réservées aux Premium.
+  /(offres?|missions?|jobs?) (exclusives?|réservées?)[^"`\n]{0,40}premium/i,
+  /(exclusive|reserved)[^"`\n]{0,20}premium|premium[^"`\n]{0,20}(exclusive|reserved)/i,
+  // Versement plus rapide.
+  /paiement accéléré|accelerated payment|faster payment/i,
+];
+
+function premiumClaimHits(text: string): string[] {
+  return PREMIUM_FORBIDDEN.filter((re) => re.test(text)).map(String);
+}
+
+const PREMIUM_SCOPE = [
+  "lib/i18n/fr.ts",
+  "lib/i18n/en.ts",
+  "lib/chat/system-prompt.ts",
+  "app/page.tsx",
+];
+
 describe("promesses retirées (F-19)", () => {
   it.each([
     "lib/i18n/fr.ts",
@@ -80,6 +113,54 @@ describe("promesses retirées (F-19)", () => {
         (f) => !f.includes("/admin/") && /reliability_score/.test(read(f)),
       ),
     ).toEqual([]);
+  });
+
+  it.each(PREMIUM_SCOPE)(
+    "lot 17a : %s n'annonce aucun avantage Premium non livré",
+    (file) => {
+      const text = read(file);
+      expect(premiumClaimHits(text)).toEqual([]);
+    },
+  );
+
+  it("lot 17a : les motifs visent les promesses, pas l'offre Premium elle-même", () => {
+    // Textes retirés au lot 17a : détectés.
+    for (const removed of [
+      "Priorité sur toutes les candidatures",
+      "Votre profil remonte en premier auprès des entreprises.",
+      "Accès aux offres exclusives Premium",
+      "Accédez aux missions réservées aux candidats Premium.",
+      "Priority on every application",
+      "Your profile is shown first to companies.",
+      "Access to exclusive Premium jobs",
+      "Vos offres remontent en premier auprès des candidats Premium et notés 4★+.",
+    ]) {
+      expect(premiumClaimHits(removed), removed).not.toEqual([]);
+    }
+    // Parcours commercial prévu : autorisé.
+    for (const allowed of [
+      "Passez à Premium",
+      "Go Premium",
+      "Devenir Premium",
+      "Premium coûte 1 000 FCFA par mois.",
+      "Votre plan : Premium",
+      "Premium est attribué par l'équipe EasyJob.",
+    ]) {
+      expect(premiumClaimHits(allowed), allowed).toEqual([]);
+    }
+  });
+
+  it("lot 17a : aucun écran n'annonce d'avantage Premium non livré", () => {
+    const files = ["app", "components", "hooks"]
+      .flatMap((d) => walk(d))
+      .filter((f) => /\.(ts|tsx)$/.test(f))
+      .map((f) => f.replace(/\\/g, "/"));
+    const offenders = files.flatMap((f) =>
+      PREMIUM_FORBIDDEN.filter((re) => re.test(read(f))).map(
+        (re) => `${f} → ${String(re)}`,
+      ),
+    );
+    expect(offenders).toEqual([]);
   });
 
   it("l'accueil n'affiche plus de compteurs d'utilisateurs sans source", () => {
