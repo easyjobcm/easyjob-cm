@@ -95,6 +95,13 @@ export const MISSION_RPC_REFUSALS = {
   comment_too_long: 400,
   reasons_required: 400,
   reasons_invalid: 400,
+  // Lot 17b : journée annulée par le candidat (début, code, confirmation).
+  day_cancelled: 409,
+  // Interruption : code refusé pendant l'instruction ou tant qu'un
+  // règlement n'est pas accepté par les deux parties.
+  interruption_pending: 409,
+  settlement_not_accepted: 409,
+  interruption_unresolved: 409,
 } as const;
 
 export type MissionRpcRefusal = keyof typeof MISSION_RPC_REFUSALS;

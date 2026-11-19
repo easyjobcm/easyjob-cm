@@ -51,6 +51,8 @@ export type DisputeDetail = {
   viewer_is_ops: boolean;
   viewer_concerned: boolean;
   can_propose: boolean;
+  /** Interruption : instruction ouverte selon l'état courant du dossier. */
+  instruction_open?: boolean;
   deadlines: {
     applies: boolean;
     opened_at: string;
@@ -140,10 +142,19 @@ const emptyTexts = {
 export function IncidentDisputePanel({
   detail,
   onChanged,
+  interruption = false,
 }: {
   detail: DisputeDetail;
   onChanged: () => Promise<unknown>;
+  /**
+   * Interruption : décision du fondateur seul (carte dédiée) ; le support
+   * y garde la qualification, les demandes, les contacts et les notes. Les
+   * relances 24 h / 48 h, la double validation et la révision du lot 16 ne
+   * s'y appliquent pas (la base les refuse).
+   */
+  interruption?: boolean;
 }) {
+  const outcomes = DISPUTE_OUTCOMES;
   const { t, locale } = useI18n();
   const ti = t.incidents;
   const td = ti.admin.dispute;
@@ -211,7 +222,11 @@ export function IncidentDisputePanel({
   }
 
   const base = `/api/admin/incidents/${detail.incident_id}`;
-  const open = detail.status === "open" || detail.status === "answered";
+  // Interruption : état courant du dossier (rouvert compris), lu en base.
+  const open =
+    typeof detail.instruction_open === "boolean"
+      ? detail.instruction_open
+      : detail.status === "open" || detail.status === "answered";
   const d = detail.deadlines;
   const reviewToast = (r: Record<string, unknown>) =>
     r.result === "rejected"
@@ -328,79 +343,85 @@ export function IncidentDisputePanel({
             </div>
           </label>
 
-          <div
-            className="space-y-1 rounded-md bg-muted/40 p-2"
-            data-testid="dispute-deadlines"
-          >
-            <p className="font-medium">{td.deadlines}</p>
-            <p>
-              {td.openedAt.replace(
-                "{time}",
-                doualaDateTime(d.opened_at, locale),
-              )}
-            </p>
-            {d.applies ? (
-              <>
-                <p>
-                  {td.reminderAt.replace(
-                    "{time}",
-                    doualaDateTime(d.reminder_at, locale),
-                  )}
-                </p>
-                <p>
-                  {td.escalationAt.replace(
-                    "{time}",
-                    doualaDateTime(d.escalation_at, locale),
-                  )}
-                </p>
-                {d.extension_hours > 0 && (
-                  <p>
-                    {td.extended.replace("{hours}", String(d.extension_hours))}
-                  </p>
+          {!interruption && (
+            <div
+              className="space-y-1 rounded-md bg-muted/40 p-2"
+              data-testid="dispute-deadlines"
+            >
+              <p className="font-medium">{td.deadlines}</p>
+              <p>
+                {td.openedAt.replace(
+                  "{time}",
+                  doualaDateTime(d.opened_at, locale),
                 )}
-                <p
-                  className={
-                    d.company_responded ? "text-success" : "text-warning"
-                  }
-                  data-testid="dispute-company-state"
-                >
-                  {d.company_responded ? td.companyResponded : td.companySilent}
-                </p>
-                {d.reminder_sent_at && (
-                  <p>
-                    {td.reminderSent.replace(
-                      "{time}",
-                      doualaDateTime(d.reminder_sent_at, locale),
-                    )}
-                  </p>
-                )}
-                {d.escalated_at && (
-                  <p className="font-medium" data-testid="dispute-escalated">
-                    {td.escalated.replace(
-                      "{time}",
-                      doualaDateTime(d.escalated_at, locale),
-                    )}
-                  </p>
-                )}
-                {d.escalated_at && !d.company_responded && (
-                  <p data-testid="dispute-second-channel">
-                    {d.second_channel_done
-                      ? td.secondChannelDone
-                      : td.secondChannelRequired}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {td.silenceNote}
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {td.notApplicable}
               </p>
-            )}
-          </div>
-
-          {open && d.applies && (
+              {d.applies ? (
+                <>
+                  <p>
+                    {td.reminderAt.replace(
+                      "{time}",
+                      doualaDateTime(d.reminder_at, locale),
+                    )}
+                  </p>
+                  <p>
+                    {td.escalationAt.replace(
+                      "{time}",
+                      doualaDateTime(d.escalation_at, locale),
+                    )}
+                  </p>
+                  {d.extension_hours > 0 && (
+                    <p>
+                      {td.extended.replace(
+                        "{hours}",
+                        String(d.extension_hours),
+                      )}
+                    </p>
+                  )}
+                  <p
+                    className={
+                      d.company_responded ? "text-success" : "text-warning"
+                    }
+                    data-testid="dispute-company-state"
+                  >
+                    {d.company_responded
+                      ? td.companyResponded
+                      : td.companySilent}
+                  </p>
+                  {d.reminder_sent_at && (
+                    <p>
+                      {td.reminderSent.replace(
+                        "{time}",
+                        doualaDateTime(d.reminder_sent_at, locale),
+                      )}
+                    </p>
+                  )}
+                  {d.escalated_at && (
+                    <p className="font-medium" data-testid="dispute-escalated">
+                      {td.escalated.replace(
+                        "{time}",
+                        doualaDateTime(d.escalated_at, locale),
+                      )}
+                    </p>
+                  )}
+                  {d.escalated_at && !d.company_responded && (
+                    <p data-testid="dispute-second-channel">
+                      {d.second_channel_done
+                        ? td.secondChannelDone
+                        : td.secondChannelRequired}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {td.silenceNote}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {td.notApplicable}
+                </p>
+              )}
+            </div>
+          )}
+          {!interruption && open && d.applies && (
             <div className="grid grid-cols-[5rem_1fr] gap-2">
               <label className="text-xs font-medium">
                 {td.extendHours}
@@ -477,7 +498,9 @@ export function IncidentDisputePanel({
               </p>
             </div>
           ))}
-          {detail.status !== "closed" && (
+          {(typeof detail.instruction_open === "boolean"
+            ? detail.instruction_open
+            : detail.status !== "closed") && (
             <>
               <label className="block text-xs font-medium">
                 {td.infoParty}
@@ -586,335 +609,367 @@ export function IncidentDisputePanel({
         </CardContent>
       </Card>
 
-      <Card data-testid="dispute-proposals">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Scale className="h-4 w-4" aria-hidden />
-            {td.proposalsTitle}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            {detail.viewer_concerned ? td.viewerConcerned : td.reservedOps}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          {detail.proposals.map((p) => (
-            <div
-              key={p.id}
-              className="space-y-1 rounded-md border p-2"
-              data-testid="dispute-proposal"
-              data-status={p.status}
-              data-stale={p.stale ? "true" : "false"}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">
-                  {ti.decision.outcomes[p.outcome]}
-                </span>
-                <Badge variant="outline">{td.proposalStatus[p.status]}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {td.revision.replace("{rev}", String(p.dossier_revision))} ·{" "}
-                  {p.proposed_by_role}
-                </span>
-              </div>
-              {(
-                [
-                  [td.facts, p.facts_retained],
-                  [td.elements, p.elements_verified],
-                  [td.contradictions, p.contradictions],
-                  [td.justification, p.justification],
-                  [td.amicable, p.amicable_attempt],
-                  [td.orientation, p.orientation],
-                ] as const
-              ).map(([label, value]) =>
-                value ? (
-                  <p key={label} className="whitespace-pre-wrap break-words">
-                    <span className="font-medium">{label} : </span>
-                    {value}
-                  </p>
-                ) : null,
-              )}
-              {p.status === "pending" && p.stale && (
-                <p
-                  className="text-warning"
-                  data-testid="dispute-proposal-stale"
+      {!interruption && (
+        <>
+          <Card data-testid="dispute-proposals">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Scale className="h-4 w-4" aria-hidden />
+                {td.proposalsTitle}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {detail.viewer_concerned ? td.viewerConcerned : td.reservedOps}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {detail.proposals.map((p) => (
+                <div
+                  key={p.id}
+                  className="space-y-1 rounded-md border p-2"
+                  data-testid="dispute-proposal"
+                  data-status={p.status}
+                  data-stale={p.stale ? "true" : "false"}
                 >
-                  {td.stale}
-                </p>
-              )}
-              {p.status === "pending" && p.mine && (
-                <p className="text-xs">{td.mine}</p>
-              )}
-              {p.can_review && (
-                <div className="space-y-2 border-t pt-2">
-                  <Textarea
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    maxLength={2000}
-                    placeholder={td.reviewNote}
-                    aria-label={td.reviewNote}
-                    data-testid="dispute-review-note"
-                  />
-                  {conflictChoice("review")}
-                  <div className="flex flex-wrap gap-2">
-                    {([true, false] as const).map((approve) => (
-                      <motion.div key={String(approve)} whileTap={tap}>
-                        <Button
-                          size="sm"
-                          variant={approve ? "default" : "outline"}
-                          disabled={
-                            busy || !conflict || reviewNote.trim().length < 10
-                          }
-                          onClick={() =>
-                            void act(
-                              `/api/admin/incident-proposals/${p.id}/review`,
-                              proposalReviewSchema,
-                              { approve, note: reviewNote, conflict },
-                              reviewToast,
-                            ).then((ok) => ok && setReviewNote(""))
-                          }
-                          data-testid={
-                            approve ? "dispute-approve" : "dispute-reject"
-                          }
-                        >
-                          {approve ? td.approve : td.reject}
-                        </Button>
-                      </motion.div>
-                    ))}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">
+                      {ti.decision.outcomes[p.outcome]}
+                    </span>
+                    <Badge variant="outline">
+                      {td.proposalStatus[p.status]}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {td.revision.replace("{rev}", String(p.dossier_revision))}{" "}
+                      · {p.proposed_by_role}
+                    </span>
                   </div>
+                  {(
+                    [
+                      [td.facts, p.facts_retained],
+                      [td.elements, p.elements_verified],
+                      [td.contradictions, p.contradictions],
+                      [td.justification, p.justification],
+                      [td.amicable, p.amicable_attempt],
+                      [td.orientation, p.orientation],
+                    ] as const
+                  ).map(([label, value]) =>
+                    value ? (
+                      <p
+                        key={label}
+                        className="whitespace-pre-wrap break-words"
+                      >
+                        <span className="font-medium">{label} : </span>
+                        {value}
+                      </p>
+                    ) : null,
+                  )}
+                  {p.status === "pending" && p.stale && (
+                    <p
+                      className="text-warning"
+                      data-testid="dispute-proposal-stale"
+                    >
+                      {td.stale}
+                    </p>
+                  )}
+                  {p.status === "pending" && p.mine && (
+                    <p className="text-xs">{td.mine}</p>
+                  )}
+                  {p.can_review && (
+                    <div className="space-y-2 border-t pt-2">
+                      <Textarea
+                        value={reviewNote}
+                        onChange={(e) => setReviewNote(e.target.value)}
+                        maxLength={2000}
+                        placeholder={td.reviewNote}
+                        aria-label={td.reviewNote}
+                        data-testid="dispute-review-note"
+                      />
+                      {conflictChoice("review")}
+                      <div className="flex flex-wrap gap-2">
+                        {([true, false] as const).map((approve) => (
+                          <motion.div key={String(approve)} whileTap={tap}>
+                            <Button
+                              size="sm"
+                              variant={approve ? "default" : "outline"}
+                              disabled={
+                                busy ||
+                                !conflict ||
+                                reviewNote.trim().length < 10
+                              }
+                              onClick={() =>
+                                void act(
+                                  `/api/admin/incident-proposals/${p.id}/review`,
+                                  proposalReviewSchema,
+                                  { approve, note: reviewNote, conflict },
+                                  reviewToast,
+                                ).then((ok) => ok && setReviewNote(""))
+                              }
+                              data-testid={
+                                approve ? "dispute-approve" : "dispute-reject"
+                              }
+                            >
+                              {approve ? td.approve : td.reject}
+                            </Button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              ))}
 
-          {detail.can_propose && (
-            <div
-              className="space-y-2 border-t pt-3"
-              data-testid="dispute-propose"
-            >
-              <p className="font-medium">{td.proposeTitle}</p>
-              <label className="block text-xs font-medium">
-                {td.outcome}
-                <select
-                  className={fieldClass}
-                  value={outcome}
-                  onChange={(e) => setOutcome(e.target.value as DisputeOutcome)}
-                  data-testid="dispute-outcome"
+              {detail.can_propose && (
+                <div
+                  className="space-y-2 border-t pt-3"
+                  data-testid="dispute-propose"
                 >
-                  {DISPUTE_OUTCOMES.map((o) => (
-                    <option key={o} value={o}>
-                      {ti.decision.outcomes[o]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {decisionFields(outcome)}
-              {conflictChoice("propose")}
-              <motion.div whileTap={tap}>
-                <Button
-                  disabled={busy || !conflict}
-                  onClick={() =>
-                    void act(
-                      `${base}/proposals`,
-                      proposalSchema,
-                      { outcome, ...texts, conflict },
-                      (r) =>
-                        r.result === "conflict_declared"
-                          ? td.conflictRecorded
-                          : td.proposed,
-                    ).then((ok) => ok && setTexts(emptyTexts))
-                  }
-                  data-testid="dispute-propose-submit"
-                >
-                  {td.propose}
-                </Button>
-              </motion.div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {(detail.decisions.length > 0 || detail.appeals.length > 0) && (
-        <Card data-testid="dispute-decisions">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Gavel className="h-4 w-4" aria-hidden />
-              {td.decisionsTitle}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {detail.decisions.map((x) => (
-              <div
-                key={x.id}
-                className="space-y-1 rounded-md border p-2"
-                data-testid="dispute-decision"
-                data-kind={x.kind}
-              >
-                <p className="font-medium">
-                  {x.kind === "initial"
-                    ? ti.decision.initial
-                    : ti.decision.appeal}{" "}
-                  ·{" "}
-                  {x.appeal_result && x.appeal_result !== "revised"
-                    ? ti.decision.appealResults[x.appeal_result]
-                    : ti.decision.outcomes[x.outcome]}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {doualaDateTime(x.decided_at, locale)} · {x.decided_by_role}
-                </p>
-                <p className="whitespace-pre-wrap break-words">
-                  <span className="font-medium">{td.elements} : </span>
-                  {x.elements_verified}
-                </p>
-                <p className="whitespace-pre-wrap break-words">
-                  <span className="font-medium">{td.justification} : </span>
-                  {x.justification}
-                </p>
-                {x.review_deadline && (
-                  <p className="text-xs" data-testid="dispute-review-deadline">
-                    {td.reviewUntil.replace(
-                      "{time}",
-                      doualaDateTime(x.review_deadline, locale),
-                    )}
-                  </p>
-                )}
-              </div>
-            ))}
-
-            {detail.appeals.map((a) => (
-              <div
-                key={a.id}
-                className="space-y-2 rounded-md border border-warning/40 p-2"
-                data-testid="dispute-appeal"
-                data-status={a.status}
-              >
-                <p className="flex flex-wrap items-center gap-2 font-medium">
-                  <UserCheck className="h-4 w-4" aria-hidden />
-                  {td.appealsTitle}
-                  <Badge variant="outline">{td.appealStatus[a.status]}</Badge>
-                </p>
-                {a.requests.map((q, i) => (
-                  <p
-                    key={i}
-                    className="whitespace-pre-wrap break-words text-xs"
-                  >
-                    <span className="font-medium">{ti.party[q.party]} : </span>
-                    {q.body}
-                  </p>
-                ))}
-                {a.status === "pending_assignment" && (
-                  <p className="text-xs" data-testid="dispute-appeal-eligible">
-                    {a.eligible_count === 0
-                      ? td.noAgent
-                      : td.eligible.replace(
-                          "{count}",
-                          String(a.eligible_count),
-                        )}
-                  </p>
-                )}
-                {a.can_take && (
-                  <>
-                    {conflictChoice("appeal")}
+                  <p className="font-medium">{td.proposeTitle}</p>
+                  <label className="block text-xs font-medium">
+                    {td.outcome}
+                    <select
+                      className={fieldClass}
+                      value={outcome}
+                      onChange={(e) =>
+                        setOutcome(e.target.value as DisputeOutcome)
+                      }
+                      data-testid="dispute-outcome"
+                    >
+                      {outcomes.map((o) => (
+                        <option key={o} value={o}>
+                          {ti.decision.outcomes[o]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {decisionFields(outcome)}
+                  {conflictChoice("propose")}
+                  <motion.div whileTap={tap}>
                     <Button
-                      size="sm"
-                      variant="outline"
                       disabled={busy || !conflict}
                       onClick={() =>
                         void act(
-                          `/api/admin/incident-appeals/${a.id}/take`,
-                          appealTakeSchema,
-                          { conflict },
+                          `${base}/proposals`,
+                          proposalSchema,
+                          { outcome, ...texts, conflict },
                           (r) =>
                             r.result === "conflict_declared"
                               ? td.conflictRecorded
-                              : td.taken,
-                        )
-                      }
-                      data-testid="dispute-appeal-take"
-                    >
-                      {td.take}
-                    </Button>
-                  </>
-                )}
-                {a.assigned_to_me && a.status === "assigned" && (
-                  <div
-                    className="space-y-2 border-t pt-2"
-                    data-testid="dispute-appeal-decide"
-                  >
-                    {a.contested_outcome === "established" && (
-                      <p className="text-xs text-warning">
-                        {td.arbitrationHint}
-                      </p>
-                    )}
-                    <label className="block text-xs font-medium">
-                      {td.appealResult}
-                      <select
-                        className={fieldClass}
-                        value={appealResult}
-                        onChange={(e) =>
-                          setAppealResult(e.target.value as typeof appealResult)
-                        }
-                        data-testid="dispute-appeal-result"
-                      >
-                        {(
-                          ["upheld", "revised", "arbitration_required"] as const
-                        ).map((r) => (
-                          <option key={r} value={r}>
-                            {ti.decision.appealResults[r]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {appealResult === "revised" && (
-                      <label className="block text-xs font-medium">
-                        {td.newOutcome}
-                        <select
-                          className={fieldClass}
-                          value={newOutcome}
-                          onChange={(e) =>
-                            setNewOutcome(e.target.value as DisputeOutcome)
-                          }
-                          data-testid="dispute-appeal-outcome"
-                        >
-                          {DISPUTE_OUTCOMES.filter(
-                            (o) => o !== a.contested_outcome,
-                          ).map((o) => (
-                            <option key={o} value={o}>
-                              {ti.decision.outcomes[o]}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {decisionFields(
-                      appealResult === "revised"
-                        ? newOutcome
-                        : a.contested_outcome,
-                    )}
-                    <Button
-                      size="sm"
-                      disabled={busy}
-                      onClick={() =>
-                        void act(
-                          `/api/admin/incident-appeals/${a.id}/decide`,
-                          appealDecisionSchema,
-                          {
-                            result: appealResult,
-                            new_outcome:
-                              appealResult === "revised" ? newOutcome : null,
-                            ...texts,
-                          },
-                          () => td.appealDone,
+                              : td.proposed,
                         ).then((ok) => ok && setTexts(emptyTexts))
                       }
-                      data-testid="dispute-appeal-submit"
+                      data-testid="dispute-propose-submit"
                     >
-                      {td.decideAppeal}
+                      {td.propose}
                     </Button>
+                  </motion.div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {(detail.decisions.length > 0 || detail.appeals.length > 0) && (
+            <Card data-testid="dispute-decisions">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Gavel className="h-4 w-4" aria-hidden />
+                  {td.decisionsTitle}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {detail.decisions.map((x) => (
+                  <div
+                    key={x.id}
+                    className="space-y-1 rounded-md border p-2"
+                    data-testid="dispute-decision"
+                    data-kind={x.kind}
+                  >
+                    <p className="font-medium">
+                      {x.kind === "initial"
+                        ? ti.decision.initial
+                        : ti.decision.appeal}{" "}
+                      ·{" "}
+                      {x.appeal_result && x.appeal_result !== "revised"
+                        ? ti.decision.appealResults[x.appeal_result]
+                        : ti.decision.outcomes[x.outcome]}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {doualaDateTime(x.decided_at, locale)} ·{" "}
+                      {x.decided_by_role}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words">
+                      <span className="font-medium">{td.elements} : </span>
+                      {x.elements_verified}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words">
+                      <span className="font-medium">{td.justification} : </span>
+                      {x.justification}
+                    </p>
+                    {x.review_deadline && (
+                      <p
+                        className="text-xs"
+                        data-testid="dispute-review-deadline"
+                      >
+                        {td.reviewUntil.replace(
+                          "{time}",
+                          doualaDateTime(x.review_deadline, locale),
+                        )}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                ))}
+
+                {detail.appeals.map((a) => (
+                  <div
+                    key={a.id}
+                    className="space-y-2 rounded-md border border-warning/40 p-2"
+                    data-testid="dispute-appeal"
+                    data-status={a.status}
+                  >
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                      <UserCheck className="h-4 w-4" aria-hidden />
+                      {td.appealsTitle}
+                      <Badge variant="outline">
+                        {td.appealStatus[a.status]}
+                      </Badge>
+                    </p>
+                    {a.requests.map((q, i) => (
+                      <p
+                        key={i}
+                        className="whitespace-pre-wrap break-words text-xs"
+                      >
+                        <span className="font-medium">
+                          {ti.party[q.party]} :{" "}
+                        </span>
+                        {q.body}
+                      </p>
+                    ))}
+                    {a.status === "pending_assignment" && (
+                      <p
+                        className="text-xs"
+                        data-testid="dispute-appeal-eligible"
+                      >
+                        {a.eligible_count === 0
+                          ? td.noAgent
+                          : td.eligible.replace(
+                              "{count}",
+                              String(a.eligible_count),
+                            )}
+                      </p>
+                    )}
+                    {a.can_take && (
+                      <>
+                        {conflictChoice("appeal")}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy || !conflict}
+                          onClick={() =>
+                            void act(
+                              `/api/admin/incident-appeals/${a.id}/take`,
+                              appealTakeSchema,
+                              { conflict },
+                              (r) =>
+                                r.result === "conflict_declared"
+                                  ? td.conflictRecorded
+                                  : td.taken,
+                            )
+                          }
+                          data-testid="dispute-appeal-take"
+                        >
+                          {td.take}
+                        </Button>
+                      </>
+                    )}
+                    {a.assigned_to_me && a.status === "assigned" && (
+                      <div
+                        className="space-y-2 border-t pt-2"
+                        data-testid="dispute-appeal-decide"
+                      >
+                        {a.contested_outcome === "established" && (
+                          <p className="text-xs text-warning">
+                            {td.arbitrationHint}
+                          </p>
+                        )}
+                        <label className="block text-xs font-medium">
+                          {td.appealResult}
+                          <select
+                            className={fieldClass}
+                            value={appealResult}
+                            onChange={(e) =>
+                              setAppealResult(
+                                e.target.value as typeof appealResult,
+                              )
+                            }
+                            data-testid="dispute-appeal-result"
+                          >
+                            {(
+                              [
+                                "upheld",
+                                "revised",
+                                "arbitration_required",
+                              ] as const
+                            ).map((r) => (
+                              <option key={r} value={r}>
+                                {ti.decision.appealResults[r]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {appealResult === "revised" && (
+                          <label className="block text-xs font-medium">
+                            {td.newOutcome}
+                            <select
+                              className={fieldClass}
+                              value={newOutcome}
+                              onChange={(e) =>
+                                setNewOutcome(e.target.value as DisputeOutcome)
+                              }
+                              data-testid="dispute-appeal-outcome"
+                            >
+                              {outcomes
+                                .filter((o) => o !== a.contested_outcome)
+                                .map((o) => (
+                                  <option key={o} value={o}>
+                                    {ti.decision.outcomes[o]}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        )}
+                        {decisionFields(
+                          appealResult === "revised"
+                            ? newOutcome
+                            : a.contested_outcome,
+                        )}
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            void act(
+                              `/api/admin/incident-appeals/${a.id}/decide`,
+                              appealDecisionSchema,
+                              {
+                                result: appealResult,
+                                new_outcome:
+                                  appealResult === "revised"
+                                    ? newOutcome
+                                    : null,
+                                ...texts,
+                              },
+                              () => td.appealDone,
+                            ).then((ok) => ok && setTexts(emptyTexts))
+                          }
+                          data-testid="dispute-appeal-submit"
+                        >
+                          {td.decideAppeal}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {error && (

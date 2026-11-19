@@ -49,6 +49,19 @@ export function formatXaf(amount: number, locale: string = "fr"): string {
   return en ? `${value} CFA francs` : `${value} F CFA`;
 }
 
+/**
+ * Montant calculé exact (jusqu'à 4 décimales), sans arrondi au franc : un
+ * total au prorata peut rester fractionnaire ; l'arrondi d'un éventuel
+ * versement relève du lot paiement. Affichage seulement.
+ */
+export function formatXafExact(amount: number, locale: string = "fr"): string {
+  const en = locale === "en";
+  const value = new Intl.NumberFormat(en ? "en-US" : "fr-FR", {
+    maximumFractionDigits: 4,
+  }).format(amount);
+  return en ? `${value} CFA francs` : `${value} F CFA`;
+}
+
 export function formatDate(date: Date | string, locale: string = "fr"): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {

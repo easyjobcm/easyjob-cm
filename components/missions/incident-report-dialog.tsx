@@ -16,11 +16,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { missionDays } from "@/lib/tasks/candidate-tasks";
+import { doualaLocalInput, doualaLocalToIso } from "@/lib/utils/douala-time";
 import {
   INCIDENT_KINDS_BY_PARTY,
   incidentReportSchema,
   type IncidentKind,
 } from "@/lib/validations/incident";
+import {
+  INTERRUPTION_CAUSES,
+  interruptionReportSchema,
+  type InterruptionCause,
+} from "@/lib/validations/partial-day";
 
 export type IncidentDay = {
   id: string;
@@ -94,18 +100,30 @@ export function IncidentReportDialog({
   const [kind, setKind] = useState<IncidentKind | null>(null);
   const [statement, setStatement] = useState("");
   const [lateMinutes, setLateMinutes] = useState("");
+  // Interruption : cause, heure déclarée (heure de Douala), travail effectué.
+  const [cause, setCause] = useState<InterruptionCause | null>(null);
+  const [declaredAt, setDeclaredAt] = useState("");
+  const [workDone, setWorkDone] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<ErrorCode | null>(null);
   const sendingRef = useRef(false);
 
+  // Réinitialisation à l'ouverture seulement : un rafraîchissement (temps
+  // réel) de l'écran parent ne doit pas effacer une saisie en cours.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    const opening = open && !wasOpen.current;
+    wasOpen.current = open;
+    if (!opening) return;
     setDayId(initialDayId ?? days[0]?.id ?? null);
     setKind(initialKind);
     setStatement("");
     setLateMinutes("");
+    setCause(null);
+    // Heure de Douala à l'ouverture (modifiable) ; la base revérifie.
+    setDeclaredAt(doualaLocalInput(Date.now()));
+    setWorkDone("");
     setFile(null);
     setError(null);
   }, [open, initialDayId, initialKind, days]);
@@ -117,6 +135,11 @@ export function IncidentReportDialog({
     if ((k === "absence" || k === "code_not_received") && day.confirmed)
       return "day_already_confirmed";
     if (party === "company" && !started) return "day_not_started";
+    // Interruption : journée commencée (début confirmé), pas encore confirmée.
+    if (k === "interruption") {
+      if (day.confirmed) return "day_already_confirmed";
+      if (!day.started) return "start_not_confirmed";
+    }
     if (k === "code_not_received") {
       if (!day.started) return "start_not_confirmed";
       if (serverNow < Date.parse(day.completion_available_at))
@@ -133,23 +156,34 @@ export function IncidentReportDialog({
   async function submit() {
     if (!day || !kind || sendingRef.current) return;
     const minutes = lateMinutes.trim() ? Number(lateMinutes) : null;
-    const parsed = incidentReportSchema.safeParse({
-      mission_day_id: day.id,
-      kind,
-      statement,
-      late_minutes: kind === "late" ? minutes : null,
-    });
+    const parsed =
+      kind === "interruption"
+        ? interruptionReportSchema.safeParse({
+            mission_day_id: day.id,
+            cause,
+            declared_at: doualaLocalToIso(declaredAt),
+            work_done: workDone,
+            statement,
+          })
+        : incidentReportSchema.safeParse({
+            mission_day_id: day.id,
+            kind,
+            statement,
+            late_minutes: kind === "late" ? minutes : null,
+          });
     if (!parsed.success) {
       setError(codeOf(parsed.error.issues[0]?.message));
       return;
     }
+    const payload =
+      kind === "interruption" ? { ...parsed.data, kind } : parsed.data;
     sendingRef.current = true;
     setSending(true);
     setError(null);
     const res = await fetch(`/api/missions/${missionId}/incidents`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(parsed.data),
+      body: JSON.stringify(payload),
     }).catch(() => null);
     const body = ((await res?.json().catch(() => null)) ?? {}) as {
       code?: string;
@@ -298,8 +332,68 @@ export function IncidentReportDialog({
             </label>
           )}
 
+          {kind === "interruption" && (
+            <div className="space-y-3" data-testid="interruption-fields">
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">
+                  {t.partialDay.causeLabel}
+                </legend>
+                {INTERRUPTION_CAUSES.map((c) => (
+                  <label
+                    key={c}
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm ${
+                      cause === c ? "border-primary bg-primary/5" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="interruption-cause"
+                      value={c}
+                      checked={cause === c}
+                      onChange={() => setCause(c)}
+                      className="h-4 w-4 shrink-0 accent-primary"
+                      data-testid={`interruption-cause-${c}`}
+                    />
+                    {t.partialDay.causes[c]}
+                  </label>
+                ))}
+              </fieldset>
+              <label className="block text-sm">
+                <span className="font-medium">
+                  {t.partialDay.declaredAtLabel}
+                </span>
+                <input
+                  type="datetime-local"
+                  value={declaredAt}
+                  onChange={(e) => setDeclaredAt(e.target.value)}
+                  className="mt-1 w-full min-w-0 rounded-lg border bg-background px-3 py-2"
+                  data-testid="interruption-declared-at"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="font-medium">
+                  {t.partialDay.workDoneLabel}
+                </span>
+                <Textarea
+                  value={workDone}
+                  onChange={(e) => setWorkDone(e.target.value)}
+                  maxLength={2000}
+                  className="mt-1"
+                  data-testid="interruption-work-done"
+                />
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {t.partialDay.notProof}
+              </p>
+            </div>
+          )}
+
           <label className="block text-sm">
-            <span className="font-medium">{ti.statement}</span>
+            <span className="font-medium">
+              {kind === "interruption"
+                ? t.partialDay.reasonLabel
+                : ti.statement}
+            </span>
             <Textarea
               value={statement}
               onChange={(e) => setStatement(e.target.value)}

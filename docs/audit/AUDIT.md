@@ -2902,3 +2902,233 @@ Après les arbitrages et les points de revue (2026-11-18) :
 - Une activation antérieure faite en SQL a un début inconnu (affiché « Inconnu » côté admin).
 - Six pages admin antérieures lisent le grade sans filtre `is_active` (voir « Points de revue ») ; leurs données passent par des routes ou une RLS qui revérifient un compte actif.
 - Le test A1 ne sépare pas la garde de la page de celle du layout (les deux redirigent) ; la garde propre à la page est vérifiée par le test statique.
+
+---
+
+## 40. Suivi — Lots 17b–17c : annulations par le candidat et conséquences (2026-11-18)
+
+Branche `feat/lot-17bc-candidate-cancellations`, créée depuis `origin/main-dev` (`3ae5aff`, lot 17a intégré ; constat Git). Migrations `20261122120000_candidate_cancellations.sql` et `20261123120000_partial_day_agreements.sql` (interruptions, décisions du 2026-11-19 et du 2026-11-20, ci-dessous). Non commité. Essais sur la pile `easyjob-proof` uniquement. Règles produit : SRS §5.2 (encadré « Lots 17b–17c ») et §6.8.
+
+### Réutilisé
+
+Conditions figées à la sélection et marquage `legacy` (lot 17a) ; manquements `reputation_incidents` et rejeu `compute_reputation` (lot 9c : −5 unités, solde et plafonds) ; verrous mission puis journée (lots 13 à 15) ; bucket privé `incident-evidence` et modèle de dépôt par la route (lot 14) ; grades `is_admin_user` et `is_ops_admin_user` (compte actif) ; révision interne à 7 jours par un autre agent (lot 16) ; `incident_notify`, `audit_logs`, signaux `rt_signal_users` et `rt_signal_admin` ; tâche planifiée `reputation-expiry-sweep` ; `admin_set_user_active` (même signature, mêmes messages).
+
+### Réalisation
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Demande | `request_candidate_cancellation(request_id, journées, motif, précisions, choix)` : journées d'une même offre, non commencées, non confirmées, avant leur début. Verrous des missions (ordre des identifiants), puis des journées. Relance du même `request_id` → résultat d'origine ; autres journées → `request_conflict`. |
+| Classement | `classify_cancellation_day(journée, instant)` sur `mission_day_commitment_terms` : `in_time` (≤ début − 48 h Free ou 24 h Premium), `reaction_window` (sélection après ce seuil et ≤ sélection + 1 h), `late`, `legacy` (conditions historiques ou absentes). Limites incluses, heure de la base. Classement et plan figés par journée dans `candidate_cancellation_days`. |
+| Effet immédiat | Journées annulées dès la demande. Mission entièrement annulée → `cancelled`, candidature `withdrawn` (place libérée par le déclencheur existant, échéance de recrutement inchangée). Période interrompue (reste annulé ou confirmé) → mission `cancelled` (`candidate_cancellation_interrupted`), place conservée, journées confirmées acquises. Entreprise prévenue : dates seulement, sans motif, classement ni plan. Contrat et historique inchangés. |
+| Justification | Au moins une journée `late` : motif et choix exigés en base. « Je n'ai pas de justificatif » → manquement immédiat (`cancellation_flow`). Justificatif annoncé → `awaiting_evidence` jusqu'au premier dépôt réussi (`record_cancellation_evidence`, clé service, type lu dans les octets) → `under_review`. Un envoi échoué ne change rien. Motif « notification découverte tardivement » proposé. |
+| Décision et recours | `admin_decide_candidate_cancellation` (ops ou fondateur actif, motif ≥ 10 caractères) : acceptée → aucune sanction ; refusée → manquement (`support_decision`). Recours du candidat sous 7 jours (`request_cancellation_review`, ouvert pendant une suspension) ; décision par un autre agent (`reviewer_must_differ`) ; « overturned » → manquement annulé (`voided_at`), réputation rejouée, exclusions recalculées. |
+| Un seul manquement | `reputation_incidents.cancellation_id` unique : une demande, quel que soit le nombre de journées tardives, donne au plus un retrait. Journée annulée : début, code, confirmation par le support (déclencheur `trg_block_cancelled_day`, tout auteur) et signalement (`trg_block_incident_on_cancelled_day`) refusés ; une absence sanctionnée sur la même journée est refusée (`incident_conflicts_with_cancellation`). `protect_reputation_incidents` raisonne désormais à la demande (journées non commencées) et non à la mission entière. |
+| Exclusions | `candidate_cycle_reconcile` : trois manquements `candidate_late_cancellation` non annulés, commis après le retour du cycle précédent et non encore retenus → cycle 1 (`now()` + 6 mois), cycle 2 (+ 1 an), cycle 3 (sans fin). Intervalles calendaires de la base. Les faits commis avant un retour, même décidés après, restent hors du cycle suivant. Historique conservé (`account_suspensions.incident_ids`, cycles numérotés). Notification : motif, durée, dates des faits, recours. |
+| Causes | `account_suspensions` (`admin`, `cancellation_cycle`, `fraud`) ; `users.is_active` = aucune suspension en cours (`refresh_account_active`). `admin_set_user_active` crée ou lève une cause `admin` ; la réactivation d'un compte suspendu pour une autre cause est refusée (`other_suspension_active`). Suspensions administratives antérieures reprises en lignes `admin`. `account_suspension_sweep` (tâche planifiée) : fin notifiée une fois, compte réactivé seulement sans autre cause. |
+| Fraude | `admin_report_fraud` (tout admin actif) et pièces (`record_fraud_evidence`) ; `admin_suspend_for_fraud` (ops ou fondateur actif, fin explicite ou jusqu'à levée, motif) ; contestation du candidat (`contest_account_suspension`), maintien ou levée motivés. Aucune suspension automatique ; un justificatif refusé n'est pas une preuve de fraude. |
+| Montant acquis | `mission_acquired_amount` (parties et support) : forfait × minutes prévues des journées confirmées (code, support, décision exceptionnelle) ÷ minutes prévues de toutes les journées, sur `contracts.contract_data` (journées, horaires, montant). Durée brute début → fin, nuit le lendemain, pause non déduite. Valeur exacte (4 décimales) et arrondi au franc (demi supérieur, à valider). États : `final`, `in_progress`, `settlement_pending` (journée interrompue non réglée ou d'issue « partiel » du lot 16 : aucune durée ni aucun montant inventés, jamais présentés comme nuls ; décisions du 2026-11-19 et du 2026-11-20, ci-dessous). Aucun versement, aucune amende. |
+| Écrans | Mission (candidat) : « Annuler des journées », journées classées, récapitulatif, motif, choix explicite, pièce, suivi (pièce à réessayer, décision, recours). Journées « Annulée » ou « Désistement du candidat » ; montant acquis (deux parties) ; plus de début ni de code sur une journée annulée (Tâches, mission). Tâches : suspension en cours (contestation) et justificatifs attendus. Entreprise (offre) : date du désistement, code masqué. Support : `/admin/cancellations` (liste, dossier, plan à la sélection, pièces, décision, recours, fraude, suspensions, engagements futurs). FR et EN. |
+| Temps réel | Domaines existants, charge utile `{d, r}` : `missions` (candidat ; entreprise sans ressource), `incidents` et `account` (canal admin), `account` (candidat suspendu). Aucun signal ne porte le plan ni le classement. |
+
+### Interruption d'une journée commencée (décisions du 2026-11-19, du 2026-11-20 et du 2026-11-21)
+
+Historique de la décision :
+- **2026-11-18** : l'entreprise fixait le montant et le candidat l'acceptait. Réalisé puis retiré avant tout commit.
+- **2026-11-19** : instruction par le support, décision par double validation (ops, fondateur), règlement proposé par le support selon une règle de valorisation validée (aucune).
+- **2026-11-20** : décision et règlement réservés au fondateur actif, sans seconde validation, avec délais contrôlés par la base.
+- **2026-11-21** (ce complément) : bornes du règlement validées et appliquées, prolongation unique de 7 jours, réexamen par le fondateur, suivi des montants.
+
+La migration `20261123120000_partial_day_agreements.sql` n'a jamais été intégrée ni déployée : elle est réécrite sur place. Les tables de règlement du 2026-11-19 (`mission_day_partial_settlements` et son historique) et la route `/api/partial-settlements/[id]` sont remplacées. Aucune donnée réelle n'existe : seules les piles de preuve en ont porté, effacées à chaque réinitialisation.
+
+#### Décisions validées et appliquées
+
+Conservées du 2026-11-19 :
+- **Signalement** : candidat ou entreprise, sur une journée commencée et non confirmée ; cause, heure de l'interruption (heure de Douala, entre le début réel et maintenant), travail effectué, raison. Un dossier `interruption` par journée ; l'autre partie y donne sa version, une fois.
+- **L'entreprise ne fixe aucun montant**, ni à l'écran, ni par une route, ni par une RPC.
+- **Travail, montant et discipline sont séparés** : une interruption n'est jamais en soi un manquement ; aucune décision de ce dossier ne crée de désistement, de sanction ni de suspension.
+- **Blocage** : tant que le dossier n'est pas clos, ni le code, ni une confirmation du support, ni une décision exceptionnelle ne confirment la journée ; aucun essai de code n'est consommé.
+- **Aucun versement ni remboursement.**
+
+Ajoutées le 2026-11-20 :
+- **Pouvoirs.**
+  - Seul un `admin_founder` actif propose ou modifie un montant, prolonge son propre délai, clôt le dossier et finalise manuellement un accord. Pas de seconde validation sur ce parcours.
+  - `admin_support` et `admin_ops` actifs recueillent versions, justificatifs, contacts et notes (fonctions du lot 16), sans fixer de montant ni clore.
+  - Contrôlé dans la base (`is_founder_admin_user`, compte actif), dans la route (grade de session relu avec `is_active`) et dans les écrans. Un ancien jeton d'un fondateur suspendu est refusé.
+  - Sur une interruption, la double validation et la décision générique du lot 16 sont refusées (`use_founder_decision`). Les autres parcours de litiges sont inchangés.
+- **Délais**, calculés et contrôlés à chaque action à l'heure de la base (jamais par la tâche planifiée) :
+  - 72 h pour chaque demande adressée à une partie : version de l'autre partie dès l'ouverture, puis chaque demande du support (`respond_by`). Réponse acceptée jusqu'à l'échéance incluse, refusée après (`response_deadline_passed`).
+  - À l'échéance, examen du fondateur avec les éléments disponibles. Le silence ne prouve ni réalisation, ni absence, ni faute.
+  - 48 h pour répondre à une proposition. Sans deux acceptations valides dans le délai, elle expire ; un refus la rend aussitôt non acceptée et renvoie le dossier au fondateur.
+  - 72 h ensuite pour le fondateur : clôture motivée, ou prolongation exceptionnelle avec motif et date de fin explicite (une seule par dossier, 7 jours au plus : décision du 2026-11-21). Un dépassement est visible dans sa file (badge, en tête de liste) et déclenche un rappel, jamais une décision automatique.
+- **Avis** (aucun push, SMS ni e-mail) : la mise à disposition dans l'application (notification créée) et la consultation effectivement observée (dossier affiché à son destinataire) sont enregistrées séparément. Une notification créée n'est jamais présentée comme lue ou reçue sur le téléphone. Avis initial, rappel avant l'échéance et avis d'expiration, une fois chacun.
+- **Proposition et consentement** : montant motivé du fondateur après instruction ; aucun prorata ni répartition par étapes ; même montant pour le candidat et l'entreprise, chacun accepte ou refuse pour son compte ; le silence ne vaut jamais acceptation ; toute modification crée une version, annule les acceptations et rouvre 48 h pour les deux parties ; propositions, réponses et motivations conservées.
+- **Finalisation** :
+  - jamais sur une proposition expirée, refusée ou acceptée par une seule partie ;
+  - après deux acceptations de la même version encore courante, code reçu même avant la fin prévue ; l'échéance de 48 h n'annule pas un accord déjà accepté par les deux parties ;
+  - code non remis : recours immédiat d'une partie, puis finalisation manuelle par le fondateur seul, motivée, en provenance distincte `partial_support` ;
+  - jamais une réalisation complète (`completion_counts` exclut `partial` et `partial_support`), jamais le montant initial à la place du montant accepté ; contrat signé et journées confirmées intacts.
+- **Prévention des blocages** : un signalement identique ne rouvre pas un dossier clos et ne bloque pas à nouveau la journée ; un nouvel élément reste recevable pour examen (signalé au fondateur) sans rouvrir le blocage ; « interruption non établie » rétablit le parcours normal selon ses conditions (code à la fin prévue) ; « désaccord non résolu » reste distinct : il ne confirme pas la journée, ne crée aucun montant définitif et ne vaut ni renoncement à rémunération, ni remboursement, ni sanction. Aucune sanction pour silence ou désaccord.
+
+#### Ce qui fonctionne
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Dossier et versions | `mission_incidents` (nature `interruption`, cause, heure déclarée, travail) ; `mission_interruption_versions` (une par partie). `report_mission_interruption` : verrous mission, journée, dossier ; dossier clos ou version déjà donnée → relecture sans écriture ; version de l'autre partie refusée après ouverture + 72 h. |
+| Délais | `interruption_deadline_open(échéance, instant)` = instant ≤ échéance. `mission_incident_info_requests.respond_by` = demande + 72 h (déclencheur, dossiers d'interruption seulement) ; réponse tardive refusée par un déclencheur sur les déclarations liées. `interruption_state(dossier, instant)` calcule l'étape : `instruction` (une demande court encore), `founder_review` (échéance = fin de la dernière étape + 72 h, ou date de prolongation), `awaiting_parties` (proposition ouverte), `agreement`, `closed`. |
+| Fondateur | `admin_propose_interruption_amount` (version attendue, double envoi idempotent, 0 au plafond de `interruption_settlement_cap`), `admin_close_interruption` (non établie, désaccord non résolu ; refusée pendant l'instruction, une proposition ouverte ou un accord), `admin_extend_interruption_review` (une seule par dossier, pendant son examen, 7 jours au plus après l'échéance prolongée), `admin_finalize_interruption` (accord valide, recours exigé, version exacte). Route `POST /api/admin/incidents/[id]/interruption` (Zod, grade de session actif, codes traduits). |
+| Parties | `respond_interruption_proposal` (version courante exacte, une réponse par partie, double envoi idempotent, `already_responded`, `proposal_refused`, `proposal_expired`, `settlement_changed`), `request_interruption_finalization` (recours), `mark_interruption_viewed`. Route `POST /api/interruptions/[id]` ; tâches `GET /api/interruptions/tasks` (`my_interruption_tasks`). |
+| Garde | `guard_day_completion_conflicts` (tout auteur, y compris clé service) : `partial` et `partial_support` exigent un accord valide ; toute autre confirmation est refusée tant que le dossier n'est pas clos ou en désaccord non résolu. `submit_completion_code` : `settlement_not_accepted` (proposition ouverte, refusée ou expirée), `interruption_unresolved`, `interruption_pending`, sans lecture du code. |
+| Avis | `mission_interruption_notices` (étape, référence, destinataire, notification liée, mise à disposition, consultation) ; index unique : une étape une fois par destinataire, même sous balayages concurrents. |
+| Rappels | `interruption_deadline_sweep(instant)`, ajouté à la tâche planifiée existante `reputation-expiry-sweep` : rappel 24 h avant l'échéance d'une demande, 12 h avant celle d'une proposition ; avis d'expiration ; dépassement du fondateur signalé une fois par échéance à chaque fondateur actif. Aucune écriture d'état ni décision. Les relances 24 h / 48 h du lot 16 ne s'appliquent plus aux interruptions. |
+| Lectures | `mission_interruptions_for_party` (étape, échéances, versions, demandes de la partie, propositions et réponses, clôture, recours, ses avis) ; `admin_mission_interruption` (tout, plus prolongations, bornes et droits du fondateur) ; `admin_mission_incidents` ajoute étape, échéance et dépassement. |
+| Écrans | Dossier (mission du candidat, offre de l'entreprise) : étape, échéance exacte en heure de Douala, montant « en examen » (jamais présenté comme nul), versions, échéance de la version attendue, échéance et expiration de chaque demande (réponse masquée après l'échéance), proposition courante avec motivation, réponses et Accepter/Refuser, historique des versions, accord puis « le code n'est pas remis : demander au support », décision, avis (mis à disposition, consulté). Tâches persistantes (candidat dans Tâches, entreprise sur son tableau de bord). Support : carte du fondateur (proposition, clôture, prolongation, finalisation ; lecture seule pour les autres agents ; plafond du contrat affiché ; réexamens à traiter), file avec badge de dépassement ; relances, propositions et décisions du lot 16 masquées sur une interruption. Saisies conservées lors des mises à jour. FR et EN, 375 px. |
+| Temps réel | `rt_on_interruption_rows` sur les tables du parcours : signaux `incidents` et `missions` aux parties, `incidents` au support ; un avis destiné au fondateur ne signale que le support. Charge `{d, r}`. |
+
+#### Bornes du règlement (décision validée du 2026-11-21, appliquée)
+
+Les propositions sont ouvertes au fondateur actif, avec les règles réelles de la migration (`partial_settlement_policy()` : `validated: true`, minimum 0, aucun multiple imposé ; plafond par `interruption_settlement_cap(journée)`). Aucune fonction de bornes n'est remplacée, ni par la preuve, ni par le navigateur.
+
+- **Montant** : entier en XAF, de 0 au plafond, sans multiple de 50. Négatif ou fractionnaire → `amount_invalid` ; au-dessus du plafond → `amount_above_cap`.
+- **Plafond**, lu dans les conditions figées du contrat (`contracts.contract_data` : montant, journées, horaires), jamais dans l'offre, même modifiée après la sélection ; durées brutes du contrat, aucune pause déduite, aucune durée travaillée inventée :
+  - mission d'une journée : le montant initial du contrat ;
+  - forfait global : la part de la journée selon la formule du lot 17c (montant × minutes prévues de la journée ÷ minutes prévues de toutes les journées) ; si elle est fractionnaire, seul le plafond est arrondi à l'entier inférieur.
+- Le plafond encadre la proposition ; il ne calcule pas la valeur du travail partiel.
+- **Montant nul** : mêmes garanties qu'un montant positif (motif, montant affiché, acceptation explicite et distincte des deux parties sur la même version encore valide, finalisation par le code ou le fondateur). Ni le silence, ni l'expiration, ni une clôture administrative ne valent acceptation de 0.
+
+| Cas | Plafond | Effet |
+|---|---|---|
+| Journée « au choix » de 9 000 XAF | 9 000 | 0 à 9 000 proposables ; 9 001 refusé |
+| Forfait 30 000 sur 3 journées de 8 h ; J1 réalisée | J2 : 30 000 × 480 ÷ 1 440 = 10 000 | 10 000 reconnus pour J1 ; J2 de 0 à 10 000 ; J3 indépendante |
+| Forfait 10 000 sur 8 h, 8 h, 5 h (1 260 min) ; J1 réalisée | J2 : floor(3 809,52) = 3 809 ; J3 : floor(2 380,95) = 2 380 | J1 reconnue 3 809,52 (lot 17c) ; J2 réglée 3 809 → 7 618,52 ; aucun double comptage |
+
+#### Prolongation (décision du 2026-11-21)
+
+Une seule prolongation par dossier (`mission_interruption_extensions.incident_id` unique), pendant l'examen du fondateur, avec motif obligatoire et date de fin explicite, au plus 7 jours après l'échéance qu'elle prolonge (`extends_due`, limite incluse). Elle est historisée et notifiée aux deux parties. Elle reste rattachée à cette échéance : une nouvelle version, une relance ou une réouverture ne la renouvelle pas (`extension_already_used`). À l'échéance, aucune décision financière automatique : le retard est visible dans la file du fondateur et rappelé.
+
+#### Réexamen d'une décision du fondateur (décision du 2026-11-21)
+
+- Une partie signale une erreur dans la clôture en vigueur et demande un réexamen motivé, dans le même dossier (`request_interruption_reexamination`, une demande en cours par partie). La demande ne change ni l'étape, ni les délais, ni le blocage.
+- Le fondateur seul la traite (`admin_decide_interruption_reexamination`) :
+  - **maintenue** (motivée) ;
+  - **rouverte** : seulement pour « non établie » ou « désaccord non résolu » sur une journée non confirmée. La décision passe à l'historique (`mission_interruption_closure_history`) et le dossier revient à l'examen du fondateur ;
+  - **traitement distinct** : la correction toucherait un accord finalisé ou une journée confirmée. Rien n'est modifié ici (`requires_separate_handling` si une réouverture est tentée).
+- Les décisions successives sont conservées. Ce n'est pas présenté comme un recours indépendant.
+- Le statut générique du signalement (`mission_incidents.status`, figé par le lot 14 dès la première décision) n'est pas réécrit : la première décision reste immuable et la protection du lot 14 n'est pas contournée.
+- **Instruction après réouverture** (correctif de clôture du complément) : une seule lecture de l'état courant, `incident_instruction_open(dossier)`. Pour une interruption, l'instruction est ouverte tant qu'aucune clôture n'est en vigueur ; pour les autres natures, la règle des lots 14 à 16 (statut ouvert ou répondu) est inchangée. Cette fonction contrôle :
+  - les contacts (`admin_record_incident_contact`) et la qualification (`admin_set_incident_situation`), reprises du lot 16 où seule cette condition change ;
+  - les demandes (`admin_request_incident_info`) et les réponses aux demandes (déclencheur des déclarations liées) ;
+  - la lecture du support : `instruction_open` exposé par `admin_mission_interruption`, et la route du dossier qui en déduit `can_record_contact`, donc le formulaire de contact, la situation et les demandes.
+
+  Ce que cela donne :
+  - un dossier rouvert accepte de nouveau contacts, réponses, qualification, demandes et réponses ;
+  - les notes internes restent toujours ouvertes (règle du lot 16) ;
+  - après une nouvelle clôture, contacts, qualification, demandes et réponses sont refusés (`incident_closed`) ; un nouvel élément libre reste recevable pour examen, sans rouvrir.
+- Les décisions successives sont conservées : la clôture en vigueur, l'historique des clôtures remplacées, les réexamens et leurs décisions, et le statut générique de la première décision.
+
+#### Suivi des montants et situations
+
+- Le dossier affiche aux deux parties et au fondateur :
+  - le montant déjà reconnu pour la mission (journées réalisées et accords réglés) ;
+  - le plafond de la journée ;
+  - la proposition en attente, le montant accepté, l'accord finalisé et l'état de finalisation (code ou fondateur) ;
+  - la mention « information seulement : ce n'est pas un versement ».
+- Le travail en examen n'est jamais présenté comme nul.
+- Trois situations distinctes :
+  - **journée** : « Interrompue — en examen », « accord à confirmer par le code », « accord partiel finalisé », « Interrompue — règlement non résolu » ;
+  - **dossier** : son étape ;
+  - **mission** : journées confirmées sur le total. Les autres journées suivent leur propre parcours ; la garde ne porte que sur la journée interrompue.
+
+- **Terminologie** : « accord finalisé » (EN « agreement finalised ») remplace « accord réglé » et « règlement partiel confirmé » dans les écrans et dans la notification de confirmation par le code. Le suivi précise « information, aucun versement ». Aucun écran de ce parcours ne suggère qu'un versement a eu lieu ; un test unitaire refuse « réglé », « settled » et toute formule de versement effectué dans les textes du parcours.
+- **Précision** : trois grandeurs distinctes.
+  - Montant de l'accord : entier.
+  - Plafond : part de la journée arrondie à l'entier inférieur ; c'est le seul arrondi.
+  - Total reconnu : calcul exact au prorata (`acquired_exact`, 4 décimales), qui peut rester fractionnaire, par exemple 7 618,5238.
+
+  L'affichage ne réinjecte jamais une valeur arrondie dans un calcul : la base calcule sur les valeurs exactes, et l'écran affiche le total exact (`formatXafExact`) avec la mention de ces trois règles. L'arrondi final d'un éventuel versement relève du lot paiement (décision à prendre). Aucun nouvel arrondi financier n'est introduit ; la carte du montant acquis du lot 17c conserve son affichage existant (arrondi proposé « à valider », plus le calcul exact).
+
+#### Sort du calcul du montant acquis des lots 17b–17c
+
+- **Inchangé (validé)** : forfait × minutes prévues des journées entièrement réalisées ÷ minutes prévues de toute la période, sur le contrat signé.
+- **Journée interrompue** : aucune part automatique. Seul un accord finalisé (clôture `settled`, par code ou finalisation manuelle) ajoute son montant accepté (`settled_total`), jamais au-delà du plafond de la journée : aucun double comptage. Sinon l'état est `settlement_pending` et la journée « en examen », jamais présentée comme nulle ; un désaccord non résolu est signalé (`unresolved`) sans montant définitif.
+
+#### Validation (décisions du 2026-11-20 et du 2026-11-21)
+
+- **Preuve `mission-interruptions`** (31 assertions, règles réelles de la migration, aucune proposition ni acceptation insérée en base) :
+  - **R1-R2, signalement** : journée non commencée, champs, tiers et anonyme ; double envoi (un dossier, une version, un avis « mis à disposition ») ; étape « instruction » jusqu'à l'ouverture + 72 h.
+  - **P1-P4, pouvoirs et bornes** : support et ops instruisent sans décider ; double validation et décision générique du lot 16 refusées ; parties refusées ; fondateur suspendu (ancien jeton) refusé partout ; au-dessus du plafond (9 001 > 9 000), négatif et fractionnaire refusés, plafond affiché.
+  - **D1-D3, délais d'instruction** : bornes exactes (échéance incluse, refus 1 ms après) ; réponse tardive refusée ; nouvel élément recevable ; examen du fondateur à l'échéance ; silence sans confirmation.
+  - **F1-F2, délai du fondateur** : dépassement visible et rappelé une fois, aucune décision automatique ; prolongation de 7 jours exactement acceptée, 7 jours + 1 s et seconde prolongation refusées.
+  - **S1-S9, proposition** : version unique, échéance + 48 h, version attendue périmée, plafond ; modification après une première acceptation ; une seule acceptation, tiers refusés ; acceptations concurrentes, accord non modifiable ; accord accepté puis code après l'échéance (montant accepté) ; refus ; silence et expiration ; course modification / acceptation ; recours, finalisation sans recours refusée, course finalisation / code, contrat intact.
+  - **C1-C3, clôtures et réexamen** : désaccord non résolu ; non établie sans réouverture par un doublon ; réexamen maintenu, rouvert avec historique et sans nouvelle prolongation, accord finalisé jamais rouvert (traitement distinct, 4 000 intact).
+  - **C4, instruction après réouverture** : contact, situation, note, demandes et réponse acceptés sur le dossier rouvert ; entreprise, admin suspendu et anonyme refusés ; première décision inchangée (statut, résultat, motif, date) ; clôture refusée tant qu'une réponse est attendue, puis nouvelle clôture ; historique (une clôture remplacée), deux réexamens et la clôture en vigueur conservés ; ensuite contact, situation, demande et réponse refusés (`incident_closed`), nouvel élément libre recevable.
+  - **N1-N7, avis et montants** : consultation distincte de la notification ; rappels idempotents et tâche après reconnexion ; forfait 30 000 (10 000 conservés) ; forfait 10 000 sur 8 h, 8 h, 5 h (plafond 3 809 lu dans le contrat malgré une offre modifiée, 3 810 refusé, total 7 618,52, 3e journée indépendante) ; montant nul exigeant un motif, accepté par une seule partie puis expiré (jamais réglé), puis accepté par les deux et réglé à 0 ; réputation et signaux.
+- **Défauts trouvés et corrigés** :
+  - code après un accord refusé par `mission_incidents_decision_chk` (motif manquant ; `founder-2.txt`) ;
+  - tâches de l'entreprise absentes de son tableau de bord ;
+  - provenance d'une journée réglée absente de la liste de l'entreprise (`fnd-browser-1.txt`) ;
+  - réouverture refusée par la protection « incident is final » du lot 14 (`caps-2.txt`, 28/30). Corrigé sans la contourner : le statut générique reste celui de la première décision, l'état courant est porté par les clôtures.
+- **Navigateur** (Chrome headless par CDP, 375 × 812 tactile, sessions candidat, entreprise et fondateur, script hors dépôt, règles réelles) : ✅ 33/33 en FR puis EN, 54 s.
+  - Échéance de la version chez l'entreprise sans rechargement ; tâches avec échéance ; textes en cours conservés.
+  - Carte du fondateur : plafond 9 000 du contrat, proposition ouverte ; 9 001 refusé avec un message clair, rien envoyé.
+  - Proposition réelle de 4 500, reçue sans rechargement (1,3 à 1,5 s) avec le suivi « proposition en attente », puis acceptations des deux parties depuis leurs écrans.
+  - Code avant la fin au montant convenu ; état final « accord finalisé 4 500 », journée « accord partiel finalisé » (vérifié aussi après le correctif de terminologie : 33/33), sans mention de versement.
+  - Consultations observées enregistrées, notifications jamais marquées lues ; aucune erreur JavaScript ni défilement horizontal.
+
+#### État final
+
+| Contrôle | Résultat |
+|---|---|
+| Pile `easyjob-proof` réinitialisée depuis les seules migrations | ✅ 59 s, dernière version `20261123120000` (état final, après le correctif de réouverture) |
+| Types générés | ✅ identiques à `lib/database.types.ts` |
+| `pnpm test` (Vitest), exécuté seul avant la suite RLS | ✅ 614 tests, 51 fichiers |
+| `pnpm test:rls` (build de production relié à la pile) | ✅ 38/38 au premier passage, 1 036 s (`mission-interruptions` : 94 s) |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ (build 63 s, sans avertissement) |
+
+#### Arbitrages ouverts
+
+1. **Désaccord non résolu** : la journée reste non confirmée et la mission ne passe pas « réalisée » ; suite à donner (orientation externe, clôture administrative de la mission).
+2. **Statut générique après une réouverture** : `mission_incidents.status` garde la première décision (règle du lot 14) ; les listes filtrées par ce statut le montrent « décidé », avec l'étape courante en badge. L'instruction est contrôlée par l'état courant (ci-dessus).
+3. **Traitement distinct** : revenir sur un accord finalisé, une journée confirmée ou un futur versement n'a pas de parcours ; il est seulement signalé.
+4. **Délais des parties** : la prolongation des 72 h d'une demande n'est pas prévue.
+5. **Arrondi d'un versement** : décision du lot paiement (le parcours n'arrondit que le plafond).
+
+Restent hors de ce complément, comme demandé : le délai de 72 h n'est pas appliqué aux justificatifs d'annulation des lots 17b–17c ; sanctions, engagements pendant une suspension, avis et unités de réputation des missions partielles inchangés.
+
+### Engagements futurs au moment d'une suspension
+
+Rien n'est supprimé ni transformé en absence. Le candidat suspendu ne peut plus commencer (`account_suspended`, inchangé) mais peut encore annuler et suivre ses dossiers. Les engagements futurs sont listés dans l'audit de la suspension et sur le dossier du support (`candidate_future_engagements`).
+
+### Arbitrages matériels encore ouverts
+
+1. **Dossier laissé sans pièce** (`awaiting_evidence`) : délai de complément et issue. Aucune sanction automatique sur ce fondement.
+2. **Engagements futurs d'un candidat suspendu** : information de l'entreprise, remplacement, annulation par le support. Le traitement opérationnel est à décider.
+3. **Manquement annulé dans un cycle déjà suivi d'un autre cycle** : le cycle concerné est levé, les suivants sont conservés et l'arbitrage est tracé (`cancellation_cycle_arbitration_needed`). Reste à trancher : renumérotation, durée du cycle suivant, réduction éventuelle.
+4. **Réputation de l'entreprise** : une offre avec un désistement ne rapporte jamais l'unité « offre réalisée », car un engagement annulé n'est pas une résolution (règle du lot 12). Ce n'est pas une attribution artificielle, mais l'entreprise subit le désistement du candidat.
+5. **Remplacement** après clôture du recrutement ; poursuite ou remplacement d'une période abandonnée (place conservée).
+6. **Montant** : arrondi au franc (demi supérieur proposé) ; durée brute ou nette des pauses. Bornes d'un règlement de journée interrompue : voir « Bornes du règlement » (décision du 2026-11-21).
+7. **Fraude** : durée et critères ; recours au-delà de la contestation interne.
+8. **Annulation par l'entreprise** (lot 17d).
+
+### Validation
+
+- **Preuve `candidate-cancellations`** (29 assertions) : L1-L4 limites Free et Premium incluses, délai de réaction jusqu'à sélection + 1 h inclus, historique ; A1-A2 effet immédiat, place libérée, entreprise prévenue sans plan, motif et choix exigés, manquement sans justificatif ; M1-M6 journées mixtes en un seul événement, relance, envoi de pièce échoué puis réussi, décision refusée (support, ops suspendu et candidat refusés, double envoi : un manquement), recours par un autre agent, décision acceptée, URL signée réservée au support ; R1-R4 début et annulation simultanés, journée annulée bloquée (début, réalisation même en clé service, signalement, absence sanctionnée), journée commencée ou débutée non annulable, cinq envois simultanés ; X1-X7 cycle de 6 mois, durée calendaire, plusieurs causes, dossier ancien décidé tard hors cycle, 1 an, exclusion définitive, recours qui lève l'exclusion, arbitrage tracé ; F1 fraude ; P1-P3 42 000 XAF exact, arrondi 4 286 à valider, journée partielle « en attente de règlement » (mise à jour du 2026-11-19), contrat inchangé ; C1-C2 confidentialité, tables fermées, signaux {d, r, id}.
+- **Contrôle négatif** sur la pile jetable : déclencheur `trg_block_cancelled_day` retiré et limites rendues exclusives → 5 échecs détectés (L1, A1, L2, L3, R2 ; sortie conservée), puis pile restaurée par réinitialisation.
+- **Preuves ciblées** pendant le développement : `candidate-cancellations`, `admin-centralization`, `mission-incidents`, `mission-completion`, `mission-disputes`, `multi-day-jobs`, `reputation`, `candidate-premium`, `mission-time-tracking`, `contract-selection` ✅ (607 s).
+- **Navigateur** (Chrome headless par CDP, 375 × 812 tactile, trois sessions candidat, entreprise et ops, script hors dépôt) : ✅ 21/21 en FR puis EN, en 41 s. Dialogue avec journées classées, récapitulatif, confirmation bloquée sans motif ni choix, pièce déposée → « en examen » ; désistement visible chez l'entreprise sans rechargement (1,5 à 2,7 s), sans classement ni motif ; dossier reçu par le support, refus reçu par le candidat sans rechargement, recours proposé ; Tâches sans action de début ; aucun défilement horizontal, aucune erreur JavaScript. Une première passe a révélé que la candidature retirée disparaissait des onglets de l'entreprise : corrigé (onglet « Sélectionnées », badge « Désistement du candidat », signalement masqué sur une journée annulée).
+
+### Validation de l'état final
+
+| Contrôle | Résultat |
+|---|---|
+| Pile `easyjob-proof` réinitialisée depuis les seules migrations (protections du contrôle négatif restaurées) | ✅ 62 s, dernière version `20261122120000` |
+| `pnpm test` (Vitest), puis suite RLS complète, l'un après l'autre (sorties conservées) | ✅ 597 tests, 50 fichiers, 22 s (nouveau : `candidate-cancellation`) |
+| `pnpm test:rls` (build de production relié à la pile) | ✅ 37/37 au premier passage, 846 s (`candidate-cancellations` : 63 s) |
+| `pnpm typecheck` (11 s), `pnpm lint` (59 s), `pnpm exec prettier --check .` (15 s), `pnpm build` (39 s, sans avertissement) | ✅ |
+| Types générés (pile réinitialisée) | ✅ identiques à `lib/database.types.ts` |
+
+### Limites
+
+- Pas de délai ni d'issue pour un dossier resté sans pièce ; aucun rappel automatique.
+- L'entreprise n'est prévenue que dans l'application (aucune notification push).
+- Les six pages admin sans filtre `is_active` signalées au §39 restent à corriger.
+- Le détail des pièces d'une fraude n'est visible que sur le dossier d'annulation concerné ou par la route admin des suspensions ; il n'y a pas d'écran dédié aux fraudes sans annulation.

@@ -72,7 +72,7 @@ export function IncidentCompletionPanel({
   onChanged,
 }: {
   incidentId: string;
-  kind: "late" | "absence" | "code_not_received";
+  kind: "late" | "absence" | "code_not_received" | "interruption";
   contacts: IncidentContact[];
   confirmation: DayConfirmation | null;
   canRecordContact: boolean;
@@ -81,7 +81,13 @@ export function IncidentCompletionPanel({
   dayStarted: boolean;
   dayEndsAt: string;
   dayConfirmedAt: string | null;
-  dayCompletedVia: "code" | "support" | "exceptional" | null;
+  dayCompletedVia:
+    | "code"
+    | "support"
+    | "exceptional"
+    | "partial"
+    | "partial_support"
+    | null;
   serverNow: number;
   onChanged: () => Promise<unknown>;
 }) {

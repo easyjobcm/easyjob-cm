@@ -4,13 +4,19 @@ import { z } from "zod";
  * Incidents de mission par journée (lot 14) : schémas partagés entre les
  * écrans et les routes. La base revérifie tout (partie, journée, état).
  */
-export const INCIDENT_KINDS = ["late", "absence", "code_not_received"] as const;
+export const INCIDENT_KINDS = [
+  "late",
+  "absence",
+  "code_not_received",
+  // Interruption d'une journée commencée (champs propres, route dédiée).
+  "interruption",
+] as const;
 export type IncidentKind = (typeof INCIDENT_KINDS)[number];
 
 /** Natures ouvertes à chaque partie (mêmes règles que la base). */
 export const INCIDENT_KINDS_BY_PARTY = {
-  candidate: ["late", "absence", "code_not_received"],
-  company: ["late", "absence"],
+  candidate: ["late", "absence", "code_not_received", "interruption"],
+  company: ["late", "absence", "interruption"],
 } as const satisfies Record<"candidate" | "company", readonly IncidentKind[]>;
 
 const statement = z
@@ -22,7 +28,9 @@ const statement = z
 export const incidentReportSchema = z
   .object({
     mission_day_id: z.string().uuid("mission_not_found"),
-    kind: z.enum(INCIDENT_KINDS, { message: "incident_kind_invalid" }),
+    kind: z.enum(["late", "absence", "code_not_received"], {
+      message: "incident_kind_invalid",
+    }),
     statement,
     late_minutes: z
       .number()
@@ -249,6 +257,17 @@ export const INCIDENT_RPC_REFUSALS = {
   not_authenticated: 401,
   account_suspended: 403,
   forbidden: 403,
+  // Lot 17b : signalement refusé sur une journée annulée par le candidat.
+  day_cancelled: 409,
+  // Interruption ou règlement en cours : pas de confirmation contradictoire.
+  interruption_pending: 409,
+  // Interruption : délai de 72 h dépassé ; décision du fondateur seul.
+  response_deadline_passed: 409,
+  use_founder_decision: 409,
+  settlement_pending: 409,
+  interruption_cause_invalid: 400,
+  work_done_invalid: 400,
+  declared_time_invalid: 400,
   mission_not_found: 404,
   incident_not_found: 404,
   evidence_not_found: 404,

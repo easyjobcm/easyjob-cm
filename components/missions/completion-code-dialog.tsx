@@ -16,6 +16,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { doualaTime } from "@/lib/utils/douala-time";
 import { plural } from "@/lib/i18n/plural";
+import { formatXaf } from "@/lib/utils";
 
 type Props = {
   open: boolean;
@@ -29,6 +30,11 @@ type Props = {
    * `missionCompleted` : toutes les journées de la mission sont confirmées.
    */
   onCompleted: (completedAt: string, missionCompleted: boolean) => void;
+  /**
+   * Accord de travail partiel accepté : montant convenu, toujours visible
+   * pendant la saisie du code.
+   */
+  agreedAmount?: number | null;
 };
 
 /**
@@ -43,6 +49,7 @@ export function CompletionCodeDialog({
   missionDayId = null,
   jobTitle,
   onCompleted,
+  agreedAmount = null,
 }: Props) {
   const { t, locale } = useI18n();
   const tc = t.mission.code;
@@ -146,6 +153,20 @@ export function CompletionCodeDialog({
           <DialogDescription>
             {tc.description.replace("{job}", jobTitle)}
           </DialogDescription>
+          {agreedAmount !== null && (
+            <p
+              className="rounded-lg bg-primary/5 p-2 text-sm font-semibold text-foreground"
+              data-testid="code-agreed-amount"
+            >
+              {t.partialDay.codeAmount.replace(
+                "{amount}",
+                formatXaf(agreedAmount, locale),
+              )}
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                {t.partialDay.noPayment}
+              </span>
+            </p>
+          )}
         </DialogHeader>
         <form
           className="space-y-3"

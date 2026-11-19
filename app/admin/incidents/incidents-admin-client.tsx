@@ -23,15 +23,25 @@ import {
   type IncidentContact,
 } from "./incident-completion-panel";
 import { incidentDecisionSchema } from "@/lib/validations/incident";
+import { AdminInterruptionCard } from "./admin-interruption-card";
 import type { Database } from "@/lib/database.types";
 
 type Row =
   Database["public"]["Functions"]["admin_mission_incidents"]["Returns"][number];
 type Status = "open" | "answered" | "decided" | "closed";
+type CompletedVia =
+  | "code"
+  | "support"
+  | "exceptional"
+  | "partial"
+  | "partial_support"
+  | null;
 type Detail = Omit<DisputeDetail, "status"> & {
   incident_id: string;
-  kind: "late" | "absence" | "code_not_received";
+  kind: "late" | "absence" | "code_not_received" | "interruption";
   status: Status;
+  /** Interruption : détail (étape, délais, propositions, avis). */
+  interruption?: unknown;
   reported_by_party: "candidate" | "company";
   late_minutes: number | null;
   outcome: "established" | "not_established" | null;
@@ -52,12 +62,12 @@ type Detail = Omit<DisputeDetail, "status"> & {
     ends_at: string;
     started_at: string | null;
     confirmed_at: string | null;
-    completed_via: "code" | "support" | "exceptional" | null;
+    completed_via: CompletedVia;
   };
   other_days: {
     date: string;
     confirmed_at: string | null;
-    completed_via: "code" | "support" | "exceptional" | null;
+    completed_via: CompletedVia;
   }[];
   statements: {
     party: "candidate" | "company";
@@ -148,15 +158,16 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
   const serverNow = useDeadlineNow(
     detail ? [Date.parse(detail.day.ends_at)] : [],
   );
-  const confirmedLabel = (
-    at: string,
-    via: "code" | "support" | "exceptional" | null,
-  ): string =>
-    (via === "exceptional"
-      ? ta.confirmedByDecisionAt
-      : via === "support"
-        ? ta.confirmedBySupportAt
-        : ta.confirmedAt
+  const confirmedLabel = (at: string, via: CompletedVia): string =>
+    (via === "partial"
+      ? `${t.partialDay.dayPartial} · {time}`
+      : via === "partial_support"
+        ? `${t.partialDay.dayPartialSupport} · {time}`
+        : via === "exceptional"
+          ? ta.confirmedByDecisionAt
+          : via === "support"
+            ? ta.confirmedBySupportAt
+            : ta.confirmedAt
     ).replace("{time}", doualaDateTime(at, locale));
 
   async function openEvidence(id: string) {
@@ -274,6 +285,31 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
                     )}
                     {r.appeal_status && r.appeal_status !== "decided" && (
                       <Badge variant="warning">{ta.badges.appeal}</Badge>
+                    )}
+                    {r.interruption_overdue ? (
+                      <Badge
+                        variant="destructive"
+                        data-testid="admin-incident-overdue"
+                      >
+                        {t.partialDay.admin.overdueBadge}
+                      </Badge>
+                    ) : (
+                      r.interruption_stage &&
+                      r.interruption_stage !== "closed" && (
+                        <Badge variant="outline">
+                          {
+                            t.partialDay.stage[
+                              r.interruption_stage as keyof typeof t.partialDay.stage
+                            ]
+                          }
+                          {r.interruption_due_at
+                            ? ` · ${t.partialDay.admin.dueBadge.replace(
+                                "{time}",
+                                doualaDateTime(r.interruption_due_at, locale),
+                              )}`
+                            : ""}
+                        </Badge>
+                      )
                     )}
                   </div>
                   <p className="mt-1 text-muted-foreground">
@@ -425,6 +461,14 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
               </CardContent>
             </Card>
 
+            {detail.kind === "interruption" && (
+              <AdminInterruptionCard
+                key={`interruption-${detail.incident_id}`}
+                raw={detail.interruption}
+                onChanged={() => Promise.all([loadList(), loadDetail()])}
+              />
+            )}
+
             <IncidentCompletionPanel
               key={detail.incident_id}
               incidentId={detail.incident_id}
@@ -445,6 +489,7 @@ export function IncidentsAdminClient({ canDecide }: { canDecide: boolean }) {
             <IncidentDisputePanel
               key={`dispute-${detail.incident_id}`}
               detail={detail}
+              interruption={detail.kind === "interruption"}
               onChanged={() => Promise.all([loadList(), loadDetail()])}
             />
 

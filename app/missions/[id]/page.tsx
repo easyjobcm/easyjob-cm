@@ -39,8 +39,10 @@ import {
   dayEndReached,
   missionDays,
   missionTaskInstants,
+  partialCodeOpen,
 } from "@/lib/tasks/candidate-tasks";
 import { formatDayDate } from "@/lib/jobs/schedule";
+import { formatXaf } from "@/lib/utils";
 import { plural } from "@/lib/i18n/plural";
 import {
   IncidentList,
@@ -51,6 +53,8 @@ import {
   incidentDaysOf,
 } from "@/components/missions/incident-report-dialog";
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
+import { CancellationPanel } from "@/components/missions/cancellation-panel";
+import { AcquiredAmountCard } from "@/components/missions/acquired-amount-card";
 import { useToast } from "@/hooks/use-toast";
 
 type MissionRow =
@@ -370,7 +374,8 @@ export default function MissionDetailPage() {
                 <Card data-testid="mission-day-actions">
                   <CardContent className="space-y-3 p-4">
                     {open.map((d) => {
-                      const reached = dayEndReached(d, serverNow);
+                      const reached =
+                        partialCodeOpen(d) || dayEndReached(d, serverNow);
                       return (
                         <div
                           key={d.id}
@@ -385,12 +390,35 @@ export default function MissionDetailPage() {
                             />
                             {reached
                               ? tm.tasks.validateDay
-                              : tm.tasks.inProgress.replace(
-                                  "{time}",
-                                  doualaTime(d.ends_at, locale),
-                                )}
+                              : d.interruption?.blocks_completion
+                                ? t.partialDay.dayInterrupted
+                                : tm.tasks.inProgress.replace(
+                                    "{time}",
+                                    doualaTime(d.ends_at, locale),
+                                  )}
                             {multi ? ` · ${formatDayDate(d.date, locale)}` : ""}
                           </p>
+                          {/* Interruption : étape du dossier ; accord des
+                              deux parties : code reçu au montant accepté. */}
+                          {d.interruption && (
+                            <p
+                              className="rounded-lg bg-primary/5 p-2 text-sm"
+                              data-testid="mission-interruption-state"
+                              data-stage={d.interruption.stage ?? ""}
+                            >
+                              {d.interruption.agreement
+                                ? t.partialDay.codeAmount.replace(
+                                    "{amount}",
+                                    formatXaf(
+                                      d.interruption.agreement.amount,
+                                      locale,
+                                    ),
+                                  )
+                                : d.interruption.stage
+                                  ? t.partialDay.stage[d.interruption.stage]
+                                  : t.partialDay.dayInterrupted}
+                            </p>
+                          )}
                           {reached ? (
                             <div className="grid gap-2 sm:grid-cols-2">
                               <motion.div whileTap={{ scale: 0.98 }}>
@@ -482,28 +510,47 @@ export default function MissionDetailPage() {
                             className={
                               d.completed_at
                                 ? "text-success"
-                                : "text-muted-foreground"
+                                : d.cancelled_at
+                                  ? "text-destructive"
+                                  : "text-muted-foreground"
                             }
+                            data-cancelled={d.cancelled_at ? "true" : undefined}
                           >
-                            {d.completed_at
-                              ? d.completed_via === "exceptional"
-                                ? t.schedule.dayConfirmedByDecision
-                                : d.completed_via === "support"
-                                  ? t.schedule.dayConfirmedBySupport
-                                  : t.schedule.dayConfirmed
-                              : d.started_at
-                                ? t.schedule.dayStarted
-                                : t.schedule.dayUpcoming}
+                            {d.completed_via === "partial"
+                              ? t.partialDay.dayPartial
+                              : d.completed_via === "partial_support"
+                                ? t.partialDay.dayPartialSupport
+                                : d.cancelled_at && !d.completed_at
+                                  ? mission.viewer_party === "company"
+                                    ? t.cancellations.companyDayCancelled
+                                    : t.cancellations.dayCancelled
+                                  : d.completed_at
+                                    ? d.completed_via === "exceptional"
+                                      ? t.schedule.dayConfirmedByDecision
+                                      : d.completed_via === "support"
+                                        ? t.schedule.dayConfirmedBySupport
+                                        : t.schedule.dayConfirmed
+                                    : d.interruption?.closure_outcome ===
+                                        "disagreement"
+                                      ? t.partialDay.dayState.unresolved
+                                      : d.interruption?.blocks_completion
+                                        ? d.interruption.agreement
+                                          ? t.partialDay.dayState.agreement
+                                          : t.partialDay.dayState.under_review
+                                        : d.started_at
+                                          ? t.schedule.dayStarted
+                                          : t.schedule.dayUpcoming}
                           </span>
                         </li>
                       ))}
                     </ul>
-                    {!mission.completed_at && (
-                      <p className="text-xs text-muted-foreground">
-                        {t.schedule.missionDoneAfterAll}{" "}
-                        {t.schedule.unconfirmedNote}
-                      </p>
-                    )}
+                    {!mission.completed_at &&
+                      !days.some((d) => d.cancelled_at) && (
+                        <p className="text-xs text-muted-foreground">
+                          {t.schedule.missionDoneAfterAll}{" "}
+                          {t.schedule.unconfirmedNote}
+                        </p>
+                      )}
                   </div>
                 );
               })()}
@@ -562,6 +609,19 @@ export default function MissionDetailPage() {
             </Card>
           </motion.div>
         )}
+        {/* Lots 17b–17c : annulation (candidat) et montant acquis d'un
+            forfait interrompu (parties). */}
+        {mission.viewer_party === "candidate" && (
+          <motion.div {...item(5)}>
+            <CancellationPanel missionId={mission.mission_id} />
+          </motion.div>
+        )}
+        {missionDays(mission.days).some((d) => d.cancelled_at) &&
+          missionDays(mission.days).some((d) => d.completed_at) && (
+            <motion.div {...item(6)}>
+              <AcquiredAmountCard missionId={mission.mission_id} />
+            </motion.div>
+          )}
       </div>
 
       <IncidentReportDialog
@@ -578,7 +638,13 @@ export default function MissionDetailPage() {
         missionId={mission.mission_id}
         jobTitle={mission.job_title}
         party={mission.viewer_party === "company" ? "company" : "candidate"}
-        days={incidentDaysOf(mission.days)}
+        days={incidentDaysOf(
+          Array.isArray(mission.days)
+            ? mission.days.filter(
+                (d) => !(d as { cancelled_at?: string | null }).cancelled_at,
+              )
+            : mission.days,
+        )}
         initialDayId={reportPreset}
         initialKind={reportPreset ? "code_not_received" : null}
         serverNow={serverNow}
@@ -590,6 +656,12 @@ export default function MissionDetailPage() {
           onOpenChange={(o) => !o && setCodeDay(null)}
           missionId={mission.mission_id}
           missionDayId={missionDays(mission.days).length > 1 ? codeDay : null}
+          agreedAmount={(() => {
+            const day = missionDays(mission.days).find((x) => x.id === codeDay);
+            return day && partialCodeOpen(day)
+              ? (day.interruption?.agreement?.amount ?? null)
+              : null;
+          })()}
           jobTitle={mission.job_title}
           onCompleted={(_at, done) => {
             setCodeDay(null);

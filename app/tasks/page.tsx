@@ -37,6 +37,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CancellationTasks } from "@/components/missions/cancellation-tasks";
+import { InterruptionTasks } from "@/components/missions/interruption-tasks";
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
 import { formatDayDate } from "@/lib/jobs/schedule";
 import { ReviewDialog } from "@/components/missions/review-dialog";
@@ -47,6 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 import { formatDateShort } from "@/lib/utils/profile-status";
+import { formatXaf } from "@/lib/utils";
 import { doualaDateTime, doualaTime } from "@/lib/utils/douala-time";
 import { useAccountSuspended } from "@/lib/realtime/provider";
 import { useDeadlineNow } from "@/lib/realtime/use-deadline-now";
@@ -59,6 +62,7 @@ import {
   canStartMission,
   canStartDay,
   dayEndReached,
+  partialCodeOpen,
   missionDays,
   missionEndReached,
   missionTaskInstants,
@@ -162,7 +166,12 @@ function TasksContent() {
   }, [data, serverNow]);
 
   // Lot 12 : journée visée (null : mission d'une seule journée).
-  type DayTarget = { mission: MissionTask; dayId: string | null };
+  type DayTarget = {
+    mission: MissionTask;
+    dayId: string | null;
+    /** Accord de travail partiel accepté : montant affiché à la saisie. */
+    agreedAmount?: number | null;
+  };
   const [startTarget, setStartTarget] = React.useState<DayTarget | null>(null);
   const [starting, setStarting] = React.useState(false);
   const startingRef = React.useRef(false);
@@ -414,7 +423,30 @@ function TasksContent() {
     d: MissionDayState,
     label: string | null,
   ) => {
-    const reached = dayEndReached(d, serverNow);
+    const tp = t.partialDay;
+    const agreement = d.interruption?.agreement ?? null;
+    const money = (n: number | null | undefined) => formatXaf(n ?? 0, locale);
+    const dayLabel = formatDayDate(d.date, locale);
+    const missionHref = `/missions/${m.mission_id}`;
+    // Interruption non close ou désaccord non résolu : la tâche reste
+    // visible, sans saisie de code ; les actions attendues (version,
+    // justificatif, réponse à une proposition) sont listées en tête.
+    if (!partialCodeOpen(d) && d.interruption?.blocks_completion) {
+      return taskRow(
+        `task-interruption-${d.id}`,
+        <KeyRound className="h-5 w-5" />,
+        tp.taskTitle.replace("{date}", dayLabel),
+        d.interruption.stage ? tp.stage[d.interruption.stage] : tp.taskHint,
+        <Button size="sm" variant="outline" asChild>
+          <Link href={missionHref} data-testid="task-interruption-open">
+            {tp.taskOpen}
+          </Link>
+        </Button>,
+        false,
+      );
+    }
+    const partialOpen = partialCodeOpen(d);
+    const reached = partialOpen || dayEndReached(d, serverNow);
     const suffix = label ? ` · ${label}` : "";
     const multiDay = missionDays(m.days).length > 1;
     return taskRow(
@@ -423,19 +455,27 @@ function TasksContent() {
       reached
         ? `${tt.validateDay}${suffix}`
         : `${tt.inProgress.replace("{time}", doualaTime(d.ends_at, locale))}${suffix}`,
-      reached
-        ? tt.validateDayHint
-        : tt.completionAvailableAt.replace(
-            "{time}",
-            doualaDateTime(d.completion_available_at, locale),
-          ),
+      partialOpen
+        ? tp.codeAmount.replace("{amount}", money(agreement?.amount))
+        : reached
+          ? tt.validateDayHint
+          : tt.completionAvailableAt.replace(
+              "{time}",
+              doualaDateTime(d.completion_available_at, locale),
+            ),
       reached ? (
         <div className="flex flex-col gap-2 sm:flex-row">
           <motion.div whileTap={{ scale: 0.97 }}>
             <Button
               size="sm"
               onClick={() =>
-                setCodeTarget({ mission: m, dayId: multiDay ? d.id : null })
+                setCodeTarget({
+                  mission: m,
+                  dayId: multiDay ? d.id : null,
+                  agreedAmount: partialOpen
+                    ? (agreement?.amount ?? null)
+                    : null,
+                })
               }
               disabled={suspended}
               data-testid="task-validate-day"
@@ -517,6 +557,7 @@ function TasksContent() {
           );
         } else if (
           !d.started_at &&
+          !d.cancelled_at &&
           !upcomingShown &&
           (m.status === "pending" ||
             m.status === "confirmed" ||
@@ -702,6 +743,9 @@ function TasksContent() {
         <h1 className="mb-6 text-2xl font-bold text-foreground">
           {t.nav.tasks}
         </h1>
+        {/* Lots 17b–17c : suspension en cours et justificatifs attendus. */}
+        <CancellationTasks />
+        <InterruptionTasks />
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -841,6 +885,7 @@ function TasksContent() {
           missionId={codeTarget.mission.mission_id}
           missionDayId={codeTarget.dayId}
           jobTitle={codeTarget.mission.job_title}
+          agreedAmount={codeTarget.agreedAmount ?? null}
           onCompleted={(at, done) =>
             void onCompleted(codeTarget.mission, at, done)
           }

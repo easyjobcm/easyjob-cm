@@ -49,8 +49,29 @@ export async function GET(
         request,
       });
     }
+    // Lot 17b : journées annulées par le candidat (date seulement, sans
+    // motif, classement ni plan) ; leur code n'est plus montré.
+    const { data: cancelled, error: cancelledError } = await supabase.rpc(
+      "company_job_cancellations",
+      { p_job_id: jobId.data },
+    );
+    if (cancelledError) {
+      return internalErrorResponse("jobs.missions", cancelledError, {
+        code: "mission_failed",
+        request,
+      });
+    }
+    const cancelledAt = new Map(
+      (cancelled ?? []).map((c) => [c.mission_day_id, c.cancelled_at]),
+    );
+    const missions = (data ?? []).map((m) => {
+      const at = cancelledAt.get(m.mission_day_id) ?? null;
+      return at
+        ? { ...m, cancelled_at: at, completion_code: null }
+        : { ...m, cancelled_at: null };
+    });
     return NextResponse.json(
-      { missions: data },
+      { missions },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

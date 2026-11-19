@@ -37,6 +37,11 @@ const RPC_ERROR_MAP: [RegExp, { code: string; status: number }][] = [
   [/not authorized.*role/i, { code: "forbidden", status: 403 }],
   [/cannot modify own account/i, { code: "self_modification", status: 403 }],
   [/cannot modify admin account/i, { code: "admin_modification", status: 403 }],
+  // Lot 17c : compte suspendu pour une autre cause (cycle, fraude).
+  [
+    /other_suspension_active/i,
+    { code: "other_suspension_active", status: 409 },
+  ],
   [/user not found/i, { code: "not_found", status: 404 }],
 ];
 

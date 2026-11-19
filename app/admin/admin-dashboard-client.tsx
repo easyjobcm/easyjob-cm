@@ -24,7 +24,7 @@ import {
   FileCheck,
   LogOut,
 } from "lucide-react";
-import { Flag } from "lucide-react";
+import { CalendarX, Flag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import packageJson from "@/package.json";
 import { motion } from "framer-motion";
@@ -342,6 +342,21 @@ export function AdminDashboardClient({
                 <Flag className="w-6 h-6 text-destructive mb-2" />
                 <p className="text-xs font-medium text-foreground">
                   {t.incidents.admin.quickAction}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Lot 17c : annulations des candidats, fraude, suspensions. */}
+          <Link
+            href="/admin/cancellations"
+            data-testid="admin-cancellations-link"
+          >
+            <Card className="hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <CalendarX className="w-6 h-6 text-destructive mb-2" />
+                <p className="text-xs font-medium text-foreground">
+                  {t.cancellations.admin.quickAction}
                 </p>
               </CardContent>
             </Card>

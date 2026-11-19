@@ -107,8 +107,16 @@ type JobMission = Omit<
   started_at: string | null;
   completed_at: string | null;
   completion_code: string | null;
-  completed_via: "code" | "support" | "exceptional" | null;
+  completed_via:
+    | "code"
+    | "support"
+    | "exceptional"
+    | "partial"
+    | "partial_support"
+    | null;
   mission_completed_at: string | null;
+  /** Lot 17b : désistement du candidat sur cette journée. */
+  cancelled_at?: string | null;
 };
 
 /** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
@@ -386,16 +394,23 @@ export default function CompanyJobDetailPage() {
 
   // Lot 13 : une ancienne présélection est comptée et traitée comme une
   // candidature en attente (statut conservé en base).
+  // Lot 17b : candidature retirée après sélection (désistement du
+  // candidat) : reste dans « Sélectionnées », avec ses journées annulées.
+  const withdrawnAfterSelection = (a: {
+    status: string | null;
+    application_id: string;
+  }) => a.status === "withdrawn" && missions.has(a.application_id);
+  const tabOf = (a: { status: string | null; application_id: string }) =>
+    withdrawnAfterSelection(a)
+      ? "selected"
+      : displayApplicationStatus(a.status);
   const countStatus = (status: string) =>
-    String(
-      applications.filter((a) => displayApplicationStatus(a.status) === status)
-        .length,
-    );
+    String(applications.filter((a) => tabOf(a) === status).length);
 
   const perDay = job?.schedule_format === "per_day";
   const filteredApplications = applications.filter(
     (app) =>
-      displayApplicationStatus(app.status) === activeTab &&
+      tabOf(app) === activeTab &&
       (!perDay || !dayFilter || app.job_day_id === dayFilter),
   );
   // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence)
@@ -684,7 +699,16 @@ export default function CompanyJobDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold">{name(app)}</span>
-                          {getStatusBadge(displayApplicationStatus(app.status))}
+                          {withdrawnAfterSelection(app) ? (
+                            <Badge
+                              variant="destructive"
+                              data-testid="company-application-withdrawn"
+                            >
+                              {t.cancellations.companyDayCancelled}
+                            </Badge>
+                          ) : (
+                            getStatusBadge(displayApplicationStatus(app.status))
+                          )}
                           {app.match_score && (
                             <Badge variant="outline" className="text-xs">
                               {Math.round(app.match_score)}% match
@@ -827,7 +851,8 @@ export default function CompanyJobDetailPage() {
                           </div>
                         )}
 
-                        {app.status === "selected" &&
+                        {(app.status === "selected" ||
+                          withdrawnAfterSelection(app)) &&
                           (() => {
                             const rows = missions.get(app.application_id);
                             if (!rows || rows.length === 0) return null;
@@ -904,14 +929,32 @@ export default function CompanyJobDetailPage() {
                                       </div>
                                     )}
                                     <div data-testid="company-mission-status">
-                                      {m.completed_at ? (
+                                      {m.cancelled_at && !m.completed_at ? (
+                                        <span
+                                          className="text-destructive"
+                                          data-testid="company-day-cancelled"
+                                        >
+                                          {t.cancellations.companyDayCancelled}{" "}
+                                          ·{" "}
+                                          {doualaDateTime(
+                                            m.cancelled_at,
+                                            locale,
+                                          )}
+                                        </span>
+                                      ) : m.completed_at ? (
                                         <span className="text-success flex items-center gap-1">
                                           <CheckCircle className="h-4 w-4" />
-                                          {(m.completed_via === "exceptional"
-                                            ? tcomp.completedByDecisionAt
-                                            : m.completed_via === "support"
-                                              ? tcomp.completedBySupportAt
-                                              : tcomp.completedAt
+                                          {(m.completed_via === "partial"
+                                            ? `${t.partialDay.dayPartial} · {time}`
+                                            : m.completed_via ===
+                                                "partial_support"
+                                              ? `${t.partialDay.dayPartialSupport} · {time}`
+                                              : m.completed_via ===
+                                                  "exceptional"
+                                                ? tcomp.completedByDecisionAt
+                                                : m.completed_via === "support"
+                                                  ? tcomp.completedBySupportAt
+                                                  : tcomp.completedAt
                                           ).replace(
                                             "{time}",
                                             doualaTime(m.completed_at, locale),
@@ -936,20 +979,26 @@ export default function CompanyJobDetailPage() {
                                     {t.schedule.unconfirmedNote}
                                   </p>
                                 )}
-                                {/* Lot 14 : signalements par journée. */}
-                                <CompanyMissionIncidents
-                                  missionId={rows[0].mission_id}
-                                  jobTitle={job.title}
-                                  disabled={suspended}
-                                  days={rows.map((r) => ({
-                                    id: r.mission_day_id,
-                                    date: r.day_date,
-                                    starts_at: r.scheduled_start_at,
-                                    confirmed: !!r.completed_at,
-                                    started: !!r.started_at,
-                                    completion_available_at: r.scheduled_end_at,
-                                  }))}
-                                />
+                                {/* Lot 14 : signalements par journée ; lot 17b :
+                                    pas de signalement sur une journée annulée. */}
+                                {rows.some((r) => !r.cancelled_at) && (
+                                  <CompanyMissionIncidents
+                                    missionId={rows[0].mission_id}
+                                    jobTitle={job.title}
+                                    disabled={suspended}
+                                    days={rows
+                                      .filter((r) => !r.cancelled_at)
+                                      .map((r) => ({
+                                        id: r.mission_day_id,
+                                        date: r.day_date,
+                                        starts_at: r.scheduled_start_at,
+                                        confirmed: !!r.completed_at,
+                                        started: !!r.started_at,
+                                        completion_available_at:
+                                          r.scheduled_end_at,
+                                      }))}
+                                  />
+                                )}
                                 <p className="text-xs text-muted-foreground">
                                   {tcomp.dispute}{" "}
                                   <Link

@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { CNI_STATES } from "@/lib/utils/cni-validity";
+import {
+  parseDayInterruption,
+  type DayInterruption,
+} from "@/lib/validations/partial-day";
 
 /**
  * Tâches du candidat (lot 9d) : actions qui débloquent une candidature
@@ -103,7 +107,22 @@ export interface MissionDayState {
   completed_at: string | null;
   /** Lot 15 : provenance de la confirmation (code saisi ou support). */
   /** Lot 16 : « exceptional » = décision du support après double validation. */
-  completed_via: "code" | "support" | "exceptional" | null;
+  /**
+   * « partial » : accord des deux parties sur le montant du fondateur, puis
+   * code ; « partial_support » : accord finalisé par le fondateur (code non
+   * remis). Jamais une réalisation complète.
+   */
+  completed_via:
+    | "code"
+    | "support"
+    | "exceptional"
+    | "partial"
+    | "partial_support"
+    | null;
+  /** Lot 17b : journée annulée par le candidat (plus de début ni de code). */
+  cancelled_at: string | null;
+  /** Interruption signalée : étape, blocage, accord valide éventuel. */
+  interruption: DayInterruption | null;
 }
 
 /** Journées lues dans le JSON de la base, triées par début. */
@@ -133,9 +152,13 @@ export function missionDays(raw: unknown): MissionDayState[] {
           completed_via:
             r.completed_via === "code" ||
             r.completed_via === "support" ||
-            r.completed_via === "exceptional"
+            r.completed_via === "exceptional" ||
+            r.completed_via === "partial" ||
+            r.completed_via === "partial_support"
               ? r.completed_via
               : null,
+          cancelled_at: str(r.cancelled_at),
+          interruption: parseDayInterruption(r.interruption),
         },
       ];
     })
@@ -154,6 +177,7 @@ export function canStartDay(
 ): boolean {
   return (
     !d.started_at &&
+    !d.cancelled_at &&
     DAY_ACTIVE.has(m.status ?? "") &&
     now >= Date.parse(d.start_available_at)
   );
@@ -162,13 +186,27 @@ export function canStartDay(
 /**
  * Fin prévue d'une journée commencée et non confirmée atteinte : saisie du
  * code et « code non remis » ouverts (lot 15 ; la base refuse avant).
+ * Une interruption non close (ou un désaccord non résolu) ferme la saisie
+ * normale (la base refuse aussi).
  */
 export function dayEndReached(d: MissionDayState, now: number): boolean {
+  const pending = d.interruption?.blocks_completion === true;
   return (
     !!d.started_at &&
     !d.completed_at &&
+    !d.cancelled_at &&
+    !pending &&
     now >= Date.parse(d.completion_available_at)
   );
+}
+
+/**
+ * Accord des deux parties sur la version courante : code reçu tout de
+ * suite, même avant la fin prévue ; l'échéance de réponse ne l'annule pas
+ * (la base revérifie).
+ */
+export function partialCodeOpen(d: MissionDayState): boolean {
+  return !!d.started_at && !d.completed_at && !!d.interruption?.agreement;
 }
 
 /**
@@ -184,7 +222,7 @@ export function missionTaskInstants(m: MissionTaskState): number[] {
     ].filter((t) => !Number.isNaN(t));
   }
   return days.flatMap((d) =>
-    d.completed_at
+    d.completed_at || d.cancelled_at
       ? []
       : [
           Date.parse(d.start_available_at),

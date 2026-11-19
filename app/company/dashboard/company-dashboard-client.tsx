@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { CompanyVerificationCard } from "@/components/company/company-verification-card";
+import { InterruptionTasks } from "@/components/missions/interruption-tasks";
 import type { MyCompanyVerification } from "@/lib/utils/company-verification";
 import {
   Briefcase,
@@ -182,6 +183,9 @@ export function CompanyDashboardClient({
       <div className="px-4 -mt-4 relative z-10 space-y-6">
         {/* Lot 11 : état du dossier, mis à jour en direct (clé profile). */}
         {verification && <CompanyVerificationCard dossier={verification} />}
+
+        {/* Interruptions : version, justificatif, proposition, code. */}
+        <InterruptionTasks />
 
         {/* Quick Actions */}
         <Card className="shadow-lg">

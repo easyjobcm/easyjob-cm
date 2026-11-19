@@ -24,6 +24,10 @@ import {
   type DisputeOutcome,
 } from "@/lib/validations/incident";
 import type { Database } from "@/lib/database.types";
+import {
+  InterruptionSection,
+  parseInterruptionDetail,
+} from "@/components/missions/interruption-section";
 
 type Row =
   Database["public"]["Functions"]["mission_incidents_for_party"]["Returns"][number];
@@ -52,6 +56,8 @@ export type PartyIncident = Omit<
   info_requests: InfoRequest[] | null;
   decisions: PartyDecision[] | null;
   review: ReviewState | null;
+  /** Interruption : versions, travail déclaré, règlement (route). */
+  interruption?: unknown;
 };
 type TimelineEvent = {
   type: string;
@@ -173,6 +179,10 @@ function IncidentCard({
   const counts = (incident.evidence_counts ?? {}) as Record<string, number>;
   const viewer = incident.viewer_party as "candidate" | "company";
   const ownStatements = statements.filter((s) => s.party === viewer).length;
+  const interruption =
+    incident.kind === "interruption"
+      ? parseInterruptionDetail(incident.interruption)
+      : null;
 
   const codeOf = (code: unknown): ErrorCode =>
     typeof code === "string" && code in ti.errors
@@ -278,6 +288,13 @@ function IncidentCard({
           </li>
         ))}
       </ul>
+      {interruption && (
+        <InterruptionSection
+          detail={interruption}
+          viewer={viewer}
+          onChanged={onChanged}
+        />
+      )}
       {(["candidate", "company"] as const).map((p) =>
         counts[p] ? (
           <p
@@ -297,33 +314,40 @@ function IncidentCard({
         busyRef={busyRef}
         setError={setError}
         codeOf={codeOf}
+        requestDue={
+          interruption
+            ? new Map(interruption.requests.map((r) => [r.id, r]))
+            : null
+        }
       />
-      {incident.outcome && (incident.decisions ?? []).length === 0 && (
-        <div
-          className="rounded-md border border-primary/30 bg-primary/5 p-2"
-          data-testid="incident-decision"
-        >
-          <p className="flex items-center gap-1 font-medium">
-            <Scale className="h-4 w-4" aria-hidden />
-            {incident.resolution === "support_confirmed_day"
-              ? ti.resolution.support_confirmed_day
-              : incident.outcome === "established" ||
-                  incident.outcome === "not_established"
-                ? ti.outcome[incident.outcome]
-                : null}
-          </p>
-          {incident.decision_note && (
-            <p className="whitespace-pre-wrap break-words">
-              {ti.decisionNote.replace("{note}", incident.decision_note)}
+      {!interruption &&
+        incident.outcome &&
+        (incident.decisions ?? []).length === 0 && (
+          <div
+            className="rounded-md border border-primary/30 bg-primary/5 p-2"
+            data-testid="incident-decision"
+          >
+            <p className="flex items-center gap-1 font-medium">
+              <Scale className="h-4 w-4" aria-hidden />
+              {incident.resolution === "support_confirmed_day"
+                ? ti.resolution.support_confirmed_day
+                : incident.outcome === "established" ||
+                    incident.outcome === "not_established"
+                  ? ti.outcome[incident.outcome]
+                  : null}
             </p>
-          )}
-          {incident.resolution !== "support_confirmed_day" && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {ti.decisionScope}
-            </p>
-          )}
-        </div>
-      )}
+            {incident.decision_note && (
+              <p className="whitespace-pre-wrap break-words">
+                {ti.decisionNote.replace("{note}", incident.decision_note)}
+              </p>
+            )}
+            {incident.resolution !== "support_confirmed_day" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {ti.decisionScope}
+              </p>
+            )}
+          </div>
+        )}
       {incident.can_add_statement && (
         <div className="space-y-2">
           <Textarea
@@ -386,6 +410,7 @@ function IncidentDisputeSections({
   busyRef,
   setError,
   codeOf,
+  requestDue,
 }: {
   incident: PartyIncident;
   onChanged: () => void;
@@ -394,6 +419,11 @@ function IncidentDisputeSections({
   busyRef: React.MutableRefObject<boolean>;
   setError: (e: ErrorCode | null) => void;
   codeOf: (code: unknown) => ErrorCode;
+  /** Interruption : échéance de 72 h de chaque demande (heure de la base). */
+  requestDue: Map<
+    string,
+    { respond_by: string; open: boolean; expired: boolean }
+  > | null;
 }) {
   const { t, locale } = useI18n();
   const ti = t.incidents;
@@ -493,57 +523,74 @@ function IncidentDisputeSections({
           </p>
         </details>
       )}
-      {requests.map((r) => (
-        <div
-          key={r.id}
-          className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-2"
-          data-testid="incident-info-request"
-          data-answered={r.answered_at ? "true" : "false"}
-        >
-          <p className="flex items-center gap-1 text-xs font-medium">
-            <MessageCircleQuestion className="h-3 w-3" aria-hidden />
-            {ti.info.title} · {doualaDateTime(r.created_at, locale)}
-          </p>
-          <p className="whitespace-pre-wrap break-words">{r.question}</p>
-          {r.answered_at ? (
-            <p className="text-xs text-muted-foreground">
-              {ti.info.answered.replace(
-                "{time}",
-                doualaDateTime(r.answered_at, locale),
-              )}
+      {requests.map((r) => {
+        const due = requestDue?.get(r.id) ?? null;
+        return (
+          <div
+            key={r.id}
+            className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-2"
+            data-testid="incident-info-request"
+            data-answered={r.answered_at ? "true" : "false"}
+            data-expired={due?.expired ? "true" : "false"}
+          >
+            <p className="flex items-center gap-1 text-xs font-medium">
+              <MessageCircleQuestion className="h-3 w-3" aria-hidden />
+              {ti.info.title} · {doualaDateTime(r.created_at, locale)}
             </p>
-          ) : (
-            <>
-              <Textarea
-                value={answers[r.id] ?? ""}
-                onChange={(e) =>
-                  setAnswers((a) => ({ ...a, [r.id]: e.target.value }))
+            <p className="whitespace-pre-wrap break-words">{r.question}</p>
+            {due && !r.answered_at && (
+              <p
+                className={
+                  due.expired ? "text-xs text-muted-foreground" : "text-xs"
                 }
-                maxLength={2000}
-                placeholder={ti.info.placeholder}
-                aria-label={ti.info.placeholder}
-                data-testid="incident-info-answer"
-              />
-              <Button
-                size="sm"
-                disabled={busy || (answers[r.id] ?? "").trim().length < 10}
-                onClick={() =>
-                  void post(
-                    `/api/incident-info/${r.id}`,
-                    answers[r.id] ?? "",
-                    ti.info.sent,
-                  ).then(
-                    (ok) => ok && setAnswers((a) => ({ ...a, [r.id]: "" })),
-                  )
-                }
-                data-testid="incident-info-send"
+                data-testid="incident-info-due"
               >
-                {ti.info.send}
-              </Button>
-            </>
-          )}
-        </div>
-      ))}
+                {(due.expired
+                  ? t.partialDay.requestExpired
+                  : t.partialDay.requestDue
+                ).replace("{time}", doualaDateTime(due.respond_by, locale))}
+              </p>
+            )}
+            {r.answered_at ? (
+              <p className="text-xs text-muted-foreground">
+                {ti.info.answered.replace(
+                  "{time}",
+                  doualaDateTime(r.answered_at, locale),
+                )}
+              </p>
+            ) : !due?.expired ? (
+              <>
+                <Textarea
+                  value={answers[r.id] ?? ""}
+                  onChange={(e) =>
+                    setAnswers((a) => ({ ...a, [r.id]: e.target.value }))
+                  }
+                  maxLength={2000}
+                  placeholder={ti.info.placeholder}
+                  aria-label={ti.info.placeholder}
+                  data-testid="incident-info-answer"
+                />
+                <Button
+                  size="sm"
+                  disabled={busy || (answers[r.id] ?? "").trim().length < 10}
+                  onClick={() =>
+                    void post(
+                      `/api/incident-info/${r.id}`,
+                      answers[r.id] ?? "",
+                      ti.info.sent,
+                    ).then(
+                      (ok) => ok && setAnswers((a) => ({ ...a, [r.id]: "" })),
+                    )
+                  }
+                  data-testid="incident-info-send"
+                >
+                  {ti.info.send}
+                </Button>
+              </>
+            ) : null}
+          </div>
+        );
+      })}
       {decisions.map((d) => (
         <div
           key={d.id}

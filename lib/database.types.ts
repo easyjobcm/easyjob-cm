@@ -9,6 +9,117 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_suspensions: {
+        Row: {
+          cause: string
+          contest_decided_at: string | null
+          contest_decided_by: string | null
+          contest_decision_note: string | null
+          contest_note: string | null
+          contest_outcome: string | null
+          contested_at: string | null
+          created_at: string
+          cycle: number | null
+          decided_by: string | null
+          ended_notified_at: string | null
+          ends_at: string | null
+          fraud_report_id: string | null
+          id: string
+          incident_ids: string[]
+          lift_kind: string | null
+          lift_reason: string | null
+          lifted_at: string | null
+          lifted_by: string | null
+          reason: string
+          starts_at: string
+          user_id: string
+        }
+        Insert: {
+          cause: string
+          contest_decided_at?: string | null
+          contest_decided_by?: string | null
+          contest_decision_note?: string | null
+          contest_note?: string | null
+          contest_outcome?: string | null
+          contested_at?: string | null
+          created_at?: string
+          cycle?: number | null
+          decided_by?: string | null
+          ended_notified_at?: string | null
+          ends_at?: string | null
+          fraud_report_id?: string | null
+          id?: string
+          incident_ids?: string[]
+          lift_kind?: string | null
+          lift_reason?: string | null
+          lifted_at?: string | null
+          lifted_by?: string | null
+          reason: string
+          starts_at?: string
+          user_id: string
+        }
+        Update: {
+          cause?: string
+          contest_decided_at?: string | null
+          contest_decided_by?: string | null
+          contest_decision_note?: string | null
+          contest_note?: string | null
+          contest_outcome?: string | null
+          contested_at?: string | null
+          created_at?: string
+          cycle?: number | null
+          decided_by?: string | null
+          ended_notified_at?: string | null
+          ends_at?: string | null
+          fraud_report_id?: string | null
+          id?: string
+          incident_ids?: string[]
+          lift_kind?: string | null
+          lift_reason?: string | null
+          lifted_at?: string | null
+          lifted_by?: string | null
+          reason?: string
+          starts_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_suspensions_contest_decided_by_fkey"
+            columns: ["contest_decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_suspensions_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_suspensions_fraud_report_id_fkey"
+            columns: ["fraud_report_id"]
+            isOneToOne: false
+            referencedRelation: "fraud_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_suspensions_lifted_by_fkey"
+            columns: ["lifted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_suspensions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -184,6 +295,188 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_cancellation_days: {
+        Row: {
+          cancellation_id: string
+          cancellation_notice_hours: number | null
+          candidate_plan: string | null
+          classification: string
+          deadline_at: string | null
+          mission_day_id: string
+          mission_id: string
+          reaction_until: string | null
+          starts_at: string
+          terms_source: string | null
+        }
+        Insert: {
+          cancellation_id: string
+          cancellation_notice_hours?: number | null
+          candidate_plan?: string | null
+          classification: string
+          deadline_at?: string | null
+          mission_day_id: string
+          mission_id: string
+          reaction_until?: string | null
+          starts_at: string
+          terms_source?: string | null
+        }
+        Update: {
+          cancellation_id?: string
+          cancellation_notice_hours?: number | null
+          candidate_plan?: string | null
+          classification?: string
+          deadline_at?: string | null
+          mission_day_id?: string
+          mission_id?: string
+          reaction_until?: string | null
+          starts_at?: string
+          terms_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_cancellation_days_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellation_days_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellation_days_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_cancellations: {
+        Row: {
+          candidate_id: string
+          candidate_user_id: string
+          created_at: string
+          day_count: number
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          evidence_choice: string | null
+          id: string
+          incident_id: string | null
+          job_id: string
+          late_day_count: number
+          reason_code: string | null
+          reason_text: string | null
+          request_id: string
+          review_decided_at: string | null
+          review_decided_by: string | null
+          review_decision_note: string | null
+          review_note: string | null
+          review_outcome: string | null
+          review_requested_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          candidate_user_id: string
+          created_at?: string
+          day_count: number
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          evidence_choice?: string | null
+          id?: string
+          incident_id?: string | null
+          job_id: string
+          late_day_count: number
+          reason_code?: string | null
+          reason_text?: string | null
+          request_id: string
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_note?: string | null
+          review_note?: string | null
+          review_outcome?: string | null
+          review_requested_at?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          candidate_user_id?: string
+          created_at?: string
+          day_count?: number
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          evidence_choice?: string | null
+          id?: string
+          incident_id?: string | null
+          job_id?: string
+          late_day_count?: number
+          reason_code?: string | null
+          reason_text?: string | null
+          request_id?: string
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_note?: string | null
+          review_note?: string | null
+          review_outcome?: string | null
+          review_requested_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_cancellations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellations_candidate_user_id_fkey"
+            columns: ["candidate_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellations_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellations_incident_fk"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "reputation_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_cancellations_review_decided_by_fkey"
+            columns: ["review_decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -558,6 +851,50 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_evidence: {
+        Row: {
+          case_id: string
+          case_type: string
+          created_at: string
+          id: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string | null
+          uploaded_by_role: string
+        }
+        Insert: {
+          case_id: string
+          case_type: string
+          created_at?: string
+          id?: string
+          mime_type: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by?: string | null
+          uploaded_by_role: string
+        }
+        Update: {
+          case_id?: string
+          case_type?: string
+          created_at?: string
+          id?: string
+          mime_type?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by?: string | null
+          uploaded_by_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_evidence_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1222,6 +1559,87 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      fraud_reports: {
+        Row: {
+          cancellation_id: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closure_note: string | null
+          created_at: string
+          created_by: string | null
+          created_by_role: string
+          id: string
+          mission_id: string | null
+          reason: string
+          status: string
+          subject_user_id: string
+        }
+        Insert: {
+          cancellation_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_role: string
+          id?: string
+          mission_id?: string | null
+          reason: string
+          status?: string
+          subject_user_id: string
+        }
+        Update: {
+          cancellation_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_role?: string
+          id?: string
+          mission_id?: string | null
+          reason?: string
+          status?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_reports_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fraud_reports_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fraud_reports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fraud_reports_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fraud_reports_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_applications: {
         Row: {
@@ -2511,6 +2929,7 @@ export type Database = {
           question: string
           requested_by: string | null
           requested_by_role: string
+          respond_by: string | null
         }
         Insert: {
           answer_statement_id?: string | null
@@ -2522,6 +2941,7 @@ export type Database = {
           question: string
           requested_by?: string | null
           requested_by_role: string
+          respond_by?: string | null
         }
         Update: {
           answer_statement_id?: string | null
@@ -2533,6 +2953,7 @@ export type Database = {
           question?: string
           requested_by?: string | null
           requested_by_role?: string
+          respond_by?: string | null
         }
         Relationships: [
           {
@@ -2739,6 +3160,8 @@ export type Database = {
           decided_by: string | null
           decision_note: string | null
           id: string
+          interruption_cause: string | null
+          interruption_declared_at: string | null
           job_id: string
           kind: string
           late_minutes: number | null
@@ -2751,6 +3174,7 @@ export type Database = {
           situation: string | null
           status: string
           updated_at: string
+          work_done: string | null
         }
         Insert: {
           candidate_id: string
@@ -2763,6 +3187,8 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
+          interruption_cause?: string | null
+          interruption_declared_at?: string | null
           job_id: string
           kind: string
           late_minutes?: number | null
@@ -2775,6 +3201,7 @@ export type Database = {
           situation?: string | null
           status?: string
           updated_at?: string
+          work_done?: string | null
         }
         Update: {
           candidate_id?: string
@@ -2787,6 +3214,8 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
+          interruption_cause?: string | null
+          interruption_declared_at?: string | null
           job_id?: string
           kind?: string
           late_minutes?: number | null
@@ -2799,6 +3228,7 @@ export type Database = {
           situation?: string | null
           status?: string
           updated_at?: string
+          work_done?: string | null
         }
         Relationships: [
           {
@@ -2855,6 +3285,514 @@ export type Database = {
             columns: ["reported_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_closure_history: {
+        Row: {
+          closure_id: string
+          decided_at: string
+          decided_by: string | null
+          id: string
+          incident_id: string
+          motivation: string | null
+          outcome: string
+          reexamination_id: string
+          revoked_at: string
+        }
+        Insert: {
+          closure_id: string
+          decided_at: string
+          decided_by?: string | null
+          id?: string
+          incident_id: string
+          motivation?: string | null
+          outcome: string
+          reexamination_id: string
+          revoked_at?: string
+        }
+        Update: {
+          closure_id?: string
+          decided_at?: string
+          decided_by?: string | null
+          id?: string
+          incident_id?: string
+          motivation?: string | null
+          outcome?: string
+          reexamination_id?: string
+          revoked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_closure_history_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_closure_history_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_closure_history_reexamination_id_fkey"
+            columns: ["reexamination_id"]
+            isOneToOne: false
+            referencedRelation: "mission_interruption_reexaminations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_closures: {
+        Row: {
+          amount: number | null
+          completion_source: string | null
+          decided_at: string
+          decided_by: string | null
+          decided_by_role: string | null
+          id: string
+          incident_id: string
+          motivation: string | null
+          outcome: string
+          proposal_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          completion_source?: string | null
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role?: string | null
+          id?: string
+          incident_id: string
+          motivation?: string | null
+          outcome: string
+          proposal_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          completion_source?: string | null
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_role?: string | null
+          id?: string
+          incident_id?: string
+          motivation?: string | null
+          outcome?: string
+          proposal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_closures_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_closures_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_closures_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "mission_interruption_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_extensions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          extends_due: string
+          id: string
+          incident_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          extends_due: string
+          id?: string
+          incident_id: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          extends_due?: string
+          id?: string
+          incident_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_extensions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_extensions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_notices: {
+        Row: {
+          id: string
+          incident_id: string
+          kind: string
+          made_available_at: string
+          notification_id: string | null
+          recipient_id: string
+          recipient_role: string
+          ref: string
+          viewed_at: string | null
+        }
+        Insert: {
+          id?: string
+          incident_id: string
+          kind: string
+          made_available_at?: string
+          notification_id?: string | null
+          recipient_id: string
+          recipient_role: string
+          ref: string
+          viewed_at?: string | null
+        }
+        Update: {
+          id?: string
+          incident_id?: string
+          kind?: string
+          made_available_at?: string
+          notification_id?: string | null
+          recipient_id?: string
+          recipient_role?: string
+          ref?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_notices_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_notices_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_notices_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_proposals: {
+        Row: {
+          amount: number
+          id: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          motivation: string
+          policy: Json
+          proposed_at: string
+          proposed_by: string | null
+          proposed_by_role: string
+          respond_by: string
+          superseded_at: string | null
+          version: number
+        }
+        Insert: {
+          amount: number
+          id?: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          motivation: string
+          policy: Json
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_by_role: string
+          respond_by: string
+          superseded_at?: string | null
+          version: number
+        }
+        Update: {
+          amount?: number
+          id?: string
+          incident_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          motivation?: string
+          policy?: Json
+          proposed_at?: string
+          proposed_by?: string | null
+          proposed_by_role?: string
+          respond_by?: string
+          superseded_at?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_proposals_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_proposals_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: false
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_proposals_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_proposals_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_recourses: {
+        Row: {
+          author_id: string | null
+          created_at: string
+          id: string
+          incident_id: string
+          party: string
+          proposal_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          created_at?: string
+          id?: string
+          incident_id: string
+          party: string
+          proposal_id: string
+        }
+        Update: {
+          author_id?: string | null
+          created_at?: string
+          id?: string
+          incident_id?: string
+          party?: string
+          proposal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_recourses_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_recourses_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_recourses_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "mission_interruption_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_reexaminations: {
+        Row: {
+          author_id: string | null
+          closure_id: string
+          closure_outcome: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string | null
+          decision_motivation: string | null
+          id: string
+          incident_id: string
+          party: string
+          reason: string
+        }
+        Insert: {
+          author_id?: string | null
+          closure_id: string
+          closure_outcome: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          decision_motivation?: string | null
+          id?: string
+          incident_id: string
+          party: string
+          reason: string
+        }
+        Update: {
+          author_id?: string | null
+          closure_id?: string
+          closure_outcome?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string | null
+          decision_motivation?: string | null
+          id?: string
+          incident_id?: string
+          party?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_reexaminations_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_reexaminations_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_reexaminations_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_responses: {
+        Row: {
+          author_id: string | null
+          decision: string
+          id: string
+          party: string
+          proposal_id: string
+          responded_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          decision: string
+          id?: string
+          party: string
+          proposal_id: string
+          responded_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          decision?: string
+          id?: string
+          party?: string
+          proposal_id?: string
+          responded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_responses_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_responses_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "mission_interruption_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_interruption_versions: {
+        Row: {
+          author_id: string | null
+          cause: string
+          created_at: string
+          declared_at: string
+          id: string
+          incident_id: string
+          party: string
+          reason: string
+          work_done: string
+        }
+        Insert: {
+          author_id?: string | null
+          cause: string
+          created_at?: string
+          declared_at: string
+          id?: string
+          incident_id: string
+          party: string
+          reason: string
+          work_done: string
+        }
+        Update: {
+          author_id?: string | null
+          cause?: string
+          created_at?: string
+          declared_at?: string
+          id?: string
+          incident_id?: string
+          party?: string
+          reason?: string
+          work_done?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_interruption_versions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_interruption_versions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "mission_incidents"
             referencedColumns: ["id"]
           },
         ]
@@ -3293,6 +4231,7 @@ export type Database = {
       }
       reputation_incidents: {
         Row: {
+          cancellation_id: string | null
           created_at: string
           decided_by: string | null
           id: string
@@ -3309,6 +4248,7 @@ export type Database = {
           voided_by: string | null
         }
         Insert: {
+          cancellation_id?: string | null
           created_at?: string
           decided_by?: string | null
           id?: string
@@ -3325,6 +4265,7 @@ export type Database = {
           voided_by?: string | null
         }
         Update: {
+          cancellation_id?: string | null
           created_at?: string
           decided_by?: string | null
           id?: string
@@ -3341,6 +4282,13 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reputation_incidents_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_cancellations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reputation_incidents_decided_by_fkey"
             columns: ["decided_by"]
@@ -3696,6 +4644,16 @@ export type Database = {
       }
     }
     Functions: {
+      account_suspension_is_active: {
+        Args: {
+          p_at: string
+          p_ends_at: string
+          p_lifted_at: string
+          p_starts_at: string
+        }
+        Returns: boolean
+      }
+      account_suspension_sweep: { Args: { p_at?: string }; Returns: number }
       acknowledge_reputation_changes: {
         Args: { p_ids: string[] }
         Returns: string[]
@@ -3708,11 +4666,29 @@ export type Database = {
           status: string
         }[]
       }
+      admin_account_suspensions: { Args: { p_user_id: string }; Returns: Json }
+      admin_account_suspensions_json: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       admin_add_incident_note: {
         Args: { p_body: string; p_incident_id: string }
         Returns: string
       }
+      admin_candidate_cancellation: { Args: { p_id: string }; Returns: Json }
+      admin_candidate_cancellations: {
+        Args: { p_status?: string }
+        Returns: Json
+      }
       admin_candidate_premium: { Args: { p_user_id: string }; Returns: Json }
+      admin_case_evidence_path: {
+        Args: { p_evidence_id: string }
+        Returns: string
+      }
+      admin_close_interruption: {
+        Args: { p_incident_id: string; p_motivation: string; p_outcome: string }
+        Returns: Json
+      }
       admin_confirm_mission_day: {
         Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
         Returns: {
@@ -3724,6 +4700,24 @@ export type Database = {
           mission_completed: boolean
           mission_day_id: string
           result: string
+        }[]
+      }
+      admin_decide_cancellation_review: {
+        Args: { p_id: string; p_note: string; p_outcome: string }
+        Returns: {
+          already_decided: boolean
+          cancellation_id: string
+          review_outcome: string
+          sanction_voided: boolean
+        }[]
+      }
+      admin_decide_candidate_cancellation: {
+        Args: { p_decision: string; p_id: string; p_note: string }
+        Returns: {
+          already_decided: boolean
+          cancellation_id: string
+          sanctioned: boolean
+          status: string
         }[]
       }
       admin_decide_incident_appeal: {
@@ -3745,6 +4739,14 @@ export type Database = {
           outcome: string
           result: string
         }[]
+      }
+      admin_decide_interruption_reexamination: {
+        Args: {
+          p_decision: string
+          p_motivation: string
+          p_reexamination_id: string
+        }
+        Returns: Json
       }
       admin_decide_mission_incident: {
         Args: { p_incident_id: string; p_note: string; p_outcome: string }
@@ -3772,9 +4774,36 @@ export type Database = {
           reminder_at: string
         }[]
       }
+      admin_extend_interruption_review: {
+        Args: { p_ends_at: string; p_incident_id: string; p_reason: string }
+        Returns: Json
+      }
+      admin_finalize_interruption: {
+        Args: { p_incident_id: string; p_motivation: string; p_version: number }
+        Returns: Json
+      }
       admin_incident_evidence_path: {
         Args: { p_evidence_id: string }
         Returns: string
+      }
+      admin_lift_suspension: {
+        Args: {
+          p_from_contest?: boolean
+          p_reason: string
+          p_suspension_id: string
+        }
+        Returns: {
+          account_active: boolean
+          already_lifted: boolean
+          suspension_id: string
+        }[]
+      }
+      admin_maintain_suspension: {
+        Args: { p_note: string; p_suspension_id: string }
+        Returns: {
+          already_decided: boolean
+          suspension_id: string
+        }[]
       }
       admin_manage_candidate_premium: {
         Args: {
@@ -3810,6 +4839,9 @@ export type Database = {
           escalated: boolean
           evidence_count: number
           incident_id: string
+          interruption_due_at: string
+          interruption_overdue: boolean
+          interruption_stage: string
           job_title: string
           kind: string
           outcome: string
@@ -3820,6 +4852,10 @@ export type Database = {
           statement_count: number
           status: string
         }[]
+      }
+      admin_mission_interruption: {
+        Args: { p_incident_id: string }
+        Returns: Json
       }
       admin_open_review_contest: {
         Args: { p_note: string; p_review_id: string }
@@ -3842,6 +4878,15 @@ export type Database = {
           proposal_id: string
           result: string
         }[]
+      }
+      admin_propose_interruption_amount: {
+        Args: {
+          p_amount: number
+          p_expected_version: number
+          p_incident_id: string
+          p_motivation: string
+        }
+        Returns: Json
       }
       admin_record_company_check: {
         Args: {
@@ -3871,6 +4916,14 @@ export type Database = {
           already_recorded: boolean
           contact_id: string
         }[]
+      }
+      admin_report_fraud: {
+        Args: {
+          p_cancellation_id: string
+          p_reason: string
+          p_subject_user_id: string
+        }
+        Returns: string
       }
       admin_reputation_review_impacts: {
         Args: { p_subject_id: string; p_subject_type: string }
@@ -3935,6 +4988,10 @@ export type Database = {
       admin_set_user_active: {
         Args: { p_active: boolean; p_user_id: string }
         Returns: undefined
+      }
+      admin_suspend_for_fraud: {
+        Args: { p_ends_at: string; p_reason: string; p_report_id: string }
+        Returns: string
       }
       admin_take_incident_appeal: {
         Args: { p_appeal_id: string; p_conflict?: string }
@@ -4050,8 +5107,44 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cancellation_apply_sanction: {
+        Args: {
+          p_cancellation_id: string
+          p_decided_by: string
+          p_source: string
+        }
+        Returns: string
+      }
+      cancellation_json: {
+        Args: {
+          c: Database["public"]["Tables"]["candidate_cancellations"]["Row"]
+          p_admin: boolean
+        }
+        Returns: Json
+      }
+      cancellation_review_deadline: {
+        Args: {
+          c: Database["public"]["Tables"]["candidate_cancellations"]["Row"]
+        }
+        Returns: string
+      }
       candidate_action_tasks: { Args: never; Returns: Json }
       candidate_applied_to_job: { Args: { p_job_id: string }; Returns: boolean }
+      candidate_cancellation_preview: {
+        Args: { p_mission_id: string }
+        Returns: {
+          classification: string
+          day_date: string
+          deadline_at: string
+          end_time: string
+          mission_day_id: string
+          mission_id: string
+          reaction_until: string
+          server_now: string
+          start_time: string
+          starts_at: string
+        }[]
+      }
       candidate_cni_state: {
         Args: {
           p: Database["public"]["Tables"]["candidate_profiles"]["Row"]
@@ -4059,6 +5152,7 @@ export type Database = {
         }
         Returns: string
       }
+      candidate_cycle_reconcile: { Args: { p_user_id: string }; Returns: Json }
       candidate_document_blocker: {
         Args: {
           p_job_id: string
@@ -4069,6 +5163,10 @@ export type Database = {
       candidate_effective_plan: {
         Args: { p_at: string; p_user_id: string }
         Returns: string
+      }
+      candidate_future_engagements: {
+        Args: { p_at?: string; p_user_id: string }
+        Returns: Json
       }
       candidate_premium_max_end: { Args: never; Returns: string }
       candidate_profile_completion_pct: {
@@ -4126,6 +5224,17 @@ export type Database = {
         Args: { p_ip: string; p_phone: string }
         Returns: boolean
       }
+      classify_cancellation_day: {
+        Args: { p_at: string; p_day_id: string }
+        Returns: {
+          cancellation_notice_hours: number
+          candidate_plan: string
+          classification: string
+          deadline_at: string
+          reaction_until: string
+          terms_source: string
+        }[]
+      }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
       company_check_status: {
@@ -4172,6 +5281,14 @@ export type Database = {
           reputation_stars: number
           skills: string[]
           status: Database["public"]["Enums"]["application_status"]
+        }[]
+      }
+      company_job_cancellations: {
+        Args: { p_job_id: string }
+        Returns: {
+          cancelled_at: string
+          mission_day_id: string
+          mission_id: string
         }[]
       }
       company_job_missions: {
@@ -4233,6 +5350,18 @@ export type Database = {
           reason: string
           retry_after_seconds: number
         }[]
+      }
+      contest_account_suspension: {
+        Args: { p_note: string; p_suspension_id: string }
+        Returns: {
+          already_contested: boolean
+          contested_at: string
+          suspension_id: string
+        }[]
+      }
+      contract_day_minutes: {
+        Args: { p_end: string; p_start: string }
+        Returns: number
       }
       contract_expected_status: {
         Args: { p_candidate_signed_at: string; p_company_signed_at: string }
@@ -4462,6 +5591,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      incident_instruction_open: {
+        Args: { p_incident_id: string }
+        Returns: boolean
+      }
       incident_notify: {
         Args: {
           p_body_en: string
@@ -4481,9 +5614,170 @@ export type Database = {
         Args: { p_incident_id: string }
         Returns: boolean
       }
+      interruption_agreement: {
+        Args: { p_day_id: string }
+        Returns: {
+          amount: number
+          id: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          motivation: string
+          policy: Json
+          proposed_at: string
+          proposed_by: string | null
+          proposed_by_role: string
+          respond_by: string
+          superseded_at: string | null
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mission_interruption_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      interruption_blocks_completion: {
+        Args: { p_day_id: string }
+        Returns: boolean
+      }
+      interruption_current_proposal: {
+        Args: { p_incident_id: string }
+        Returns: {
+          amount: number
+          id: string
+          incident_id: string
+          mission_day_id: string
+          mission_id: string
+          motivation: string
+          policy: Json
+          proposed_at: string
+          proposed_by: string | null
+          proposed_by_role: string
+          respond_by: string
+          superseded_at: string | null
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mission_interruption_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      interruption_deadline_open: {
+        Args: { p_at: string; p_due: string }
+        Returns: boolean
+      }
+      interruption_deadline_sweep: { Args: { p_at?: string }; Returns: number }
+      interruption_fmt: {
+        Args: { p_at: string; p_locale: string }
+        Returns: string
+      }
+      interruption_json: {
+        Args: {
+          i: Database["public"]["Tables"]["mission_incidents"]["Row"]
+          p_viewer: string
+        }
+        Returns: Json
+      }
+      interruption_lock: {
+        Args: { p_incident_id: string }
+        Returns: {
+          candidate_id: string
+          closed_at: string | null
+          closed_reason: string | null
+          company_id: string
+          created_at: string
+          deadline_extension_hours: number
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          interruption_cause: string | null
+          interruption_declared_at: string | null
+          job_id: string
+          kind: string
+          late_minutes: number | null
+          mission_day_id: string
+          mission_id: string
+          outcome: string | null
+          reported_by: string | null
+          reported_by_party: string
+          revision: number
+          situation: string | null
+          status: string
+          updated_at: string
+          work_done: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mission_incidents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      interruption_notify: {
+        Args: {
+          p_body_en: string
+          p_body_fr: string
+          p_due?: string
+          p_incident_id: string
+          p_kind: string
+          p_ref: string
+          p_role: string
+          p_title_en: string
+          p_title_fr: string
+          p_user: string
+        }
+        Returns: boolean
+      }
+      interruption_notify_founders: {
+        Args: {
+          p_body_en: string
+          p_body_fr: string
+          p_due?: string
+          p_incident_id: string
+          p_kind: string
+          p_ref: string
+          p_title_en: string
+          p_title_fr: string
+        }
+        Returns: number
+      }
+      interruption_notify_parties: {
+        Args: {
+          p_body_en: string
+          p_body_fr: string
+          p_due?: string
+          p_incident_id: string
+          p_kind: string
+          p_ref: string
+          p_title_en: string
+          p_title_fr: string
+        }
+        Returns: undefined
+      }
+      interruption_proposal_status: {
+        Args: {
+          p: Database["public"]["Tables"]["mission_interruption_proposals"]["Row"]
+          p_at: string
+        }
+        Returns: string
+      }
+      interruption_settlement_cap: {
+        Args: { p_day_id: string }
+        Returns: number
+      }
+      interruption_state: {
+        Args: { p_at?: string; p_incident_id: string }
+        Returns: Json
+      }
       is_admin_user: { Args: { uid: string }; Returns: boolean }
       is_candidate_user: { Args: { uid: string }; Returns: boolean }
       is_company_user: { Args: { uid: string }; Returns: boolean }
+      is_founder_admin_user: { Args: { uid: string }; Returns: boolean }
       is_ops_admin_user: { Args: { uid: string }; Returns: boolean }
       job_apply_content: {
         Args: {
@@ -4633,7 +5927,16 @@ export type Database = {
         Args: { p_candidate_id: string }
         Returns: undefined
       }
+      mark_interruption_viewed: {
+        Args: { p_incident_id: string }
+        Returns: number
+      }
       mark_legacy_commitment_terms: { Args: never; Returns: number }
+      mission_acquired_amount: { Args: { p_mission_id: string }; Returns: Json }
+      mission_close_if_interrupted: {
+        Args: { p_mission_id: string }
+        Returns: boolean
+      }
       mission_days_json: { Args: { p_mission_id: string }; Returns: Json }
       mission_incident_parties: {
         Args: { p_incident_id: string }
@@ -4670,6 +5973,10 @@ export type Database = {
           timeline: Json
           viewer_party: string
         }[]
+      }
+      mission_interruptions_for_party: {
+        Args: { p_mission_id: string }
+        Returns: Json
       }
       mission_schedule_bounds: {
         Args: { p_date: string; p_end: string; p_start: string }
@@ -4764,8 +6071,15 @@ export type Database = {
         }
       }
       my_account_state: { Args: never; Returns: Json }
+      my_account_suspensions: { Args: never; Returns: Json }
+      my_candidate_cancellations: {
+        Args: { p_mission_id?: string }
+        Returns: Json
+      }
       my_company_verification: { Args: never; Returns: Json }
+      my_interruption_tasks: { Args: never; Returns: Json }
       my_reputation: { Args: never; Returns: Json }
+      partial_settlement_policy: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
         Returns: string
@@ -4775,6 +6089,26 @@ export type Database = {
         Returns: undefined
       }
       record_application_blocker: { Args: { p_job_id: string }; Returns: Json }
+      record_cancellation_evidence: {
+        Args: {
+          p_cancellation_id: string
+          p_mime: string
+          p_path: string
+          p_size: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      record_fraud_evidence: {
+        Args: {
+          p_mime: string
+          p_path: string
+          p_report_id: string
+          p_size: number
+          p_user_id: string
+        }
+        Returns: string
+      }
       record_incident_evidence: {
         Args: {
           p_incident_id: string
@@ -4787,6 +6121,10 @@ export type Database = {
       }
       recruitment_open: {
         Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: boolean
+      }
+      refresh_account_active: {
+        Args: { p_at?: string; p_user_id: string }
         Returns: boolean
       }
       refresh_reputation: {
@@ -4806,6 +6144,21 @@ export type Database = {
           p_mission_day_id: string
           p_mission_id: string
           p_statement: string
+        }
+        Returns: {
+          already_reported: boolean
+          incident_id: string
+          status: string
+        }[]
+      }
+      report_mission_interruption: {
+        Args: {
+          p_cause: string
+          p_declared_at: string
+          p_mission_day_id: string
+          p_mission_id: string
+          p_reason: string
+          p_work_done: string
         }
         Returns: {
           already_reported: boolean
@@ -4851,6 +6204,30 @@ export type Database = {
         Args: { p_locale: string; p_stars: number }
         Returns: string
       }
+      request_cancellation_review: {
+        Args: { p_cancellation_id: string; p_note: string }
+        Returns: {
+          already_requested: boolean
+          cancellation_id: string
+          review_requested_at: string
+        }[]
+      }
+      request_candidate_cancellation: {
+        Args: {
+          p_day_ids: string[]
+          p_evidence_choice: string
+          p_reason_code: string
+          p_reason_text: string
+          p_request_id: string
+        }
+        Returns: {
+          already_recorded: boolean
+          cancellation_id: string
+          day_count: number
+          late_day_count: number
+          status: string
+        }[]
+      }
       request_incident_review: {
         Args: { p_incident_id: string; p_statement: string }
         Returns: {
@@ -4859,6 +6236,18 @@ export type Database = {
           review_deadline: string
           status: string
         }[]
+      }
+      request_interruption_finalization: {
+        Args: { p_incident_id: string }
+        Returns: Json
+      }
+      request_interruption_reexamination: {
+        Args: { p_incident_id: string; p_reason: string }
+        Returns: Json
+      }
+      respond_interruption_proposal: {
+        Args: { p_decision: string; p_proposal_id: string; p_version: number }
+        Returns: Json
       }
       review_reason_label: {
         Args: { p_code: string; p_locale: string }
@@ -4984,6 +6373,10 @@ export type Database = {
           review_id: string
           reviewer_type: string
         }[]
+      }
+      suspension_notify: {
+        Args: { p_suspension_id: string }
+        Returns: undefined
       }
       update_job: {
         Args: { p_job: Json; p_job_id: string }

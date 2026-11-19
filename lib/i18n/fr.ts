@@ -2430,6 +2430,13 @@ export const fr = {
       account_suspended: "Votre compte est suspendu.",
       mission_not_found: "Mission introuvable ou inaccessible.",
       mission_not_active: "Cette mission n'est plus active.",
+      day_cancelled: "Cette journée a été annulée.",
+      interruption_pending:
+        "Une interruption est en examen : le fondateur doit d'abord se prononcer.",
+      settlement_not_accepted:
+        "Aucun accord valide des deux parties : le code ne peut pas encore être reçu.",
+      interruption_unresolved:
+        "Désaccord non résolu sur cette journée : le code ne la confirme pas.",
       too_early: "La mission pourra commencer à partir de {time}.",
       not_started: "Confirmez d'abord le début de la mission.",
       completion_not_open:
@@ -2459,6 +2466,7 @@ export const fr = {
       late: "Retard",
       absence: "Absence",
       code_not_received: "Code de fin non remis",
+      interruption: "Interruption de la journée",
     },
     hints: {
       candidate: {
@@ -2466,11 +2474,15 @@ export const fr = {
         absence: "Prévenez que vous ne pourrez pas venir ce jour-là.",
         code_not_received:
           "Vous avez effectué le travail, mais l'entreprise ne vous a pas remis le code de fin.",
+        interruption:
+          "La journée commencée s'est arrêtée avant la fin prévue : le support instruit.",
       },
       company: {
         late: "Le candidat est arrivé en retard ce jour-là.",
         absence: "Le candidat ne s'est pas présenté ce jour-là.",
         code_not_received: "",
+        interruption:
+          "La journée commencée s'est arrêtée avant la fin prévue : le support instruit.",
       },
     },
     statement: "Votre déclaration",
@@ -2529,6 +2541,20 @@ export const fr = {
       errorTitle: "Action non enregistrée",
     },
     errors: {
+      day_cancelled: "Cette journée a été annulée par le candidat.",
+      interruption_pending:
+        "Une interruption est en cours d'instruction sur cette journée.",
+      settlement_pending:
+        "Un règlement partiel est en cours sur cette journée.",
+      response_deadline_passed:
+        "Le délai de 72 h est dépassé : cette réponse n'est plus recevable. Vous pouvez ajouter un nouvel élément pour examen.",
+      use_founder_decision:
+        "Une interruption se décide par le fondateur seul, depuis sa carte dédiée.",
+      interruption_cause_invalid: "Choisissez la cause de l'interruption.",
+      work_done_invalid:
+        "Décrivez le travail effectué (10 caractères au moins).",
+      declared_time_invalid:
+        "L'heure doit se situer entre le début de la journée et maintenant.",
       not_authenticated: "Session expirée. Veuillez vous reconnecter.",
       account_suspended: "Votre compte est suspendu.",
       forbidden: "Action réservée au support habilité.",
@@ -3089,6 +3115,462 @@ export const fr = {
     },
   },
   // Lot 12 : offres de plusieurs journées (dates choisies explicitement).
+  // Lots 17b–17c : annulation par le candidat, justification, recours,
+  // suspensions et montant acquis.
+  cancellations: {
+    open: "Annuler des journées",
+    title: "Annuler des journées",
+    intro:
+      "Choisissez les journées dont vous vous désistez. Le désistement est enregistré tout de suite et l'entreprise est prévenue.",
+    noneAvailable:
+      "Aucune journée de cette mission ne peut encore être annulée.",
+    classes: {
+      in_time: "Sans sanction",
+      reaction_window: "Sans sanction (délai de réaction)",
+      late: "Hors délai",
+      legacy: "Engagement antérieur : sans sanction automatique",
+    },
+    deadline: "Sans sanction jusqu'au {date}",
+    reaction: "Délai de réaction jusqu'au {date}",
+    summaryTitle: "Récapitulatif",
+    summaryFree:
+      "Aucune sanction. Vous pouvez ajouter un justificatif si vous le souhaitez.",
+    summaryLate:
+      "Au moins une journée est hors délai. Indiquez le motif et joignez un justificatif : le support l'examinera avant toute sanction. Sans justificatif, un manquement est retenu (−5 unités d'expérience).",
+    reason: "Motif",
+    reasonPlaceholder: "Choisir un motif",
+    reasons: {
+      illness: "Maladie",
+      family_emergency: "Urgence familiale",
+      transport: "Problème de transport",
+      late_notification: "Notification de sélection découverte tardivement",
+      other: "Autre",
+    },
+    reasonText: "Précisions (facultatif)",
+    evidenceProvided: "J'ajoute un justificatif",
+    evidenceNone: "Je n'ai pas de justificatif",
+    file: "Justificatif (PDF, JPG ou PNG, 5 Mo au plus)",
+    confirm: "Confirmer l'annulation",
+    back: "Retour",
+    done: "Annulation enregistrée",
+    uploadFailed:
+      "Le justificatif n'a pas pu être envoyé. Votre dossier reste en attente de pièce : réessayez.",
+    retry: "Envoyer un justificatif",
+    sending: "Envoi…",
+    mineTitle: "Mes annulations",
+    daysLabel: "Journées : {dates}",
+    status: {
+      closed_no_sanction: "Sans sanction",
+      awaiting_evidence: "Justificatif attendu",
+      under_review: "En examen par le support",
+      sanctioned_no_evidence: "Manquement retenu (sans justificatif)",
+      accepted: "Justificatif accepté : sans sanction",
+      refused: "Justificatif refusé : manquement retenu",
+    },
+    decisionNote: "Motif de la décision : {note}",
+    review: "Demander un recours",
+    reviewHint: "Recours possible jusqu'au {date}.",
+    reviewNote: "Expliquez votre recours",
+    reviewSend: "Envoyer le recours",
+    reviewSent: "Recours envoyé le {date}",
+    reviewOutcome: {
+      maintained: "Recours rejeté",
+      overturned: "Recours accepté : manquement annulé",
+    },
+    dayCancelled: "Annulée",
+    companyDayCancelled: "Désistement du candidat",
+    amountTitle: "Montant acquis",
+    amountValue: "{amount} sur un forfait de {total}",
+    amountExact: "Calcul exact : {exact} XAF (arrondi au franc à valider)",
+    amountStatus: {
+      final: "Définitif",
+      in_progress: "Provisoire : des journées restent prévues",
+      settlement_pending:
+        "En attente de règlement : travail partiel ou interruption en instruction",
+    },
+    amountPendingNote:
+      "Journée interrompue ou partielle : montant en examen, pas encore fixé (ce n'est pas zéro). Seul un accord accepté par les deux parties puis confirmé s'ajoute au montant reconnu.",
+    amountUnresolvedNote:
+      "Désaccord non résolu sur une journée : aucun montant définitif, ni renoncement, ni remboursement, ni sanction.",
+    amountNote:
+      "Forfait × heures prévues des journées réalisées ÷ heures prévues de toutes les journées (horaires du contrat, pause non déduite). Aucun versement n'est effectué par l'application.",
+    tasksTitle: "Annulations à compléter",
+    tasksEvidence: "Justificatif attendu pour « {job} »",
+    suspensions: {
+      title: "Suspension de votre compte",
+      cycle: "Trois annulations tardives sans justificatif valable",
+      cycleFinal: "Exclusion définitive",
+      fraud: "Fraude présumée examinée par le support",
+      until: "Jusqu'au {date} (heure de Douala)",
+      noEnd: "Sans date de fin",
+      events: "Faits retenus : {dates}",
+      contest: "Contester",
+      contestNote: "Expliquez votre contestation",
+      contestSend: "Envoyer",
+      contested: "Contestation envoyée le {date}",
+      maintained: "Contestation examinée : suspension maintenue",
+    },
+    admin: {
+      quickAction: "Annulations des candidats",
+      title: "Annulations des candidats",
+      filterToReview: "À examiner",
+      filterAll: "Toutes",
+      empty: "Aucun dossier.",
+      back: "Retour à la liste",
+      candidate: "Candidat",
+      job: "Offre",
+      planAtSelection: "Plan à la sélection : {plan}",
+      lateCount: "Annulations tardives retenues sur le compte : {n}",
+      reasonCode: "Motif : {reason}",
+      evidence: "Pièces",
+      openEvidence: "Ouvrir la pièce {n}",
+      noEvidence: "Aucune pièce.",
+      decideTitle: "Décision sur le justificatif",
+      accept: "Accepter (aucune sanction)",
+      refuse: "Refuser (manquement)",
+      note: "Motif (10 caractères au moins)",
+      reviewTitle: "Recours du candidat",
+      reviewBy:
+        "Décision par un autre agent que l'auteur de la décision initiale.",
+      maintain: "Maintenir",
+      overturn: "Annuler le manquement",
+      fraudTitle: "Fraude présumée",
+      fraudHint:
+        "Un justificatif refusé n'est pas une preuve de fraude. Joignez les éléments.",
+      fraudReason: "Éléments du signalement",
+      fraudReport: "Signaler",
+      fraudEvidence: "Joindre un élément",
+      suspendEnd: "Fin (heure de Douala) ; vide : jusqu'à levée",
+      suspend: "Suspendre pour fraude",
+      suspensionsTitle: "Suspensions du compte",
+      lift: "Lever",
+      maintainContest: "Maintenir après contestation",
+      contestNote: "Contestation : {note}",
+      futureTitle: "Engagements futurs déjà sélectionnés",
+      futureHint:
+        "Ni supprimés ni transformés en absences : traitement opérationnel à décider par le support.",
+      causes: {
+        admin: "Administrative",
+        cancellation_cycle: "Annulations tardives, cycle {n}",
+        fraud: "Fraude présumée",
+      },
+      state: {
+        active: "En cours",
+        ended: "Terminée",
+        lifted: "Levée",
+      },
+      saved: "Enregistré.",
+    },
+    errors: {
+      reason_required: "Choisissez un motif.",
+      evidence_choice_required:
+        "Choisissez « J'ajoute un justificatif » ou « Je n'ai pas de justificatif ».",
+      day_already_cancelled: "Une journée est déjà annulée.",
+      day_started: "Une journée a déjà commencé ou été réalisée.",
+      day_already_begun:
+        "Une journée a déjà débuté : elle ne peut plus être annulée.",
+      mission_not_active: "Cette mission n'est plus active.",
+      evidence_invalid: "Fichier non reconnu : PDF, JPG ou PNG.",
+      evidence_too_large: "Fichier trop volumineux (5 Mo au plus).",
+      evidence_limit: "Nombre maximal de pièces atteint.",
+      cancellation_closed: "Ce dossier n'accepte plus de pièce.",
+      note_invalid: "Texte trop court (10 caractères au moins).",
+      review_deadline_passed: "Le délai de recours est dépassé.",
+      generic: "Opération impossible. Réessayez.",
+    },
+  },
+  // Interruption d'une journée commencée et règlement encadré par le
+  // support (décision du 2026-11-19).
+  partialDay: {
+    report: "Signaler une interruption",
+    causeLabel: "Cause",
+    causes: {
+      candidate_left: "Départ du candidat",
+      company_stopped: "Arrêt demandé par l'entreprise",
+    },
+    declaredAtLabel: "Heure de l'interruption (heure de Douala)",
+    workDoneLabel: "Travail effectué",
+    reasonLabel: "Raison",
+    notProof:
+      "Votre déclaration est transmise au support : elle ne confirme pas la journée et n'est pas une preuve à elle seule.",
+    dayInterrupted: "Interruption signalée : dossier en examen",
+    taskTitle: "Interruption · {date}",
+    taskHint:
+      "Le dossier est en examen. Suivez les échéances et répondez depuis la mission.",
+    versionsTitle: "Versions des parties",
+    versionLine: "{party} · {cause} · {time}",
+    party: { candidate: "Candidat", company: "Entreprise" },
+    stage: {
+      instruction: "Instruction : réponses attendues",
+      founder_review: "Examen par le fondateur",
+      awaiting_parties: "Proposition en attente des réponses",
+      agreement: "Accord des deux parties",
+      closed: "Dossier clos",
+    },
+    dueAt: "Échéance : {time}",
+    reviewDue: "Décision du fondateur attendue au plus tard le {time}.",
+    reviewOverdue:
+      "Délai d'examen dépassé depuis le {time} : un rappel est adressé au fondateur. Aucune décision n'est prise automatiquement.",
+    versionRequested: "Votre version est attendue avant le {time}.",
+    versionExpired:
+      "Le délai pour donner votre version a expiré le {time}. Le fondateur examine le dossier avec les éléments disponibles.",
+    requestDue: "À répondre avant le {time} (échéance incluse)",
+    requestExpired:
+      "Délai expiré le {time} : la réponse n'est plus recevable. Vous pouvez encore ajouter un nouvel élément pour examen.",
+    silenceNote:
+      "Le silence ne prouve ni la réalisation, ni l'absence, ni une faute.",
+    amount: {
+      under_review:
+        "Montant de cette journée : en examen. Aucun montant n'est encore fixé, ce qui ne veut pas dire zéro.",
+      unresolved:
+        "Désaccord non résolu : aucun montant définitif. Ce n'est ni un renoncement à rémunération, ni un remboursement, ni une sanction.",
+      settled:
+        "Accord finalisé pour cette journée : {amount} (information, aucun versement)",
+      not_applicable:
+        "Interruption non établie : la journée reprend son parcours normal.",
+    },
+    proposalsTitle: "Propositions du fondateur",
+    proposalLine: "Version {version} · {amount}",
+    motivationLabel: "Motivation",
+    proposalStatus: {
+      open: "En attente des réponses",
+      accepted: "Acceptée par les deux parties",
+      refused: "Refusée",
+      expired: "Expirée sans deux acceptations",
+      superseded: "Remplacée par une nouvelle version",
+    },
+    respondBy:
+      "Réponse attendue avant le {time} (48 h, échéance incluse). Sans réponse, la proposition expire.",
+    responseLine: "{party} : {decision} le {time}",
+    decisions: { accept: "acceptée", refuse: "refusée" },
+    sameAmount:
+      "Le candidat et l'entreprise voient le même montant ; chacun accepte ou refuse pour son propre compte. Le silence ne vaut jamais acceptation.",
+    accept: "Accepter",
+    refuse: "Refuser",
+    youAccepted: "Vous avez accepté cette version.",
+    waitingOther: "En attente de la réponse de l'autre partie.",
+    youRefused:
+      "Vous avez refusé cette version : le dossier revient au fondateur.",
+    refused:
+      "Proposition refusée : le dossier revient au fondateur pour examen.",
+    agreementCandidate:
+      "Accord des deux parties sur {amount} : saisissez le code de la journée, même avant la fin prévue.",
+    agreementCompany:
+      "Accord des deux parties sur {amount} : remettez le code de la journée au candidat.",
+    recourse: "Le code n'est pas remis : demander au support",
+    recourseSent:
+      "Recours enregistré : le fondateur vérifie puis peut finaliser l'accord.",
+    closureTitle: "Décision du fondateur",
+    closureOutcome: {
+      not_established: "Interruption non établie",
+      disagreement: "Désaccord non résolu",
+      settled: "Accord partiel finalisé",
+    },
+    finance: {
+      title: "Suivi des montants",
+      recognized: "Déjà reconnu pour la mission : {amount}",
+      cap: "Plafond de cette journée (contrat signé) : {amount}",
+      pending: "Proposition en attente de réponse : {amount}",
+      accepted: "Montant accepté par les deux parties : {amount}",
+      settled: "Accord finalisé pour cette journée : {amount}",
+      none: "Aucun montant n'est encore proposé pour cette journée (ce n'est pas zéro).",
+      finalization: {
+        pending: "Finalisation : en attente du code de la journée",
+        code: "Finalisation : confirmée par le code",
+        support: "Finalisation : par le fondateur (code non remis)",
+      },
+      notPaid:
+        "Information seulement : un montant reconnu ou accepté n'est pas un versement ; l'application n'effectue aucun paiement.",
+      exactNote:
+        "Accord : montant entier. Plafond : arrondi à l'entier inférieur. Total reconnu : calcul exact au prorata, qui peut rester fractionnaire ; l'arrondi d'un éventuel versement relèvera du lot paiement.",
+    },
+    dayState: {
+      under_review: "Interrompue — en examen",
+      agreement: "Interrompue — accord à confirmer par le code",
+      settled: "Interrompue — accord partiel finalisé",
+      unresolved: "Interrompue — règlement non résolu",
+      normal: "Parcours normal rétabli",
+      confirmed: "Confirmée",
+    },
+    situation: {
+      day: "Journée : {state}",
+      dossier: "Dossier : {stage}",
+      mission:
+        "Mission : {confirmed} journée(s) confirmée(s) sur {total} ; les autres journées suivent leur propre parcours.",
+    },
+    reexam: {
+      title: "Signaler une erreur dans la décision",
+      hint: "Le fondateur réexamine sa décision avec votre motif. Ce n'est pas un recours indépendant ; la demande ne change ni les délais ni l'état de la journée.",
+      placeholder: "Motif de la demande de réexamen",
+      send: "Demander un réexamen",
+      sent: "Demande de réexamen enregistrée",
+      pending: "Réexamen demandé le {time} : en attente du fondateur.",
+      decisions: {
+        maintained: "Décision maintenue",
+        reopened:
+          "Examen rouvert : décision précédente conservée dans l'historique",
+        separate_handling:
+          "Correction nécessitant un traitement distinct : rien n'est modifié ici",
+      },
+      decisionLine: "{decision} le {time}",
+      history: "Décisions précédentes",
+      historyLine: "{outcome} · décidée le {decided} · remplacée le {revoked}",
+    },
+    noticesTitle: "Avis dans l'application",
+    noticeLine: "{kind} · mis à disposition le {time}",
+    noticeViewed: "consulté le {time}",
+    noticeNotViewed: "consultation non observée",
+    noticeScope:
+      "Avis disponibles dans l'application uniquement : aucun SMS, e-mail ni notification push n'est envoyé.",
+    noticeKinds: {
+      version_request: "Version demandée",
+      version_reminder: "Rappel : version attendue",
+      version_expired: "Délai de version expiré",
+      info_request: "Justificatif demandé",
+      info_reminder: "Rappel : justificatif attendu",
+      info_expired: "Délai de réponse expiré",
+      proposal: "Montant proposé",
+      proposal_reminder: "Rappel : proposition",
+      proposal_expired: "Proposition expirée",
+      proposal_refused: "Proposition refusée",
+      agreement: "Accord des deux parties",
+      review_extended: "Examen prolongé",
+      founder_overdue: "Délai du fondateur dépassé",
+      recourse: "Recours : code non remis",
+      closure: "Décision",
+      finalized: "Accord finalisé par le support",
+      reexam_request: "Réexamen demandé",
+      reexam_decision: "Réexamen traité",
+      new_element: "Nouvel élément",
+    },
+    codeAmount: "Montant convenu : {amount}",
+    noPayment:
+      "La confirmation enregistre l'accord accepté ; elle ne vaut ni versement ni remboursement.",
+    dayPartial: "Accord partiel finalisé",
+    dayPartialSupport: "Accord partiel finalisé par le support",
+    tasksTitle: "Interruptions : actions attendues",
+    taskActions: {
+      give_version: "Donner votre version",
+      answer_request: "Répondre ou fournir une pièce",
+      respond_proposal: "Proposition de {amount} : accepter ou refuser",
+      agreement_code_candidate: "Accord sur {amount} : saisir le code",
+      agreement_code_company: "Accord sur {amount} : remettre le code",
+    },
+    taskOpen: "Ouvrir le dossier",
+    admin: {
+      title: "Interruption : décision du fondateur",
+      founderOnly:
+        "Seul le fondateur actif propose ou modifie un montant, prolonge son délai, clôt le dossier ou finalise un accord, sans seconde validation. Le support et les opérations recueillent versions, justificatifs et contacts.",
+      readOnly: "Lecture seule : décision réservée au fondateur.",
+      policyPending:
+        "Proposition de montant fermée : le montant minimal, le plafond et l'arrondi ne sont pas encore arbitrés.",
+      amountLabel: "Montant proposé (XAF)",
+      motivationLabel: "Motivation de la proposition",
+      propose: "Proposer ce montant",
+      amend: "Proposer une nouvelle version",
+      proposed: "Proposition enregistrée",
+      closeLabel: "Clôture motivée",
+      closeOutcome: {
+        not_established: "Interruption non établie",
+        disagreement: "Désaccord non résolu",
+      },
+      closeHint: {
+        not_established: "La journée reprend son parcours normal.",
+        disagreement:
+          "Aucun montant définitif, ni renoncement, ni remboursement, ni sanction ; la journée n'est pas confirmée.",
+      },
+      closeMotivation: "Motivation de la clôture",
+      close: "Clore le dossier",
+      closed: "Dossier clos",
+      extendEnds: "Nouvelle échéance (heure de Douala)",
+      extendReason: "Motif de la prolongation",
+      extend: "Prolonger exceptionnellement",
+      extended: "Prolongation enregistrée",
+      extensionsTitle: "Prolongations",
+      extensionLine: "Jusqu'au {time} · {reason}",
+      finalizeHint:
+        "Recours reçu : le code n'est pas remis. Vérifiez, puis finalisez au montant accepté (provenance distincte, jamais une réalisation complète).",
+      finalizeMotivation: "Vérifications effectuées",
+      finalize: "Finaliser l'accord",
+      finalized: "Accord finalisé",
+      requestsTitle: "Demandes adressées aux parties",
+      versionRequestLine: "Version de la partie {party} · avant le {time}",
+      requestLine: "{party} · avant le {time}",
+      requestAnswered: "répondu le {time}",
+      requestOpen: "en attente",
+      requestExpired: "délai expiré",
+      capLabel:
+        "Plafond : {amount} (contrat signé ; il encadre la proposition sans calculer la valeur du travail)",
+      zeroNote:
+        "Un montant de 0 suit les mêmes garanties : motif, affichage clair et acceptation explicite des deux parties sur la même version.",
+      extensionOnce:
+        "Une seule prolongation par dossier, 7 jours au plus après l'échéance en cours.",
+      extensionUsed: "Prolongation déjà utilisée pour ce dossier.",
+      reexamTitle: "Demandes de réexamen",
+      reexamDecision: "Décision du réexamen",
+      reexamMotivation: "Motivation du réexamen",
+      reexamSubmit: "Enregistrer la décision",
+      reexamDone: "Réexamen traité",
+      overdueBadge: "Délai du fondateur dépassé",
+      dueBadge: "Échéance {time}",
+      notices: "Mises à disposition et consultations",
+      recipient: {
+        candidate: "Candidat",
+        company: "Entreprise",
+        founder: "Fondateur",
+      },
+    },
+    errors: {
+      decision_invalid: "Réponse invalide.",
+      settlement_changed:
+        "La proposition a changé : relisez la nouvelle version.",
+      settlement_not_found: "Proposition introuvable.",
+      already_responded: "Vous avez déjà répondu à cette version.",
+      proposal_refused:
+        "Cette proposition a été refusée : le dossier revient au fondateur.",
+      proposal_expired:
+        "Le délai de réponse de 48 h est dépassé : la proposition a expiré.",
+      incident_closed: "Ce dossier est clos.",
+      settlement_not_accepted:
+        "Aucun accord valide des deux parties sur la version en cours.",
+      settlement_accepted:
+        "Un accord des deux parties est en cours : il ne peut plus être modifié.",
+      recourse_required:
+        "Finalisation possible seulement après un recours d'une partie.",
+      amount_above_cap:
+        "Montant supérieur au plafond de la journée (contrat signé).",
+      settlement_cap_unavailable:
+        "Plafond introuvable dans le contrat signé : aucune proposition possible.",
+      extension_already_used:
+        "La prolongation de ce dossier a déjà été utilisée.",
+      no_decision: "Aucune décision du fondateur à réexaminer.",
+      reexamination_not_found: "Demande de réexamen introuvable.",
+      reexamination_decided: "Ce réexamen est déjà traité.",
+      reexamination_obsolete:
+        "La décision visée a changé : relisez le dossier.",
+      requires_separate_handling:
+        "Correction impossible ici (accord finalisé ou journée confirmée) : traitement distinct nécessaire.",
+      motivation_invalid: "Motivation de 10 à 2 000 caractères.",
+      amount_invalid: "Montant hors des bornes validées.",
+      settlement_rule_pending:
+        "Montant minimal, plafond et arrondi non arbitrés : aucune proposition n'est possible.",
+      instruction_pending:
+        "Des réponses sont encore attendues dans le délai de 72 h.",
+      proposal_open: "Une proposition attend encore les réponses (48 h).",
+      review_not_open: "Le dossier n'est pas à l'examen du fondateur.",
+      extension_date_invalid:
+        "Échéance postérieure à l'échéance en cours, 7 jours au plus après elle.",
+      closure_outcome_invalid: "Choisissez une clôture.",
+      note_invalid: "Motif de 10 à 1 000 caractères.",
+      forbidden: "Action réservée au fondateur actif.",
+      day_already_confirmed: "Cette journée est déjà confirmée.",
+      mission_not_active: "Cette mission n'est plus active.",
+      incident_not_found: "Dossier introuvable.",
+      mission_not_found: "Mission introuvable ou inaccessible.",
+      account_suspended: "Votre compte est suspendu.",
+      generic: "Opération impossible. Réessayez.",
+    },
+  },
   schedule: {
     datesLabel: "Dates de travail",
     datesHint:

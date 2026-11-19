@@ -2368,6 +2368,13 @@ export const en: TranslationKeys = {
       account_suspended: "Your account is suspended.",
       mission_not_found: "Mission not found or not accessible.",
       mission_not_active: "This mission is no longer active.",
+      day_cancelled: "This day was cancelled.",
+      interruption_pending:
+        "An interruption is under review: the founder must decide first.",
+      settlement_not_accepted:
+        "No valid agreement of both parties: the code cannot be accepted yet.",
+      interruption_unresolved:
+        "Unresolved disagreement on this day: the code does not confirm it.",
       too_early: "The mission can start from {time}.",
       not_started: "Confirm the start of the mission first.",
       completion_not_open: "You can validate this day from {time}.",
@@ -2395,6 +2402,7 @@ export const en: TranslationKeys = {
       late: "Delay",
       absence: "Absence",
       code_not_received: "End code not given",
+      interruption: "Day interrupted",
     },
     hints: {
       candidate: {
@@ -2402,11 +2410,15 @@ export const en: TranslationKeys = {
         absence: "Let them know you cannot come that day.",
         code_not_received:
           "You did the work, but the company did not give you the end code.",
+        interruption:
+          "The started day stopped before its planned end: support reviews it.",
       },
       company: {
         late: "The candidate arrived late that day.",
         absence: "The candidate did not show up that day.",
         code_not_received: "",
+        interruption:
+          "The started day stopped before its planned end: support reviews it.",
       },
     },
     statement: "Your statement",
@@ -2462,6 +2474,17 @@ export const en: TranslationKeys = {
       errorTitle: "Action not saved",
     },
     errors: {
+      day_cancelled: "This day was cancelled by the candidate.",
+      interruption_pending: "An interruption is under review for this day.",
+      settlement_pending: "A partial settlement is in progress for this day.",
+      response_deadline_passed:
+        "The 72-hour deadline has passed: this answer can no longer be accepted. You can add a new element for review.",
+      use_founder_decision:
+        "An interruption is decided by the founder alone, from its dedicated card.",
+      interruption_cause_invalid: "Choose the cause of the interruption.",
+      work_done_invalid: "Describe the work done (at least 10 characters).",
+      declared_time_invalid:
+        "The time must be between the start of the day and now.",
       not_authenticated: "Session expired. Please sign in again.",
       account_suspended: "Your account is suspended.",
       forbidden: "Only authorised support can do this.",
@@ -3003,6 +3026,456 @@ export const en: TranslationKeys = {
     },
   },
   // Lot 12: jobs over several days (dates chosen one by one).
+  // Lots 17b–17c: candidate cancellation, proof, appeal, suspensions and
+  // acquired amount.
+  cancellations: {
+    open: "Cancel days",
+    title: "Cancel days",
+    intro:
+      "Choose the days you withdraw from. The withdrawal is recorded at once and the company is notified.",
+    noneAvailable: "No day of this mission can be cancelled anymore.",
+    classes: {
+      in_time: "No sanction",
+      reaction_window: "No sanction (reaction window)",
+      late: "Late",
+      legacy: "Earlier commitment: no automatic sanction",
+    },
+    deadline: "No sanction until {date}",
+    reaction: "Reaction window until {date}",
+    summaryTitle: "Summary",
+    summaryFree: "No sanction. You may add a proof if you wish.",
+    summaryLate:
+      "At least one day is late. Give the reason and attach a proof: support will review it before any sanction. Without a proof, a breach is recorded (−5 experience units).",
+    reason: "Reason",
+    reasonPlaceholder: "Choose a reason",
+    reasons: {
+      illness: "Illness",
+      family_emergency: "Family emergency",
+      transport: "Transport problem",
+      late_notification: "Selection notification seen late",
+      other: "Other",
+    },
+    reasonText: "Details (optional)",
+    evidenceProvided: "I'm adding a proof",
+    evidenceNone: "I don't have a proof",
+    file: "Proof (PDF, JPG or PNG, 5 MB max)",
+    confirm: "Confirm cancellation",
+    back: "Back",
+    done: "Cancellation recorded",
+    uploadFailed:
+      "The proof could not be sent. Your file is still waiting for a document: try again.",
+    retry: "Send a proof",
+    sending: "Sending…",
+    mineTitle: "My cancellations",
+    daysLabel: "Days: {dates}",
+    status: {
+      closed_no_sanction: "No sanction",
+      awaiting_evidence: "Proof expected",
+      under_review: "Under review by support",
+      sanctioned_no_evidence: "Breach recorded (no proof)",
+      accepted: "Proof accepted: no sanction",
+      refused: "Proof refused: breach recorded",
+    },
+    decisionNote: "Decision reason: {note}",
+    review: "Appeal",
+    reviewHint: "You may appeal until {date}.",
+    reviewNote: "Explain your appeal",
+    reviewSend: "Send appeal",
+    reviewSent: "Appeal sent on {date}",
+    reviewOutcome: {
+      maintained: "Appeal rejected",
+      overturned: "Appeal accepted: breach cancelled",
+    },
+    dayCancelled: "Cancelled",
+    companyDayCancelled: "Candidate withdrew",
+    amountTitle: "Acquired amount",
+    amountValue: "{amount} out of a flat fee of {total}",
+    amountExact:
+      "Exact computation: {exact} XAF (rounding to the franc to be validated)",
+    amountStatus: {
+      final: "Final",
+      in_progress: "Provisional: days are still scheduled",
+      settlement_pending:
+        "Awaiting settlement: partial work or interruption under review",
+    },
+    amountPendingNote:
+      "Interrupted or partial day: amount under review, not set yet (this is not zero). Only an agreement accepted by both parties and then confirmed adds to the recognised amount.",
+    amountUnresolvedNote:
+      "Unresolved disagreement on a day: no final amount, no waiver, no refund, no sanction.",
+    amountNote:
+      "Flat fee × scheduled hours of completed days ÷ scheduled hours of all days (contract times, break not deducted). The app makes no payment.",
+    tasksTitle: "Cancellations to complete",
+    tasksEvidence: "Proof expected for “{job}”",
+    suspensions: {
+      title: "Account suspension",
+      cycle: "Three late cancellations without a valid proof",
+      cycleFinal: "Permanent exclusion",
+      fraud: "Suspected fraud reviewed by support",
+      until: "Until {date} (Douala time)",
+      noEnd: "No end date",
+      events: "Recorded facts: {dates}",
+      contest: "Contest",
+      contestNote: "Explain your contest",
+      contestSend: "Send",
+      contested: "Contest sent on {date}",
+      maintained: "Contest reviewed: suspension maintained",
+    },
+    admin: {
+      quickAction: "Candidate cancellations",
+      title: "Candidate cancellations",
+      filterToReview: "To review",
+      filterAll: "All",
+      empty: "No file.",
+      back: "Back to the list",
+      candidate: "Candidate",
+      job: "Job",
+      planAtSelection: "Plan at selection: {plan}",
+      lateCount: "Late cancellations recorded on the account: {n}",
+      reasonCode: "Reason: {reason}",
+      evidence: "Documents",
+      openEvidence: "Open document {n}",
+      noEvidence: "No document.",
+      decideTitle: "Decision on the proof",
+      accept: "Accept (no sanction)",
+      refuse: "Refuse (breach)",
+      note: "Reason (at least 10 characters)",
+      reviewTitle: "Candidate appeal",
+      reviewBy:
+        "Decided by an agent other than the author of the first decision.",
+      maintain: "Maintain",
+      overturn: "Cancel the breach",
+      fraudTitle: "Suspected fraud",
+      fraudHint:
+        "A refused proof is not evidence of fraud. Attach the elements.",
+      fraudReason: "Report details",
+      fraudReport: "Report",
+      fraudEvidence: "Attach an element",
+      suspendEnd: "End (Douala time); empty: until lifted",
+      suspend: "Suspend for fraud",
+      suspensionsTitle: "Account suspensions",
+      lift: "Lift",
+      maintainContest: "Maintain after contest",
+      contestNote: "Contest: {note}",
+      futureTitle: "Future commitments already selected",
+      futureHint:
+        "Neither deleted nor turned into absences: operational handling to be decided by support.",
+      causes: {
+        admin: "Administrative",
+        cancellation_cycle: "Late cancellations, cycle {n}",
+        fraud: "Suspected fraud",
+      },
+      state: {
+        active: "Active",
+        ended: "Ended",
+        lifted: "Lifted",
+      },
+      saved: "Saved.",
+    },
+    errors: {
+      reason_required: "Choose a reason.",
+      evidence_choice_required:
+        "Choose “I'm adding a proof” or “I don't have a proof”.",
+      day_already_cancelled: "A day is already cancelled.",
+      day_started: "A day has already started or been completed.",
+      day_already_begun:
+        "A day has already begun: it can't be cancelled anymore.",
+      mission_not_active: "This mission is no longer active.",
+      evidence_invalid: "File not recognised: PDF, JPG or PNG.",
+      evidence_too_large: "File too large (5 MB max).",
+      evidence_limit: "Maximum number of documents reached.",
+      cancellation_closed: "This file no longer accepts documents.",
+      note_invalid: "Text too short (at least 10 characters).",
+      review_deadline_passed: "The appeal period has passed.",
+      generic: "Operation failed. Try again.",
+    },
+  },
+  // Interruption of a started day and settlement handled by support
+  // (decision of 2026-11-19).
+  partialDay: {
+    report: "Report an interruption",
+    causeLabel: "Cause",
+    causes: {
+      candidate_left: "The candidate left",
+      company_stopped: "Stop requested by the company",
+    },
+    declaredAtLabel: "Time of the interruption (Douala time)",
+    workDoneLabel: "Work done",
+    reasonLabel: "Reason",
+    notProof:
+      "Your statement goes to support: it does not confirm the day and is not proof on its own.",
+    dayInterrupted: "Interruption reported: file under review",
+    taskTitle: "Interruption · {date}",
+    taskHint:
+      "The file is under review. Follow the deadlines and answer from the mission.",
+    versionsTitle: "Versions of the parties",
+    versionLine: "{party} · {cause} · {time}",
+    party: { candidate: "Candidate", company: "Company" },
+    stage: {
+      instruction: "Review: answers awaited",
+      founder_review: "Under review by the founder",
+      awaiting_parties: "Proposal awaiting answers",
+      agreement: "Both parties agree",
+      closed: "File closed",
+    },
+    dueAt: "Deadline: {time}",
+    reviewDue: "The founder's decision is expected by {time} at the latest.",
+    reviewOverdue:
+      "Review deadline exceeded since {time}: a reminder is sent to the founder. No decision is taken automatically.",
+    versionRequested: "Your version is awaited before {time}.",
+    versionExpired:
+      "The deadline to give your version passed on {time}. The founder reviews the file with the available elements.",
+    requestDue: "To answer before {time} (deadline included)",
+    requestExpired:
+      "Deadline passed on {time}: the answer can no longer be accepted. You can still add a new element for review.",
+    silenceNote:
+      "Silence proves neither the work, nor an absence, nor a fault.",
+    amount: {
+      under_review:
+        "Amount for this day: under review. No amount is set yet, which does not mean zero.",
+      unresolved:
+        "Unresolved disagreement: no final amount. This is neither a waiver of pay, nor a refund, nor a sanction.",
+      settled:
+        "Agreement finalised for this day: {amount} (information, no payment)",
+      not_applicable:
+        "Interruption not established: the day returns to its normal path.",
+    },
+    proposalsTitle: "Founder's proposals",
+    proposalLine: "Version {version} · {amount}",
+    motivationLabel: "Reasons",
+    proposalStatus: {
+      open: "Awaiting answers",
+      accepted: "Accepted by both parties",
+      refused: "Refused",
+      expired: "Expired without two acceptances",
+      superseded: "Replaced by a new version",
+    },
+    respondBy:
+      "Answer expected before {time} (48 h, deadline included). Without an answer, the proposal expires.",
+    responseLine: "{party}: {decision} on {time}",
+    decisions: { accept: "accepted", refuse: "refused" },
+    sameAmount:
+      "The candidate and the company see the same amount; each accepts or refuses on their own behalf. Silence never counts as acceptance.",
+    accept: "Accept",
+    refuse: "Refuse",
+    youAccepted: "You accepted this version.",
+    waitingOther: "Waiting for the other party's answer.",
+    youRefused: "You refused this version: the file goes back to the founder.",
+    refused: "Proposal refused: the file goes back to the founder for review.",
+    agreementCandidate:
+      "Both parties agree on {amount}: enter the day's code, even before the scheduled end.",
+    agreementCompany:
+      "Both parties agree on {amount}: hand the day's code to the candidate.",
+    recourse: "The code was not handed over: ask support",
+    recourseSent:
+      "Request recorded: the founder checks, then can finalise the agreement.",
+    closureTitle: "Founder's decision",
+    closureOutcome: {
+      not_established: "Interruption not established",
+      disagreement: "Unresolved disagreement",
+      settled: "Partial agreement finalised",
+    },
+    finance: {
+      title: "Amount tracking",
+      recognized: "Already recognised for the mission: {amount}",
+      cap: "Cap for this day (signed contract): {amount}",
+      pending: "Proposal awaiting answers: {amount}",
+      accepted: "Amount accepted by both parties: {amount}",
+      settled: "Agreement finalised for this day: {amount}",
+      none: "No amount is proposed yet for this day (this is not zero).",
+      finalization: {
+        pending: "Finalisation: awaiting the day's code",
+        code: "Finalisation: confirmed by the code",
+        support: "Finalisation: by the founder (code not handed over)",
+      },
+      notPaid:
+        "Information only: a recognised or accepted amount is not a payment; the app makes no payment.",
+      exactNote:
+        "Agreement: whole amount. Cap: rounded down to the franc. Recognised total: exact prorata computation, which can remain fractional; rounding any future payment belongs to the payment lot.",
+    },
+    dayState: {
+      under_review: "Interrupted — under review",
+      agreement: "Interrupted — agreement to confirm with the code",
+      settled: "Interrupted — partial agreement finalised",
+      unresolved: "Interrupted — settlement unresolved",
+      normal: "Normal path restored",
+      confirmed: "Confirmed",
+    },
+    situation: {
+      day: "Day: {state}",
+      dossier: "File: {stage}",
+      mission:
+        "Mission: {confirmed} of {total} day(s) confirmed; the other days follow their own path.",
+    },
+    reexam: {
+      title: "Report an error in the decision",
+      hint: "The founder re-examines the decision with your reasons. This is not an independent appeal; the request changes neither the deadlines nor the state of the day.",
+      placeholder: "Reasons for the re-examination request",
+      send: "Request a re-examination",
+      sent: "Re-examination request recorded",
+      pending: "Re-examination requested on {time}: awaiting the founder.",
+      decisions: {
+        maintained: "Decision maintained",
+        reopened: "Review reopened: previous decision kept in the history",
+        separate_handling:
+          "Correction needing separate handling: nothing is changed here",
+      },
+      decisionLine: "{decision} on {time}",
+      history: "Previous decisions",
+      historyLine: "{outcome} · decided on {decided} · replaced on {revoked}",
+    },
+    noticesTitle: "In-app notices",
+    noticeLine: "{kind} · made available on {time}",
+    noticeViewed: "viewed on {time}",
+    noticeNotViewed: "no view observed",
+    noticeScope:
+      "Notices are available in the app only: no SMS, email or push notification is sent.",
+    noticeKinds: {
+      version_request: "Version requested",
+      version_reminder: "Reminder: version awaited",
+      version_expired: "Version deadline passed",
+      info_request: "Supporting information requested",
+      info_reminder: "Reminder: supporting information awaited",
+      info_expired: "Answer deadline passed",
+      proposal: "Amount proposed",
+      proposal_reminder: "Reminder: proposal",
+      proposal_expired: "Proposal expired",
+      proposal_refused: "Proposal refused",
+      agreement: "Both parties agree",
+      review_extended: "Review extended",
+      founder_overdue: "Founder deadline exceeded",
+      recourse: "Request: code not handed over",
+      closure: "Decision",
+      finalized: "Agreement finalised by support",
+      reexam_request: "Re-examination requested",
+      reexam_decision: "Re-examination handled",
+      new_element: "New element",
+    },
+    codeAmount: "Agreed amount: {amount}",
+    noPayment:
+      "The confirmation records the accepted agreement; it is neither a payment nor a refund.",
+    dayPartial: "Partial agreement finalised",
+    dayPartialSupport: "Partial agreement finalised by support",
+    tasksTitle: "Interruptions: actions awaited",
+    taskActions: {
+      give_version: "Give your version",
+      answer_request: "Answer or provide a document",
+      respond_proposal: "Proposal of {amount}: accept or refuse",
+      agreement_code_candidate: "Agreement on {amount}: enter the code",
+      agreement_code_company: "Agreement on {amount}: hand over the code",
+    },
+    taskOpen: "Open the file",
+    admin: {
+      title: "Interruption: founder's decision",
+      founderOnly:
+        "Only the active founder proposes or changes an amount, extends their deadline, closes the file or finalises an agreement, with no second validation. Support and operations collect versions, documents and contacts.",
+      readOnly: "Read only: decision reserved to the founder.",
+      policyPending:
+        "Amount proposals closed: the minimum amount, the cap and rounding are not decided yet.",
+      amountLabel: "Proposed amount (XAF)",
+      motivationLabel: "Reasons for the proposal",
+      propose: "Propose this amount",
+      amend: "Propose a new version",
+      proposed: "Proposal recorded",
+      closeLabel: "Reasoned closure",
+      closeOutcome: {
+        not_established: "Interruption not established",
+        disagreement: "Unresolved disagreement",
+      },
+      closeHint: {
+        not_established: "The day returns to its normal path.",
+        disagreement:
+          "No final amount, no waiver, no refund, no sanction; the day is not confirmed.",
+      },
+      closeMotivation: "Reasons for the closure",
+      close: "Close the file",
+      closed: "File closed",
+      extendEnds: "New deadline (Douala time)",
+      extendReason: "Reason for the extension",
+      extend: "Extend exceptionally",
+      extended: "Extension recorded",
+      extensionsTitle: "Extensions",
+      extensionLine: "Until {time} · {reason}",
+      finalizeHint:
+        "Request received: the code was not handed over. Check, then finalise at the accepted amount (distinct origin, never a full completion).",
+      finalizeMotivation: "Checks performed",
+      finalize: "Finalise the agreement",
+      finalized: "Agreement finalised",
+      requestsTitle: "Requests to the parties",
+      versionRequestLine: "Version of the {party} · before {time}",
+      requestLine: "{party} · before {time}",
+      requestAnswered: "answered on {time}",
+      requestOpen: "pending",
+      requestExpired: "deadline passed",
+      capLabel:
+        "Cap: {amount} (signed contract; it frames the proposal without computing the value of the work)",
+      zeroNote:
+        "An amount of 0 follows the same safeguards: reasons, clear display and explicit acceptance of both parties on the same version.",
+      extensionOnce:
+        "Only one extension per file, at most 7 days after the current deadline.",
+      extensionUsed: "The extension has already been used for this file.",
+      reexamTitle: "Re-examination requests",
+      reexamDecision: "Re-examination decision",
+      reexamMotivation: "Reasons for the re-examination",
+      reexamSubmit: "Record the decision",
+      reexamDone: "Re-examination handled",
+      overdueBadge: "Founder deadline exceeded",
+      dueBadge: "Deadline {time}",
+      notices: "Made available and views",
+      recipient: {
+        candidate: "Candidate",
+        company: "Company",
+        founder: "Founder",
+      },
+    },
+    errors: {
+      decision_invalid: "Invalid answer.",
+      settlement_changed: "The proposal changed: read the new version.",
+      settlement_not_found: "Proposal not found.",
+      already_responded: "You already answered this version.",
+      proposal_refused:
+        "This proposal was refused: the file goes back to the founder.",
+      proposal_expired:
+        "The 48-hour answer deadline has passed: the proposal expired.",
+      incident_closed: "This file is closed.",
+      settlement_not_accepted:
+        "No valid agreement of both parties on the current version.",
+      settlement_accepted:
+        "An agreement of both parties is in progress: it can no longer be changed.",
+      recourse_required:
+        "Finalisation is only possible after a party's request.",
+      amount_above_cap: "Amount above the day's cap (signed contract).",
+      settlement_cap_unavailable:
+        "Cap not found in the signed contract: no proposal is possible.",
+      extension_already_used:
+        "The extension for this file has already been used.",
+      no_decision: "No founder decision to re-examine.",
+      reexamination_not_found: "Re-examination request not found.",
+      reexamination_decided: "This re-examination is already handled.",
+      reexamination_obsolete:
+        "The decision concerned has changed: read the file again.",
+      requires_separate_handling:
+        "Correction not possible here (finalised agreement or confirmed day): separate handling needed.",
+      motivation_invalid: "Reasons of 10 to 2,000 characters.",
+      amount_invalid: "Amount outside the validated bounds.",
+      settlement_rule_pending:
+        "Minimum amount, cap and rounding not decided: no proposal is possible.",
+      instruction_pending:
+        "Answers are still awaited within the 72-hour deadline.",
+      proposal_open: "A proposal is still awaiting answers (48 h).",
+      review_not_open: "The file is not under the founder's review.",
+      extension_date_invalid:
+        "Deadline later than the current one, at most 7 days after it.",
+      closure_outcome_invalid: "Choose a closure.",
+      note_invalid: "Reason of 10 to 1,000 characters.",
+      forbidden: "Action reserved to the active founder.",
+      day_already_confirmed: "This day is already confirmed.",
+      mission_not_active: "This mission is no longer active.",
+      incident_not_found: "File not found.",
+      mission_not_found: "Mission not found or not accessible.",
+      account_suspended: "Your account is suspended.",
+      generic: "Action not possible. Try again.",
+    },
+  },
   schedule: {
     datesLabel: "Working dates",
     datesHint:

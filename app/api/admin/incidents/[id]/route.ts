@@ -29,8 +29,45 @@ export async function GET(
         "incident_failed",
         request,
       );
+    // Interruption : versions des parties, travail déclaré, règlement et
+    // règles de valorisation validées (aucune aujourd'hui).
+    const kind = (data as { kind?: unknown } | null)?.kind;
+    let interruption: unknown = null;
+    if (kind === "interruption") {
+      const res = await ctx.supabase.rpc("admin_mission_interruption", {
+        p_incident_id: ctx.incidentId,
+      });
+      if (res.error)
+        return incidentRpcError(
+          res.error,
+          "admin.incidents.read",
+          "incident_failed",
+          request,
+        );
+      interruption = res.data;
+    }
+    // Interruption : l'état courant de l'instruction (dossier rouvert
+    // compris) vient de `incident_instruction_open`, la même lecture que
+    // les RPC ; jamais du statut générique figé à la première décision.
+    const instructionOpen = (
+      interruption as { instruction_open?: unknown } | null
+    )?.instruction_open;
     return NextResponse.json(
-      { incident: data },
+      {
+        incident:
+          data && typeof data === "object" && !Array.isArray(data)
+            ? {
+                ...data,
+                interruption,
+                ...(typeof instructionOpen === "boolean"
+                  ? {
+                      can_record_contact: instructionOpen,
+                      instruction_open: instructionOpen,
+                    }
+                  : {}),
+              }
+            : data,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
