@@ -36,6 +36,7 @@ import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { addDays } from "./lib/job-days-fixture";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -209,6 +210,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("company-dossier-visibility", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")

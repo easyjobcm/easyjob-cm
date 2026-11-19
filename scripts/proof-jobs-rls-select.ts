@@ -29,6 +29,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 
@@ -142,6 +143,7 @@ async function cleanPreviousProofs() {
   );
   if (marked.length === 0) return;
   const ids = marked.map((u) => u.id);
+  purgeProofJobs("jobs-rls-select", { userIds: ids });
   const { data: profiles } = await serviceClient
     .from("candidate_profiles")
     .select("id")
@@ -440,6 +442,9 @@ async function main() {
     );
     if (failCount > 0) process.exitCode = 1;
   } finally {
+    purgeProofJobs("jobs-rls-select", {
+      jobIds: [fx.activeJobId, fx.draftJobId],
+    });
     await serviceClient
       .from("job_applications")
       .delete()

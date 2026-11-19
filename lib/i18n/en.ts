@@ -750,6 +750,12 @@ export const en: TranslationKeys = {
   jobDetail: {
     unavailableTitle: "Job unavailable",
     unavailableBody: "This job is temporarily not offered to new candidates.",
+    closedByCompanyTitle: "Job closed by the company",
+    closedByCompanyBody:
+      "The company closed this job: it no longer accepts applications and no one will be selected.",
+    closedByCompanyApplied:
+      "Your application stays in your history; it was not rejected.",
+    myApplications: "See my applications",
     unavailableApplied:
       "This job is not accepting new applications for now. Your application remains available.",
     backToJobs: "See other jobs",
@@ -1040,6 +1046,7 @@ export const en: TranslationKeys = {
       rejected: "Not accepted",
       withdrawn: "Withdrawn",
       no_show: "No-show",
+      jobClosed: "Job closed by the company",
     },
     missionStatus: {
       pending: "Scheduled",
@@ -2053,11 +2060,13 @@ export const en: TranslationKeys = {
       expired: "Expired",
       rejected: "Rejected",
       cancelled: "Cancelled",
+      closedByCompany: "Closed",
     },
     urgent: "Urgent",
     applications: { one: "application", other: "applications" },
     positions: { one: "/{count} position", other: "/{count} positions" },
     rejectionReason: "Rejection reason: {reason}",
+    closedOn: "Closed on {date}. Reason: {reason}",
     rejectedNext: "Edit the job to fix this point: it will be reviewed again.",
     lockedPlan:
       "Published job: direct editing is available on Pro and Business plans. Contact support.",
@@ -2065,11 +2074,35 @@ export const en: TranslationKeys = {
       viewApplications: "View applications",
       edit: "Edit",
       delete: "Delete",
+      close: "Close the job",
+      support: "Cancellation: contact support",
+    },
+    closeDialog: {
+      title: "Close this job?",
+      description:
+        "This job has already been published: it can no longer be deleted, but you can close it.",
+      consequences: [
+        "It leaves the open jobs: no more applications or selections.",
+        "Pending candidates are notified; their application stays in their history and is not rejected.",
+        "Closing is final and kept in the job's history.",
+      ],
+      reasonLabel: "Reason for closing",
+      reasonPlaceholder: "E.g. our client cancelled the need",
+      reasonHint: "10 to 500 characters. Candidates do not see the reason.",
+      cancel: "Cancel",
+      confirm: "Close the job",
+      closing: "Closing...",
+    },
+    supportDialog: {
+      title: "This job has commitments",
+      description:
+        "Candidates have been selected or a mission is under way: this job can be neither deleted nor closed from your account. Contact support to review the situation.",
+      ok: "Got it",
     },
     deleteDialog: {
       title: "Delete this job?",
       description:
-        "This action cannot be undone. All related applications will also be deleted.",
+        "This job was never published. Deleting it cannot be undone.",
       cancel: "Cancel",
       confirm: "Delete",
       deleting: "Deleting...",
@@ -2084,6 +2117,14 @@ export const en: TranslationKeys = {
       deletedDesc: "The job was deleted successfully.",
       deleteErrorTitle: "Error",
       deleteErrorDesc: "The job could not be deleted.",
+      closedTitle: "Job closed",
+      closedDescNone: "The job is closed. No candidate was pending.",
+      closedDesc: {
+        one: "The job is closed. {count} pending candidate was notified.",
+        other: "The job is closed. {count} pending candidates were notified.",
+      },
+      closeErrorTitle: "Could not close the job",
+      closeErrorDesc: "The job could not be closed. Please try again.",
     },
     form: {
       editTitle: "Edit job",
@@ -2127,7 +2168,15 @@ export const en: TranslationKeys = {
         "Candidates have already been selected: contact support to edit this job.",
       job_not_editable: "This job can no longer be edited.",
       job_has_commitments:
-        "This job cannot be deleted: candidates have been selected or a mission is under way. Contact support.",
+        "Candidates have been selected or a mission is under way: this job can be neither deleted nor closed from your account. Contact support.",
+      job_published:
+        "This job has already been published: it can no longer be deleted. Close it instead.",
+      job_not_published:
+        "This job was never published: delete it instead of closing it.",
+      job_not_closable: "This job is no longer open: nothing to close.",
+      job_closed: "This job has been closed.",
+      closure_reason_required: "Enter a reason of at least 10 characters.",
+      closure_reason_too_long: "The reason cannot exceed 500 characters.",
       daysRequired: "Add at least one working date.",
       daysTooMany: "31 days at most per job.",
       daysDuplicate: "Each date can only appear once.",
@@ -2149,6 +2198,8 @@ export const en: TranslationKeys = {
   companyApplicants: {
     back: "Back",
     jobNotFound: "Job not found",
+    closedNotice:
+      "Job closed on {date}: no more applications or selections. Applications remain visible.",
     applications: { one: "application", other: "applications" },
     positionsFilled: {
       one: "/{count} position filled",
@@ -2158,6 +2209,7 @@ export const en: TranslationKeys = {
       pending: "Pending ({count})",
       selected: "Selected ({count})",
       rejected: "Rejected ({count})",
+      jobClosed: "Job closed ({count})",
     },
     status: {
       pending: "Pending",
@@ -2165,6 +2217,7 @@ export const en: TranslationKeys = {
       rejected: "Rejected",
       withdrawn: "Withdrawn",
       no_show: "No-show",
+      jobClosed: "Job closed",
     },
     empty: "No applications in this category",
     distance: "{km} km",

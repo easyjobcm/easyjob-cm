@@ -39,6 +39,7 @@ import type { Database } from "@/lib/database.types";
 import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
 import { appFetch } from "./lib/app-fetch";
 import { runSupabaseQuery } from "./lib/db-query";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type CompanyUpdate = Database["public"]["Tables"]["company_profiles"]["Update"];
@@ -168,6 +169,7 @@ async function createAccount(
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("company-permissions", { userIds: ids });
   for (const id of ids) {
     const { data: objects } = await serviceClient.storage
       .from(BUCKET)

@@ -42,6 +42,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -198,6 +199,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("mission-incidents", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")
@@ -321,7 +323,8 @@ async function main() {
     const idOps = await createAccount(mail("ops"), "admin_ops");
     const idSup = await createAccount(mail("sup"), "admin_support");
     const idOpsOff = await createAccount(mail("opsoff"), "admin_ops");
-    ids.push(idA, idB, idC1, idC2, idC3, idOps, idSup, idOpsOff);
+    const idOps2 = await createAccount(mail("ops2"), "admin_ops");
+    ids.push(idA, idB, idC1, idC2, idC3, idOps, idSup, idOpsOff, idOps2);
     const coA = await createCompany(idA, "Restaurant Lumière");
     await createCompany(idB, "Hôtel Tiers");
     const cand1 = await createCandidate(idC1, "Aline");
@@ -1144,7 +1147,158 @@ async function main() {
         !/"cmd"\s*:\s*"(INSERT|UPDATE|DELETE|ALL)"/.test(policies),
       { granted, policies: policies.replace(/\s+/g, " ").slice(0, 200) },
     );
-    void cand2;
+    // ── N. Lot 17d-0 : traitement actuel d'une absence ───────────
+    // Constat (pas une règle) : depuis le lot 16, un dossier d'absence ne se
+    // tranche que par la double validation, dont l'issue porte sur la
+    // réalisation du travail (« établi » = journée confirmée, « non établi »
+    // = aucune absence fautive). Aucune issue ne qualifie une absence
+    // injustifiée : aucune ligne `candidate_no_show` n'est produite.
+    console.log("\n── N. Lot 17d-0 : absence, aucun manquement ──");
+    const OPS2 = await realSession(mail("ops2"));
+    const { jobId: jobAbs } = await insertJobWithDays(
+      serviceClient,
+      {
+        ...CONTENT,
+        title: "Service du soir (absence)",
+        company_id: coA,
+        mission_pay_per_candidate: 12000,
+        positions_available: 1,
+      },
+      [{ date: "2099-12-15", start_time: "08:00", end_time: "16:00" }],
+    );
+    const { data: appAbs } = await C2.client.rpc("apply_to_job", {
+      p_job_id: jobAbs,
+    });
+    const selAbs = await signAndSelectHttp(APP_URL, appAbs!.id, A.cookie);
+    const missionAbs = (selAbs.body.selection as { mission_id: string })
+      .mission_id;
+    const { data: absDay } = await serviceClient
+      .from("mission_days")
+      .select("id")
+      .eq("mission_id", missionAbs)
+      .single();
+    await serviceClient
+      .from("mission_days")
+      .update({
+        scheduled_date: doualaDay(-1),
+        scheduled_start_time: "00:00",
+        scheduled_end_time: "23:00",
+      })
+      .eq("id", absDay!.id);
+    const repBefore = (
+      await serviceClient
+        .from("reputation_scores")
+        .select("experience_units, stars")
+        .eq("subject_type", "candidate")
+        .eq("subject_id", cand2)
+        .maybeSingle()
+    ).data;
+    const absReport = await http(
+      "POST",
+      `/api/missions/${missionAbs}/incidents`,
+      A.cookie,
+      {
+        mission_day_id: absDay!.id,
+        kind: "absence",
+        statement: "Le candidat ne s'est pas présenté hier soir.",
+      },
+    );
+    const absId = (absReport.body.incident as { incident_id: string })
+      ?.incident_id;
+    if (absId) incidentIds.push(absId);
+    const absGeneric = await http(
+      "POST",
+      `/api/admin/incidents/${absId}`,
+      OPS.cookie,
+      {
+        outcome: "established",
+        note: "Absence constatée par le chef de salle.",
+      },
+    );
+    await http("POST", `/api/incidents/${absId}/statements`, C2.cookie, {
+      statement: "J'ai eu un empêchement, je n'ai pas pu venir.",
+    });
+    const absProposal = await http(
+      "POST",
+      `/api/admin/incidents/${absId}/proposals`,
+      OPS.cookie,
+      {
+        outcome: "not_established",
+        facts_retained:
+          "Le candidat ne s'est pas présenté selon les deux parties.",
+        elements_verified: "Versions concordantes des deux parties.",
+        contradictions: "Aucune contradiction sur l'absence.",
+        justification: "Le travail n'a pas été effectué ce jour-là.",
+        conflict: "none",
+      },
+    );
+    const absProposalId = String(
+      (absProposal.body.result as { proposal_id?: string })?.proposal_id ?? "",
+    );
+    const absDecision = await http(
+      "POST",
+      `/api/admin/incident-proposals/${absProposalId}/review`,
+      OPS2.cookie,
+      {
+        approve: true,
+        note: "Seconde lecture du dossier complète.",
+        conflict: "none",
+      },
+    );
+    const { data: absIncident } = await serviceClient
+      .from("mission_incidents")
+      .select("status, outcome")
+      .eq("id", absId)
+      .single();
+    const [{ data: absIncidents }, { data: absApp }, { data: absMission }] =
+      await Promise.all([
+        serviceClient
+          .from("reputation_incidents")
+          .select("id, kind")
+          .eq("subject_id", cand2),
+        serviceClient
+          .from("job_applications")
+          .select("status")
+          .eq("id", appAbs!.id)
+          .single(),
+        serviceClient
+          .from("missions")
+          .select("status")
+          .eq("id", missionAbs)
+          .single(),
+      ]);
+    const repAfter = (
+      await serviceClient
+        .from("reputation_scores")
+        .select("experience_units, stars")
+        .eq("subject_type", "candidate")
+        .eq("subject_id", cand2)
+        .maybeSingle()
+    ).data;
+    report(
+      "N1 (17d-0) absence signalée par l'entreprise, reconnue par le candidat : décision générique refusée (use_dispute_decision) ; double validation « travail non établi » ; aucun manquement candidate_no_show (ni autre) écrit, candidature « selected », mission non passée en no_show, réputation inchangée",
+      absReport.status === 200 &&
+        absGeneric.body.code === "use_dispute_decision" &&
+        absProposal.status === 200 &&
+        absDecision.status === 200 &&
+        absIncident?.outcome === "not_established" &&
+        (absIncidents ?? []).length === 0 &&
+        absApp?.status === "selected" &&
+        absMission?.status !== "no_show" &&
+        JSON.stringify(repAfter) === JSON.stringify(repBefore),
+      {
+        report: absReport.status,
+        generic: absGeneric.body.code,
+        proposal: absProposal.body.code ?? absProposal.status,
+        decision: absDecision.body.code ?? absDecision.status,
+        incident: absIncident,
+        incidents: absIncidents,
+        app: absApp?.status,
+        mission: absMission?.status,
+        repBefore,
+        repAfter,
+      },
+    );
   } catch (error) {
     failCount += 1;
     console.error("❌ Erreur inattendue :", error);

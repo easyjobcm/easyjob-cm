@@ -6,6 +6,10 @@
  * l'historique : après un retrait, l'écran dit « aucune candidature en
  * cours », pas « vous n'avez jamais postulé ». Une candidature sélectionnée
  * apparaît sous forme de mission (onglet Réservées).
+ *
+ * Lot 17d-1 : une candidature sur une offre clôturée par l'entreprise est
+ * figée et passe dans l'historique, quel que soit son statut (jamais « en
+ * cours »).
  */
 
 export const ACTIVE_APPLICATION_STATUSES = ["pending", "shortlisted"] as const;
@@ -17,13 +21,20 @@ export const PAST_APPLICATION_STATUSES = [
 
 export type ApplicationsEmptyState = "never" | "noActive" | null;
 
-export function splitApplications<T extends { status: string | null }>(
+type ClassifiedApplication = {
+  status: string | null;
+  job?: { closed_at?: string | null } | null;
+};
+
+export function splitApplications<T extends ClassifiedApplication>(
   applications: readonly T[],
 ): { active: T[]; past: T[] } {
   const active: T[] = [];
   const past: T[] = [];
   for (const a of applications) {
-    if (
+    if (a.job?.closed_at) {
+      past.push(a);
+    } else if (
       (ACTIVE_APPLICATION_STATUSES as readonly string[]).includes(
         a.status ?? "",
       )
@@ -40,7 +51,7 @@ export function splitApplications<T extends { status: string | null }>(
 
 /** Message vide de l'onglet Candidatures, ou `null` s'il y a des candidatures en cours. */
 export function applicationsEmptyState(
-  applications: readonly { status: string | null }[],
+  applications: readonly ClassifiedApplication[],
 ): ApplicationsEmptyState {
   if (applications.length === 0) return "never";
   return splitApplications(applications).active.length > 0 ? null : "noActive";

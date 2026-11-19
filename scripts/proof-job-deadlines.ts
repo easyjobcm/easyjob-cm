@@ -53,6 +53,7 @@ import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -355,6 +356,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("job-deadlines", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")

@@ -44,6 +44,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectRpc } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -234,6 +235,7 @@ async function createEligibleCandidate(userId: string): Promise<string> {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("job-moderation", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")
@@ -1266,11 +1268,11 @@ async function main() {
     );
     const i3 = await http("DELETE", `/api/jobs/${jFree}`, V.cookie);
     report(
-      "I3 : offre sans engagement → supprimée, candidature en attente effacée",
-      i3.status === 200 &&
-        i3.body.deleted === jFree &&
-        !(await readJob(jFree)) &&
-        (await countWhere("job_applications", jFree)) === 0,
+      "I3 (lot 17d-1) : offre publiée sans engagement → suppression refusée (409 job_published), offre et candidature en attente conservées",
+      i3.status === 409 &&
+        i3.body.code === "job_published" &&
+        !!(await readJob(jFree)) &&
+        (await countWhere("job_applications", jFree)) === 1,
       i3,
     );
     const jPending = await seedJob(coV, "pending_review");
@@ -1348,8 +1350,9 @@ async function main() {
       "contracts",
     );
 
-    // Sélection et suppression simultanées : jamais une sélection réussie
-    // sur une offre supprimée, ni d'erreur inattendue (verrou mortel).
+    // Sélection et clôture simultanées (lot 17d-1 : une offre publiée se
+    // clôture, elle ne se supprime plus) : jamais une sélection réussie sur
+    // une offre clôturée, ni d'erreur inattendue (verrou mortel).
     type RaceSetup = (jobId: string, appId: string) => Promise<void>;
     async function race(
       setup?: RaceSetup,
@@ -1360,7 +1363,10 @@ async function main() {
       if (setup) await setup(jobId, appId);
       // `.then` envoie la requête tout de suite (supabase-js est paresseux).
       const runSelection = () => signAndSelectRpc(V.client, appId);
-      const runDeletion = () => http("DELETE", `/api/jobs/${jobId}`, V.cookie);
+      const runDeletion = () =>
+        http("POST", `/api/jobs/${jobId}/close`, V.cookie, {
+          reason: "Besoin annulé (course de preuve)",
+        });
       let selection: Awaited<ReturnType<typeof runSelection>>;
       let deletion: Awaited<ReturnType<typeof runDeletion>>;
       if (first) {
@@ -1395,7 +1401,12 @@ async function main() {
         .maybeSingle();
       const selected =
         !selection.error && selection.data?.[0]?.status === "selected";
-      const deletedFirst = deletion.status === 200 && !job && !app && !selected;
+      const deletedFirst =
+        deletion.status === 200 &&
+        job?.status === "cancelled" &&
+        !!job.closed_at &&
+        app?.status === "pending" &&
+        !selected;
       const selectedFirst =
         deletion.status === 409 &&
         deletion.body.code === "job_has_commitments" &&
@@ -1405,7 +1416,7 @@ async function main() {
       return {
         ok: deletedFirst || selectedFirst,
         outcome: deletedFirst
-          ? "supprimée"
+          ? "clôturée"
           : selectedFirst
             ? "sélectionnée"
             : {
@@ -1419,7 +1430,7 @@ async function main() {
 
     const free = await Promise.all([race(), race(), race(), race()]);
     report(
-      "I8 : sélections et suppressions simultanées → un seul gagnant cohérent à chaque essai",
+      "I8 : sélections et clôtures simultanées → un seul gagnant cohérent à chaque essai",
       free.every((r) => r.ok),
       free.map((r) => r.outcome),
     );
@@ -1433,18 +1444,20 @@ async function main() {
       execSql(`
         create or replace function public.proof_l6_slow_job_delete() returns trigger
         language plpgsql as $$ begin
-          if old.id = '${jobId}'::uuid then perform pg_sleep(1.5); end if;
-          return old;
+          if new.id = '${jobId}'::uuid and new.closed_at is not null then
+            perform pg_sleep(1.5);
+          end if;
+          return new;
         end $$
       `);
       execSql(`
-        create trigger proof_l6_slow_job_delete before delete on public.jobs
+        create trigger proof_l6_slow_job_delete before update on public.jobs
           for each row execute function public.proof_l6_slow_job_delete()
       `);
     }, "deletion");
     report(
-      "I9 : suppression engagée puis sélection → offre supprimée, sélection sans effet",
-      slowDeletion.ok && slowDeletion.outcome === "supprimée",
+      "I9 : clôture engagée puis sélection → offre clôturée, candidature en attente conservée, sélection sans effet",
+      slowDeletion.ok && slowDeletion.outcome === "clôturée",
       slowDeletion.outcome,
     );
     const slowSelection = await race(async (_jobId, appId) => {
@@ -1461,7 +1474,7 @@ async function main() {
       `);
     }, "selection");
     report(
-      "I10 : sélection engagée puis suppression → 409, offre et sélection conservées",
+      "I10 : sélection engagée puis clôture → 409 job_has_commitments, offre et sélection conservées",
       slowSelection.ok && slowSelection.outcome === "sélectionnée",
       slowSelection.outcome,
     );

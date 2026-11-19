@@ -74,6 +74,7 @@ type Job = Pick<
   | "required_skills"
   | "required_documents"
   | "status"
+  | "closed_at"
   | "applications_close_at"
   | "schedule_format"
 > & {
@@ -201,7 +202,7 @@ export default function CompanyJobDetailPage() {
     const { data: jobData, error: jobError } = await supabase
       .from("jobs")
       .select(
-        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents, status, applications_close_at, schedule_format, days:job_days(id, day_date, start_time, end_time, mission_pay_per_candidate, positions_available, positions_filled, applications_close_at)",
+        "id, title, description, address, city, quartier, start_date, start_time, end_time, positions_available, positions_filled, mission_pay_per_candidate, required_skills, required_documents, status, closed_at, applications_close_at, schedule_format, days:job_days(id, day_date, start_time, end_time, mission_pay_per_candidate, positions_available, positions_filled, applications_close_at)",
       )
       .eq("id", jobId)
       .single();
@@ -562,6 +563,19 @@ export default function CompanyJobDetailPage() {
               </span>
             </p>
           )}
+          {/* Lot 17d-1 : offre clôturée par l'entreprise. */}
+          {job.closed_at && (
+            <p
+              className="text-xs text-muted-foreground"
+              role="status"
+              data-testid="company-job-closed"
+            >
+              {ta.closedNotice.replace(
+                "{date}",
+                doualaDateTime(job.closed_at, locale),
+              )}
+            </p>
+          )}
           {/* Lot 12 : au choix, chaque journée a sa propre échéance. */}
           {job.status === "active" &&
             !perDay &&
@@ -663,7 +677,12 @@ export default function CompanyJobDetailPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pending" className="text-xs">
-              {ta.tabs.pending.replace("{count}", countStatus("pending"))}
+              {/* Lot 17d-1 : offre clôturée, candidatures figées
+                  (historique), jamais « en attente ». */}
+              {(job.closed_at ? ta.tabs.jobClosed : ta.tabs.pending).replace(
+                "{count}",
+                countStatus("pending"),
+              )}
             </TabsTrigger>
             <TabsTrigger value="selected" className="text-xs">
               {ta.tabs.selected.replace("{count}", countStatus("selected"))}
@@ -707,7 +726,13 @@ export default function CompanyJobDetailPage() {
                               {t.cancellations.companyDayCancelled}
                             </Badge>
                           ) : (
-                            getStatusBadge(displayApplicationStatus(app.status))
+                            getStatusBadge(
+                              job.closed_at &&
+                                displayApplicationStatus(app.status) ===
+                                  "pending"
+                                ? "jobClosed"
+                                : displayApplicationStatus(app.status),
+                            )
                           )}
                           {app.match_score && (
                             <Badge variant="outline" className="text-xs">
@@ -767,6 +792,7 @@ export default function CompanyJobDetailPage() {
                         )}
 
                         {!suspended &&
+                          !job.closed_at &&
                           displayApplicationStatus(app.status) ===
                             "pending" && (
                             <div className="flex flex-wrap items-center gap-2 mt-3">

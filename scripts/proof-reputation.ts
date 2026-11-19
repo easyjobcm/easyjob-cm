@@ -63,6 +63,7 @@ import {
   type MissionTaskState,
 } from "@/lib/tasks/candidate-tasks";
 import { runSupabaseQuery } from "./lib/db-query";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -297,6 +298,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("reputation", { userIds: ids });
   const { data: companies } = await service
     .from("company_profiles")
     .select("id")

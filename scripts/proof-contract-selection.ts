@@ -42,6 +42,7 @@ import { insertJobWithDays, type FixtureDay } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { postSelectHttp, previewHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -209,6 +210,7 @@ async function createCandidate(
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("contract-selection", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")

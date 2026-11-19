@@ -88,10 +88,14 @@ export default async function CompanyDashboardPage() {
   // Get total applications for all company jobs
   const { data: companyJobs } = await supabase
     .from("jobs")
-    .select("id")
+    .select("id, closed_at")
     .eq("company_id", profile.id);
 
   const jobIds = companyJobs?.map((j) => j.id) || [];
+  // Lot 17d-1 : les candidatures d'une offre clôturée sont de l'historique,
+  // jamais « en attente ».
+  const openJobIds =
+    companyJobs?.filter((j) => !j.closed_at).map((j) => j.id) || [];
 
   let totalApplications = 0;
   let pendingApplications = 0;
@@ -105,7 +109,7 @@ export default async function CompanyDashboardPage() {
     const { count: pending } = await supabase
       .from("job_applications")
       .select("*", { count: "exact", head: true })
-      .in("job_id", jobIds)
+      .in("job_id", openJobIds)
       .eq("status", "pending");
 
     totalApplications = total || 0;
