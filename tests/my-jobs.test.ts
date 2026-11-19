@@ -95,3 +95,18 @@ describe("plural", () => {
     expect(plural(3, en.pay.positions, "en")).toBe("3 people needed");
   });
 });
+
+describe("candidatures d'une offre clôturée (lot 17d-1)", () => {
+  it("passent dans l'historique, jamais « en cours »", () => {
+    const closed = { closed_at: "2099-01-01T00:00:00Z" };
+    const apps = [
+      { status: "pending", job: closed },
+      { status: "shortlisted", job: closed },
+      { status: "pending", job: { closed_at: null } },
+    ];
+    const { active, past } = splitApplications(apps);
+    expect(active).toEqual([apps[2]]);
+    expect(past).toEqual([apps[0], apps[1]]);
+    expect(applicationsEmptyState(apps.slice(0, 2))).toBe("noActive");
+  });
+});

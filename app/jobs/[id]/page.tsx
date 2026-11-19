@@ -5,7 +5,11 @@ import {
   type EssentialKey,
 } from "@/lib/utils/profile-completion";
 import type { CniProfileFields } from "@/lib/utils/cni-validity";
-import { JobDetailClient, JobUnavailable } from "./job-detail-client";
+import {
+  JobClosedByCompany,
+  JobDetailClient,
+  JobUnavailable,
+} from "./job-detail-client";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -41,6 +45,14 @@ export default async function JobDetailPage({ params }: PageProps) {
   const { data: availability } = await supabase.rpc("job_availability", {
     p_job_id: id,
   });
+  // Lot 17d-1 : offre clôturée par l'entreprise — jamais de candidature,
+  // quel que soit le visiteur (le candidat qui y a postulé la lit encore).
+  if (availability === "closed_by_company") {
+    const { data: applied } = await supabase.rpc("candidate_applied_to_job", {
+      p_job_id: id,
+    });
+    return <JobClosedByCompany applied={applied === true} />;
+  }
   if (error || !job) {
     if (availability === "unavailable") return <JobUnavailable />;
     notFound();

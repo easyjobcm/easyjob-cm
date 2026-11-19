@@ -26,6 +26,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
 import { readLocalProofEnv } from "./lib/local-supabase";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 
@@ -136,6 +137,7 @@ async function createAccount(
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("company-onboarding", { userIds: ids });
   for (const id of ids) {
     const { data: objects } = await serviceClient.storage
       .from(BUCKET)

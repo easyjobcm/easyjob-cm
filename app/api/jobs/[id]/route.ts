@@ -107,7 +107,9 @@ export async function GET(
 /**
  * Suppression par l'entreprise propriétaire (RPC `delete_job`) : refusée en
  * base (409 `job_has_commitments`) si un candidat est sélectionné ou si une
- * mission ou un contrat existe.
+ * mission ou un contrat existe, et (lot 17d-1, 409 `job_published`) dès
+ * qu'une offre a été publiée : elle se clôture alors par
+ * `POST /api/jobs/[id]/close`.
  */
 export async function DELETE(
   request: NextRequest,

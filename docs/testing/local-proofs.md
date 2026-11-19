@@ -1,6 +1,6 @@
 # Suite d'autorisation et scripts de preuve
 
-`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 38 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
+`pnpm test:rls` (`scripts/run-security-proofs.ts`) exécute les 39 preuves `scripts/proof-*.ts` l'une après l'autre et se termine en échec si une seule échoue. La CI l'exécute dans le job `test-migrations` (`.github/workflows/ci.yml`) sur une pile préparée de la même façon.
 
 Les preuves créent, modifient et suppriment des comptes et des données. Deux garanties différentes s'appliquent :
 
@@ -77,6 +77,8 @@ Points d'attention :
 
 - **Annulations (lots 17b–17c).** `proof-candidate-cancellations` place le début des journées à `now()` + décalage puis appelle la vraie demande sous l'identité du candidat, dans la même transaction (`proof_l17bc_cancel`) ; `proof_l17bc_classify` évalue le classement à la limite exacte et 1 µs après. Une sélection récente rend toute journée proche « délai de réaction » : `proof_l17bc_age` antidate la sélection de 3 jours pour les cas hors délai. `proof_l17bc_end_suspension` place la fin d'une suspension à `now()` − 1 ms : une marge plus grande ferait précéder le retour de faits commis pendant la suspension, toute la séquence tenant en moins d'une seconde. Fonctions retirées en fin de preuve et au démarrage suivant.
 
+- **Clôture des offres (lot 17d-1).** `proof-job-closure` crée ses offres par `scripts/lib/job-days-fixture.ts` (brouillon, en attente jamais approuvée, publiée, publiée puis revenue en modération par une écriture en clé service, historique `legacy_publication` insérée directement) et passe par les vraies routes (`DELETE /api/jobs/[id]`, `POST /api/jobs/[id]/close`, candidature) et les vraies RPC sous des sessions réelles. Les courses clôture/candidature et clôture/sélection suivent la barrière du lot 11 : triggers temporaires `proof_l17d1_slow_close` (avant la mise à jour qui pose `closed_at`), `proof_l17d1_slow_apply` (après l'insertion de la candidature) et `proof_l17d1_slow_select` (après le passage à `selected`). La panne fait échouer la seule trace `close_job` d'une offre (`proof_l17d1_fail_audit`). `proof_l17d1_messages` relit `realtime.messages`. Fonctions et triggers sont retirés en fin de preuve et au démarrage suivant. **Nettoyage** : l'historique d'une offre publiée (offre, candidatures, clôture) ne s'efface plus par l'application, clé service et cascades comprises (`job_history_protected`) ; les preuves qui créent des offres purgent donc leurs fixtures par `scripts/lib/proof-purge.ts` (`purgeProofJobs`), une connexion Postgres directe à la pile dédiée (`readLocalDbUrl`, hôte local imposé, session `postgres`), appelée en tête de leur nettoyage ; aucune voie n'est ouverte à l'application. Depuis ce lot, une offre publiée ne se supprime plus : `job-moderation` (I3, I8-I10), `candidate-selection` (C4) et `realtime` (J12) testent la clôture à la place de la suppression d'une offre publiée. Les constats du lot 17d-0 sont dans `candidate-cancellations` (D1, D2 : unité « offre » évaluée à un instant postérieur à toutes les échéances, fonction `proof_l17d_realize` pour une mission entièrement réalisée) et `mission-incidents` (N1 : dossier d'absence tranché par la double validation du lot 16).
+
 - **Interruptions.** `proof-mission-interruptions` place une journée en cours (commencée il y a 1 h, fin prévue à `now()` + décalage) par `proof_lip_progress`, puis passe par les vraies routes (signalement, demandes du support, décisions du fondateur, réponses des parties, recours) et la vraie réception du code, sous des sessions réelles. Les délais ne sont jamais attendus : `proof_lip_opened`, `proof_lip_request_due`, `proof_lip_proposal_due` et `proof_lip_age_proposal` déplacent les instants en ne levant que la protection d'écriture de la table concernée ; `proof_lip_open` et `proof_lip_state` lisent les bornes et l'étape calculées par la base ; les rappels sont rejoués par `interruption_deadline_sweep(p_at)`. La preuve utilise les bornes réelles de la migration (plafond lu dans le contrat figé) et ne remplace aucune fonction de bornes ; propositions et acceptations passent toujours par les routes. `proof_lip_force` tente une confirmation support ou exceptionnelle en ne levant que la protection des écritures de session. Fonctions retirées en fin de preuve et au démarrage suivant.
 
 - **Échec borné (lot 10).** Chaque requête SQL de preuve passe par `scripts/lib/db-query.ts` : binaire natif de la CLI lancé sans shell, délai `PROOF_SQL_TIMEOUT_MS` (60 s par défaut), erreur qui nomme la preuve et l'étape (`étape « update public.jobs … »`), processus arrêté. Le runner donne à chaque preuve `PROOF_TIMEOUT_SECONDS` (600 s par défaut), arrête tout son arbre de processus au-delà, et la synthèse indique le code de sortie et la dernière ligne affichée. Aucune relance : une preuve hors délai est en échec.
@@ -134,9 +136,23 @@ pnpm test:rls job-moderation   # attendu : 18 échecs (dont B2, publication dire
 pnpm exec supabase db reset --workdir $stack   # restauration
 ```
 
-Pour la suppression : `grant delete on public.jobs to authenticated; alter table public.jobs disable trigger trg_protect_job_writes; create policy neg_owner_delete on public.jobs for delete to authenticated using (company_id in (select id from public.company_profiles where user_id = auth.uid()));`, puis `pnpm test:rls job-moderation` (attendu : 4 échecs, dont I1). Si `db reset` échoue ensuite, recréer la pile : `supabase stop --workdir $stack --no-backup`, puis l'étape 1.
+Pour la suppression : `grant delete on public.jobs to authenticated; alter table public.jobs disable trigger trg_protect_job_writes; create policy neg_owner_delete on public.jobs for delete to authenticated using (company_id in (select id from public.company_profiles where user_id = auth.uid())); alter table public.jobs disable trigger trg_job_history_guard;`, puis `pnpm test:rls job-moderation` (attendu : 4 échecs, B10, I1, I2, I3 ; remesuré le 2026-11-19). Depuis le lot 17d-1, sans désactiver `trg_job_history_guard`, la garde de l'historique compense les autres couches : 1 seul échec (B10, catalogue), à juste titre. Si `db reset` échoue ensuite, recréer la pile : `supabase stop --workdir $stack --no-backup`, puis l'étape 1.
 
 `job-moderation` crée aussi, le temps d'une assertion, un trigger qui fait échouer l'écriture dans `audit_logs` pour une seule offre, afin de prouver l'absence d'effet partiel, et deux triggers de ralentissement (`pg_sleep`) pour forcer l'ordre entre une sélection et une suppression ; depuis le lot 11, la seconde opération attend d'avoir observé la première dans son trigger (voir « Courses à ordre imposé »). Ils ne visent que les lignes de la preuve et sont retirés en fin de preuve, même en cas d'échec.
+
+Pour la clôture (lot 17d-1), remettre l'ancien `delete_job` (extrait de `supabase/migrations/20261101140000_job_moderation.sql`, sans le refus `job_published`) et désactiver la garde de réouverture reproduit la suppression d'une offre publiée et la réouverture d'une offre clôturée :
+
+```powershell
+# neg-17d1.sql : delete_job de 20261101140000
+#   + « alter table public.jobs disable trigger trg_job_closure_guard; »
+#   + « alter table public.jobs disable trigger trg_job_history_guard; »
+Get-Content $env:TEMP\neg-17d1.sql -Raw | docker exec -i supabase_db_easyjob-proof psql -U postgres -d postgres -v ON_ERROR_STOP=1
+pnpm test:rls job-closure   # attendu : 7 échecs (S2, S3 offres publiées effacées ; D3 réouverture en clé service ; H1 historique effacé en clé service ; D2, D4, D5 en conséquence), code de sortie 1
+pnpm exec supabase db reset --workdir $stack   # restauration, puis 28/28
+# Contrôle étroit : seules les gardes de l'historique désactivées
+# (trg_job_history_guard sur jobs, trg_job_application_history_guard sur job_applications)
+# → 2 échecs (H1 effacement en clé service et cascades ; D4 en conséquence).
+```
 
 Pour la sélection (lot 7a), désactiver le trigger des candidatures et recréer la politique F-16 :
 

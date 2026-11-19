@@ -64,6 +64,8 @@ const APPLY_REFUSALS: Record<string, { status: number; error: string }> = {
     error: "This job covers the whole period",
   },
   job_days_missing: { status: 409, error: "Job is not available" },
+  // Lot 17d-1 : offre clôturée par l'entreprise (course avec la clôture).
+  job_closed: { status: 409, error: "This job was closed by the company" },
 };
 
 const WITHDRAW_REFUSALS: Record<string, { status: number; error: string }> = {
@@ -73,6 +75,8 @@ const WITHDRAW_REFUSALS: Record<string, { status: number; error: string }> = {
     status: 409,
     error: "Only pending applications can be cancelled",
   },
+  // Lot 17d-1 : candidature figée sur une offre clôturée (historique).
+  job_closed: { status: 409, error: "This job was closed by the company" },
 };
 
 export async function POST(

@@ -45,6 +45,7 @@ import {
 import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { signAndSelectRpc } from "./lib/sign-and-select";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Tables = Database["public"]["Tables"];
@@ -1860,6 +1861,8 @@ async function main() {
 }
 
 async function cleanup() {
+  // Lot 17d-1 : offres publiées purgées par maintenance directe.
+  purgeProofJobs("business-permissions", { userIds: createdIds });
   // job_applications.selected_by et profile_update_requests.requested_by
   // référencent users sans ON DELETE : sans cette étape, les comptes
   // entreprise et admin concernés ne peuvent pas être supprimés.

@@ -81,6 +81,7 @@ const fetcher = async (_url: string) => {
         start_date,
         start_time,
         end_time,
+        closed_at,
         company:company_public_profiles (
           company_name
         )
@@ -181,6 +182,7 @@ export default function MyJobsPage() {
     selected: "success",
     rejected: "destructive",
     withdrawn: "default",
+    jobClosed: "default",
     no_show: "destructive",
     confirmed: "success",
     in_progress: "default",
@@ -248,10 +250,15 @@ export default function MyJobsPage() {
             <h3 className="font-semibold text-foreground">
               {application.job?.title}
             </h3>
-            {getStatusBadge(
-              displayApplicationStatus(application.status),
-              "application",
-            )}
+            {/* Lot 17d-1 : candidature en cours sur une offre clôturée par
+                l'entreprise — ni refus ni retrait du candidat. */}
+            {application.job?.closed_at &&
+            displayApplicationStatus(application.status) === "pending"
+              ? getStatusBadge("jobClosed", "application")
+              : getStatusBadge(
+                  displayApplicationStatus(application.status),
+                  "application",
+                )}
           </div>
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />

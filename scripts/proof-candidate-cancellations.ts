@@ -42,6 +42,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { insertJobWithDays, type FixtureDay } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectRpc } from "./lib/sign-and-select";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -141,6 +142,26 @@ begin
       actual_start_time = now() - interval '9 hours', actual_end_time = now() - interval '1 hour',
       completion_source = 'code'
   where d.id = p_day;
+  alter table public.mission_days enable trigger trg_protect_mission_day_writes;
+end $$`,
+  // Lot 17d-0 : mission entièrement réalisée (journées confirmées par code,
+  // fin de mission enregistrée), comme submit_completion_code.
+  "proof_l17d_realize(uuid)": `
+create or replace function public.proof_l17d_realize(p_mission uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  alter table public.mission_days disable trigger trg_protect_mission_day_writes;
+  alter table public.missions disable trigger trg_protect_mission_writes;
+  update public.mission_days d
+  set starts_at = now() - interval '10 hours', ends_at = now() - interval '2 hours',
+      actual_start_time = now() - interval '9 hours', actual_end_time = now() - interval '1 hour',
+      completion_source = 'code'
+  where d.mission_id = p_mission;
+  update public.missions m
+  set status = 'completed', actual_start_time = now() - interval '9 hours',
+      actual_end_time = now() - interval '1 hour'
+  where m.id = p_mission;
+  alter table public.missions enable trigger trg_protect_mission_writes;
   alter table public.mission_days enable trigger trg_protect_mission_day_writes;
 end $$`,
   // Conditions retirées : engagement antérieur au lot 17a.
@@ -339,6 +360,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("candidate-cancellations", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")
@@ -1773,6 +1795,57 @@ async function main() {
           companyAmount.status === 200 &&
           thirdAmount.status === 404,
         { a, m, app: app?.status, third: thirdAmount.status },
+      );
+
+      // ── D. Lot 17d-0 : unité « offre réalisée » de l'entreprise ──
+      // Constats (pas de nouvelle règle). Recrutement tenu pour clos en
+      // évaluant la règle à un instant postérieur à toutes les échéances.
+      const LATER = "2200-01-01T00:00:00Z";
+      const offersAt = async () =>
+        (
+          ((
+            await serviceRpc.rpc("reputation_company_offers", {
+              p_company_id: coA,
+              p_at: LATER,
+            })
+          ).data ?? []) as { offer_id: string }[]
+        ).map((o) => o.offer_id);
+      const offersAfterInterruption = await offersAt();
+      report(
+        "D1 (17d-0) période abandonnée en cours (deux journées confirmées, la dernière annulée : candidature restée « selected », mission « cancelled ») : l'offre ne rapporte pas l'unité, même recrutement clos",
+        !offersAfterInterruption.includes(period.jobId),
+        { included: offersAfterInterruption.includes(period.jobId) },
+      );
+      const withdrawal = await perDay("cn", 2, "Accueil (désistement complet)");
+      await proofRpc("proof_l17d_realize", {
+        p_mission: withdrawal.missions[0],
+      });
+      const offersBeforeWithdrawal = await offersAt();
+      const w = await cancelAt(
+        "cn",
+        [withdrawal.dayIds[1]],
+        ["10 days"],
+        null,
+        null,
+      );
+      const { data: wApps } = await serviceClient
+        .from("job_applications")
+        .select("job_day_id, status")
+        .eq("job_id", withdrawal.jobId);
+      const offersAfterWithdrawal = await offersAt();
+      report(
+        "D2 (17d-0) journées au choix : une journée réalisée, l'autre abandonnée par un désistement complet (candidature « withdrawn », place libérée) : l'offre rapporte l'unité une fois le recrutement clos ; avant le désistement, la journée encore due l'en empêchait",
+        w.result?.status === "closed_no_sanction" &&
+          (wApps ?? []).some((a) => a.status === "withdrawn") &&
+          (wApps ?? []).some((a) => a.status === "selected") &&
+          !offersBeforeWithdrawal.includes(withdrawal.jobId) &&
+          offersAfterWithdrawal.includes(withdrawal.jobId),
+        {
+          cancel: w.result?.status ?? w.error,
+          apps: wApps,
+          before: offersBeforeWithdrawal.includes(withdrawal.jobId),
+          after: offersAfterWithdrawal.includes(withdrawal.jobId),
+        },
       );
       const odd = await fullPeriod(
         "cn",

@@ -762,6 +762,12 @@ export const fr = {
     unavailableTitle: "Offre indisponible",
     unavailableBody:
       "Cette offre n'est temporairement plus proposée aux nouveaux candidats.",
+    closedByCompanyTitle: "Offre clôturée par l'entreprise",
+    closedByCompanyBody:
+      "L'entreprise a clôturé cette offre : elle n'accepte plus de candidatures et aucune sélection n'aura lieu.",
+    closedByCompanyApplied:
+      "Votre candidature reste dans votre historique ; elle n'a pas été refusée.",
+    myApplications: "Voir mes candidatures",
     unavailableApplied:
       "Cette offre n'accepte plus de nouvelles candidatures pour le moment. Votre candidature reste consultable.",
     backToJobs: "Voir les autres offres",
@@ -1063,6 +1069,7 @@ export const fr = {
       rejected: "Non retenue",
       withdrawn: "Retirée",
       no_show: "Absence",
+      jobClosed: "Offre clôturée par l'entreprise",
     },
     missionStatus: {
       pending: "Prévue",
@@ -2098,11 +2105,13 @@ export const fr = {
       expired: "Expirée",
       rejected: "Refusée",
       cancelled: "Annulée",
+      closedByCompany: "Clôturée",
     },
     urgent: "Urgent",
     applications: { one: "candidature", other: "candidatures" },
     positions: { one: "/{count} poste", other: "/{count} postes" },
     rejectionReason: "Motif du refus : {reason}",
+    closedOn: "Clôturée le {date}. Motif : {reason}",
     rejectedNext:
       "Modifiez l'offre pour corriger ce point : elle repassera en vérification.",
     lockedPlan:
@@ -2111,11 +2120,36 @@ export const fr = {
       viewApplications: "Voir les candidatures",
       edit: "Modifier",
       delete: "Supprimer",
+      close: "Clôturer l'offre",
+      support: "Annulation : contacter le support",
+    },
+    closeDialog: {
+      title: "Clôturer cette offre ?",
+      description:
+        "L'offre a déjà été publiée : elle ne peut plus être supprimée, mais vous pouvez la clôturer.",
+      consequences: [
+        "Elle disparaît des offres ouvertes : plus aucune candidature ni sélection.",
+        "Les candidats en attente sont prévenus ; leur candidature reste dans leur historique, sans être refusée.",
+        "La clôture est définitive et conservée dans l'historique de l'offre.",
+      ],
+      reasonLabel: "Motif de la clôture",
+      reasonPlaceholder: "Ex. : besoin annulé par notre client",
+      reasonHint:
+        "10 à 500 caractères. Le motif n'est pas montré aux candidats.",
+      cancel: "Annuler",
+      confirm: "Clôturer l'offre",
+      closing: "Clôture...",
+    },
+    supportDialog: {
+      title: "Cette offre a des engagements",
+      description:
+        "Des candidats sont sélectionnés ou une mission est engagée : cette offre ne peut être ni supprimée ni clôturée depuis votre espace. Contactez le support pour examiner la situation.",
+      ok: "J'ai compris",
     },
     deleteDialog: {
       title: "Supprimer cette offre ?",
       description:
-        "Cette action est irréversible. Toutes les candidatures associées seront également supprimées.",
+        "Cette offre n'a jamais été publiée. Sa suppression est définitive.",
       cancel: "Annuler",
       confirm: "Supprimer",
       deleting: "Suppression...",
@@ -2130,6 +2164,16 @@ export const fr = {
       deletedDesc: "L'offre a été supprimée avec succès.",
       deleteErrorTitle: "Erreur",
       deleteErrorDesc: "Impossible de supprimer l'offre.",
+      closedTitle: "Offre clôturée",
+      closedDescNone:
+        "L'offre est clôturée. Aucun candidat n'était en attente.",
+      closedDesc: {
+        one: "L'offre est clôturée. {count} candidat en attente a été prévenu.",
+        other:
+          "L'offre est clôturée. {count} candidats en attente ont été prévenus.",
+      },
+      closeErrorTitle: "Clôture impossible",
+      closeErrorDesc: "L'offre n'a pas pu être clôturée. Réessayez.",
     },
     form: {
       editTitle: "Modifier l'offre",
@@ -2178,7 +2222,15 @@ export const fr = {
         "Des candidats sont déjà sélectionnés : contactez le support pour modifier cette offre.",
       job_not_editable: "Cette offre ne peut plus être modifiée.",
       job_has_commitments:
-        "Suppression impossible : des candidats sont sélectionnés ou une mission est engagée sur cette offre. Contactez le support.",
+        "Des candidats sont sélectionnés ou une mission est engagée : cette offre ne peut être ni supprimée ni clôturée depuis votre espace. Contactez le support.",
+      job_published:
+        "Cette offre a déjà été publiée : elle ne peut plus être supprimée. Clôturez-la à la place.",
+      job_not_published:
+        "Cette offre n'a jamais été publiée : supprimez-la plutôt que de la clôturer.",
+      job_not_closable: "Cette offre n'est plus ouverte : rien à clôturer.",
+      job_closed: "Cette offre a été clôturée.",
+      closure_reason_required: "Indiquez un motif d'au moins 10 caractères.",
+      closure_reason_too_long: "Le motif ne peut pas dépasser 500 caractères.",
       daysRequired: "Ajoutez au moins une date de travail.",
       daysTooMany: "31 journées au maximum par offre.",
       daysDuplicate: "Chaque date ne peut figurer qu'une fois.",
@@ -2200,6 +2252,8 @@ export const fr = {
   companyApplicants: {
     back: "Retour",
     jobNotFound: "Offre non trouvée",
+    closedNotice:
+      "Offre clôturée le {date} : plus aucune candidature ni sélection. Les candidatures restent consultables.",
     applications: { one: "candidature", other: "candidatures" },
     positionsFilled: {
       one: "/{count} poste pourvu",
@@ -2209,6 +2263,7 @@ export const fr = {
       pending: "En attente ({count})",
       selected: "Sélectionnées ({count})",
       rejected: "Rejetées ({count})",
+      jobClosed: "Offre clôturée ({count})",
     },
     status: {
       pending: "En attente",
@@ -2216,6 +2271,7 @@ export const fr = {
       rejected: "Rejetée",
       withdrawn: "Retirée",
       no_show: "Absent",
+      jobClosed: "Offre clôturée",
     },
     empty: "Aucune candidature dans cette catégorie",
     distance: "{km} km",

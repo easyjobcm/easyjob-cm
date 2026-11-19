@@ -1766,6 +1766,68 @@ export type Database = {
         }
         Relationships: []
       }
+      job_closures: {
+        Row: {
+          closed_at: string
+          closed_by: string
+          company_id: string
+          job_id: string
+          notified_users: number
+          open_applications: number
+          previous_status: Database["public"]["Enums"]["job_status"]
+          reason: string
+        }
+        Insert: {
+          closed_at?: string
+          closed_by: string
+          company_id: string
+          job_id: string
+          notified_users: number
+          open_applications: number
+          previous_status: Database["public"]["Enums"]["job_status"]
+          reason: string
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string
+          company_id?: string
+          job_id?: string
+          notified_users?: number
+          open_applications?: number
+          previous_status?: Database["public"]["Enums"]["job_status"]
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_closures_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_closures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_closures_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_closures_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_days: {
         Row: {
           applications_close_at: string | null
@@ -1977,6 +2039,7 @@ export type Database = {
           break_duration_minutes: number
           category_id: string | null
           city: string
+          closed_at: string | null
           company_id: string
           created_at: string | null
           currency: string
@@ -2035,6 +2098,7 @@ export type Database = {
           break_duration_minutes?: number
           category_id?: string | null
           city: string
+          closed_at?: string | null
           company_id: string
           created_at?: string | null
           currency?: string
@@ -2093,6 +2157,7 @@ export type Database = {
           break_duration_minutes?: number
           category_id?: string | null
           city?: string
+          closed_at?: string | null
           company_id?: string
           created_at?: string | null
           currency?: string
@@ -5237,6 +5302,16 @@ export type Database = {
       }
       cleanup_expired_otp: { Args: never; Returns: undefined }
       cleanup_unconfirmed_signups: { Args: never; Returns: number }
+      close_job: {
+        Args: { p_job_id: string; p_reason: string }
+        Returns: {
+          already_closed: boolean
+          closed_at: string
+          job_id: string
+          notified_users: number
+          status: Database["public"]["Enums"]["job_status"]
+        }[]
+      }
       company_check_status: {
         Args: {
           p: Database["public"]["Tables"]["company_profiles"]["Row"]
@@ -5432,6 +5507,7 @@ export type Database = {
           break_duration_minutes: number
           category_id: string | null
           city: string
+          closed_at: string | null
           company_id: string
           created_at: string | null
           currency: string
@@ -5791,6 +5867,7 @@ export type Database = {
           break_duration_minutes: number
           category_id: string | null
           city: string
+          closed_at: string | null
           company_id: string
           created_at: string | null
           currency: string
@@ -5907,6 +5984,12 @@ export type Database = {
           starts_at: string
         }[]
       }
+      job_has_commitments: { Args: { p_job_ids: string[] }; Returns: boolean }
+      job_history_maintenance: { Args: never; Returns: boolean }
+      job_offer_ids: {
+        Args: { p_company_id: string; p_job_id: string }
+        Returns: string[]
+      }
       job_publication_regime: {
         Args: { p_at: string; p_start: string }
         Returns: string
@@ -5919,6 +6002,7 @@ export type Database = {
         Args: { p_date: string; p_time: string }
         Returns: string
       }
+      job_was_published: { Args: { p_job_ids: string[] }; Returns: boolean }
       license_categories_for: {
         Args: { p_required: string }
         Returns: string[]
@@ -6012,6 +6096,7 @@ export type Database = {
           break_duration_minutes: number
           category_id: string | null
           city: string
+          closed_at: string | null
           company_id: string
           created_at: string | null
           currency: string
@@ -6078,6 +6163,15 @@ export type Database = {
       }
       my_company_verification: { Args: never; Returns: Json }
       my_interruption_tasks: { Args: never; Returns: Json }
+      my_job_removal_actions: {
+        Args: never
+        Returns: {
+          action: string
+          closed_at: string
+          closure_reason: string
+          job_id: string
+        }[]
+      }
       my_reputation: { Args: never; Returns: Json }
       partial_settlement_policy: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
@@ -6387,6 +6481,7 @@ export type Database = {
           break_duration_minutes: number
           category_id: string | null
           city: string
+          closed_at: string | null
           company_id: string
           created_at: string | null
           currency: string

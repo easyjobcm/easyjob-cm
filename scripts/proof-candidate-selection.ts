@@ -42,6 +42,7 @@ import {
   signAndSelectHttp,
 } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -240,6 +241,7 @@ async function createCandidate(
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("candidate-selection", { userIds: ids });
   for (const id of ids) {
     const { data: objects } = await serviceClient.storage
       .from(BUCKET)
@@ -324,11 +326,16 @@ async function http(
   method: "GET" | "POST" | "DELETE",
   url: string,
   cookie: string | null,
+  json?: unknown,
 ): Promise<HttpResult> {
+  const headers: Record<string, string> = {};
+  if (cookie) headers.Cookie = cookie;
+  if (json !== undefined) headers["Content-Type"] = "application/json";
   const send = () =>
     appFetch(`${APP_URL}${url}`, {
       method,
-      headers: cookie ? { Cookie: cookie } : {},
+      headers,
+      body: json === undefined ? undefined : JSON.stringify(json),
       redirect: "manual",
     });
   const res = await send();
@@ -915,34 +922,39 @@ async function main() {
     );
     dropTempTriggers();
 
-    // Suppression engagée, puis sélection.
+    // Clôture engagée, puis sélection (lot 17d-1 : une offre publiée se
+    // clôture, elle ne se supprime plus).
     const jC4 = await seedJob(coA);
     const appC4 = await apply(C[1], jC4);
     execSql(`
       create or replace function public.proof_l7a_slow_delete() returns trigger
       language plpgsql as $$ begin
-        if old.id = '${jC4}'::uuid then perform pg_sleep(1.5); end if;
-        return old;
+        if new.id = '${jC4}'::uuid and new.closed_at is not null then
+          perform pg_sleep(1.5);
+        end if;
+        return new;
       end $$
     `);
     execSql(`
-      create trigger proof_l7a_slow_job_delete before delete on public.jobs
+      create trigger proof_l7a_slow_job_delete before update on public.jobs
         for each row execute function public.proof_l7a_slow_delete()
     `);
     const [c4Delete, c4Select] = await Promise.all([
-      http("DELETE", `/api/jobs/${jC4}`, A.cookie),
+      http("POST", `/api/jobs/${jC4}/close`, A.cookie, {
+        reason: "Besoin annulé (course de preuve)",
+      }),
       delay(400).then(() => select(A, appC4)),
     ]);
     const stC4 = await state(appC4);
     report(
-      "C4 : suppression engagée puis sélection → offre supprimée, sélection 404, aucune mission orpheline",
+      "C4 : clôture engagée puis sélection → offre clôturée, sélection refusée (409 job_not_available), candidature conservée en attente, aucune mission",
       c4Delete.status === 200 &&
-        c4Select.status === 404 &&
-        c4Select.body.code === "application_not_found" &&
-        stC4.app === null &&
+        c4Select.status === 409 &&
+        c4Select.body.code === "job_not_available" &&
+        stC4.app?.status === "pending" &&
         stC4.missions.length === 0 &&
         stC4.notifications.length === 0,
-      { delete: c4Delete.status, select: c4Select.status },
+      { close: c4Delete.status, select: c4Select.body.code },
     );
     dropTempTriggers();
     tempTriggers = false;

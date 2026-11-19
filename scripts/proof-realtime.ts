@@ -42,6 +42,7 @@ import { readLocalProofEnv } from "./lib/local-supabase";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
+import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -331,6 +332,7 @@ async function createCandidate(userId: string, firstName: string) {
 
 async function cleanAccounts(ids: string[]) {
   if (ids.length === 0) return;
+  purgeProofJobs("realtime", { userIds: ids });
   const { data: companies } = await serviceClient
     .from("company_profiles")
     .select("id")
@@ -1185,12 +1187,15 @@ async function main() {
       .update({ role: "candidate" })
       .eq("id", idK1);
 
-    // Suppression d'une offre active : retrait public.
-    const jobDel = await mkActive("À supprimer");
+    // Clôture d'une offre active (lot 17d-1 : une offre publiée se clôture,
+    // elle ne se supprime plus) : retrait public.
+    const jobDel = await mkActive("À clôturer");
     const mPubDel = mark(lPubK3);
-    const del = await http("DELETE", `/api/jobs/${jobDel}`, E.cookie);
+    const del = await http("POST", `/api/jobs/${jobDel}/close`, E.cookie, {
+      reason: "Besoin annulé (preuve temps réel)",
+    });
     report(
-      "J12 : suppression d'une offre active → canal public (id), entreprise",
+      "J12 : clôture d'une offre active → canal public (id), entreprise",
       del.status === 200 && (await waitSignal(lPubK3, mPubDel, "jobs", jobDel)),
       { status: del.status, code: del.body.code },
     );
@@ -1378,7 +1383,9 @@ async function main() {
       }
     ).socketAdapter.socket.conn?.close();
     await K3.rt.rpc("withdraw_job_application", { p_job_id: jobRec });
-    await serviceClient.from("job_applications").delete().eq("id", appRec!.id);
+    // Lot 17d-1 : l'historique d'une offre publiée ne s'efface plus par la
+    // clé service ; la fixture passe par la maintenance directe.
+    purgeProofJobs("realtime", { applicationIds: [appRec!.id] });
     const rejoinEnd = Date.now() + 20_000;
     while (
       lE.statuses.filter((s) => s === "SUBSCRIBED").length <= joinsBefore &&

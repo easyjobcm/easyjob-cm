@@ -185,7 +185,7 @@ export type JobInputData = z.output<typeof jobInputSchema>;
 
 /**
  * Codes renvoyés par les RPC `create_job`, `update_job`, `moderate_job`,
- * `delete_job`, `contract_selection_preview`, `sign_and_select` et
+ * `delete_job`, `close_job`, `contract_selection_preview`, `sign_and_select` et
  * `company_job_applicants` (message de l'exception), traduits dans
  * `companyJobs.errors`, `companyApplicants.errors` et
  * `admin.moderation.errors`.
@@ -229,6 +229,15 @@ export const JOB_RPC_REFUSALS = {
   // Lot 13 : conditions du contrat (offre, clauses) changées depuis
   // l'aperçu signé ; rien n'est écrit.
   terms_mismatch: 409,
+  // Lot 17d-1 : offre publiée → clôture et non suppression ; clôture
+  // réservée à une offre publiée sans engagement, motif obligatoire ; plus
+  // aucune candidature ni sélection sur une offre clôturée.
+  job_published: 409,
+  job_not_published: 409,
+  job_not_closable: 409,
+  job_closed: 409,
+  closure_reason_required: 400,
+  closure_reason_too_long: 400,
 } as const;
 
 export type JobRpcRefusal = keyof typeof JOB_RPC_REFUSALS;
@@ -242,6 +251,20 @@ export function jobRefusal(
   }
   return null;
 }
+
+/**
+ * Lot 17d-1 : motif de clôture d'une offre publiée, mêmes bornes que
+ * `close_job` (10 à 500 caractères après suppression des espaces).
+ */
+export const jobClosureSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(10, "closure_reason_required")
+    .max(500, "closure_reason_too_long"),
+});
+
+export type JobClosureInput = z.input<typeof jobClosureSchema>;
 
 /** Motif de modération (refus obligatoire), mêmes bornes que `moderate_job`. */
 export const jobModerationSchema = z

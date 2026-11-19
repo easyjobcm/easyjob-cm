@@ -3103,7 +3103,7 @@ Rien n'est supprimé ni transformé en absence. Le candidat suspendu ne peut plu
 1. **Dossier laissé sans pièce** (`awaiting_evidence`) : délai de complément et issue. Aucune sanction automatique sur ce fondement.
 2. **Engagements futurs d'un candidat suspendu** : information de l'entreprise, remplacement, annulation par le support. Le traitement opérationnel est à décider.
 3. **Manquement annulé dans un cycle déjà suivi d'un autre cycle** : le cycle concerné est levé, les suivants sont conservés et l'arbitrage est tracé (`cancellation_cycle_arbitration_needed`). Reste à trancher : renumérotation, durée du cycle suivant, réduction éventuelle.
-4. **Réputation de l'entreprise** : une offre avec un désistement ne rapporte jamais l'unité « offre réalisée », car un engagement annulé n'est pas une résolution (règle du lot 12). Ce n'est pas une attribution artificielle, mais l'entreprise subit le désistement du candidat.
+4. **Réputation de l'entreprise** : une offre avec un désistement ne rapporte jamais l'unité « offre réalisée », car un engagement annulé n'est pas une résolution (règle du lot 12). Ce n'est pas une attribution artificielle, mais l'entreprise subit le désistement du candidat. *Rectifié au §41 (lecture du 2026-11-19) : vrai pour une période interrompue (candidature restée `selected`) ; un désistement complet passe la candidature à `withdrawn`, qui sort des engagements comptés et ne bloque pas l'unité.*
 5. **Remplacement** après clôture du recrutement ; poursuite ou remplacement d'une période abandonnée (place conservée).
 6. **Montant** : arrondi au franc (demi supérieur proposé) ; durée brute ou nette des pauses. Bornes d'un règlement de journée interrompue : voir « Bornes du règlement » (décision du 2026-11-21).
 7. **Fraude** : durée et critères ; recours au-delà de la contestation interne.
@@ -3132,3 +3132,152 @@ Rien n'est supprimé ni transformé en absence. Le candidat suspendu ne peut plu
 - L'entreprise n'est prévenue que dans l'application (aucune notification push).
 - Les six pages admin sans filtre `is_active` signalées au §39 restent à corriger.
 - Le détail des pièces d'une fraude n'est visible que sur le dossier d'annulation concerné ou par la route admin des suspensions ; il n'y a pas d'écran dédié aux fraudes sans annulation.
+
+## 41. Audit ciblé — annulations par l'entreprise et remplacements, préparation du lot 17d (2026-11-19)
+
+Cadrage documentaire, sans implémentation ni écriture en base. Point de départ (constat Git) : `origin/main-dev` contient 17a (`3ae5aff`) et 17b–17c (`d2f1ecb`) ; la branche `feat/lot-17bc-candidate-cancellations` est alignée, l'arbre est propre et le stash de lint-staged est conservé. Comportements établis par lecture des migrations ; aucune preuve exécutée (aucun comportement important ne restait indécidable par lecture). Règles validées citées depuis le SRS §5.2 à §5.4 et `PLAN_ACTION.md` (lot 17) ; règles historiques du SRS signalées comme telles.
+
+### Écarts relevés dans la documentation
+
+- **§40, point 4** (unité « offre » après désistement) : inexact pour le désistement complet. `reputation_company_offers` (dernière version : `20261120120000`) ne compte que les candidatures `selected` ou `no_show` ; un désistement complet passe la candidature à `withdrawn` et ne bloque pas l'unité si les autres engagements sont confirmés. Seule une **période interrompue** (candidature restée `selected`, mission `cancelled`, journées restantes non confirmées) bloque l'unité, sans issue prévue. Non couvert par une preuve.
+- **Plan, sous-lot 17c** : « absence injustifiée confirmée sur les dossiers du lot 14 » y figure comme producteur de manquement. Le seul écrivain de `reputation_incidents` est `cancellation_apply_sanction` (`candidate_late_cancellation`). Les natures `candidate_no_show` et `company_late_cancellation` n'ont **aucun producteur** ; la décision « établie » d'une absence (lot 14) reste sans conséquence.
+
+### Inventaire
+
+| Sujet | Règle documentée | Comportement réel | Contrôle en base | Écran | Décision manquante |
+|---|---|---|---|---|---|
+| Suppression d'une offre sans engagement | Historique (SRS §5.4, non appliquée) : modifier ou supprimer jusqu'à 12 h avant le début si le quota n'est pas atteint | `delete_job` (`20261101140000`) : suppression physique, quel que soit le statut ou l'échéance, si aucune candidature `selected`/`no_show`, mission, contrat ni ligne `cancellation_penalties`. Candidatures en attente effacées par cascade (`job_applications_job_id_fkey`), sans notification ni trace d'audit | Verrous candidatures puis offre ; refus `job_has_commitments` | `/company/jobs` : « Supprimer » toujours proposé, refus traduit (« contactez le support ») | Offre publiée avec candidatures en attente : suppression ou clôture tracée ; information des candidats |
+| Annulation d'une offre ou d'une journée après sélection | Historique (SRS §5.3) : pénalité de 20 % due au candidat à moins de 12 h ; conditions entreprise « à arbitrer » (SRS §5.2) | **Aucun parcours.** `update_job` refuse dès une place pourvue (`job_has_selected_candidates`) ; calendrier figé (`job_schedule_locked`). Le statut `jobs.cancelled` et `missions.cancelled_by = 'company'` existent sans producteur | Refus seulement | Message « contactez le support » ; aucun outil du support | Tout le parcours (arbitrages 1 et 5 du plan) |
+| Retrait d'un candidat sélectionné par l'entreprise | Aucune règle | Impossible : `protect_job_application_writes` refuse toute sortie de `selected`/`no_show` (« through support only »), mais aucune RPC du support n'existe | Trigger, tout auteur de session | Aucun | Admis ou non, motifs, effets (arbitrage 2) |
+| Remplacement | Période complète : « le support examine la poursuite et le remplacement » (validé le 2026-11-17) ; « remplacement garanti sous 2 h » (SRS §6.11, Business) jamais livré et refusé par `user-facing-claims` | Seul remplacement possible : sélection ordinaire d'une autre candidature en attente, avant l'échéance, s'il reste une place. Texte affiché : « Aucun remplacement automatique » | `selection_prepare` : candidature `pending`/`shortlisted`, offre `active`, dossier entreprise valide, échéance (`recruitment_closed`), places, compte candidat actif (`candidate_unavailable`), conflits de 3 h sous verrou, empreinte, signature (`sign_and_select`). Profil ≥ 60 %, CNI valide et documents requis contrôlés **à la candidature seulement** (`apply_to_job_core`). Unicité (offre ou journée, candidat) : une candidature retirée ou refusée n'est ni réactivée ni renouvelée (`already_applied`). Période complète : la sélection couvre toutes les journées de l'offre (`job_effective_days`) | Sélection habituelle | Après clôture ; période entamée (arbitrage 3) |
+| Places libérées, attentes, échéances | Lot 11b : échéance figée ; lot 17b : place libérée sans prolonger l'échéance | Désistement complet → mission `cancelled`, candidature `withdrawn`, `sync_job_positions_filled` décrémente offre et journée ; place sélectionnable jusqu'à l'échéance, puis `recruitment_closed`. Période interrompue : place conservée. Aucun avis aux candidats en attente. Absence signalée ou suspension : rien n'est libéré | Trigger du compteur ; échéances immuables | Offre : badge « Désistement du candidat » | Libération d'une place hors désistement (support, entreprise) |
+| Période complète / journées au choix | Lot 12 : forfait non divisé (période) ; une mission par journée (au choix) | Au choix : chaque journée a sa candidature, sa mission, son contrat ; l'annulation libère la journée. Période : une candidature, une mission ; abandon partiel = interruption, place conservée | Lots 12 et 17b | Mission, offre | Contrat et base de montant d'un remplaçant sur une période entamée (aucun montant fixé ici) |
+| Sanctions et réputation entreprise | −5 unités ; trois décisions en 90 jours → un retrait ; annulation par le support → solde rétabli (lot 9c) | Nature `company_late_cancellation` acceptée (cohérence : offre de l'entreprise), **sans producteur**. Le regroupement compte chaque ligne : aucun équivalent de `cancellation_id` unique côté entreprise | `protect_reputation_incidents` | Aucun | Délai, imputabilité, unité d'événement (arbitrages 1 et 5) |
+| Indemnités et remboursements | Historique : 20 % (SRS §5.3), remboursement automatique du surplus (SRS §6.10) ; lot 12 : « absence validée avec remboursement effectivement confirmé » résout un engagement | Aucun versement. `cancellation_penalties` (`20260604120000`) : table vestige (pourcentages par défaut, lecture admin, insertion par clé service), sans producteur, qui bloque pourtant `delete_job`. `mission_acquired_amount` : information seulement | — | Montant acquis (parties) | Sort de la table vestige ; état « prévu, non versé » (lot paiement) |
+| Engagements futurs d'un candidat suspendu | Ni supprimés ni transformés en absence (17c) | Début refusé (`account_suspended`) ; le candidat peut encore annuler ; le support voit la liste (`candidate_future_engagements`) ; l'entreprise n'est pas informée ; aucune annulation par le support | Fonction de lecture | `/admin/cancellations` | Arbitrage 4 |
+| Absence signalée, non établie | Un signalement n'est jamais une absence établie (lot 14) | Dossier du lot 14, décision sans conséquence ; journée ni annulée ni libérée | `mission_incidents` | Signalements, support | Arbitrage 4 |
+
+### Situations prioritaires
+
+Une **journée commencée** (début enregistré) relève de l'interruption livrée en 17b–17c (§40) et n'est pas traitée ici. Les cas ci-dessous visent des journées non commencées.
+
+| Cas | Exemple | Aujourd'hui | Conséquences à décider |
+|---|---|---|---|
+| A. Annulation avant toute sélection | Offre publiée le lundi pour le samedi, 3 candidatures en attente ; l'entreprise renonce le mardi | Suppression physique ; les 3 candidatures disparaissent sans avis | Clôture tracée plutôt que suppression d'une offre publiée ; avis aux candidats ; aucune sanction (recommandation : rien ne la justifie sans engagement) |
+| B. Journée future annulée après sélection | Journées au choix 10, 11 et 12 ; deux candidats sélectionnés le 11 ; l'entreprise renonce au 11 le 9 au soir | Impossible (calendrier figé, aucun parcours) | Délai « tardif » ; une demande = un événement (deux candidats, au plus un manquement) ; contrats conservés, journée marquée annulée par l'entreprise ; information des candidats ; indemnité prévue, non versée |
+| C. Journées restantes d'une période commencée | Période de 5 journées, 2 confirmées ; l'entreprise arrête les 3 dernières | Impossible ; seule l'interruption d'une journée commencée existe | Montant reconnu des 2 journées inchangé (`mission_acquired_amount`) ; les 3 journées forment un seul événement ; mission close sans être « réalisée » ; effet sur l'unité « offre » |
+| D. Remplacer un candidat sans manquement | L'entreprise préfère un autre profil pour le 15, alors que le candidat a été sélectionné le 2 | Impossible | Admis ou refusé ; si admis : annulation par l'entreprise de ses journées (jamais un manquement du candidat), avec le délai et les effets de B |
+| E. Désistement avant clôture | Offre normale du 20 à 8 h, clôture le 19 à 8 h ; désistement complet le 17 | Place libérée ; l'entreprise peut sélectionner une candidature en attente jusqu'au 19 à 8 h, avec tous les contrôles | Confirmer ce comportement ; avis éventuel aux candidats en attente |
+| F. Désistement après clôture | Même offre, désistement le 19 à 20 h | Place libérée, mais toute sélection est refusée (`recruitment_closed`) | Remplacement tracé limité à la place libérée (proposition ci-dessous) ou aucun remplacement |
+| G. Absence signalée, non établie | L'entreprise signale une absence le 10 à 9 h ; la période continue le 11 | Dossier ouvert ; journée du 10 ni annulée ni libérée ; le 11 reste dû | Aucun remplacement fondé sur le seul signalement ; suspension conservatoire des journées futures ou non, sans présumer la faute |
+| H. Candidat suspendu avec engagements futurs | Exclusion de 6 mois le 5 ; journées sélectionnées le 8 et le 12 | Début refusé ; engagements maintenus ; entreprise non informée | Information de l'entreprise (« candidat indisponible », sans cause) ; annulation par le support au nom du candidat, sans nouveau manquement automatique ; place libérée ; remplacement (F) |
+
+### Proposition à arbitrer : remplacement limité à une place réellement libérée
+
+Après clôture, plutôt que de rouvrir l'offre :
+
+- le support (grade à décider) ouvre un **remplacement** rattaché à une place libérée identifiée (journée, désistement ou annulation d'origine), avec motif et trace dans `audit_logs` ;
+- seules les journées futures de cette place sont concernées ; calendrier, régime et échéance de l'offre restent figés ; l'offre ne réapparaît pas dans la liste publique ;
+- candidats admissibles à décider (candidatures en attente existantes ou candidature sur invitation) ; jamais de réactivation d'une candidature retirée ou refusée ;
+- la sélection reste `sign_and_select` : signature de l'entreprise, places, conflits avec la marge de 3 h, et **contrôles du dossier rejoués** (profil, CNI, documents), aujourd'hui vérifiés à la seule candidature ;
+- une place = au plus un remplacement ouvert ; heure de fermeture à décider ; aucune garantie de remplacement annoncée.
+
+Pour une période entamée, la sélection d'un remplaçant ne peut pas reprendre le contrat entier (journées passées incluses) : son contrat sur les seules journées restantes et la base de son montant sont à arbitrer, sans montant fixé ici.
+
+### Réputation, forfait et paiement : effets actuels
+
+| Élément | Désistement complet | Période interrompue | Annulation ou retrait par l'entreprise | Remplacement |
+|---|---|---|---|---|
+| Unité « offre réalisée » (`reputation_company_offers`) | Engagement retiré, ne bloque pas l'unité | Bloque l'unité, sans issue | Sans objet (aucun parcours) | Le remplaçant serait un engagement ordinaire, à confirmer |
+| Engagements résolus | Seul le travail confirmé résout ; `cancelled` et `no_show` ne résolvent pas (lot 12) | Non résolu | — | — |
+| Montant global du contrat | Inchangé, contrat conservé | Inchangé ; montant acquis au prorata des journées confirmées, journée interrompue « en examen » | — | — |
+| Montants reconnus | Aucun | Conservés, jamais effacés | À conserver | — |
+| Remboursement, indemnité | Aucun ; table `cancellation_penalties` vestige | Aucun | 20 % (historique, à réexaminer) | Aucun |
+
+- **Règles validées** : unité « offre » du lot 12 ; un événement = un manquement (candidat) ; sanctions indépendantes de l'unité ; décision du support avant toute sanction ; aucun remboursement présumé ; calendrier et échéances figés.
+- **Anciennes règles à réexaminer** : 12 h et 20 % (SRS §5.3) ; « modifier ou supprimer jusqu'à 12 h » (SRS §5.4) ; remplacement garanti (SRS §6.11) ; remboursement automatique du surplus (SRS §6.10) ; blocage de 7 jours et bannissement pour absence (SRS §5.3, §11.9).
+- **Recommandations (non décidées)** : clôture tracée plutôt que suppression d'une offre publiée ; identifiant d'événement unique pour les manquements de l'entreprise ; un engagement annulé par l'entreprise ou retiré par le candidat ne prive pas l'offre de son unité à lui seul ; états financiers limités à « prévu, non versé » jusqu'au lot paiement.
+
+### Limites
+
+Aucune vérification exécutée. Les constats sur `reputation_company_offers` et sur l'absence de producteur de manquement viennent de la lecture de la dernière définition ; une preuve ciblée sur `easyjob-proof` les confirmera au début de l'implémentation.
+
+### Suivi — 17d-0 : constats prouvés (2026-11-19)
+
+Branche `feat/lot-17d-company-job-closure`, créée depuis `origin/main-dev` (`d2f1ecb`, lots 17b–17c intégrés : constat Git), documents du cadrage conservés, non commitée. Aucune règle métier modifiée par ces preuves.
+
+| Constat | Preuve | Résultat observé en base |
+|---|---|---|
+| Désistement complet et unité « offre réalisée » | `candidate-cancellations` D2 | Journées au choix : une journée réalisée, l'autre abandonnée (candidature `withdrawn`) → l'offre rapporte l'unité une fois le recrutement clos ; avant le désistement, la journée encore due l'en empêchait. **Confirmé.** |
+| Abandon d'une période commencée | `candidate-cancellations` D1 | Deux journées confirmées, la dernière annulée (candidature restée `selected`, mission `cancelled`) → aucune unité, même recrutement clos. **Confirmé : blocage sans issue.** |
+| Absence injustifiée et `candidate_no_show` | `mission-incidents` N1 | **Précisé.** La décision générique d'un dossier d'absence est refusée (`use_dispute_decision`) : depuis le lot 16, l'absence se tranche par double validation, dont l'issue porte sur la réalisation du travail (« établi » = journée confirmée ; « non établi » = aucune absence fautive). Absence reconnue par le candidat, décision « non établi » par deux agents → aucune ligne `reputation_incidents`, candidature `selected`, mission non `no_show`, réputation inchangée. Aucune issue ne qualifie une absence injustifiée ; `candidate_no_show` n'a aucun producteur. |
+
+Rectifications apportées : §40 point 4 (note déjà ajoutée, désormais prouvée) ; plan, sous-lot 17c ; SRS §5.2 (constats, sans nouvelle règle). Le constat d'absence reste à arbitrer (arbitrage 4 du plan).
+
+### Suivi — 17d-1 : clôture tracée des offres publiées sans engagement (2026-11-19)
+
+Règles validées (2026-11-24) appliquées ; SRS §5.4 (« Modification et réutilisation des offres ») et §8.1 (`job_closures`).
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Notions partagées | `job_offer_ids` (offre et sous-offres de l'entreprise), `job_has_commitments` (candidature `selected`/`no_show`, mission, contrat, pénalité : jamais le compteur de places), `job_was_published` (première publication, `legacy_publication`, `published_at`, clôture, ou statut qui suppose une publication). |
+| Suppression | `delete_job` reprise : mêmes contrôles et verrous, refus `job_has_commitments` d'abord, puis `job_published` pour toute offre déjà publiée. |
+| Clôture | `close_job(job, motif)` : entreprise propriétaire active déduite de la session (compte et profil actifs, dossier non exigé) ; motif 10 à 500 caractères ; verrous candidatures puis offres (ordre de `delete_job` et `sign_and_select`) ; relance → résultat d'origine (`already_closed`) ; refus `job_has_commitments`, `job_not_published`, `job_not_closable` (offre déjà annulée hors parcours). Statut `cancelled` + `jobs.closed_at` sur l'offre et ses sous-offres, ligne `job_closures` (auteur, motif, statut précédent, compteurs), une notification `application_update` par candidat en cours (sans motif), trace `close_job` dans `audit_logs` : une transaction. |
+| Gardes (tout auteur) | `trg_job_closure_guard` : une offre clôturée ne change plus de statut ni de date de clôture, clé service comprise ; clôture posée hors session seulement. `trg_block_closed_job_applications` : aucune candidature, sélection ni refus sur une offre clôturée (retrait du candidat possible). `job_closures` en ajout seul, aucune écriture de session. |
+| Visibilité | Politique de lecture : offre clôturée lisible par les candidats qui y ont postulé ; `job_availability` → `closed_by_company` ; motif lisible par l'entreprise et les admins seulement. Revalidation du dossier, modération (`job_not_pending`) et modification (`job_not_editable`) ne rouvrent rien. |
+| Écrans FR/EN | `/company/jobs` : actions calculées par la base (`my_job_removal_actions`) : « Supprimer » (jamais publiée), « Clôturer l'offre » (dialogue : conséquences, motif, confirmation), « Annulation : contacter le support » (engagement, sans promesse d'outil) ; badge « Clôturée » et motif ; écran périmé → refus traduit et relecture. Candidatures de l'offre : bandeau, plus de sélection ni de refus. Candidat : « Offre clôturée par l'entreprise » dans *Mes missions*, page dédiée sur le lien direct (historique proposé au candidat qui a postulé). Relecture sans rechargement par les signaux existants (`jobs`, `applications`, `jobs:public`). |
+| Route | `POST /api/jobs/[id]/close` (Zod `jobClosureSchema`, codes traduits) ; `DELETE /api/jobs/[id]` renvoie `job_published`. |
+
+Hors périmètre, non implémentés : annulation après sélection, sanctions entreprise, remplacement, annulation des engagements d'un candidat suspendu, indemnités et remboursements.
+
+**Preuves.** `job-closure` (26 assertions) : S1-S3 suppression (jamais publiée ; refus après publication, après retour en modération, offre historique) ; C0-C4 motif, clôture et conservation, notifications sans doublon, relance, lecture du motif ; V1-V3 visibilité, refus de candidature, de sélection et de refus, historique du candidat ; E1 sélectionné, mission, contrat ; D1-D5 droits (autre entreprise, anonyme, candidat, compte suspendu), écritures directes de session, clé service (réouverture, candidature, sélection, réécriture du motif), actions proposées, offre revenue en modération ; P1 panne de la trace sans effet partiel ; R1-R4 courses clôture/candidature et clôture/sélection dans les deux ordres (barrière du lot 11) ; G1 dossier en revue puis revalidé ; M1-M2 plusieurs journées ; T1 signaux `{d, r}`. Preuves adaptées (une offre publiée ne se supprime plus) : `job-moderation` I3, I8-I10 ; `candidate-selection` C4 ; `realtime` J12. Test Vitest `job-closure` (bornes du motif, codes traduits, aucune promesse d'annulation).
+
+**Contrôles négatifs** (pile de preuve, sorties conservées) : ancien `delete_job` remis et `trg_job_closure_guard` désactivé → `job-closure` 6 échecs (S2, S3, D3, puis D2, D4, D5) ; suppression rouverte en session (procédure `local-proofs.md`) → `job-moderation` 4 échecs (B10, I1, I2, I3). Pile restaurée par réinitialisation, protections vérifiées.
+
+| Contrôle | Résultat |
+|---|---|
+| Preuves ciblées pendant le développement : `job-closure`, `candidate-cancellations`, `mission-incidents` (N1 d'abord en échec : décision générique refusée, constat corrigé vers la double validation), `job-moderation`, `candidate-selection`, `realtime` | ✅ |
+| Pile `easyjob-proof` réinitialisée depuis les seules migrations, puis `pnpm test:rls` complet (build de production relié à la pile) | ✅ 39/39, 992 s |
+| `pnpm test` (Vitest), séparément | ✅ 619 tests, 52 fichiers (dont `job-closure`, 5 tests) |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ |
+| Types générés depuis la pile réinitialisée | ✅ identiques à `lib/database.types.ts` |
+| `job-closure` relancée sur le build final (après le correctif d'écran ci-dessous) | ✅ 26/26 |
+| Navigateur (Chrome headless par CDP, 375 × 812, sessions entreprise et candidat, deux onglets candidat, script hors dépôt) | ✅ 27/27 en FR puis EN, 37 s |
+
+**Navigateur.** Brouillon : « Supprimer » seul ; offre engagée : « Annulation : contacter le support » et dialogue refermable ; offre publiée : « Clôturer l'offre », motif trop court refusé avant l'envoi, clôture confirmée (message, badge « Clôturée », motif dans l'onglet des offres terminées) ; côté candidat, sans rechargement : « Offre clôturée par l'entreprise » dans *Mes missions* et page dédiée sur le détail ouvert ; écran périmé (sélection pendant que le dialogue est ouvert) : refus compréhensible, offre restée active ; aucun défilement horizontal, aucune erreur JavaScript. Une première passe a révélé que le bouton « J'ai compris » du dialogue « support » ne le fermait pas (`AlertDialogAction` du dépôt ne ferme rien seul), ni le bouton « Annuler » du dialogue de suppression existant : corrigés sur cet écran. Observation hors lot : le menu d'actions des cartes (`components/ui/dropdown-menu.tsx`) s'affiche dans la carte et la resserre tant qu'il est ouvert, à 375 px (comportement antérieur).
+
+**Avant déploiement** (lecture seule) : compter les offres publiées sans engagement que les entreprises ne pourront plus supprimer, et les offres déjà `cancelled` (historiques, non clôturables par ce parcours) : `select status, count(*) from public.jobs where first_published_at is not null or legacy_publication or published_at is not null group by 1;`.
+
+**Limites.** Notification dans l'application seulement ; le motif n'est pas montré aux candidats ; *(rectifié par le complément ci-dessous : la suppression en clé service de l'historique est fermée)* ; aucune clôture partielle de journées.
+
+### Complément — 17d-1 : historique d'une offre publiée et candidatures figées (2026-11-24)
+
+**Suppression en clé service : appelants et cascades.** Aucun code de l'application ne supprime une offre, une entreprise, un profil ou un compte avec la clé service. Seuls le faisaient `delete_job` (session de l'entreprise, règles propres) et les nettoyages des preuves (une vingtaine). Effacer une offre emportait en cascade ses candidatures (et leurs contrats, `contracts_application_id_fkey`), missions et journées, signalements, annulations et `job_closures`. Les traces d'audit (`resource_id` sans clé étrangère) et les notifications survivaient, mais pointaient vers une offre disparue. La suppression d'une entreprise ou d'un profil candidat effaçait les mêmes lignes par cascade. Aucun parcours administratif de purge n'est validé : cette permission ne servait qu'au nettoyage des preuves. **Le chemin est fermé.**
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Garde de l'historique | `trg_job_history_guard` (jobs) et `trg_job_application_history_guard` (job_applications), avant suppression, pour tout auteur : une offre publiée (`job_was_published`) ou une candidature sur une telle offre ne s'efface pas (`job_history_protected`). Cela couvre la clé service, les fonctions `SECURITY DEFINER` et les cascades (entreprise, profil, compte). `job_closures` : suppression soumise à la même règle. Une offre jamais publiée reste supprimable. |
+| Maintenance | `job_history_maintenance()` : `session_user` `postgres` ou `supabase_admin`, c'est-à-dire une connexion directe à la base. Une requête de l'application passe toujours par PostgREST (`authenticator`) et n'en est jamais une, même en clé service. |
+| Preuves | `scripts/lib/proof-purge.ts` (`purgeProofJobs`) : connexion directe à la pile dédiée (`readLocalDbUrl`, hôte local imposé), offre par offre, au mieux ; appelée en tête du nettoyage de chaque preuve qui crée des offres, et pour la candidature supprimée de `realtime` R1. Aucune voie ouverte à l'application. |
+| « Plus aucun refus » | Précisé (décision du 2026-11-24) : **tout changement de statut** d'une candidature sur une offre clôturée est refusé (`job_closed`), qu'il s'agisse d'un refus par l'entreprise ou d'un retrait par le candidat (route `DELETE /api/jobs/[id]/apply` : 409 `job_closed`). Candidatures figées à la clôture. |
+| Présentation historique | Candidat : la candidature passe dans la section historique de *Mes missions* (`splitApplications`), badge « Offre clôturée par l'entreprise ». Entreprise : l'onglet « En attente » de l'offre devient « Offre clôturée (n) », badge « Offre clôturée », sans action ; le compteur « en attente » du tableau de bord exclut les offres clôturées. |
+
+**Preuves.** `job-closure` passe à 28 assertions. V2 : retrait par le candidat refusé (route et RPC). H1 : en clé service, suppression de l'offre clôturée, de ses candidatures, de sa clôture, d'une offre publiée sans clôture, d'une entreprise sans contrat (cascade) et d'un profil candidat (cascade) → refusée (`job_history_protected`) ; offre, candidatures, clôture, audit et notifications intacts. H2 : offre jamais publiée toujours supprimable. Vitest : `my-jobs` (offre clôturée → historique). Une première version de H1 visait l'entreprise principale, protégée aussi par la contrainte `contracts_company_id_fkey` ; elle a été remplacée par une entreprise sans contrat, pour que seule la garde puisse refuser.
+
+**Contrôles négatifs** (remesurés, sorties conservées) :
+- ancien `delete_job` et gardes de réouverture et d'historique désactivés → `job-closure` 7 échecs (S2, S3, D3, H1, puis D2, D4, D5) ;
+- gardes d'historique seules désactivées → 2 échecs (H1, D4 en conséquence) ;
+- suppression rouverte en session → `job-moderation` 1 échec (B10) tant que la garde de l'historique reste active, 4 échecs (B10, I1, I2, I3) si elle est aussi désactivée.
+
+| Contrôle | Résultat |
+|---|---|
+| Pile `easyjob-proof` réinitialisée sur le SQL final, `pnpm test:rls` complet | ✅ 39/39, 1083 s ; aucune offre ni candidature restante après la suite |
+| `job-closure` ciblée | ✅ 28/28 ; fixtures purgées (0 compte, 0 offre, 0 clôture restants) |
+| `pnpm test` (Vitest) | ✅ 620 tests, 52 fichiers |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ |
+| Types générés (pile réinitialisée) | ✅ mis à jour (`job_history_maintenance`), identiques |
+| Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 31/31 : historique côté candidat, onglet « Offre clôturée » côté entreprise, sans action |
+
+**Constat hors lot.** `candidate-cancellations` laisse quatre comptes de preuve sur la pile. L'immuabilité de `case_evidence` (lot 17b–17c) refuse la mise à `null` de `uploaded_by` lors de leur suppression. Ce n'est pas lié à ce lot ; à traiter avec la maintenance des preuves.
+
+**Limites.** La suppression d'un compte (droit des personnes) est désormais bloquée tant qu'elle effacerait l'historique d'une offre publiée : son parcours relève du lot « Données personnelles ». La protection porte sur l'offre, ses candidatures et sa clôture. Les missions, contrats et traces d'audit gardent leurs propres règles.

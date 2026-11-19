@@ -1503,3 +1503,41 @@ export function JobUnavailable() {
     </div>
   );
 }
+
+/**
+ * Lot 17d-1 : lien direct vers une offre clôturée par l'entreprise. Aucune
+ * candidature possible ; un candidat qui y a postulé est renvoyé vers son
+ * historique (sa candidature n'est pas un refus).
+ */
+export function JobClosedByCompany({ applied }: { applied: boolean }) {
+  const router = useRouter();
+  const { t } = useI18n();
+  const tj = t.jobDetail;
+  return (
+    <div
+      className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center"
+      data-testid="job-closed-by-company"
+    >
+      <AlertTriangle className="h-10 w-10 text-muted-foreground" aria-hidden />
+      <h1 className="text-xl font-semibold text-foreground">
+        {tj.closedByCompanyTitle}
+      </h1>
+      <p className="max-w-sm text-sm text-muted-foreground">
+        {tj.closedByCompanyBody}
+      </p>
+      {applied && (
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {tj.closedByCompanyApplied}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-center gap-2">
+        {applied && (
+          <Button variant="outline" onClick={() => router.push("/my-jobs")}>
+            {tj.myApplications}
+          </Button>
+        )}
+        <Button onClick={() => router.push("/jobs")}>{tj.backToJobs}</Button>
+      </div>
+    </div>
+  );
+}
