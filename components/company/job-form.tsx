@@ -26,6 +26,7 @@ import {
   crossesMidnight,
   formatDayDate,
   formatDayHours,
+  hoursVary,
   scheduleIssue,
   sortDays,
   type ScheduleFormat,
@@ -49,6 +50,14 @@ import {
 } from "lucide-react";
 import { loginHref } from "@/lib/auth/safe-redirect";
 import { plural } from "@/lib/i18n/plural";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type Step = "basics" | "schedule" | "requirements" | "payment" | "review";
 
@@ -335,6 +344,60 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
       ...prev,
       days: prev.days.filter((d) => d.date !== date),
     }));
+
+  // Horaires par journée : chaque journée reprend les horaires communs
+  // déjà saisis (sinon les siens).
+  const choosePerDay = () =>
+    setFormData((prev) =>
+      prev.sameHours
+        ? {
+            ...prev,
+            sameHours: false,
+            days: prev.days.map((d) => ({
+              ...d,
+              start: prev.startTime || d.start,
+              end: prev.endTime || d.end,
+            })),
+          }
+        : prev,
+    );
+
+  // Retour aux horaires communs : ceux de la première journée. Si les
+  // journées ont des horaires différents, confirmation avant de les écraser.
+  const [confirmCommon, setConfirmCommon] = React.useState(false);
+  const firstDayHours = () =>
+    sortDays(
+      formData.days.map((d) => ({
+        ...d,
+        start_time: d.start,
+        end_time: d.end,
+      })),
+    )[0];
+  const applyCommon = () => {
+    setConfirmCommon(false);
+    setFormData((prev) => {
+      const first = sortDays(
+        prev.days.map((d) => ({ ...d, start_time: d.start, end_time: d.end })),
+      )[0];
+      const start = first?.start || prev.startTime;
+      const end = first?.end || prev.endTime;
+      return {
+        ...prev,
+        sameHours: true,
+        startTime: start,
+        endTime: end,
+        days: prev.days.map((d) => ({ ...d, start, end })),
+      };
+    });
+  };
+  const chooseCommon = () => {
+    if (formData.sameHours) return;
+    const differ = hoursVary(
+      formData.days.map((d) => ({ start_time: d.start, end_time: d.end })),
+    );
+    if (differ) setConfirmCommon(true);
+    else applyCommon();
+  };
 
   const copyFirstDay = () =>
     setFormData((prev) => {
@@ -824,33 +887,64 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
                   )}
                 </div>
 
-                {/* Horaires communs ou par journée */}
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={formData.sameHours}
-                    disabled={scheduleLocked}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        sameHours: e.target.checked,
-                        // Passage aux horaires par journée : chaque journée
-                        // reprend les horaires communs.
-                        days: e.target.checked
-                          ? prev.days
-                          : prev.days.map((d) => ({
-                              ...d,
-                              start: prev.startTime || d.start,
-                              end: prev.endTime || d.end,
-                            })),
-                      }))
-                    }
-                    data-testid="job-same-hours"
-                    className="h-4 w-4 accent-primary"
-                  />
-                  {ts.sameHours}
-                </label>
-                {formData.sameHours && (
+                {/* Horaires communs ou par journée : choix explicite dès
+                    deux dates (correctif du lot 12). */}
+                {formData.days.length > 1 && (
+                  <fieldset className="space-y-2" data-testid="job-hours-mode">
+                    <legend className="mb-2 text-sm font-medium text-foreground">
+                      {ts.hoursModeLabel}
+                    </legend>
+                    {(
+                      [
+                        ["common", ts.sameHours],
+                        ["per_day", ts.perDayHours],
+                      ] as const
+                    ).map(([mode, label]) => {
+                      const active =
+                        mode === "common"
+                          ? formData.sameHours
+                          : !formData.sameHours;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          disabled={scheduleLocked}
+                          data-testid={`job-hours-mode-${mode}`}
+                          onClick={() =>
+                            mode === "common" ? chooseCommon() : choosePerDay()
+                          }
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left text-sm transition-all disabled:opacity-70",
+                            active
+                              ? "border-primary bg-primary/5 text-foreground"
+                              : "border-border text-muted-foreground",
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2",
+                              active ? "border-primary" : "border-border",
+                            )}
+                          >
+                            {active && (
+                              <span className="h-2 w-2 rounded-full bg-primary" />
+                            )}
+                          </span>
+                          {label}
+                        </button>
+                      );
+                    })}
+                    {!formData.sameHours && (
+                      <p className="text-xs text-muted-foreground">
+                        {ts.perDayHoursHint}
+                      </p>
+                    )}
+                  </fieldset>
+                )}
+                {(formData.sameHours || formData.days.length === 0) && (
                   <div className="grid grid-cols-2 gap-4">
                     <label className="text-sm font-medium text-foreground">
                       {ts.startTime}
@@ -1419,6 +1513,48 @@ export function JobForm({ initialJob }: { initialJob?: JobFormInitial }) {
           </Button>
         )}
       </div>
+
+      {/* Retour aux horaires communs : confirmation avant d'écraser des
+          horaires différents déjà saisis. */}
+      <Dialog
+        open={confirmCommon}
+        onOpenChange={(open) => {
+          if (!open) setConfirmCommon(false);
+        }}
+      >
+        <DialogContent data-testid="job-hours-common-confirm">
+          <DialogHeader>
+            <DialogTitle>{ts.commonConfirm.title}</DialogTitle>
+            <DialogDescription>
+              {ts.commonConfirm.description.replace(
+                "{hours}",
+                (() => {
+                  const first = firstDayHours();
+                  return first ? formatDayHours(first, ts.nextDay) : "";
+                })(),
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {/* Boutons empilés à 375 px : libellés longs sans débordement. */}
+          <DialogFooter className="flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmCommon(false)}
+              data-testid="job-hours-common-cancel"
+              className="h-auto whitespace-normal"
+            >
+              {ts.commonConfirm.cancel}
+            </Button>
+            <Button
+              onClick={applyCommon}
+              data-testid="job-hours-common-apply"
+              className="h-auto whitespace-normal"
+            >
+              {ts.commonConfirm.confirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -41,6 +41,24 @@ export function crossesMidnight(
   return day.end_time.slice(0, 5) <= day.start_time.slice(0, 5);
 }
 
+/**
+ * Vrai si les journées n'ont pas toutes les mêmes horaires (heures et
+ * minutes). Les horaires de l'offre (`jobs.start_time`/`end_time`) sont
+ * ceux de la première journée : un résumé ne doit alors pas les présenter
+ * comme ceux de toute l'offre.
+ */
+export function hoursVary(
+  days: readonly Pick<ScheduleDay, "start_time" | "end_time">[],
+): boolean {
+  const first = days[0];
+  if (!first) return false;
+  return days.some(
+    (d) =>
+      d.start_time.slice(0, 5) !== first.start_time.slice(0, 5) ||
+      d.end_time.slice(0, 5) !== first.end_time.slice(0, 5),
+  );
+}
+
 /** Journées triées par début. */
 export function sortDays<T extends ScheduleDay>(days: readonly T[]): T[] {
   return [...days].sort((a, b) => dayBounds(a).start - dayBounds(b).start);

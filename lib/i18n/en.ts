@@ -3538,6 +3538,17 @@ export const en: TranslationKeys = {
     removeDate: "Remove {date}",
     noDates: "No date added yet.",
     sameHours: "Same hours for every day",
+    hoursModeLabel: "Hours",
+    perDayHours: "Different hours depending on the day",
+    perDayHoursHint: "Enter the start and end of each date.",
+    variableHours: "Hours vary by day",
+    commonConfirm: {
+      title: "Use the same hours for every day?",
+      description:
+        "The days currently have different hours. They will be replaced with those of the first day ({hours}) for every date.",
+      confirm: "Replace the hours",
+      cancel: "Keep hours per day",
+    },
     startTime: "Start",
     endTime: "End",
     nextDay: "+1 d",

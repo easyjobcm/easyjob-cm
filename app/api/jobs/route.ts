@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
         end_time, mission_pay_per_candidate, positions_available, positions_filled,
         status, published_at, applications_close_at, category_id,
         company:company_public_profiles(id, company_name, logo_url, city),
-        category:job_categories(id, name_fr, name_en, icon)
+        category:job_categories(id, name_fr, name_en, icon),
+        days:job_days(start_time, end_time)
       `,
         { count: "exact" },
       )

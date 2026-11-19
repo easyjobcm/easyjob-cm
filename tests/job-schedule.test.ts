@@ -213,3 +213,23 @@ describe("tâches par journée", () => {
     ).toBe(2);
   });
 });
+
+describe("hoursVary (correctif lot 12)", () => {
+  it("distingue des horaires communs et des horaires par journée", async () => {
+    const { hoursVary } = await import("@/lib/jobs/schedule");
+    expect(hoursVary([])).toBe(false);
+    expect(
+      hoursVary([
+        { start_time: "08:00:00", end_time: "16:00:00" },
+        { start_time: "08:00", end_time: "16:00" },
+      ]),
+    ).toBe(false);
+    expect(
+      hoursVary([
+        { start_time: "08:00", end_time: "16:00" },
+        { start_time: "10:00", end_time: "14:00" },
+        { start_time: "22:00", end_time: "06:00" },
+      ]),
+    ).toBe(true);
+  });
+});
