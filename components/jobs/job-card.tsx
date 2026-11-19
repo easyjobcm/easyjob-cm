@@ -16,6 +16,7 @@ import { cn, formatDate, formatTime } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { MissionPay } from "@/components/jobs/mission-pay";
 import { useJobUrgent } from "@/lib/jobs/use-job-urgency";
+import { hoursVary } from "@/lib/jobs/schedule";
 
 interface JobCardProps {
   job: {
@@ -27,6 +28,8 @@ interface JobCardProps {
     start_date: string;
     start_time: string;
     end_time: string;
+    /** Horaires des journées (lot 12) : résumé « selon les journées ». */
+    days?: { start_time: string; end_time: string }[] | null;
     mission_pay_per_candidate: number;
     status?: string | null;
     positions_available: number;
@@ -133,9 +136,15 @@ export function JobCard({
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4 shrink-0 text-primary/60" />
-              <span>
-                {formatTime(job.start_time, locale)} -{" "}
-                {formatTime(job.end_time, locale)}
+              <span data-testid="job-card-hours">
+                {job.days && hoursVary(job.days) ? (
+                  t.schedule.variableHours
+                ) : (
+                  <>
+                    {formatTime(job.start_time, locale)} -{" "}
+                    {formatTime(job.end_time, locale)}
+                  </>
+                )}
               </span>
             </div>
           </div>

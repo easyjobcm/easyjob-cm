@@ -67,6 +67,7 @@ import {
 } from "@/lib/realtime/provider";
 import { isNetworkError, readSessionUser } from "@/lib/supabase/session-user";
 import { plural } from "@/lib/i18n/plural";
+import { hoursVary } from "@/lib/jobs/schedule";
 
 type Job = Pick<
   Tables<"jobs">,
@@ -88,6 +89,7 @@ type Job = Pick<
   _count?: {
     applications: number;
   };
+  days?: { start_time: string; end_time: string }[] | null;
 };
 
 /**
@@ -113,6 +115,7 @@ export default function CompanyJobsPage() {
   const { toast } = useToast();
   const { t, locale } = useI18n();
   const tj = t.companyJobs;
+  const ts = t.schedule;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
   // Plan effectif (échéance comprise, heure du serveur) : la modification
@@ -183,7 +186,8 @@ export default function CompanyJobsPage() {
       .select(
         `
         *,
-        job_applications(count)
+        job_applications(count),
+        days:job_days(start_time, end_time)
       `,
       )
       .eq("company_id", company.id)
@@ -512,8 +516,14 @@ export default function CompanyJobsPage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {formatTime(job.start_time)} -{" "}
-                            {formatTime(job.end_time)}
+                            {job.days && hoursVary(job.days) ? (
+                              ts.variableHours
+                            ) : (
+                              <>
+                                {formatTime(job.start_time)} -{" "}
+                                {formatTime(job.end_time)}
+                              </>
+                            )}
                           </span>
                         </div>
 

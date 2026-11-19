@@ -33,7 +33,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useToast } from "@/hooks/use-toast";
 import { useLiveRefresh } from "@/lib/realtime/provider";
 import { plural } from "@/lib/i18n/plural";
-import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
+import { formatDayDate, formatDayHours, hoursVary } from "@/lib/jobs/schedule";
 
 interface AdminDashboardClientProps {
   pendingJobs: Array<{
@@ -591,8 +591,16 @@ export function AdminDashboardClient({
                   {t.admin.jobPreview.time}
                 </p>
                 <p className="font-medium" data-testid="moderation-schedule">
-                  {formatTime(selectedJob.start_time, locale)} –{" "}
-                  {formatTime(selectedJob.end_time, locale)}
+                  {/* Correctif lot 12 : les horaires de l'offre sont ceux
+                      de la première journée ; détail par journée ci-dessus. */}
+                  {selectedJob.days && hoursVary(selectedJob.days) ? (
+                    t.schedule.variableHours
+                  ) : (
+                    <>
+                      {formatTime(selectedJob.start_time, locale)} –{" "}
+                      {formatTime(selectedJob.end_time, locale)}
+                    </>
+                  )}
                 </p>
               </div>
             </div>

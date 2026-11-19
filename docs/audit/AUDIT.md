@@ -3281,3 +3281,44 @@ Hors périmètre, non implémentés : annulation après sélection, sanctions en
 **Constat hors lot.** `candidate-cancellations` laisse quatre comptes de preuve sur la pile. L'immuabilité de `case_evidence` (lot 17b–17c) refuse la mise à `null` de `uploaded_by` lors de leur suppression. Ce n'est pas lié à ce lot ; à traiter avec la maintenance des preuves.
 
 **Limites.** La suppression d'un compte (droit des personnes) est désormais bloquée tant qu'elle effacerait l'historique d'une offre publiée : son parcours relève du lot « Données personnelles ». La protection porte sur l'offre, ses candidatures et sa clôture. Les missions, contrats et traces d'audit gardent leurs propres règles.
+
+## 42. Correctif — horaires par journée dans le formulaire d'offre (2026-11-24)
+
+Branche `fix/job-form-day-schedules`, créée sur `d346aeb` (lot 17d commité et poussé sur `origin/feat/lot-17d-company-job-closure`, **non intégré** à `origin/main-dev` : constat Git ; à fusionner après 17d). Non commitée. Essais sur `easyjob-proof` uniquement. Aucune migration.
+
+### Constat et cause
+
+Constat utilisateur : toutes les journées prennent les mêmes horaires, sans moyen apparent d'en définir un par date.
+
+Reproduction dans le vrai formulaire (navigateur, 375 px), puis relecture en base :
+
+- **Le choix existait et l'enregistrement était correct.** En décochant « Mêmes horaires pour toutes les journées », chaque date affichait ses champs. `create_job` et `update_job` enregistraient l'horaire propre de chaque journée dans `job_days`, comme prévu au lot 12 : lundi 08–16, mercredi 10–14, vendredi 22–06 relus en base.
+- **Le choix était peu visible.** Il prenait la forme d'une simple case **cochée par défaut**, placée sous la liste des dates : seuls les champs communs étaient affichés, et rien n'indiquait l'autre mode.
+- **Écrasement silencieux.** Recocher la case faisait appliquer les horaires communs à toutes les journées lors de l'envoi, sans confirmation, et perdait les différences saisies.
+- **Résumés trompeurs.** Les horaires de l'offre (`jobs.start_time`/`end_time`) sont ceux de la première journée. Ils étaient affichés comme horaires de toute l'offre dans trois écrans : le champ « Horaire » de la modération, la carte d'offre de la liste candidat et la carte de la liste des offres de l'entreprise. Une offre aux horaires variables y paraissait donc avoir les mêmes horaires partout.
+
+Le détail d'offre, l'aperçu, le contrat (lots 12 et 13) et l'écran des candidatures affichaient déjà les horaires de chaque journée.
+
+### Correction
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Choix explicite | Dès deux dates, groupe « Horaires » à deux options (`role="radio"`) : « Mêmes horaires pour toutes les journées » et « Horaires différents selon les journées ». Dans le second mode, chaque date affiche ses champs de début et de fin, avec une indication sous le groupe. |
+| Passage aux horaires par journée | Chaque date reprend les horaires communs déjà saisis comme valeurs initiales. |
+| Retour aux horaires communs | Si les journées ont des horaires différents, confirmation avant l'écrasement : « Remplacer les horaires » applique ceux de la première journée à toutes les dates ; « Garder les horaires par journée » ne change rien. Sans différence, le retour se fait sans confirmation. Boutons empilés à 375 px. |
+| Conservation | L'état du formulaire est unique : mode et horaires sont conservés en changeant de format, après une erreur de validation et en revenant à une étape précédente. En correction avant publication, le mode et les horaires enregistrés sont relus depuis `job_days`. |
+| Résumés | `hoursVary` (`lib/jobs/schedule.ts`) : si les horaires diffèrent, la modération, la carte de la liste candidat (`/api/jobs` lit `job_days`) et la liste de l'entreprise affichent « Horaires selon les journées » au lieu des horaires de la première journée. |
+| Règles inchangées | Heure de Douala, nuit « se termine le lendemain », refus des horaires invalides et des chevauchements (`scheduleIssue`, `job_days_parse`), rémunération à la tâche, calendrier figé après la première publication (champs et choix désactivés, refus en base), échéances, sélection et conflits de 3 h. |
+
+### Vérification
+
+| Contrôle | Résultat |
+|---|---|
+| Parcours de bout en bout (CDP, 375 × 812 ; FR période complète, EN journées au choix ; mode commun) | ✅ 40/40 : lundi 08–16, mercredi 10–14, vendredi 22–06 (+1 j) enregistrés en base pour les deux formats ; aperçu, modération (journées et résumé), détail d'offre, contrat (un contrat de trois journées ou un contrat par journée) ; erreur de validation corrigée sans perte ; retour d'étape ; confirmation et « garder » ; correction avant publication rechargée puis enregistrée ; après publication, champs et choix en lecture seule et refus en base ; mode commun (09–17 partout, résumé non « variable ») ; aucun défilement horizontal, aucune erreur JavaScript |
+| Preuves ciblées (SQL inchangé) : `multi-day-jobs`, `job-deadlines`, `job-moderation`, `jobs-rls-select`, `contract-selection` | ✅ 5/5 |
+| `pnpm test` (Vitest, dont `hoursVary`) | ✅ 621 tests, 52 fichiers |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ |
+
+Suite RLS complète non relancée : aucune migration ni fonction SQL modifiée. La première passe du parcours a échoué sur deux points du script (bouton « Voir » de la modération sous la barre fixe ; écran de correction d'une offre publiée fermé au plan gratuit). Elle a aussi révélé un débordement des boutons du dialogue à 375 px, corrigé.
+
+**Limite.** La carte d'une offre affiche « Horaires selon les journées » sans détail ; le détail par date reste sur la page de l'offre.

@@ -3636,6 +3636,17 @@ export const fr = {
     removeDate: "Retirer le {date}",
     noDates: "Aucune date ajoutée.",
     sameHours: "Mêmes horaires pour toutes les journées",
+    hoursModeLabel: "Horaires",
+    perDayHours: "Horaires différents selon les journées",
+    perDayHoursHint: "Indiquez le début et la fin de chaque date.",
+    variableHours: "Horaires selon les journées",
+    commonConfirm: {
+      title: "Appliquer les mêmes horaires partout ?",
+      description:
+        "Les journées ont aujourd'hui des horaires différents. Ils seront remplacés par ceux de la première journée ({hours}) pour toutes les dates.",
+      confirm: "Remplacer les horaires",
+      cancel: "Garder les horaires par journée",
+    },
     startTime: "Début",
     endTime: "Fin",
     nextDay: "+1 j",
