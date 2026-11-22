@@ -134,8 +134,11 @@ export const accountStateSchema = z.object({
   company: z
     .object({
       plan: z.string(),
+      // ABO-07 : « free » ou « premium », calculé en base
+      // (company_effective_plan) ; toute autre valeur vaut Free à l'écran.
       effective_plan: z.string(),
       expires_at: isoDate,
+      premium_started_at: isoDate.optional(),
       trial_ends_at: isoDate,
       verification_status: z.string().nullable(),
       is_active: z.boolean(),

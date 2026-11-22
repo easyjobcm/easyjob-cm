@@ -179,6 +179,20 @@ Une base vide ne signifie pas un projet vide. Avant toute reconstruction, invent
 - buckets Storage, leurs politiques et leurs objets ;
 - secrets, clés API, réglages réseau et extensions activées à la main.
 
+## 6 bis. Reprise des plans entreprise (ABO-07, migrations `20261125120000` et `20261125130000`)
+
+La migration `20261125130000` refuse de s'appliquer tant qu'un compte porte encore `starter`, `pro` ou `business` sans choix explicite (Free, ou Premium avec date de fin, auteur et motif). Elle s'arrête alors dans sa transaction, sans effet ; `db push` échoue et le job Vercel n'est pas lancé.
+
+1. **Inventaire, en lecture seule, avant la release** : `select subscription_plan, subscription_expires_at is null as sans_fin, subscription_expires_at > now() as en_cours, count(*) from public.company_profiles group by 1, 2, 3;`.
+2. **Aucune ancienne valeur** : une seule release, avec les deux migrations et l'application du lot.
+3. **Anciennes valeurs** : `db push` applique toutes les migrations en attente et ne sait pas en appliquer une seule (vérifié, CLI 2.117.0). Il faut donc **deux releases** :
+   - release N : la seule migration `20261125120000`, sans le reste du lot (elle ne change aucun droit ; l'application en place reste compatible) ;
+   - entre les deux : un choix par compte (`company_plan_requalify`, connexion directe avec un auteur `admin_ops` ou `admin_founder` actif, ou session d'un tel admin), puis `company_plan_transition_report()` : tous les comptes « prêts ». Tout changement de plan fait entre-temps est journalisé (`audit_logs`, `company_plan_changed_before_transition`) et rend caduc le choix déjà enregistré pour ce compte ;
+   - release N+1 : la migration `20261125130000` et l'application du lot.
+4. Comptes déjà Free et comptes créés entre les deux releases : rien à faire (Free par défaut, aucun historique inventé).
+
+Procédure répétée le 2026-11-22 sur la pile de preuve (`db push --db-url` au lieu de `--linked`) : release N appliquée seule, premier essai de la release N+1 refusé sans effet tant qu'un compte restait sans choix, puis appliqué après les choix ; relance sans effet. Commandes et état observé : `docs/audit/AUDIT.md` §44, suivi du 2026-11-22.
+
 ## 7. Point de contrôle avant les premiers utilisateurs réels
 
 À trancher avant d'ouvrir l'accès, et non dans ce lot. Aucun dispositif payant ni stockage externe n'est activé ici.

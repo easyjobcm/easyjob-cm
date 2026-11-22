@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Briefcase, Edit2 } from "lucide-react";
+import { MapPin, Briefcase, Crown, Edit2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,17 +13,17 @@ import { ProfileAvatar3D } from "@/components/profile/profile-avatar-3d";
 import { ProfileCompletionRing } from "@/components/profile/profile-completion-ring";
 import { ReputationProgressCard } from "@/components/reputation/reputation-progress-card";
 import { ProfileMenu } from "@/components/profile/profile-menu";
-import { PlanBadge } from "@/components/company/profile/plan-badge";
-import { UpgradeBanner } from "@/components/company/profile/upgrade-banner";
 import { ActiveJobsCounter } from "@/components/company/profile/active-jobs-counter";
-import { PremiumCompanyBenefits } from "@/components/company/profile/premium-company-benefits";
+import { CompanyPlanCard } from "@/components/company/profile/company-plan-card";
 import { StatusPill } from "@/components/candidate/profile/status-pill";
 import { type Criterion } from "@/lib/utils/profile-completion";
-import { type CompanyPlan, getPlanLimits } from "@/lib/utils/profile-status";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useAccountState } from "@/lib/realtime/provider";
-import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
+import {
+  normalizeCompanyPlan,
+  type CompanyPlan,
+} from "@/lib/utils/company-plan";
 import { CompanyVerificationCard } from "@/components/company/company-verification-card";
 import type { MyCompanyVerification } from "@/lib/utils/company-verification";
 
@@ -41,10 +41,11 @@ interface CompanyProfileClientProps {
   } | null;
   completionPct: number;
   criteria: Criterion[];
+  /** ABO-07 : plan effectif lu dans my_account_state au rendu serveur. */
   plan: CompanyPlan;
+  premiumUntil: string | null;
+  premiumStartedAt: string | null;
   activeJobsCount: number;
-  subscriptionExpiresAt: string | null;
-  hasUsedTrial: boolean;
   /** Lot 11 : état du dossier entreprise (revue EasyJob). */
   verification: MyCompanyVerification | null;
 }
@@ -88,65 +89,37 @@ export function CompanyProfileClient({
   completionPct,
   criteria: _criteria,
   plan: initialPlan,
+  premiumUntil: initialPremiumUntil,
+  premiumStartedAt: initialPremiumStartedAt,
   activeJobsCount,
-  subscriptionExpiresAt: initialExpiresAt,
-  hasUsedTrial,
   verification,
 }: CompanyProfileClientProps) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
-  // Lot 7d : plan effectif relu en direct (activation, changement, échéance
-  // sur l'heure du serveur) ; rendu serveur en attendant.
+  // ABO-07 : plan effectif relu en direct (attribution, arrêt, échéance sur
+  // l'heure du serveur) ; rendu serveur en attendant. Jamais le rôle.
   const account = useAccountState();
-  const plan: CompanyPlan = account?.company
-    ? normalizeCompanyPlan(account.company.effective_plan)
+  const company = account?.company ?? null;
+  const plan: CompanyPlan = company
+    ? normalizeCompanyPlan(company.effective_plan)
     : initialPlan;
-  const subscriptionExpiresAt = account?.company
-    ? account.company.expires_at
-    : initialExpiresAt;
-  // SRS v1.2 : la source de vérité est company_profiles.subscription_plan, jamais role.
-  const isPaidPlan = plan !== "free";
-  const premium = isPaidPlan; // alias visuel pour orbes/glow
-  const limits = getPlanLimits(plan);
+  const premiumUntil = company ? company.expires_at : initialPremiumUntil;
+  const premiumStartedAt = company
+    ? (company.premium_started_at ?? null)
+    : initialPremiumStartedAt;
+  const premium = plan === "premium";
+  const accent = premium ? "#7C3AED" : "#6B7280";
 
   const displayName = profile?.company_name || user.phone || "—";
   const initial = profile?.company_name?.[0] || user.phone?.[0] || "E";
   const contactInfo = user.phone || user.email || "";
 
-  // Hero gradient aligné palette SRS v1.2
-  const heroGradient =
-    plan === "business"
-      ? "bg-linear-to-br from-[#1F2937] via-[#92400E] to-[#D97706]" // doré
-      : plan === "pro"
-        ? "bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]" // violet
-        : plan === "starter"
-          ? "bg-linear-to-br from-[#0F172A] via-[#1E3A8A] to-[#2563EB]" // bleu
-          : "bg-linear-to-br from-[#1F2937] via-[#374151] to-[#6B7280]"; // gris (free)
-
-  // Libellé du badge plan
-  const planLabel = (() => {
-    switch (plan) {
-      case "starter":
-        return t.profile.plan.starter;
-      case "pro":
-        return t.profile.plan.pro;
-      case "business":
-        return t.profile.plan.business;
-      case "free":
-      default:
-        return t.profile.plan.free;
-    }
-  })();
-
-  // Couleur d'accent alignée sur le plan
-  const planAccentColor =
-    plan === "business"
-      ? "#D97706"
-      : plan === "pro"
-        ? "#7C3AED"
-        : plan === "starter"
-          ? "#2563EB"
-          : "#6B7280"; // free → gris
+  const heroGradient = premium
+    ? "bg-linear-to-br from-[#1A0A2E] via-[#3B0764] to-[#7C3AED]"
+    : "bg-linear-to-br from-[#1F2937] via-[#374151] to-[#6B7280]";
+  const planLabel = premium
+    ? t.profile.companyPlan.premium
+    : t.profile.companyPlan.free;
 
   return (
     <AppShell hideNav>
@@ -159,14 +132,14 @@ export function CompanyProfileClient({
             <>
               <HeroOrb
                 size={200}
-                color={`${limits.accent}55`}
+                color={`${accent}55`}
                 x="-15%"
                 y="-25%"
                 delay={0}
               />
               <HeroOrb
                 size={110}
-                color={`${limits.accent}66`}
+                color={`${accent}66`}
                 x="65%"
                 y="5%"
                 delay={2}
@@ -227,7 +200,7 @@ export function CompanyProfileClient({
                 <motion.div
                   aria-hidden
                   className="pointer-events-none absolute -inset-5 rounded-full blur-2xl"
-                  style={{ background: `${limits.accent}99` }}
+                  style={{ background: `${accent}99` }}
                   animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
                   transition={{
                     duration: 3,
@@ -240,22 +213,18 @@ export function CompanyProfileClient({
                 <ProfileAvatar3D
                   initial={initial}
                   size={100}
-                  accentColor={planAccentColor}
+                  accentColor={accent}
                 />
               </div>
             </div>
 
             <div className="mt-4 flex flex-col items-center gap-2 text-center">
               <div data-testid="company-plan" data-plan={plan}>
-                {plan === "free" ? (
-                  <StatusPill
-                    label={planLabel}
-                    Icon={Briefcase}
-                    variant="neutral"
-                  />
-                ) : (
-                  <PlanBadge plan={plan} label={planLabel} />
-                )}
+                <StatusPill
+                  label={planLabel}
+                  Icon={premium ? Crown : Briefcase}
+                  variant={premium ? "premium" : "neutral"}
+                />
               </div>
 
               <motion.h1
@@ -315,21 +284,15 @@ export function CompanyProfileClient({
             <ReputationProgressCard />
           </motion.div>
 
-          {/* Compteur d'offres actives — limites visibles si standard */}
-          <ActiveJobsCounter used={activeJobsCount} limit={limits.jobsLimit} />
-
-          {/* Avantages du plan — affichés pour TOUS les plans (free inclus) */}
-          <PremiumCompanyBenefits
+          {/* Plan effectif (ABO-07) et fonction liée (ABO-08) */}
+          <CompanyPlanCard
             plan={plan}
-            limits={limits}
-            expiresAt={subscriptionExpiresAt}
-            locale={locale}
+            premiumUntil={premiumUntil}
+            premiumStartedAt={premiumStartedAt}
           />
 
-          {/* Bannière upgrade — uniquement free/starter */}
-          {plan === "free" || plan === "starter" ? (
-            <UpgradeBanner currentPlan={plan} hasUsedTrial={hasUsedTrial} />
-          ) : null}
+          {/* Offres actives illimitées pour les deux plans (ABO-10) */}
+          <ActiveJobsCounter used={activeJobsCount} />
 
           {/* Infos entreprise */}
           {(profile?.sector || profile?.city) && (

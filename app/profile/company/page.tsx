@@ -4,7 +4,7 @@ import {
   computeCompanyCriteria,
   computeCompletion,
 } from "@/lib/utils/profile-completion";
-import { normalizeCompanyPlan } from "@/lib/utils/profile-status";
+import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
 import { accountStateSchema } from "@/lib/realtime/signals";
 import { CompanyProfileClient } from "./company-profile-client";
 import { LiveRefresh } from "@/lib/realtime/provider";
@@ -39,20 +39,10 @@ export default async function CompanyProfilePage() {
   const { data: companyProfile } = await supabase
     .from("company_profiles")
     .select(
-      "id, company_name, sector, description, logo_url, city, address, rccm, niu, contact_name, contact_phone, subscription_tier, subscription_plan, subscription_expires_at, trial_ends_at",
+      "id, company_name, sector, description, logo_url, city, address, rccm, niu, contact_name, contact_phone",
     )
     .eq("user_id", user.id)
     .single();
-
-  // Abonnement actif pour les détails de plan
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("plan, expires_at, status")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
   // Comptage offres actives (utilisé pour le compteur côté standard)
   let activeJobsCount = 0;
@@ -65,25 +55,14 @@ export default async function CompanyProfilePage() {
     activeJobsCount = count ?? 0;
   }
 
-  // SRS v1.2 : source de vérité = company_profiles.subscription_plan
-  const planRaw =
-    companyProfile?.subscription_plan ??
-    subscription?.plan ??
-    companyProfile?.subscription_tier ??
-    "free";
-  // Lot 7d : échéance appliquée (même règle que company_effective_plan).
-  const subscriptionExpiresAt =
-    companyProfile?.subscription_expires_at ?? subscription?.expires_at ?? null;
-  // Plan effectif calculé en base (heure du serveur), comme update_job.
+  // ABO-07 : plan effectif calculé en base (company_effective_plan, heure du
+  // serveur), seule source ; aucune lecture de repli (ancienne colonne,
+  // table subscriptions). Sans réponse lisible : Free, jamais un droit
+  // supposé.
   const { data: accountRaw } = await supabase.rpc("my_account_state");
   const accountState = accountStateSchema.safeParse(accountRaw);
-  const plan =
-    accountState.success && accountState.data.company
-      ? normalizeCompanyPlan(accountState.data.company.effective_plan)
-      : normalizeCompanyPlan(planRaw);
-
-  // SRS v1.2 : l'essai est consommé dès que trial_ends_at est défini en DB
-  const hasUsedTrial = !!companyProfile?.trial_ends_at;
+  const company = accountState.success ? accountState.data.company : null;
+  const plan = normalizeCompanyPlan(company?.effective_plan);
 
   // Lot 11 : état des contrôles et pièces manquantes (jamais la note interne).
   const { data: verificationRaw } = await supabase.rpc(
@@ -118,9 +97,9 @@ export default async function CompanyProfilePage() {
         completionPct={completionPct}
         criteria={criteria}
         plan={plan}
+        premiumUntil={company?.expires_at ?? null}
+        premiumStartedAt={company?.premium_started_at ?? null}
         activeJobsCount={activeJobsCount}
-        subscriptionExpiresAt={subscriptionExpiresAt}
-        hasUsedTrial={hasUsedTrial}
         verification={verification}
       />
     </>

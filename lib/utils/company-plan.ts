@@ -1,68 +1,28 @@
-// Helper de lecture/évaluation du plan entreprise (SRS v1.2).
-// IMPORTANT : la source de vérité est company_profiles.subscription_plan,
-// JAMAIS user.role.
+// Plan entreprise effectif (ABO-07, docs/product/DECISIONS.md).
+// Source de vérité : company_effective_plan en base, lu par
+// my_account_state (`company.effective_plan`). Jamais user.role : le rôle
+// company_premium seul n'accorde aucun avantage (ABO-11).
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { COMPANY_PLAN_FEES, type CompanyPlan } from "@/lib/types";
+import type { CompanyPlan } from "@/lib/types";
 
 export type { CompanyPlan };
 
-export interface CompanyPlanPermissions {
-  serviceFeePct: number;
-  urgentFee: number;
-  selectionDeadlineHours: number;
-  lateCancellationHours: number;
-  canDirectEdit: boolean;
-  hasFreeUrgent: boolean;
-  hasAiRecommendations: boolean;
-  hasFavorites: boolean;
-  hasDirectInvite: boolean;
-  hasTemplates: boolean;
-  hasMonthlyReport: boolean;
-  hasPdfExport: boolean;
-  hasGuaranteedReplacement: boolean;
-  hasBulkHiring: boolean;
-  hasPriorityInvite: boolean;
-  hasAvailabilityAlerts: boolean;
-  hasPresenceDashboard: boolean;
-  hasSectorContracts: boolean;
-  hasAdvancedReporting: boolean;
-  hasDedicatedManager: boolean;
-  hasPrioritySLA: boolean;
-  hasImmediateModeration: boolean;
-  trialDays: number;
+/**
+ * Valeur renvoyée par la base → plan connu. Toute autre valeur (absente,
+ * inattendue) vaut Free : l'écran n'accorde jamais un droit que la base ne
+ * confirme pas ; la base revérifie chaque action.
+ */
+export function normalizeCompanyPlan(value?: string | null): CompanyPlan {
+  return value === "premium" ? "premium" : "free";
 }
 
-export function getCompanyPlanPermissions(
-  plan: CompanyPlan,
-): CompanyPlanPermissions {
-  const proOrBetter = plan === "pro" || plan === "business";
-  const businessOnly = plan === "business";
-  return {
-    serviceFeePct: COMPANY_PLAN_FEES[plan].serviceFeePct,
-    urgentFee: COMPANY_PLAN_FEES[plan].urgentFee,
-    selectionDeadlineHours: COMPANY_PLAN_FEES[plan].selectionDeadlineHours,
-    lateCancellationHours: COMPANY_PLAN_FEES[plan].lateCancellationHours,
-    canDirectEdit: proOrBetter,
-    hasFreeUrgent: proOrBetter,
-    hasAiRecommendations: proOrBetter,
-    hasFavorites: proOrBetter,
-    hasDirectInvite: proOrBetter,
-    hasTemplates: proOrBetter,
-    hasMonthlyReport: proOrBetter,
-    hasPdfExport: proOrBetter,
-    hasGuaranteedReplacement: businessOnly,
-    hasBulkHiring: businessOnly,
-    hasPriorityInvite: businessOnly,
-    hasAvailabilityAlerts: businessOnly,
-    hasPresenceDashboard: businessOnly,
-    hasSectorContracts: businessOnly,
-    hasAdvancedReporting: businessOnly,
-    hasDedicatedManager: businessOnly,
-    hasPrioritySLA: businessOnly,
-    hasImmediateModeration: businessOnly,
-    trialDays: COMPANY_PLAN_FEES[plan].trialDays,
-  };
+/**
+ * ABO-08 : modification directe d'une offre active réservée à Premium
+ * (aucun candidat sélectionné, nouvelle modération, calendrier figé :
+ * contrôlés par `update_job`).
+ */
+export function companyCanDirectEdit(plan: CompanyPlan): boolean {
+  return plan === "premium";
 }
 
 /**
@@ -77,44 +37,4 @@ export function isCandidatePremiumActive(
   if (role !== "candidate_premium" || !premiumUntil) return false;
   const end = Date.parse(premiumUntil);
   return Number.isFinite(end) && end > nowMs;
-}
-
-export function isPlanAtLeast(
-  plan: CompanyPlan,
-  minimum: CompanyPlan,
-): boolean {
-  const order: CompanyPlan[] = ["free", "starter", "pro", "business"];
-  return order.indexOf(plan) >= order.indexOf(minimum);
-}
-
-export function normalizeCompanyPlan(value?: string | null): CompanyPlan {
-  switch ((value ?? "free").toLowerCase()) {
-    case "starter":
-      return "starter";
-    case "pro":
-      return "pro";
-    case "business":
-      return "business";
-    default:
-      return "free";
-  }
-}
-
-/**
- * Lit le plan effectif d'une entreprise depuis company_profiles.subscription_plan.
- * À utiliser systématiquement côté serveur — jamais se baser sur user.role.
- */
-export async function getCompanyPlan(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, "public", any>,
-  userId: string,
-): Promise<CompanyPlan> {
-  const { data } = await supabase
-    .from("company_profiles")
-    .select("subscription_plan")
-    .eq("user_id", userId)
-    .single();
-  return normalizeCompanyPlan(
-    (data as { subscription_plan?: string | null } | null)?.subscription_plan,
-  );
 }

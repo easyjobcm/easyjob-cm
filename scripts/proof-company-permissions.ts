@@ -400,6 +400,17 @@ async function main() {
 
     // ── B. Plan et avantages ─────────────────────────────────────
     const privileged: [string, CompanyUpdate][] = [
+      [
+        "subscription_plan = premium (ABO-07)",
+        {
+          subscription_plan: "premium",
+          subscription_expires_at: "2099-12-31T00:00:00Z",
+        },
+      ],
+      [
+        "premium_started_at modifié",
+        { premium_started_at: "2026-01-01T00:00:00Z" },
+      ],
       ["subscription_plan = business", { subscription_plan: "business" }],
       ["subscription_tier = business", { subscription_tier: "business" }],
       [
@@ -428,13 +439,14 @@ async function main() {
       company_name: "Créée par D",
       verification_status: "verified",
       niu_verified: true,
-      subscription_plan: "business",
+      subscription_plan: "premium",
+      subscription_expires_at: "2099-12-31T00:00:00Z",
     };
     const { error: insertErr } = await sessionD.client
       .from("company_profiles")
       .insert(malicious);
     report(
-      "C1 : INSERT malveillant (vérifié, business) → 42501, aucune ligne",
+      "C1 : INSERT malveillant (vérifié, premium) → 42501, aucune ligne",
       insertErr?.code === "42501" && (await countProfiles(idD)) === 0,
       { code: insertErr?.code },
     );
@@ -543,11 +555,15 @@ async function main() {
       catalog,
     );
     report(
-      "E2 : seules les RPC gardées du lot 11 (contrôle, décision finale, soumission) écrivent company_profiles en SECURITY DEFINER ; aucune n'exécute de SQL dynamique",
-      // Gardes de ces trois RPC prouvées par proof-company-verification (C1 à
-      // C5, D2, F1, F2, G1) ; toute autre fonction exposée fait échouer E2.
+      "E2 : seules les RPC gardées du lot 11 (contrôle, décision finale, soumission) et l'attribution du plan (ABO-07) écrivent company_profiles en SECURITY DEFINER ; aucune n'exécute de SQL dynamique",
+      // Gardes des trois RPC du lot 11 prouvées par proof-company-verification
+      // (C1 à C5, D2, F1, F2, G1) ; celles d'admin_manage_company_premium
+      // (ops et fondateur actifs, idempotence, état lu) par
+      // proof-company-premium (W1 à W3, G3, I1 à I3). La reprise des anciens
+      // plans (company_plan_transition_apply) n'est pas exposée. Toute autre
+      // fonction exposée fait échouer E2.
       catalog?.exposed_writers ===
-        "admin_record_company_check,admin_review_company,submit_company_verification",
+        "admin_manage_company_premium,admin_record_company_check,admin_review_company,submit_company_verification",
       catalog?.exposed_writers,
     );
     report(

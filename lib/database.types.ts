@@ -1021,6 +1021,162 @@ export type Database = {
           },
         ]
       }
+      company_plan_requalifications: {
+        Row: {
+          company_id: string
+          created_at: string
+          decided_by: string
+          decided_by_role: string
+          id: string
+          legacy_expires_at: string | null
+          legacy_plan: string
+          premium_until: string | null
+          reason: string
+          recorded_via: string
+          request_id: string
+          seq: number
+          target_plan: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          decided_by: string
+          decided_by_role: string
+          id?: string
+          legacy_expires_at?: string | null
+          legacy_plan: string
+          premium_until?: string | null
+          reason: string
+          recorded_via: string
+          request_id: string
+          seq?: never
+          target_plan: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          decided_by?: string
+          decided_by_role?: string
+          id?: string
+          legacy_expires_at?: string | null
+          legacy_plan?: string
+          premium_until?: string | null
+          reason?: string
+          recorded_via?: string
+          request_id?: string
+          seq?: never
+          target_plan?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_plan_requalifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_plan_requalifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_plan_requalifications_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_premium_grants: {
+        Row: {
+          actor_id: string
+          actor_role: string
+          company_id: string
+          created_at: string
+          ends_at: string | null
+          id: string
+          legacy_expires_at: string | null
+          legacy_plan: string | null
+          operation: string
+          period_started_at: string | null
+          previous_ends_at: string | null
+          reason: string
+          requalification_id: string | null
+          request_id: string
+          resulting_plan: string
+          source: string
+        }
+        Insert: {
+          actor_id: string
+          actor_role: string
+          company_id: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          legacy_expires_at?: string | null
+          legacy_plan?: string | null
+          operation: string
+          period_started_at?: string | null
+          previous_ends_at?: string | null
+          reason: string
+          requalification_id?: string | null
+          request_id: string
+          resulting_plan: string
+          source: string
+        }
+        Update: {
+          actor_id?: string
+          actor_role?: string
+          company_id?: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          legacy_expires_at?: string | null
+          legacy_plan?: string | null
+          operation?: string
+          period_started_at?: string | null
+          previous_ends_at?: string | null
+          reason?: string
+          requalification_id?: string | null
+          request_id?: string
+          resulting_plan?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_premium_grants_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_premium_grants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_premium_grants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_premium_grants_requalification_id_fkey"
+            columns: ["requalification_id"]
+            isOneToOne: false
+            referencedRelation: "company_plan_requalifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_profiles: {
         Row: {
           address: string | null
@@ -1050,6 +1206,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step: number | null
+          premium_started_at: string | null
           quartier: string | null
           rccm: string | null
           rccm_revision: number
@@ -1106,6 +1263,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step?: number | null
+          premium_started_at?: string | null
           quartier?: string | null
           rccm?: string | null
           rccm_revision?: number
@@ -1162,6 +1320,7 @@ export type Database = {
             | Database["public"]["Enums"]["onboarding_status"]
             | null
           onboarding_step?: number | null
+          premium_started_at?: string | null
           quartier?: string | null
           rccm?: string | null
           rccm_revision?: number
@@ -4754,6 +4913,7 @@ export type Database = {
         Args: { p_incident_id: string; p_motivation: string; p_outcome: string }
         Returns: Json
       }
+      admin_company_premium: { Args: { p_company_id: string }; Returns: Json }
       admin_confirm_mission_day: {
         Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
         Returns: {
@@ -4878,6 +5038,24 @@ export type Database = {
           p_reason: string
           p_request_id: string
           p_user_id: string
+        }
+        Returns: {
+          already_applied: boolean
+          grant_id: string
+          operation: string
+          plan: string
+          premium_started_at: string
+          premium_until: string
+        }[]
+      }
+      admin_manage_company_premium: {
+        Args: {
+          p_company_id: string
+          p_ends_at: string
+          p_expected_until: string
+          p_operation: string
+          p_reason: string
+          p_request_id: string
         }
         Returns: {
           already_applied: boolean
@@ -5384,6 +5562,34 @@ export type Database = {
           scheduled_start_at: string
           started_at: string
           status: Database["public"]["Enums"]["mission_status"]
+        }[]
+      }
+      company_plan_maintenance: { Args: never; Returns: boolean }
+      company_plan_requalify: {
+        Args: {
+          p_company_id: string
+          p_decided_by?: string
+          p_premium_until: string
+          p_reason: string
+          p_request_id: string
+          p_target: string
+        }
+        Returns: {
+          already_applied: boolean
+          requalification_id: string
+        }[]
+      }
+      company_plan_transition_apply: { Args: never; Returns: number }
+      company_plan_transition_report: {
+        Args: never
+        Returns: {
+          company_id: string
+          legacy_expires_at: string
+          legacy_plan: string
+          premium_until: string
+          ready: boolean
+          requalification_id: string
+          target_plan: string
         }[]
       }
       company_profile_completion_pct: {

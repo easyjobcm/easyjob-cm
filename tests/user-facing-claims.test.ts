@@ -78,6 +78,28 @@ function premiumClaimHits(text: string): string[] {
   return PREMIUM_FORBIDDEN.filter((re) => re.test(text)).map(String);
 }
 
+/**
+ * ABO-07 / ABO-08 (2026-11-20) : avantages des quatre anciens plans
+ * entreprise, non livrés et retirés du profil. Seuls le plan effectif, sa
+ * date de fin, « attribué par l'équipe EasyJob » et la modification directe
+ * réservée à Premium sont annoncés.
+ */
+const COMPANY_PLAN_FORBIDDEN: RegExp[] = [
+  /frais de service \d|\d+ ?% de frais|service fee \d|\d+ ?% service fee|0 ?% fees/i,
+  /SLA|support (prioritaire )?24 ?\/ ?7|24h\/7j|account manager|gestionnaire de compte dédié/i,
+  /modération immédiate|immediate moderation|validées en moins de 30 minutes/i,
+  /recrutement en masse|bulk hiring/i,
+  /apparaissent en priorité dans les recherches|visibilité accrue|increased visibility/i,
+  /plans? (Starter|Pro|Business)|(Starter|Pro|Business) plans?|plans Pro et Business/,
+  /options? urgentes? (payantes|incluses|illimitées|réduites?)|urgent options? (paid|included|unlimited|reduced)/i,
+  /contrats sectoriels|sector contracts|modèles juridiques validés/i,
+  /grandes entreprises camerounaises nous font|companies already trust us/i,
+];
+
+function companyPlanHits(text: string): string[] {
+  return COMPANY_PLAN_FORBIDDEN.filter((re) => re.test(text)).map(String);
+}
+
 const PREMIUM_SCOPE = [
   "lib/i18n/fr.ts",
   "lib/i18n/en.ts",
@@ -161,6 +183,48 @@ describe("promesses retirées (F-19)", () => {
       ),
     );
     expect(offenders).toEqual([]);
+  });
+
+  it("ABO-07 : aucun avantage des anciens plans entreprise n'est annoncé", () => {
+    const files = [
+      "lib/i18n/fr.ts",
+      "lib/i18n/en.ts",
+      "lib/chat/system-prompt.ts",
+      ...["app", "components", "hooks"]
+        .flatMap((d) => walk(d))
+        .filter((f) => /\.(ts|tsx)$/.test(f))
+        .map((f) => f.replace(/\\/g, "/")),
+    ];
+    const offenders = files.flatMap((f) =>
+      companyPlanHits(read(f)).map((re) => `${f} → ${re}`),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("ABO-07 : les motifs visent les anciens avantages, pas Free/Premium", () => {
+    for (const removed of [
+      "Frais de service 10%",
+      "0 % de frais de service",
+      "Support 24/7, traitement de vos tickets sous 1h.",
+      "Account Manager dédié",
+      "Vos offres sont validées en moins de 30 minutes.",
+      "Embauchez 10+ candidats : recrutement en masse",
+      "Vos offres apparaissent en priorité dans les recherches.",
+      "Offre publiée : la modification directe est réservée aux plans Pro et Business.",
+      "Options urgentes incluses",
+      "12 grandes entreprises camerounaises nous font déjà confiance",
+    ]) {
+      expect(companyPlanHits(removed), removed).not.toEqual([]);
+    }
+    for (const allowed of [
+      "Votre plan : Premium",
+      "Attribué par l'équipe EasyJob. Aucun paiement n'est effectué dans l'application.",
+      "La modification directe d'une offre publiée est réservée au plan Premium.",
+      "Offres illimitées",
+      "Offre urgente : elle commence dans moins de 24 h",
+    ]) {
+      expect(companyPlanHits(allowed), allowed).toEqual([]);
+    }
   });
 
   it("l'accueil n'affiche plus de compteurs d'utilisateurs sans source", () => {

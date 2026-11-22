@@ -3322,3 +3322,296 @@ Le détail d'offre, l'aperçu, le contrat (lots 12 et 13) et l'écran des candid
 Suite RLS complète non relancée : aucune migration ni fonction SQL modifiée. La première passe du parcours a échoué sur deux points du script (bouton « Voir » de la modération sous la barre fixe ; écran de correction d'une offre publiée fermé au plan gratuit). Elle a aussi révélé un débordement des boutons du dialogue à 375 px, corrigé.
 
 **Limite.** La carte d'une offre affiche « Horaires selon les journées » sans détail ; le détail par date reste sur la page de l'offre.
+
+## 43. Audit ciblé — abonnements entreprise, préalable au lot 17d-2 (2026-11-19)
+
+Cadrage documentaire, sans modification du code ni de la base. Point de départ (constat Git) : `origin/main-dev` = `7bf9bf8`, qui contient 17d-0 et 17d-1 (#57, `d346aeb`) et le correctif des horaires par journée (#59, `27bf80d`). La branche `feat/lot-17d2-company-cancellation` a été créée depuis cette base. Aucun fichier de code n'y est modifié et le stash de lint-staged est conservé. **17d-2 est suspendu (décision du 2026-11-19)** : le lot Free/Premium entreprise n'a encore été ni cadré ni livré. Méthode : lecture des dernières définitions SQL, des routes, des écrans et des dictionnaires, du SRS (§3, §5.3, §5.4, §6.11) et des user stories (US-SUB-02, offre urgente, modification d'offre). Aucune requête en base, aucune preuve exécutée.
+
+Identifiants du registre (`docs/product/DECISIONS.md`, depuis le 2026-11-19) : `ANN-06`, `ABO-05` à `ABO-18`, `MNT-09`, `MNT-10`, `ANN-14`, `ENT-01` à `ENT-07`. Rectification du 2026-11-19 : le quota d'offres (`ABO-10`) et les frais de publication urgente (`MNT-09`) sont décidés ; les propositions de ce paragraphe qui les concernent (« quota à arbitrer », « pas de déclinaison par plan » pour l'urgence) sont remplacées par ces entrées. Les avantages cibles **communs à Free et Premium** sont aussi décidés : duplication en brouillon, modèles, exports PDF/CSV et assistance sans garantie (`ABO-12` à `ABO-15`, `ENT-02`). Ils remplacent, sur ce périmètre, les lignes « Modèles d'offres (Pro) », « export PDF/Excel » et « Réutilisation d'une offre ou modèles : à décider » ci-dessous. Ils ne sont pas livrés. Les **favoris Premium** sont décidés pour les seuls candidats ayant déjà réalisé une mission pour l'entreprise : liste privée, sans coordonnée ni priorité, conservée mais suspendue à l'expiration de Premium (`ABO-16`). Ils remplacent, sur ce périmètre, la ligne « Favoris… (Pro, Business) » ci-dessous, sans valider l'invitation directe ni les invitations prioritaires. L'éligibilité après une réalisation partielle reste rattachée à l'arbitrage existant. Les **statistiques avancées Premium** sont décidées (`ABO-17`) : activité, recrutement, réalisation par catégorie de journée, montants contractuels et reconnus distincts des paiements, graphiques, comparaisons et filtres, sur la seule activité de l'entreprise. Free garde listes, compteurs et exports ; un indicateur peu fiable est affiché comme indisponible ; aucun paiement n'est simulé. Elles remplacent, sur ce périmètre, la ligne « Rapport mensuel, reporting basique ou avancé » ci-dessous (les factures restent au lot paiement). Non livrées : le tableau de bord n'a que quatre compteurs opérationnels. La **fourchette de rémunération Premium** est décidée (`ABO-18`, `MNT-10`) : montant fixe ou fourchette au choix de l'entreprise Premium ; montant demandé par le candidat dans les bornes (par journée pour les journées au choix) ; candidature acceptée à ce montant ou refusée, sans contre-offre ; montant unique figé par « Signer et sélectionner ». Les contrats existants ne changent pas, les offres publiées gardent leurs conditions après l'expiration de Premium, et l'entreprise ne reçoit aucun pouvoir sur les montants partiels. Complément du 2026-11-19 (`ABO-18`) : Premium doit être actif à la première publication (brouillon conservé si Premium a expiré : renouvellement ou montant fixe avant une nouvelle soumission) ; modifier les bornes d'une offre publiée exige Premium actif, aucun candidat sélectionné et une nouvelle modération, sans modifier automatiquement un montant demandé ni présumer un consentement. Ce complément ne vaut que pour les bornes et ne tranche pas les autres droits de modification (`ABO-08`). Non livrée : un seul montant fixe existe aujourd'hui. Encaissement et ajustements : lot paiement. Le **recrutement de remplacement après désistement** est décidé le 2026-11-20 (`ANN-14`), **commun à Free et Premium** : place réellement libérée, réouverture des seules places et journées libérées s'il reste au moins 4 h avant le début, fermeture à H−2, avis dans l'application et par e-mail aux anciens candidats non retenus, éligibles et disponibles (marge de 3 h), confirmation d'intérêt sans réactivation silencieuse, contrôles rejoués à « Signer et sélectionner », cycle distinct tracé. C'est une exception encadrée aux échéances initiales, sans modification des horaires publiés. La proposition qui réservait cette recherche à Premium n'est pas retenue (`ENT-03`). Complément du 2026-11-20 (`ANN-14`) : candidatures en attente et refusées alertées (confirmation d'intérêt explicite pour un refus) ; aucune alerte pour un retrait volontaire (retour volontaire possible dans ce seul cycle), pour le candidat à l'origine du désistement sur les journées abandonnées, ni pour un candidat déjà sélectionné ; confirmations rattachées au cycle, sans réactivation ni ancien consentement ; seuils de 4 h et H−2 appréciés au début de chaque journée libérée ; contrôles existants revérifiés à la sélection. Principe et destinataires validés ; fonctionnalité non livrée ; modalités restantes à cadrer (période commencée, règles financières, service d'e-mail, retour du candidat à l'origine du désistement). Non livré : aucune réouverture ni aucun service d'e-mail n'existe. Absences signalées et suspensions restent hors de ce périmètre. **Arbitrages 1 à 3 réglés le 2026-11-20** (`ABO-07`) : Free et Premium remplacent les quatre plans ; Free par défaut ; attribution tracée par `admin_ops` et `admin_founder` ; anciens comptes requalifiés explicitement, sans conversion de `starter`, `pro` ou `business` ; rôle `company_premium` sans effet (`ABO-11`). Les droits dépendant de `pro`/`business` (modification directe, `ABO-08`) ne sont pas repris d'office. L'arbitrage 9 est réglé dans le même sens : le lot « Plan entreprise effectif et gestion administrative tracée » précède 17d-2. **Lot réalisé le 2026-11-20** (non commité) : `ABO-08` tranché (modification directe réservée à Premium), profil entreprise limité au plan, à sa fin et à l'attribution (`ABO-19`), anciennes présentations à quatre plans retirées ; compte rendu au §44.
+
+**Décisions validées, conservées** (2026-11-19, pour 17d-2) : Free annule dans le délai jusqu'à 48 h avant la journée, Premium jusqu'à 24 h avant, limites incluses. Le plan est figé au moment de chaque sélection. Une annulation après le seuil reste possible ; elle est qualifiée de tardive. Les conséquences financières et les sanctions restent à définir.
+
+### Plans, rôles et appellations présents
+
+| Élément | Où | Valeurs | Usage réel |
+|---|---|---|---|
+| `company_profiles.subscription_plan` | `20260604120000` (SRS v1.2) | `free`, `starter`, `pro`, `business` (contrainte `company_profiles_subscription_plan_chk`) | Source déclarée du plan. Écrite par la clé service ou en SQL direct seulement (colonnes fermées aux sessions, `20261101130000`) |
+| `company_profiles.subscription_expires_at` | idem | Échéance ; vide = sans fin | Lue par `company_effective_plan` |
+| `company_effective_plan(plan, expires_at)` | `20261107150000` (lot 7d) | `free` si la valeur n'est ni `starter`, ni `pro`, ni `business`, ou si l'échéance est passée (`<= now()`, donc Free à l'instant exact de l'échéance) ; sinon la valeur stockée | `update_job`, `my_account_state`. **Aucun paramètre d'instant** : le calcul se fait toujours à `now()`, contrairement à `candidate_effective_plan(uid, at)` (lot 17a) |
+| `company_profiles.subscription_tier` | baseline | Ancienne appellation, recopiée vers `subscription_plan` en `20260604120000` | Lue en dernier repli par `/profile/company`, avant le plan calculé |
+| `company_profiles.trial_ends_at` | baseline | Fin d'essai | `hasUsedTrial` du profil, sans effet (essai masqué depuis le lot 9) |
+| Table `subscriptions` | baseline | `plan` en texte libre (« gratuit, starter, pro, business, premium »), `status`, `auto_renew`, `expires_at` | Lue par `my_account_state` (renouvellement affiché) et en repli par le profil. Écritures de session fermées (F-06, lot 2) ; aucun producteur dans l'application |
+| Rôle `company_premium` (`user_role`) | `20260526120000` | Rôle, pas un abonnement | Mêmes droits que `company` partout (`role in ('company', 'company_premium')`). Aucun parcours ne l'attribue : l'inscription crée `company`, `users.role` est fermé aux sessions (`20261031120000`). `isCompanyPremium()` n'a aucun appelant. Le SRS §3 lui prête « options urgentes gratuites, reporting, support prioritaire » : aucun de ces droits n'existe |
+| `COMPANY_PLAN_FEES` (`lib/types`) | TypeScript | Frais 10/8/0/0 %, urgence 2 000/1 000/0/0, `selectionDeadlineHours` 48/24/12/6, `lateCancellationHours` 48/48/24/12, `trialDays` 0/0/7/7 | Lue seulement par `getCompanyPlanPermissions`, qui n'a aucun appelant, pas plus que `getCompanyPlan` ni `isPlanAtLeast` (`lib/utils/company-plan.ts`). Rien n'y est une décision validée. Les délais de sélection contredisent le lot 11b (H−24 et H−2 pour tous) ; Business à 12 h contredit « Premium 24 h » |
+| `getPlanLimits` (`lib/utils/profile-status.ts`) | TypeScript | `directEdit` pour `pro` et `business`, offres illimitées pour tous, couleurs | Liste des offres, page de modification, profil entreprise |
+| **Free/Premium entreprise** | — | **Absent** | Aucune valeur, aucune fonction, aucun texte. La seule correspondance chiffrée entre plans et délai d'annulation (`lateCancellationHours`) est une constante sans appelant, non validée |
+
+### Activation, expiration et changement de plan
+
+- **Activation et changement** : aucune route, aucune RPC, aucun écran admin. Seule une écriture en clé service (ou en SQL direct) de `subscription_plan` et `subscription_expires_at` les permet. La fiche admin d'une entreprise n'affiche pas le plan. Il n'existe ni historique (aucun équivalent de `candidate_premium_grants`), ni motif, ni trace d'audit, ni notification.
+- **Expiration** : calculée à la lecture, sans écriture (lot 7d). Les écrans ouverts basculent par minuterie sur l'heure du serveur, puis par le signal `subscription` (`rt_on_company_profiles`, `rt_on_subscriptions`).
+- **Renouvellement, régularisation sous 3 jours, essai Pro de 14 jours, Mobile Money** (SRS §6.11, US-SUB-02) : absents.
+- **Interface** : « Changer de plan avec le support » (lien e-mail) et « Le changement de plan est effectué par l'équipe EasyJob ». Ces deux textes sont exacts.
+- **Conséquence pour 17d-2** : on peut calculer le plan effectif dans la transaction de sélection (`now()`). En revanche, rien n'atteste qui a fixé ce plan, quand, ni pourquoi. Un plan modifié en clé service juste avant une sélection ne laisserait aucune trace. Figer un délai de 24 h sur une telle base n'est pas vérifiable.
+
+### Avantages annoncés et comportement réel
+
+Sources : SRS §6.11 (tableau entreprise), §3 (rôle `company_premium`), §5.3, §5.4 ; US-SUB-02 et user stories de l'offre urgente et de la modification ; écran `/profile/company` (`PremiumCompanyBenefits` : avantages du plan courant ; `UpgradeBanner` : plans supérieurs, pour Free et Starter). Les composants `premium-company-showcase` et `plan-features` n'ont **aucun appelant** : leurs textes existent dans les dictionnaires mais ne sont pas affichés.
+
+| Avantage annoncé (source) | Comportement réel | Contrôle serveur | Écart | Proposition de traitement |
+|---|---|---|---|---|
+| Offres actives : Free 2, Starter 5, Pro et Business illimitées (SRS §6.11, US-SUB-02) ; écran : « Offres illimitées » pour tous (`jobsUnlimited`, compteur) | Aucune limite | Aucun | Le SRS et l'écran se contredisent ; aucun quota décidé | Arbitrer : illimité pour tous (déjà affiché) ou quota Free (nombre à décider). Aucun chiffre fixé ici |
+| Modification directe des offres actives, Pro et Business (SRS §6.11 ; §5.4 « comptes premium ») ; US : modification par un compte premium même quota atteint (date, nombre, salaire), candidats prévenus ; écran : « Éditez vos offres publiées à tout moment, sans support » | Plan effectif `pro` ou `business` : modification d'une offre active **sans candidat sélectionné**, qui repasse en modération (`pending_review`). Dates et horaires figés après publication pour tous (`job_schedule_locked`) ; refus pour tous dès qu'une place est pourvue (`job_has_selected_candidates`). Free et Starter : `job_locked_plan` | `update_job`, avec `company_effective_plan` : **seul droit lié au plan contrôlé en base** | La user story contredit le calendrier figé (lot 11b) et l'engagement signé. « À tout moment, sans support » est inexact : il y a un retour en modération et des verrous | Candidat crédible pour Premium, réalisable avec le contrôle existant. Texte à rectifier. Jamais après une sélection : cela relève de la correction encadrée par le support (futur lot) |
+| Options urgentes : payantes pour Free (2 000 FCFA), réduites pour Starter (1 000 FCFA), incluses pour Pro et Business (SRS §5.x, §6.11 ; US offre urgente ; `urgentPaid`, `urgentReduced`, `freeUrgent`, `starterKicker`, `tagline`) | Le régime urgent se déduit de l'horaire à la première publication, sans option ni frais (lots 9d, 11b) | — | Promesse d'une option et d'un prix qui n'existent pas | Retirer des textes. Pas de déclinaison par plan : l'urgence n'est pas une option |
+| Frais de service 10 / 8 / 0 % (`serviceFee10`, `reducedFee`, `zeroFee`, accroches) | Aucun prélèvement, aucun paiement | — | Frais annoncés inexistants | Retirer ; lot paiement |
+| Visibilité accrue, « offres en priorité dans les recherches » (Starter ; SRS « légère mise en avant ») | Liste des offres sans critère de plan | — | Non livré | Retirer. Ne pas proposer sans règle de classement (même réserve que pour la priorité candidat, §38) |
+| Indicateurs de fiabilité, recommandations IA (Pro ; `aiMatch`, `aiRecoOn`) | Étoiles et vérifications visibles par **toutes** les entreprises ; la route de matching n'a aucun appelant | Aucun contrôle de plan | Fonction commune présentée comme un avantage Pro | Présenter comme commun, ou retirer de la liste Pro |
+| Favoris, invitation directe, invitations prioritaires, alertes de disponibilité (Pro, Business) | Absents côté entreprise (`job_favorites` sert aux favoris d'offres du candidat) | — | Non livré. Une invitation directe contournerait la candidature publique et ses contrôles (profil, CNI, documents) | Retirer. Futur lot si décidé, avec les contrôles de candidature rejoués |
+| Modèles d'offres (Pro) ; « réutiliser une ancienne offre » pour toute entreprise (SRS §5.4) | Absent (seule la recopie d'horaires entre journées existe dans le formulaire) | — | Non livré ; le SRS le prévoit pour tous | Retirer de Pro. Futur lot, plan à décider |
+| Rapport mensuel, reporting basique ou avancé, export PDF/Excel, factures (Pro, Business) | Tableau de bord simple ; aucune facture | — | Non livré | Retirer ; futur lot (données, ou paiement pour les factures) |
+| Recrutement en masse, 10 candidats et plus (Business) | Une sélection signée à la fois (`sign_and_select`, conflits de 3 h) | — | Non livré, contraire à la signature par sélection | Retirer |
+| Tableau de présence en temps réel (Business) | Début et fin de journée visibles sur chaque mission (lots 7c, 15), pour tous ; aucune vue d'ensemble | — | Partiel, et commun | Retirer de Business. Vue d'ensemble éventuelle plus tard |
+| Contrats sectoriels validés (Business) | Deux modèles, `simple` et `formal`, pour tous (lot 13) | — | Non livré ; aucune validation juridique | Retirer |
+| Remplacement garanti sous 2 h (Business, SRS §6.11) ; texte actuel « Aide en cas d'absence… contactez le support » | Aucun remplacement ; le support est le même pour tous | — | Promesse déjà reformulée (lot 9), mais encore classée « Business » | Présenter comme commun ; le remplacement relève de 17d-4 |
+| SLA prioritaire, support 24/7, traitement sous 1 h, account manager (SLA 4 h), support standard 48 h (Starter, Business) | Aucune file prioritaire, aucun délai | — | Engagements de service non tenus | Retirer. Un engagement de service est une décision opérationnelle, pas un développement |
+| Modération immédiate en moins de 30 min (Business) | File unique de modération | — | Non livré | Retirer. À ne pas proposer : cela presserait la vérification |
+| Essai gratuit de 7 ou 14 jours (SRS §6.11, US-SUB-02) | Aucun essai ; badge masqué (lot 9) | — | Déjà refusé par `user-facing-claims` | Laisser retiré |
+| Prix de 5 000, 12 000 et 25 000 FCFA (SRS §6.11, US-SUB-02) | Non affichés | — | Aucune décision commerciale récente | Hors périmètre : aucun prix fixé ici |
+| Annulation, tous plans : « aucune somme n'est bloquée ni retenue… Contactez le support avant d'annuler une mission engagée » | Exact aujourd'hui | — | À revoir avec 17d-2 | Réécrire avec 17d-2 |
+| Showcase non affiché (« −45 % », « ×2 », « 12 grandes entreprises… », multi-utilisateurs, branding) ; `plan-features` (« 2 offres actives maximum ») | Non affichés | — | Textes inutilisés, chiffres sans source | Supprimer lors de la réécriture, pour éviter leur réemploi |
+| Offres illimitées, contrat signé, historique (Free) | Livrés pour tous | Contrôles existants | Aucun | Conserver, comme fonctions communes |
+
+`user-facing-claims` ne couvre aujourd'hui que les promesses candidat (lot 17a) et les promesses générales du lot 9. Aucun motif ne vise les avantages entreprise ci-dessus.
+
+### Dépendances avec les parcours
+
+- **Publication** : modération, dossier vérifié (lot 11), échéances et régime (lot 11b) identiques pour tous les plans. Aucun quota. Le badge « Urgente » est calculé.
+- **Correction** : le seul droit lié au plan est la modification d'une offre active sans sélection (Pro et Business). Après publication, le calendrier est figé pour tous. La correction encadrée des horaires par le support reste un futur lot.
+- **Annulation** : 17d-1 (clôture sans engagement) ne dépend d'aucun plan. 17d-2 a besoin d'un plan Free/Premium entreprise **fiable, tracé et figé à la sélection** (comme 17a pour le candidat) ; sinon, ses engagements n'ont pas de délai déterminable.
+- **Remplacement** : aucun lien au plan aujourd'hui. Si l'annonce Business (« remplacement garanti ») était reprise, elle dépendrait de 17d-4 et ne devrait pas être promise.
+- **Paiement** : frais, urgence payante, prix, essai, renouvellement, régularisation et factures dépendent tous du lot paiement.
+
+### Grille Free/Premium entreprise proposée (à valider)
+
+**Communs aux deux plans** (déjà livrés) : publication soumise à modération, dossier vérifié, offres en nombre non limité (tant que l'arbitrage 7 n'en décide pas autrement), échéances du lot 11b, calendrier figé, sélection signée et contrat, réputation, indicateurs de fiabilité, suivi des journées, support, signalements, contestations, clôture d'une offre sans engagement.
+
+| Avantage | Plan | Valeur pour l'entreprise | Effet sur les candidats et sur Free | Dépendance, coût | Réalisable |
+|---|---|---|---|---|---|
+| Annulation dans le délai jusqu'à 48 h avant la journée | Free | Règle claire, affichée par engagement | Préavis de 48 h au moins | 17d-2 | Avec 17d-2 |
+| Annulation dans le délai jusqu'à 24 h avant la journée (**validé**) | Premium | Souplesse | Le candidat reçoit un préavis plus court. À compenser au moins par une information (arbitrage 5) | 17d-2, et un plan effectif fiable et tracé (prérequis ci-dessous) | Avec 17d-2, après le prérequis |
+| Modification directe d'une offre active sans candidat sélectionné (retour en modération, calendrier figé) | Premium (option) ; ou tous ; ou retirée | Corriger une offre publiée sans passer par le support | Aucun, puisqu'aucun engagement n'existe | Contrôle existant dans `update_job`, à rebrancher sur le plan Premium | Immédiat |
+| Relevé d'activité (offres, journées confirmées, montants contractuels ; sans avis ni donnée privée de candidat) | Premium (option) | Suivi pour la comptabilité interne | Aucun ; l'historique reste visible pour tous dans l'application | Générateur PDF du lot 13 et données existantes ; coût faible. Ce n'est ni une facture ni une attestation | Après 17d, dans le lot Free/Premium |
+| Vue d'ensemble de la présence du jour | À décider | Suivi de plusieurs missions | Aucun | Données des lots 7c et 15 ; lot Design entreprise | Futur lot |
+| Réutilisation d'une offre ou modèles | À décider (le SRS §5.4 la prévoit pour tous) | Publier plus vite | Aucun | Formulaire du lot 12 ; nouvelle publication et modération complètes | Futur lot |
+| Frais réduits, urgence, factures, essai | — | — | — | Lot paiement | Futur lot |
+| Engagement de délai du support | — | — | — | Décision opérationnelle et effectifs, pas un développement | Hors logiciel |
+
+**Non recommandés** : priorité d'affichage des offres (aucune règle de classement), modération immédiate (pression sur la vérification), invitation directe sans candidature (contournerait les contrôles), recrutement en masse (contraire à la signature par sélection), remplacement garanti, contrats sectoriels sans validation juridique.
+
+**Lecture commerciale** : une fois les promesses non livrées retirées, Premium entreprise repose sur le délai de 24 h et, si l'arbitrage 4 le retient, sur la modification directe. Sa valeur reste mince tant que le paiement n'existe pas. Le délai de 24 h a un coût pour les candidats, qui reçoivent un préavis plus court.
+
+### Prérequis techniques de 17d-2 (proposition, non implémentée)
+
+- **Un seul calcul en base du plan entreprise** (`free` ou `premium`), lu dans la transaction de sélection et figé par engagement, comme `mission_day_commitment_terms` (17a). Aucune valeur fournie par le navigateur.
+- **Attribution tracée**, sur le modèle de 17a : grades à décider, date de fin explicite, motif, historique en ajout seul, audit, notification et signal `subscription`. Sans cela, un délai de 24 h figé n'est pas vérifiable.
+- **Valeurs existantes `starter`, `pro`, `business`** : aucune correspondance n'est décidée (arbitrage 2). Requête de lecture à exécuter avant toute décision : `select subscription_plan, subscription_expires_at is null or subscription_expires_at > now() as en_cours, count(*) from public.company_profiles group by 1, 2;`.
+- **Engagements antérieurs** : historiques, délai inconnu, aucune qualification tardive (décision validée, conservée).
+- **Rôle `company_premium`** : sans effet sur les droits, déjà le cas en base. À clarifier dans le SRS §3.
+
+### Arbitrages nécessaires à la validation de la grille
+
+1. **Modèle de plans** : deux plans Free et Premium remplacent les quatre plans stockés, ou Premium s'ajoute à côté d'eux. Dans les deux cas, une seule source de vérité.
+2. **Sort des valeurs `starter`, `pro`, `business` et du rôle `company_premium`** : correspondance explicite décidée par le produit, ou requalification au cas par cas par le support avant activation, ou autre règle. Droits pendant la transition (la modification directe est aujourd'hui réservée à `pro` et `business`).
+3. **Attribution** : administrative et tracée comme en 17a (grades, date de fin explicite, motif, historique), ou une autre voie avant le lot paiement.
+4. **Avantages Premium retenus** : délai de 24 h (acquis) ; modification directe (Premium, tous les plans, ou retirée) ; relevé d'activité ; autres lignes de la grille.
+5. **Information du candidat** : afficher sur chaque engagement la date limite d'annulation dans le délai par l'entreprise, sans nommer son plan, ou ne rien afficher.
+6. **Textes** : retrait immédiat des avantages non livrés (tableau ci-dessus) et ajout de motifs entreprise à `user-facing-claims` ; sort des prix, de l'essai et des quotas dans le SRS et les user stories.
+7. **Quota d'offres actives** : abandonné (illimité pour tous, comme l'écran l'affiche) ou quota Free, dont le nombre reste à décider. *Réglé le 2026-11-19 : `ABO-10` (registre).*
+8. **Vestiges** : `subscription_tier`, `trial_ends_at`, table `subscriptions`, `COMPANY_PLAN_FEES`, `getCompanyPlanPermissions`, `getCompanyPlan`, `isPlanAtLeast`, `isCompanyPremium`, composants non affichés : à supprimer, ou à conserver jusqu'au lot paiement.
+9. **Ordre** : livrer d'abord le plan entreprise effectif et son attribution (sous-lot préalable), puis 17d-2 tel que validé ; ou livrer 17d-2 avec une annulation opérationnelle seule, sans classement, en marquant ses engagements « délai non déterminé » jusqu'au plan entreprise.
+
+**Limites.** Audit par lecture seule : la répartition réelle des plans stockés (développement, production) n'a pas été mesurée. Les dates des décisions citées viennent des documents du dépôt.
+
+## 44. Suivi — Plan entreprise effectif et gestion administrative tracée (2026-11-20)
+
+Branche `feat/company-premium-plan`, créée depuis `origin/main-dev` (`7bf9bf8`, inchangé : constat Git) avec le travail documentaire en cours (registre, §43). Non commitée. Stash de lint-staged conservé. Essais sur la pile `easyjob-proof` uniquement ; ni la pile de développement ni le projet distant n'ont été lus.
+
+**Décisions appliquées** (registre `docs/product/DECISIONS.md`) : `ABO-07` (Free/Premium, attribution, échéance, reprise explicite, rôle), `ABO-08` (modification directe réservée à Premium, confirmée le 2026-11-20 `[UV]`), `ABO-11` (rôle seul sans effet), `ABO-19` (profil entreprise, confirmé le 2026-11-20 `[UV]`). Non tranchées et non implémentées : corrections après sélection, parcours de correction du support (`ECH-05`), avantages validés mais non livrés, communs aux deux plans (`ABO-12` à `ABO-15`) et Premium (`ABO-16` à `ABO-18`), frais d'urgence (`MNT-09`), paiement.
+
+### Inventaire préalable
+
+`easyjob-proof`, lecture seule, avant réinitialisation : aucune ligne `company_profiles`, aucun compte entreprise, aucune ligne `subscriptions` (les preuves purgent leurs fixtures). Aucune ancienne valeur n'y existait : la reprise est prouvée avec des fixtures locales. La production n'a pas été inventoriée (requête de lecture fournie ci-dessous).
+
+### Réalisation
+
+| Sujet | Mise en œuvre |
+|---|---|
+| Migration 1/2 (`20261125120000`, additive) | `company_plan_requalifications` (ajout seul) : choix explicite Free, ou Premium avec date de fin, pour un compte qui porte encore `starter`, `pro` ou `business` ; ancienne valeur et ancienne échéance recopiées au moment du choix ; auteur (`admin_ops` ou `admin_founder` actif), motif de 10 à 500 caractères, voie (`admin_session` ou `database_maintenance`), clé d'idempotence, numéro d'ordre `seq`. `company_plan_requalify` : session d'un ops ou fondateur actif, ou connexion directe à la base (`session_user` postgres) avec un auteur désigné qui doit être ops ou fondateur actif ; jamais PostgREST, clé service comprise. N'écrit pas le plan. `company_plan_transition_report()` : comptes anciens et état « prêt ». Aucun droit modifié. |
+| Migration 2/2 (`20261125130000`) — garde | Premier bloc, en lecture seule : si un compte ancien n'a pas de choix à jour (choix le plus récent portant sur l'ancienne valeur et l'échéance encore en base), `company_plan_transition_blocked`, avec en détail le nombre, les anciennes valeurs et les identifiants. La CLI applique chaque fichier dans une transaction : constaté le 2026-11-20 sur une première version fautive de la migration (erreur au 15e énoncé) ; table d'historique absente, ancienne contrainte intacte, version non enregistrée. |
+| Reprise | `company_plan_transition_apply()` (propriétaire seulement) : même contrôle après verrouillage des lignes, puis pour chaque compte : plan stocké = choix (Premium avec sa fin, ou Free sans fin), début de période pour Premium, ligne `company_premium_grants` « requalify » (ancienne valeur, ancienne échéance, auteur et motif du choix, source `requalification`), audit `company_plan_requalified`, notification dans l'application. Aucun historique d'abonnement antérieur n'est inventé. |
+| Modèle de plan | Contraintes : `subscription_plan` null, `free` ou `premium` ; Premium exige une fin. `company_effective_plan(plan, fin)` : Premium ⇔ `premium` et fin future ; Free à l'instant exact ; aucun paramètre de date (aucun plan passé reconstitué). `premium_started_at` ajouté. |
+| Attribution | `admin_manage_company_premium` (modèle du lot 17a) : activer, prolonger, arrêter ; ops et fondateur actifs ; verrou du profil ; relance du même `request_id` → résultat d'origine ; fin attendue différente → `premium_state_changed` ; borne de fin reprise du lot 17a (`candidate_premium_max_end()`, 10000-01-01 UTC exclu), aucune durée imposée ; plan, historique, audit et notification dans une transaction ; aucune ligne de paiement. `admin_company_premium` : lecture des trois grades actifs, reprise comprise. |
+| Droits | `update_job` : refus `job_locked_plan` hors Premium effectif ; autres contrôles inchangés. `my_account_state` : partie entreprise sans la table `subscriptions` (`renews` = null), `premium_started_at` ajouté. |
+| Route et écrans | `GET`/`POST /api/admin/companies/[id]/premium` (Zod partagé, codes traduits). Fiche admin : panneau générique `PlanGrantPanel` (le panneau candidat l'utilise aussi, mêmes identifiants de test). Profil entreprise : `CompanyPlanCard` (plan, fin ou dernière fin, début, « attribué par l'équipe EasyJob », modification directe selon le plan, contact du support) ; compteur d'offres sans quota ; anciennes listes d'avantages, bannière et vitrine supprimées ; lectures de repli (`subscription_tier`, `subscriptions`, essai) retirées. Offres : `companyCanDirectEdit`. Textes FR/EN : refus et mention de blocage sans renvoi à un parcours de correction non livré. |
+| Conservés sans effet | Colonnes `subscription_tier`, `trial_ends_at`, table `subscriptions`, rôle `company_premium` : encore présents en base ; plus aucune lecture applicative du plan ne s'y appuie. |
+
+### Méthode exacte de reprise des anciens comptes
+
+1. Lecture seule en production : `select subscription_plan, subscription_expires_at is null as sans_fin, subscription_expires_at > now() as en_cours, count(*) from public.company_profiles group by 1, 2, 3;`.
+2. Aucune ancienne valeur : les deux migrations s'appliquent ensemble.
+3. Anciennes valeurs : appliquer la migration 1 seule ; pour chaque compte, enregistrer un choix (`select public.company_plan_requalify(gen_random_uuid(), '<entreprise>', 'free' | 'premium', <fin ou null>, '<motif>', '<admin ops ou fondateur>');` en connexion directe, ou par une session admin) ; vérifier `select * from public.company_plan_transition_report();` (tous « prêts ») ; appliquer la migration 2. Un compte sans choix, ou dont l'ancienne valeur ou l'échéance a changé depuis le choix, arrête la migration sans effet. Le déploiement en deux temps n'a pas été essayé : la CLI applique toutes les migrations en attente, la procédure exacte reste à préparer avec le déploiement.
+
+### Droits réellement accessibles après migration
+
+| Situation | Accès |
+|---|---|
+| Entreprise Free (défaut, nouvelle, ancien compte requalifié Free, Premium échu ou arrêté) | Publication, modération, sélection, contrats et parcours existants ; modification d'une offre jamais publiée, en attente ou refusée ; **pas** de modification directe d'une offre active (`job_locked_plan`) ; offres illimitées |
+| Entreprise Premium (fin future) | Même chose, plus la modification directe d'une offre active **sans candidat sélectionné**, qui repasse en modération ; calendrier publié figé |
+| Rôle `company_premium` sans plan Premium | Free (prouvé) |
+| `admin_support` actif | Lecture du plan et de l'historique |
+| `admin_ops`, `admin_founder` actifs | Lecture ; activation, prolongation, arrêt ; choix de reprise (avant la transition) |
+| Admin suspendu (ancien jeton), entreprise, tiers, anonyme | Aucune lecture admin ni écriture |
+| Clé service | *(État initial, avant le complément ci-dessous.)* Pouvait encore écrire le plan et ses dates en `UPDATE` direct, sans historique ni audit. Fermé par le complément (`trg_company_plan_write_guard`), vérifié le 2026-11-22 (suivi ci-dessous) |
+
+### Défaut trouvé pendant les preuves
+
+Le choix « le plus récent » était trié par `created_at desc, id desc`. `created_at` vaut `now()`, identique pour tous les choix d'une même transaction : l'ordre retombait sur un identifiant aléatoire et un choix caduc pouvait être retenu (échec intermittent de la reprise T5 au premier passage complet). Corrigé par un numéro d'ordre `seq` (identité). Assertion ajoutée : cinq choix successifs dans une même transaction, le dernier fait foi (diagnostic et historique). Contrôle négatif sur l'ancienne version : 34 PASS, 4 FAIL (T3, T7 ; T0, T0b en conséquence) ; après correctif : 38/38 sur trois passages consécutifs.
+
+### Preuves
+
+`company-premium` (38 assertions) : P1-P4 plan effectif (Free par défaut, échéance exacte et 1 µs avant, rôle seul et ligne `subscriptions` active sans effet, contraintes en clé service) ; W1-W3 écritures et lectures refusées (entreprise, RPC, support en écriture, ops suspendu avec ancien jeton, tiers, anonyme) ; G1-G8 activation, notification sans donnée sensible, signaux, refus de période, de motif, d'état lu et de borne, prolongation, lecture support, arrêt, historique en ajout seul ; R1 signaux `{d, r, id}` ; E1-E6 modification directe (Premium accepté avec nouvelle modération, Free refusé, échéance exacte, calendrier figé, autre entreprise, candidat sélectionné, compte suspendu) ; I1-I3 cinq relances simultanées, clé réutilisée, deux agents simultanés ; T0-T10 reprise (garde du fichier avec et sans choix, refus avec diagnostic, choix refusés, choix explicite et relance, compte restant cité seul, choix caduc, panne sans effet partiel, reprise appliquée, notifications sans motif, relance sans effet, ajout seul, annulation complète) ; A1 fiche admin. Preuves adaptées sans retirer d'assertion : `job-moderation` (Premium à la place de Pro), `job-deadlines`, `multi-day-jobs`, `company-dossier-visibility`, `realtime` (C2 : `renews` = null malgré une ligne `subscriptions`), `company-permissions` (B : Premium et `premium_started_at` refusés en session ; E2 : liste exacte des écrivains complétée par `admin_manage_company_premium`, dont les gardes sont prouvées par `company-premium`).
+
+| Contrôle | Résultat |
+|---|---|
+| Preuves ciblées : `company-premium`, `company-permissions` (E2 d'abord en échec, liste complétée), `company-verification`, `job-moderation`, `job-deadlines`, `multi-day-jobs`, `company-dossier-visibility`, `candidate-premium`, `realtime` | ✅ |
+| Pile `easyjob-proof` réinitialisée depuis les seules migrations, `pnpm test:rls` complet (build de production relié à la pile) | Premier passage : ⚠️ 38/40. Deux échecs intermittents, sans lien établi avec ce lot : `account-security` 7 (6 finalisations d'inscription simultanées : une erreur journalisée `auth.finalize_signup.users_update`) et `company-verification` C1 (une des cinq écritures interdites lancées en parallèle, `verification_revision`, sans code d'erreur ; aucun effet constaté). Chacune relancée seule deux fois : ✅ 36/36. Second passage, pile réinitialisée de nouveau : ✅ **40/40**, environ 1170 s. Aucune relance automatique ajoutée ; sorties conservées hors dépôt |
+| Types générés comparés après la réinitialisation finale | ✅ identiques |
+| `pnpm test` (Vitest), séparément | ✅ 631 tests, 53 fichiers (dont `company-premium`, 8 tests ; `user-facing-claims` étendu aux avantages entreprise retirés) |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ |
+| Types générés depuis la pile réinitialisée | ✅ mis à jour (`lib/database.types.ts`) |
+| Navigateur (Chrome headless par CDP, 375 × 812, sessions entreprise, ops et support, script hors dépôt) | ✅ 21/21, FR puis EN |
+
+**Navigateur.** Profil Free (plan, attribution, mention « réservée au plan Premium », aucune ancienne présentation) ; offres Free (mention de blocage) ; fiche admin support en lecture seule ; activation par l'ops avec motif ; profil et offres ouverts basculés en Premium sans rechargement (date de fin en heure de Douala, modification directe décrite) ; arrêt et retour à Free sans rechargement ; échéance à l'heure du serveur sans rechargement ; relecture après rechargement et historique conservé ; envoi depuis un état lu périmé refusé (`premium_state_changed`) ; aucun défilement horizontal, aucune erreur JavaScript. Une première passe a échoué sur une erreur du script (libellé anglais attendu en minuscule), corrigée dans le script.
+
+**Avant déploiement** (lecture seule) : la requête d'inventaire ci-dessus ; compter les offres actives des comptes `pro`/`business` actuels, qui perdront la modification directe s'ils sont requalifiés Free.
+
+**Constat hors lot.** Les deux échecs intermittents du premier passage complet ne s'étaient jamais présentés dans les comptes rendus précédents. Ils concernent l'inscription concurrente (`finalizeSignup`) et une écriture interdite en parallèle sur `company_profiles`. À surveiller au prochain passage complet ; aucune cause n'est établie ici.
+
+**Limites.** Notification dans l'application seulement ; aucun suivi des demandes de support ; aucun parcours de paiement ni de prix ; le figement du plan entreprise à la sélection relève de 17d-2 ; la clé service pouvait encore modifier le plan sans trace (fermé par le complément, vérifié le 2026-11-22 ; même écart côté candidat, non corrigé) ; `candidate_effective_plan(uid, at)` (lot 17a) reçoit encore une date mais ne relit que l'état présent : hors de ce lot, signalé.
+
+### Complément — écritures tracées, reprise en deux temps, échecs initiaux (2026-11-20)
+
+Même branche, non commitée ; changements indexés et stash conservés. **État de vérification au 2026-11-20 : partiel ; vérifié le 2026-11-22 (suivi ci-dessous).** Le SQL de ce complément est écrit mais **n'a pas été exécuté** : la pile `easyjob-proof` est devenue inaccessible pendant la répétition (voir « Incident »). Ni les preuves ciblées, ni la suite RLS complète, ni la répétition en deux temps n'ont tourné sur ce SQL.
+
+#### Écritures du plan : inventaire et fermeture
+
+| Écriture | Auteur | Légitime | Après ce complément |
+|---|---|---|---|
+| `admin_manage_company_premium` | `admin_ops`, `admin_founder` actifs (session) | Oui (ABO-07) | Seule voie courante ; pose l'indicateur `easyjob.company_plan_write` le temps de l'écriture |
+| `company_plan_transition_apply` | Migration, maintenance directe | Oui (reprise explicite) | Pose l'indicateur ; écrit état, historique, audit et notification |
+| Création d'un profil (`finalizeSignup`, onboarding) | Clé service | Oui, valeurs par défaut | Acceptée si Free, sans fin ni début ; refusée sinon |
+| `UPDATE` direct du plan, de la fin ou du début | Clé service, SQL direct | Non (aucun historique, aucun audit) | Refusé : `company_plan_untracked_write` (42501) |
+| Code applicatif (`app/`, `lib/`) | — | — | Aucune écriture du plan (lectures seulement), constaté par recherche |
+| Fixtures des preuves (`job-moderation`, `job-deadlines`, `multi-day-jobs`, `company-dossier-visibility`, `realtime`) | Clé service | Non | Remplacées par `scripts/lib/company-premium-fixture.ts` : la vraie RPC, sous l'identité d'un `admin_ops` de la preuve |
+
+Mise en œuvre (migration 2/2) : déclencheur `trg_company_plan_write_guard` (BEFORE INSERT OR UPDATE, tout auteur). L'indicateur ne peut être posé ni par une requête PostgREST (aucune fonction exposée n'appelle `set_config`), ni par une session. Aucun nouvel appel de service n'est créé : le helper des preuves appelle la RPC existante sous un admin réel de la preuve, qui la revérifie (`is_ops_admin_user`). Les fonctions temporaires de `proof-company-premium` qui placent une fin à l'instant exact posent l'indicateur explicitement, sur la pile de preuve seulement ; elles sont retirées en fin de preuve. Assertions ajoutées (exécutées le 2026-11-22, suivi ci-dessous) : S1 activation, prolongation, début et arrêt écrits en clé service → refus, sans aucun effet sur l'état, l'historique, l'audit ni les notifications ; S2 création d'un profil déjà Premium refusée, création par défaut acceptée ; S3 SQL direct sans parcours refusé ; S4 prolongation autorisée ensuite (une ligne d'historique, un audit, une notification de plus). P4 réécrite : refus de la garde d'abord, contraintes vérifiées derrière la garde.
+
+**Même écart côté candidat, non corrigé ici** : `users.role` (`candidate_premium`) et `candidate_profiles.premium_until` restent modifiables en clé service sans historique ni audit. Signalé dans le plan (lot 17a, suivi).
+
+#### Reprise en deux temps
+
+**Vérifié dans la CLI 2.117.0** (`--help`) : `supabase db push` et `supabase migration up` appliquent **toutes** les migrations en attente ; aucune option n'applique un seul fichier (`--include-all` concerne les migrations antérieures absentes de l'historique distant). `supabase db reset --version <v>` existe, pour une base locale seulement. La release (`deploy.yml`, sur tag) exécute `supabase db push --linked --dry-run`, puis `--yes`. **Conséquence** : une reprise en deux temps exige **deux releases** — la première avec la seule migration 1 (la migration 2 n'est pas encore dans le tag), la seconde qui l'ajoute.
+
+Procédure prévue (à confirmer par la répétition) :
+1. Release N (migration `20261125120000` seule) : `db push --linked --dry-run` doit lister ce seul fichier. Aucun droit ne change ; tout changement de plan ou d'échéance est désormais journalisé (`company_plan_changed_before_transition`, ancienne et nouvelle valeur, rôle de base).
+2. Inventaire : `select * from public.company_plan_transition_report();` (connexion directe).
+3. Un choix par compte ancien : `select public.company_plan_requalify(gen_random_uuid(), '<entreprise>', 'free' | 'premium', <fin | null>, '<motif>', '<admin ops ou fondateur actif>');` en connexion directe, ou par la session d'un ops ou fondateur actif (RPC `company_plan_requalify`).
+4. Vérifier que tous les comptes sont « prêts ».
+5. Release N+1 (migration `20261125130000`) : `db push --linked --dry-run` puis `--yes`. Si un compte n'est pas prêt, la migration s'arrête dans sa transaction : rien n'est appliqué, la version n'est pas enregistrée, la release échoue ; enregistrer les choix manquants et relancer le déploiement du même tag.
+
+Cas particuliers :
+- **Comptes déjà Free** (ou sans valeur) : aucun choix requis, aucune ligne d'historique ni notification ; plan inchangé.
+- **Compte créé entre les deux étapes** : Free par défaut ; rien à requalifier.
+- **Plan modifié entre les deux étapes** (ancien modèle, clé service) : journalisé ; un choix enregistré avant devient caduc (« non prêt ») et la migration 2 refuse tant qu'un nouveau choix n'est pas enregistré. Un compte passé d'une ancienne valeur à Free n'a plus besoin de choix ; son ancien choix est ignoré et le changement reste dans l'audit.
+- Après la migration 2, plus aucune écriture hors parcours : aucun changement de plan ne peut être perdu ou déduit.
+
+**Répétition : non réalisée le 2026-11-20 ; réalisée le 2026-11-22 (suivi ci-dessous).** Premier pas exécuté : copie de la pile mise à jour, migration 2 retirée de la copie (hors dépôt, pour simuler la release N), puis `pnpm exec supabase db reset --workdir $stack --version 20261124120000`. La commande n'a pas rendu la main en 600 s. Après son interruption, le conteneur de base de `easyjob-proof` est resté bloqué dans Docker (`docker exec`, `inspect`, `restart`, `kill` sans réponse). Redémarrage de Docker Desktop autorisé par l'utilisateur : Docker ne redémarre pas (« terminated unexpectedly »). `wsl -l -v`, puis `wsl --shutdown` (autorisé par l'utilisateur), restent eux aussi sans réponse. Un redémarrage de Windows semble nécessaire. La pile de développement `easyjob-cm` est arrêtée avec Docker ; ses volumes ne sont pas touchés ; elle n'a pas été relancée. Le script de répétition reste à exécuter après redémarrage.
+
+#### Échecs du premier passage complet (sorties conservées hors dépôt)
+
+| Preuve | Assertion et erreur exactes | État observé | Cause | Rapport avec le lot |
+|---|---|---|---|---|
+| `account-security` | « 7. 6 finalisations concurrentes → 1 ligne candidate, 1 profil » : un des six appels `finalizeSignup` renvoie `{ ok: false, errorCode: 'generic' }` ; journal `auth.finalize_signup.users_update`, catégorie `unexpected`, **sans** `code` ni `status` | Une ligne `users` (rôle `candidate`, téléphone vérifié), un profil : état final correct | **Inconnue.** Une erreur PostgREST ou Postgres porte un code (classée « database ») ; une erreur sans code est l'enveloppe que supabase-js renvoie quand la requête HTTP elle-même échoue. Hypothèse : échec de transport sous charge. Non reproduit : 150 tours × 6 finalisations concurrentes et 5 écritures parallèles (1 650 appels) sur la pile de preuve, aucun code vide | Le lot ne modifie ni `users`, ni `finalizeSignup`, ni leurs déclencheurs. Aucune fixture du lot n'intervient dans cette preuve, qui s'exécute en premier dans la suite. Aucun lien établi, sans que l'absence de lien soit démontrée |
+| `company-verification` | « C1 : auto-validation … → refusée, aucun effet » : cinq `UPDATE` interdits lancés en parallèle ; le 4e (`verification_revision = 99`) renvoie un code vide (`""`), là où les quatre autres renvoient `42501` | `noEffect()` vrai : aucune colonne protégée modifiée, aucun contrôle ajouté | **Inconnue.** Même signature que ci-dessus (erreur sans code, et non absence d'erreur) | La migration 2 modifie `company_profiles` (colonne, contraintes ; la garde d'écriture vient du présent complément). Une erreur de la base porterait un code : ces changements n'expliquent pas une erreur sans code. Non démontré |
+
+Aucune relance automatique n'a été ajoutée. Les deux preuves sont passées seules deux fois chacune, puis dans le second passage complet (40/40) ; cela ne prouve pas l'absence de lien.
+
+#### Contrôles de ce complément
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` (Vitest) | ✅ 631 tests, 53 fichiers |
+| Preuves ciblées, suite RLS complète, répétition en deux temps, types générés, navigateur | ⛔ non exécutés le 2026-11-20 (pile indisponible) ; exécutés le 2026-11-22, suivi ci-dessous |
+
+### Suivi — vérification du complément (2026-11-22)
+
+Docker et WSL rétablis par l'utilisateur ; sept conteneurs `easyjob-proof` démarrés. Branche, modifications, cinq suppressions indexées et stash conservés (constat Git). Copie des migrations de preuve restaurée par `init-proof-stack` (migrations 1 et 2 identiques au dépôt, empreintes comparées). `easyjob-cm` et les autres projets n'ont pas été touchés. `db reset --version`, dont l'interruption avait précédé le blocage, n'a pas été réutilisé : le schéma antérieur a été obtenu par une réinitialisation normale sur une copie des migrations sans les fichiers du lot.
+
+#### Répétition réelle de la reprise en deux temps (easyjob-proof)
+
+Commandes exécutées (sorties conservées hors dépôt). `$stack` : copie de la pile de preuve, hors dépôt ; `$env:DB_URL` : base de cette pile (port 54422, contrôlé avant chaque commande).
+
+| Étape | Commande | Observé |
+|---|---|---|
+| Schéma de production avant le lot | migrations 1 et 2 retirées de la copie ; `pnpm exec supabase db reset --workdir $stack` | Dernière version `20261124120000`, ancienne contrainte à quatre plans |
+| Comptes anciens | Fixtures en clé service (ancien modèle) : `pro` (fin future), `business` (sans fin), `starter` (fin passée), `free`, sans valeur (`null`), un `admin_ops` actif | Écriture acceptée, comme avant le lot |
+| Release N | migration 1 seule dans la copie ; `pnpm exec supabase db push --workdir $stack --db-url $env:DB_URL --dry-run`, puis `--yes` (même commande que `deploy.yml`, `--db-url` au lieu de `--linked`) | Le dry-run et l'application ne listent que `20261125120000` ; aucun plan ni droit modifié |
+| Intervalle | choix `pro` → Premium (connexion directe, `company_plan_requalify(…, '<admin_ops>')`) ; choix `business` → Free (session de l'admin, RPC) ; échéance de `pro` modifiée en clé service après son choix ; entreprise créée | Changement journalisé (`company_plan_changed_before_transition`, rôle `service_role`, ancienne et nouvelle valeur) ; diagnostic : `business` prêt, `pro` non prêt (choix caduc), `starter` non prêt |
+| Release N+1, premier essai | migration 2 ajoutée ; `db push … --yes` | **Échec** (code 1) : `company_plan_transition_blocked`, « 2 compte(s) sans choix explicite à jour (anciennes valeurs : pro, starter) » et leurs identifiants. Aucun effet : version non enregistrée, ni table d'historique, ni garde, ni colonne `premium_started_at`, ancienne contrainte et journal de l'intervalle intacts, aucune notification |
+| Choix manquants | `starter` → Free ; nouveau choix `pro` → Premium (connexion directe) ; `company_plan_transition_report()` | Trois comptes « prêts » |
+| Release N+1, second essai | même `db push … --yes` | Migration 2 appliquée (code 0) |
+| Relance | `db push … --yes` | « Local database is up to date », rien appliqué |
+
+État final vérifié : deux versions enregistrées ; garde active, journal de l'intervalle retiré, contraintes Free/Premium ; `pro` Premium jusqu'à la fin du **second** choix, `business` et `starter` Free sans fin ; `free`, sans valeur et entreprise créée dans l'intervalle inchangés, sans choix, historique ni notification ; trois lignes `requalify` (ancienne valeur, ancienne échéance, auteur `admin_ops`, motif du choix retenu), trois audits `company_plan_requalified`, quatre `company_plan_requalification_recorded`, un `company_plan_changed_before_transition` ; trois notifications (une en anglais pour un compte EN) ; aucun doublon.
+
+La répétition a été faite deux fois sur le SQL final, après les deux corrections ci-dessous, avec le même résultat.
+
+#### Défauts trouvés pendant cette vérification, corrigés
+
+1. **Auteur faux dans le journal de l'intervalle** (répétition, premier passage) : un changement fait en clé service était journalisé avec le rôle `postgres`. La fonction est `SECURITY DEFINER` : `current_user` y vaut son propriétaire. Correction : rôle de la requête (`current_setting('role')`, posé par PostgREST), à défaut `session_user` ; contrôlé (`service_role` en clé service, `postgres` en connexion directe).
+2. **Surfaces ouvertes à la clé service** (examen du contournement) : les privilèges par défaut de Supabase accordaient `EXECUTE` à `service_role` sur toute nouvelle fonction, dont la reprise et la garde. Les appels étaient refusés par les contrôles internes, mais restaient possibles. Plus grave : les déclencheurs d'ajout seul ne bloquaient que `anon` et `authenticated`, donc **la clé service pouvait insérer un faux choix de reprise au nom d'un admin, ou une fausse ligne d'historique**. Correction : `EXECUTE` retiré à `service_role` sur les fonctions internes et d'écriture ; sur `company_plan_requalifications` et `company_premium_grants`, `service_role` garde lecture et suppression (nettoyage des preuves), sans insertion ni modification, et les déclencheurs refusent aussi son insertion.
+
+#### Contournement de l'indicateur de transaction : examiné
+
+| Voie | Constat |
+|---|---|
+| Fonctions qui citent `easyjob.company_plan_write` | Trois : `admin_manage_company_premium` et `company_plan_transition_apply` (le posent), la garde (le lit). Catalogue interrogé |
+| `set_config` dans les fonctions exposées | Douze fonctions l'appellent, toutes avec un nom littéral (autres indicateurs : `easyjob.system_update`, `easyjob.rt_sent`…) ; aucune ne laisse l'appelant choisir le nom |
+| `/rest/v1/rpc/set_config` (clé service) | 404 `PGRST202` : absente du schéma exposé |
+| Même appel avec `Content-Profile: pg_catalog` | 406 `PGRST106` : seuls `public` et `graphql_public` sont exposés |
+| En-tête HTTP arbitraire | Sans effet : refus de la garde (42501) |
+| Réglage par rôle (`pg_db_role_setting`) | Aucun ne pose l'indicateur ; aucun rôle d'API n'est superutilisateur |
+| Appel direct de la reprise, de l'attribution, du choix (clé service) | Non exécutables (privilèges) ; refusés auparavant par les contrôles internes |
+| Insertion directe dans l'historique ou les choix (clé service) | Refusée (privilèges et déclencheur) |
+| GraphQL | `pg_graphql` n'est pas activé sur la pile de preuve : **non testé**. Raisonnement : une mutation passerait par le même déclencheur et ne peut pas poser l'indicateur ; à vérifier sur un projet où l'extension est active |
+| Persistance dans la transaction | Les deux fonctions remettent l'indicateur à `off` juste après l'écriture ; une erreur annule la transaction |
+| Fonctions temporaires des preuves | Posent l'indicateur, exécutables par `service_role` **sur la pile de preuve seulement**, le temps de la preuve (retirées en fin de preuve et au démarrage suivant) |
+
+Assertions S5 (catalogue) et S6 (tentatives HTTP en clé service, état et historique inchangés) ajoutées à `company-premium`. G8 ajustée : la modification de l'historique en clé service est désormais refusée par les privilèges (« permission denied »), avant le déclencheur ; l'assertion exige 42501 et des motifs inchangés.
+
+**Contrôle négatif** : `trg_company_plan_write_guard` désactivé sur la pile de preuve → `company-premium` 38 PASS, 6 FAIL (P4, S1, S2, S3, S6 ; S4 en conséquence) ; garde réactivée (`tgenabled = O`), pile réinitialisée ensuite.
+
+#### Preuves et contrôles
+
+| Contrôle | Résultat |
+|---|---|
+| `company-premium` | ⚠️ 43/44 (G8, ci-dessus), puis ✅ 44/44 |
+| Preuves adaptées : `company-permissions`, `job-moderation`, `job-deadlines`, `multi-day-jobs`, `realtime`, `candidate-premium`, `company-verification` | ✅ company-permissions 48/48, job-moderation 67/67, job-deadlines 35/35, multi-day-jobs 67/67, realtime 56/56, candidate-premium 26/26, company-verification 36/36 |
+| `company-dossier-visibility` | ⚠️ Premier passage 25/26 : M9 en échec, l'écoute `jobs:public` n'a reçu **aucun** événement (`public: 0`, candidat 1, entreprise 10). Relancée seule : ✅ 26/26 (`public: 5`). **Cause inconnue** ; c'était la première preuve lancée après le redémarrage des conteneurs. La fixture Premium remplacée dans cette preuve précède la section M et ne touche pas `jobs:public` ; aucun lien n'est établi |
+| Types générés depuis la pile réinitialisée | ✅ identiques à `lib/database.types.ts` |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` (Vitest), séparément | ✅ 631 tests, 53 fichiers |
+| `pnpm build` (relié à la pile de preuve) | ✅ |
+| Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **40/40**, environ 1 000 s cumulées (`account-security`, `company-verification`, `company-dossier-visibility` et `company-premium` compris) |
+| Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 21/21, sans erreur JavaScript ni défilement horizontal ; le script (hors dépôt) attribue désormais Premium par la route admin et non plus en clé service |

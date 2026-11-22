@@ -3,7 +3,7 @@
  *
  * Méthode :
  *   1. Fixtures en service role : entreprises V (vérifiée, plan free),
- *      P (vérifiée, plan pro), B (vérifiée, autre entreprise), N (non
+ *      P (vérifiée, Premium), B (vérifiée, autre entreprise), N (non
  *      vérifiée), S (vérifiée, compte suspendu) ; candidat C éligible ;
  *      admins admin_ops (R), admin_founder (F), admin_support (U).
  *      La vérification des entreprises est posée en clé service : c'est une
@@ -23,7 +23,7 @@
  *      D. Modération : grades refusés, motif obligatoire, version périmée,
  *         approbation tracée et notifiée, répétition et concurrence.
  *      E. Refus motivé puis correction : nouvelle soumission.
- *      F. Modification après publication : plan free verrouillé, plan pro
+ *      F. Modification après publication : Free verrouillé, Premium
  *         remis en modération, candidat sélectionné, autre entreprise.
  *      G. Sélection : compteur tenu par la base.
  *      H. Échecs sans effet partiel : entreprise inéligible, erreur
@@ -44,6 +44,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectRpc } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
+import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { purgeProofJobs } from "./lib/proof-purge";
 
 type DB = SupabaseClient<Database>;
@@ -183,7 +184,6 @@ async function createCompany(
   userId: string,
   name: string,
   verified: boolean,
-  plan: "free" | "pro" = "free",
 ): Promise<string> {
   const { data, error } = await serviceClient
     .from("company_profiles")
@@ -194,7 +194,6 @@ async function createCompany(
       address: "Rue de la preuve",
       onboarding_status: "completed",
       verification_status: verified ? "verified" : "pending",
-      subscription_plan: plan,
     })
     .select("id")
     .single();
@@ -420,7 +419,14 @@ async function main() {
     ids.push(idV, idP, idB, idN, idS, idC, idR, idF, idU);
 
     const coV = await createCompany(idV, "Restaurant V", true);
-    const coP = await createCompany(idP, "Hôtel P", true, "pro");
+    const coP = await createCompany(idP, "Hôtel P", true);
+    // ABO-07/ABO-08 : Premium attribué par le parcours autorisé (admin R).
+    grantCompanyPremium(DB_URL, {
+      companyId: coP,
+      adminUserId: idR,
+      endsAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      proof: "job-moderation",
+    });
     const coB = await createCompany(idB, "Commerce B", true);
     const coN = await createCompany(idN, "Société N", false);
     await createCompany(idS, "Société S", true);
@@ -1140,7 +1146,7 @@ async function main() {
     });
     const jPRow = await readJob(jP);
     report(
-      "F2 : plan pro, offre active modifiée → nouvelle modération, retirée du public",
+      "F2 : Premium, offre active modifiée → nouvelle modération, retirée du public",
       f2.status === 200 &&
         jPRow?.status === "pending_review" &&
         jPRow.mission_pay_per_candidate === 2500 &&
@@ -1197,7 +1203,7 @@ async function main() {
       (await readJob(j1))?.positions_filled === 0,
     );
 
-    // Plan pro avec candidat sélectionné : modification refusée.
+    // Premium avec candidat sélectionné : modification refusée.
     const jP2 = await seedJob(coP, "active");
     const { data: app2 } = await serviceClient
       .from("job_applications")
@@ -1208,7 +1214,7 @@ async function main() {
     const f3Before = await readJob(jP2);
     const f3 = await http("PATCH", `/api/jobs/${jP2}`, P.cookie, JOB_BODY);
     report(
-      "F3 : plan pro, candidat déjà sélectionné → 409 job_has_selected_candidates",
+      "F3 : Premium, candidat déjà sélectionné → 409 job_has_selected_candidates",
       f3Before?.positions_filled === 1 &&
         f3.status === 409 &&
         f3.body.code === "job_has_selected_candidates" &&
