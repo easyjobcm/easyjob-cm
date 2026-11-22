@@ -34,6 +34,7 @@ import { signAndSelectRpc } from "./lib/sign-and-select";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { addDays } from "./lib/job-days-fixture";
 import { purgeProofJobs } from "./lib/proof-purge";
@@ -500,11 +501,14 @@ async function main() {
     const jobMod = await seedJob("Offre modifiée L11");
     const { data: appFull } = await apply(C5, jobFull);
     const selFull = await select(appFull?.id ?? "");
-    // Modification directe d'une offre active : plan Pro (règle du lot 7d).
-    await serviceClient
-      .from("company_profiles")
-      .update({ subscription_plan: "pro" })
-      .eq("id", coA);
+    // Modification directe d'une offre active : Premium (ABO-08), attribué
+    // par le parcours autorisé (ABO-07).
+    grantCompanyPremium(DB_URL, {
+      companyId: coA,
+      adminUserId: idO,
+      endsAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      proof: "company-dossier-visibility",
+    });
     // Lot 11b : dates et horaires figés après la première publication ;
     // la correction porte sur le titre et la description, mêmes horaires.
     const { error: modErr } = await A.client.rpc("update_job", {

@@ -392,6 +392,53 @@ export const en: TranslationKeys = {
         generic: "Operation failed. Try again.",
       },
     },
+    // ABO-07: company plan (Free/Premium), granted by the team.
+    companyPremium: {
+      title: "Company plan (granted by the team)",
+      plan: "Effective plan",
+      free: "Free",
+      premium: "Premium",
+      until: "End",
+      since: "Start",
+      unknown: "Unknown",
+      endedOn: "Last end: {date}",
+      noPayment: "Granted by the EasyJob team: no payment is recorded.",
+      readOnly: "Read only: only admin_ops and admin_founder change the plan.",
+      activate: "Grant Premium",
+      extend: "Extend",
+      stop: "Stop",
+      operation: "Operation",
+      endLabel: "End (Douala time)",
+      reasonLabel: "Reason",
+      reasonHint: "10 to 500 characters, shown in the history.",
+      submit: "Save",
+      history: "History",
+      noHistory: "No operation recorded.",
+      opActivate: "Granted",
+      opExtend: "Extended",
+      opStop: "Stopped",
+      opRequalify: "Former plan requalified",
+      by: "by {who}",
+      periodLine: "Period: {start} → {end}",
+      previousEnd: "Previous end: {date}",
+      legacyLine: "Former plan: {plan}, expiry: {date}",
+      requalifiedTo: "Chosen plan: {plan}",
+      success: "Operation saved.",
+      already: "Operation already saved.",
+      errors: {
+        forbidden: "Only admin_ops and admin_founder can do this.",
+        company_not_found: "Company not found.",
+        reason_invalid: "Reason required (10 to 500 characters).",
+        period_invalid:
+          "Invalid end date: it must be in the future and, to extend, after the current end.",
+        premium_already_active: "Premium is already active.",
+        premium_not_active: "Premium is not active.",
+        premium_state_changed:
+          "The plan changed in the meantime: reload the page before trying again.",
+        request_conflict: "Conflicting request: try again.",
+        generic: "Operation failed. Try again.",
+      },
+    },
     candidateProfile: {
       title: "Candidate profile",
       back: "All candidates",
@@ -1644,241 +1691,26 @@ export const en: TranslationKeys = {
       note: "Paid by the company: the app doesn't make payments yet.",
     },
 
-    // ── Statuses & Plans (company) ───────────────────────────
-    plan: {
+    // ── Company plan (ABO-07): Free or Premium, granted by the team ──
+    companyPlan: {
+      title: "My plan",
       free: "Free",
-      starter: "Starter",
-      pro: "Pro",
-      business: "Business",
-      currentPlan: "Current plan",
-      expiresOn: "Expires on {date}",
-      renews: "Renews on {date}",
-      prioritySupport: "Priority 24/7 support",
-      features: {
-        title: "My plan",
-        jobsLimitFree: "Up to 2 active jobs",
-        jobsLimitStarter: "5 active jobs",
-        jobsLimitPro: "Unlimited jobs",
-        jobsLimitBusiness: "Unlimited jobs",
-        urgentPaid: "Urgent options paid",
-        urgentFree: "Urgent options included",
-        aiRecoOff: "No AI recommendations",
-        aiRecoOn: "Candidate reliability indicators",
-        reportingOff: "No reporting",
-        reportingBasic: "Basic reporting",
-        reportingAdvanced: "Advanced reporting",
-        editOff: "Limited editing — contact support",
-        editOn: "Direct editing of active jobs",
-      },
+      premium: "Premium",
+      current: "Your plan: {plan}",
+      until: "Premium until {date} (Douala time)",
+      since: "Since {date}",
+      ended: "Premium ended on {date}",
+      granted:
+        "Granted by the EasyJob team. No payment is made through the app.",
+      directEditOn:
+        "Direct editing of a published job while no candidate is selected, with a new review by the team. Published dates and times stay locked.",
+      directEditOff:
+        "Only the Premium plan allows direct editing of a published job.",
+      contactSupport: "Contact support",
     },
     activeJobs: {
       title: "My published jobs",
-      used: "{used} published out of {total} available",
       unlimited: "Unlimited jobs",
-      full: "Quota reached. Upgrade your plan to publish more.",
-    },
-    premiumCompanyBenefits: {
-      sectionTitle: "My benefits",
-      expiresOn: "Expires on {date}",
-      // ── Free plan (5 perks) ──
-      jobsUnlimited: {
-        title: "Unlimited jobs",
-        desc: "Post as many jobs as you want, 24/7.",
-      },
-      serviceFee10: {
-        title: "10% service fee",
-        desc: "Transparent commission, no hidden charges.",
-      },
-      urgentPaid: {
-        title: "Urgent boost available",
-        desc: "Boost a job for 2,000 FCFA whenever you need it.",
-      },
-      securePayment: {
-        title: "Signed contract",
-        desc: "Each selection creates a contract that you and the candidate sign in the app.",
-      },
-      historyAccess: {
-        title: "Full history",
-        desc: "Find your jobs and their past missions.",
-      },
-      // ── Starter plan (4 perks) ──
-      reducedFee: {
-        title: "Reduced 8% service fee",
-        desc: "Save 2% on every mission compared to Free.",
-      },
-      urgentReduced: {
-        title: "Discounted urgent boost",
-        desc: "1,000 FCFA instead of 2,000 FCFA to promote your jobs.",
-      },
-      visibility: {
-        title: "Higher visibility",
-        desc: "Your jobs appear higher in candidate search results.",
-      },
-      standardSupport: {
-        title: "Standard support 48h",
-        desc: "A team available to help you within 48h.",
-      },
-      // ── Pro plan (10 perks) ──
-      zeroFee: {
-        title: "0% service fee",
-        desc: "No commission on your missions, your plan covers it all.",
-      },
-      freeUrgent: {
-        title: "Unlimited urgent boosts",
-        desc: "Boost all your jobs with no extra cost.",
-      },
-      aiMatch: {
-        title: "Reliability indicators",
-        desc: "Compare candidates by rating, missions and verifications.",
-      },
-      favorites: {
-        title: "Favorites list",
-        desc: "Bookmark your top candidates and find them quickly.",
-      },
-      directInvite: {
-        title: "Direct invitations",
-        desc: "Invite your favorites to a mission without public applications.",
-      },
-      templates: {
-        title: "Job templates",
-        desc: "Create and reuse templates to publish in 30 seconds.",
-      },
-      monthlyReport: {
-        title: "Monthly report",
-        desc: "Track your KPIs: time-to-fill, no-show, satisfaction.",
-      },
-      pdfExport: {
-        title: "PDF / Excel export",
-        desc: "Download your data and invoices for accounting.",
-      },
-      directEdit: {
-        title: "Direct editing",
-        desc: "Edit your published jobs anytime, no support needed.",
-      },
-      trialFree: {
-        title: "Activation by support",
-        desc: "The plan is activated by the EasyJob team; online payment isn't available yet.",
-      },
-      // ── Business plan (10 perks) ──
-      guaranteedReplacement: {
-        title: "Help with no-shows",
-        desc: "If a candidate doesn't show up, contact support. No automatic replacement is offered.",
-      },
-      bulkHiring: {
-        title: "Bulk hiring",
-        desc: "Hire 10+ candidates in a single action.",
-      },
-      priorityInvite: {
-        title: "Priority invitations",
-        desc: "Your invitations appear at the top of candidate notifications.",
-      },
-      availabilityAlerts: {
-        title: "Availability alerts",
-        desc: "Get notified the moment a favorite candidate becomes available.",
-      },
-      presenceDashboard: {
-        title: "Presence dashboard",
-        desc: "See in real time who's on-site for your missions.",
-      },
-      sectorContracts: {
-        title: "Sector contracts",
-        desc: "Legally vetted templates per sector (construction, events, etc.).",
-      },
-      advancedReporting: {
-        title: "Advanced reporting",
-        desc: "Multi-dimensional analytics and cross-team comparisons.",
-      },
-      dedicatedManager: {
-        title: "Dedicated Account Manager",
-        desc: "A single point of contact, 4h SLA, monthly strategic reviews.",
-      },
-      prioritySLA: {
-        title: "Priority SLA",
-        desc: "24/7 support, tickets handled within 1h.",
-      },
-      immediateModeration: {
-        title: "Immediate moderation",
-        desc: "Your jobs are validated in under 30 minutes.",
-      },
-      // ── Cancellation penalties ──
-      cancellationPenalty: {
-        label: "Cancellation:",
-        freeStarter:
-          "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
-        pro: "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
-        business:
-          "no amount is held or withheld by the app. Contact support before cancelling a committed mission.",
-      },
-    },
-    upgradeBanner: {
-      title: "Your competitors hire faster",
-      tagline:
-        "0% service fee, urgent options included and direct editing of active jobs.",
-      taglineStarter: "Switch to Pro: unlimited jobs and direct editing.",
-      // Short labels inside plan rows
-      starter: "Starter",
-      starterKicker: "8% fee · Urgent boost at 1,000 FCFA · Higher visibility",
-      pro: "Pro",
-      proKicker: "0% fee · Urgent options · Favorites · Templates · Report",
-      business: "Business",
-      businessKicker:
-        "Everything in Pro · Dedicated manager · Priority support",
-      // Badges & CTA
-      recommended: "Recommended",
-      cta: "Change plan with support",
-      ctaNote: "Plan changes are made by the EasyJob team.",
-      businessCta: "Ask about Business",
-    },
-
-    // ── Premium Company Showcase ────────────────────────────
-    premiumCompany: {
-      sectionLabel: "Your strategic advantage",
-      headlineStarter: "Hire faster. Without limits.",
-      headlinePro: "Post without limits, edit directly.",
-      headlineBusiness: "Tailor-made for large teams.",
-      taglineStarter:
-        "5 simultaneous jobs, urgent options included, direct editing.",
-      taglinePro: "Unlimited jobs, urgent options included, direct editing.",
-      taglineBusiness:
-        "Dedicated account manager, guaranteed SLA, branding, multi-user, advanced reporting.",
-      metrics: {
-        timeToHire: { value: "−45%", label: "Time to hire" },
-        compliance: { value: "100%", label: "Contract compliance" },
-        retention: { value: "×2", label: "Reliable talent retention" },
-      },
-      pillars: {
-        control: {
-          title: "Full control",
-          desc: "Instantly edit your active jobs without going through support.",
-        },
-        security: {
-          title: "Enhanced security",
-          desc: "Priority ID-verified candidates + signed and archived contracts.",
-        },
-        aiTalent: {
-          title: "Reliability indicators",
-          desc: "Each candidate's rating, completed missions and verifications.",
-        },
-        reporting: {
-          title: "Reporting & Analytics",
-          desc: "Track your KPIs in real time: fill rate, no-show, satisfaction.",
-        },
-        accountManager: {
-          title: "Dedicated Account Manager",
-          desc: "Single point of contact, 4h SLA, monthly strategic guidance.",
-        },
-        branding: {
-          title: "Company branding",
-          desc: "Your jobs with your logo, colors, and tone of voice.",
-        },
-        team: {
-          title: "Multi-user accounts",
-          desc: "Grant access to your full HR team with granular permissions.",
-        },
-      },
-      socialProof: "12 major Cameroonian companies already trust us",
-      manageButton: "Manage subscription",
-      upgradePlan: "Upgrade to {plan}",
     },
   },
 
@@ -2068,8 +1900,7 @@ export const en: TranslationKeys = {
     rejectionReason: "Rejection reason: {reason}",
     closedOn: "Closed on {date}. Reason: {reason}",
     rejectedNext: "Edit the job to fix this point: it will be reviewed again.",
-    lockedPlan:
-      "Published job: direct editing is available on Pro and Business plans. Contact support.",
+    lockedPlan: "Published job: only the Premium plan allows direct editing.",
     actions: {
       viewApplications: "View applications",
       edit: "Edit",
@@ -2163,7 +1994,7 @@ export const en: TranslationKeys = {
         "Your company is not verified yet: you can post jobs once EasyJob has approved your documents.",
       job_not_found: "Job not found.",
       job_locked_plan:
-        "Published job: direct editing is available on Pro and Business plans. Contact support.",
+        "Published job: only the Premium plan allows direct editing.",
       job_has_selected_candidates:
         "Candidates have already been selected: contact support to edit this job.",
       job_not_editable: "This job can no longer be edited.",

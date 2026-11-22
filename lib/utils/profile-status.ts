@@ -1,6 +1,7 @@
 // Helpers de différenciation des statuts utilisateurs (candidat / entreprise).
-// Plan candidat effectif : candidate_effective_plan en base (lot 17a),
-// lu par my_account_state ; jamais le rôle seul.
+// Plan candidat effectif : candidate_effective_plan en base (lot 17a) ;
+// plan entreprise : company_effective_plan (ABO-07, lib/utils/company-plan.ts).
+// Tous deux lus par my_account_state ; jamais le rôle seul.
 
 export type UserRole =
   | "candidate"
@@ -11,8 +12,6 @@ export type UserRole =
   | "admin_ops"
   | "admin_founder";
 
-export type CompanyPlan = "free" | "starter" | "pro" | "business";
-
 /**
  * Rôle entreprise, standard ou premium : mêmes écrans entreprise, comme les
  * RPC `create_job`, `sign_and_select`, etc. (`role in ('company',
@@ -20,85 +19,6 @@ export type CompanyPlan = "free" | "starter" | "pro" | "business";
  */
 export function isCompanyRole(role: string | null | undefined): boolean {
   return role === "company" || role === "company_premium";
-}
-
-export function isCompanyPremium(role: string): boolean {
-  return role === "company_premium";
-}
-
-export function normalizeCompanyPlan(value?: string | null): CompanyPlan {
-  switch ((value ?? "free").toLowerCase()) {
-    case "starter":
-      return "starter";
-    case "pro":
-      return "pro";
-    case "business":
-      return "business";
-    default:
-      return "free";
-  }
-}
-
-export interface PlanLimits {
-  jobsLimit: number | "unlimited";
-  urgentIncluded: boolean;
-  aiRecommendations: boolean;
-  reporting: "none" | "basic" | "advanced";
-  directEdit: boolean;
-  prioritySupport: boolean;
-  accent: string; // Couleur signature du plan
-  gradient: string; // Tailwind from/to/via
-}
-
-export function getPlanLimits(plan: CompanyPlan): PlanLimits {
-  switch (plan) {
-    case "starter":
-      return {
-        jobsLimit: "unlimited",
-        urgentIncluded: false,
-        aiRecommendations: false,
-        reporting: "none",
-        directEdit: false,
-        prioritySupport: false,
-        accent: "#2563EB",
-        gradient: "from-blue-50 to-indigo-50",
-      };
-    case "pro":
-      return {
-        jobsLimit: "unlimited",
-        urgentIncluded: true,
-        aiRecommendations: true,
-        reporting: "basic",
-        directEdit: true,
-        prioritySupport: false,
-        accent: "#7C3AED",
-        gradient: "from-violet-50 to-purple-50",
-      };
-    case "business":
-      return {
-        jobsLimit: "unlimited",
-        urgentIncluded: true,
-        aiRecommendations: true,
-        reporting: "advanced",
-        directEdit: true,
-        prioritySupport: true,
-        accent: "#D97706",
-        gradient: "from-amber-50 to-yellow-50",
-      };
-    case "free":
-    default:
-      // SRS v1.2 : offres illimitées pour tous les plans
-      return {
-        jobsLimit: "unlimited",
-        urgentIncluded: false,
-        aiRecommendations: false,
-        reporting: "none",
-        directEdit: false,
-        prioritySupport: false,
-        accent: "#6B7280",
-        gradient: "from-gray-50 to-slate-50",
-      };
-  }
 }
 
 export function formatDateShort(

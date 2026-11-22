@@ -38,7 +38,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/database.types";
-import { readLocalProofEnv } from "./lib/local-supabase";
+import { readLocalDbUrl, readLocalProofEnv } from "./lib/local-supabase";
+import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
@@ -53,6 +54,7 @@ const {
   serviceKey: SERVICE_KEY,
   appUrl: APP_URL,
 } = readLocalProofEnv();
+const DB_URL = readLocalDbUrl();
 const PROOF_PASSWORD = "Proof-L7d-realtime-01!";
 const PROOF_USER_METADATA = { proofRealtime: true };
 
@@ -1043,10 +1045,19 @@ async function main() {
     const mE2b = mark(lE2);
     mAd = mark(lAdm);
     const expiresAt = new Date(Date.now() + 15_000).toISOString();
-    await serviceClient
-      .from("company_profiles")
-      .update({ subscription_plan: "pro", subscription_expires_at: expiresAt })
-      .eq("id", coE);
+    // ABO-07 : attribution par le parcours autorisé (admin A), seule voie
+    // d'écriture du plan ; la fin est atteinte dans 15 s.
+    let grantErr: string | null = null;
+    try {
+      grantCompanyPremium(DB_URL, {
+        companyId: coE,
+        adminUserId: idA,
+        endsAt: expiresAt,
+        proof: "realtime",
+      });
+    } catch (e) {
+      grantErr = String(e);
+    }
     const { error: subErr } = await serviceClient.from("subscriptions").insert({
       user_id: idE,
       plan: "pro",
@@ -1057,22 +1068,23 @@ async function main() {
       status: "active",
     });
     report(
-      "C1 : activation du plan Pro → les deux onglets de l'entreprise et l'admin reçoivent (subscription)",
+      "C1 : activation de Premium → les deux onglets de l'entreprise et l'admin reçoivent (subscription)",
       !subErr &&
+        grantErr === null &&
         (await waitSignal(lE, mE, "subscription")) &&
         (await waitSignal(lE2, mE2b, "subscription")) &&
         (await waitSignal(lAdm, mAd, "subscription")),
-      subErr?.message,
+      { subscriptions: subErr?.message, grant: grantErr },
     );
     const st1 = await accountState(E);
     report(
-      "C2 : relecture → plan effectif Pro, annulation en fin de période (renews = false), heure serveur fournie",
-      st1?.company?.effective_plan === "pro" &&
-        st1.company.renews === false &&
+      "C2 : relecture → plan effectif Premium ; renouvellement inconnu (renews = null) malgré une ligne subscriptions, qui n'est plus lue pour l'entreprise (ABO-07) ; heure serveur fournie",
+      st1?.company?.effective_plan === "premium" &&
+        st1.company.renews === null &&
         !!st1.server_now,
       st1?.company,
     );
-    // Deux offres actives sans sélection : modification directe Pro.
+    // Deux offres actives sans sélection : modification directe Premium.
     const mkActive = async (title: string) =>
       (
         await serviceClient
@@ -1094,10 +1106,10 @@ async function main() {
           .select("id")
           .single()
       ).data!.id;
-    const jobEditOk = await mkActive("Modifiable Pro");
+    const jobEditOk = await mkActive("Modifiable Premium");
     const jobEditLate = await mkActive("Modifiable après échéance");
     const editBody = {
-      title: "Modifiée en Pro",
+      title: "Modifiée en Premium",
       job_type: "shift",
       description: "Preuve du lot 7d.",
       // Lot 11b : mêmes date et horaires que l'offre publiée (figés).
@@ -1120,7 +1132,7 @@ async function main() {
       editBody,
     );
     report(
-      "C3 : plan Pro en cours → modification directe d'une offre active acceptée ; l'offre quitte la liste publique (signal public)",
+      "C3 : Premium en cours → modification directe d'une offre active acceptée ; l'offre quitte la liste publique (signal public)",
       edited.status === 200 &&
         (edited.body.job as { status?: string })?.status === "pending_review" &&
         (await waitSignal(lPubK1, mPubEdit, "jobs", jobEditOk)),
@@ -1144,7 +1156,7 @@ async function main() {
     report(
       "C4 : échéance atteinte sans écriture SQL → plan effectif « free », plan stocké inchangé",
       st2?.company?.effective_plan === "free" &&
-        stored?.subscription_plan === "pro",
+        stored?.subscription_plan === "premium",
       {
         effective: st2?.company?.effective_plan,
         stored: stored?.subscription_plan,

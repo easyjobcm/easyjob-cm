@@ -396,6 +396,55 @@ export const fr = {
         generic: "Opération impossible. Réessayez.",
       },
     },
+    // ABO-07 : plan entreprise (Free/Premium), attribution par l'équipe.
+    companyPremium: {
+      title: "Plan entreprise (attribution administrative)",
+      plan: "Plan effectif",
+      free: "Free",
+      premium: "Premium",
+      until: "Fin",
+      since: "Début",
+      unknown: "Inconnu",
+      endedOn: "Dernière fin : {date}",
+      noPayment:
+        "Attribution par l'équipe EasyJob : aucun paiement n'est enregistré.",
+      readOnly:
+        "Lecture seule : seuls admin_ops et admin_founder modifient le plan.",
+      activate: "Activer Premium",
+      extend: "Prolonger",
+      stop: "Arrêter",
+      operation: "Opération",
+      endLabel: "Fin (heure de Douala)",
+      reasonLabel: "Motif",
+      reasonHint: "10 à 500 caractères, visible dans l'historique.",
+      submit: "Enregistrer",
+      history: "Historique",
+      noHistory: "Aucune opération enregistrée.",
+      opActivate: "Activation",
+      opExtend: "Prolongation",
+      opStop: "Arrêt",
+      opRequalify: "Reprise d'un ancien plan",
+      by: "par {who}",
+      periodLine: "Période : {start} → {end}",
+      previousEnd: "Fin précédente : {date}",
+      legacyLine: "Ancien plan : {plan}, échéance : {date}",
+      requalifiedTo: "Plan choisi : {plan}",
+      success: "Opération enregistrée.",
+      already: "Opération déjà enregistrée.",
+      errors: {
+        forbidden: "Action réservée à admin_ops et admin_founder.",
+        company_not_found: "Entreprise introuvable.",
+        reason_invalid: "Motif requis (10 à 500 caractères).",
+        period_invalid:
+          "Date de fin invalide : elle doit être future et, pour prolonger, postérieure à la fin actuelle.",
+        premium_already_active: "Premium est déjà actif.",
+        premium_not_active: "Premium n'est pas actif.",
+        premium_state_changed:
+          "Le plan a changé entre-temps : relisez la fiche avant de recommencer.",
+        request_conflict: "Envoi en conflit : recommencez.",
+        generic: "Opération impossible. Réessayez.",
+      },
+    },
     candidateProfile: {
       title: "Profil candidat",
       back: "Tous les candidats",
@@ -1681,245 +1730,26 @@ export const fr = {
       note: "Réglé par l'entreprise : aucun versement n'est encore effectué par l'application.",
     },
 
-    // ── Statuts & Plans (entreprise) ─────────────────────────
-    plan: {
-      free: "Gratuit",
-      starter: "Starter",
-      pro: "Pro",
-      business: "Business",
-      currentPlan: "Plan actuel",
-      expiresOn: "Expire le {date}",
-      renews: "Renouvellement le {date}",
-      prioritySupport: "Support prioritaire 24/7",
-      features: {
-        title: "Mon plan",
-        jobsLimitFree: "2 offres actives maximum",
-        jobsLimitStarter: "5 offres actives",
-        jobsLimitPro: "Offres illimitées",
-        jobsLimitBusiness: "Offres illimitées",
-        urgentPaid: "Options urgentes payantes",
-        urgentFree: "Options urgentes incluses",
-        aiRecoOff: "Pas de recommandations IA",
-        aiRecoOn: "Indicateurs de fiabilité des candidats",
-        reportingOff: "Pas de reporting",
-        reportingBasic: "Reporting basique",
-        reportingAdvanced: "Reporting avancé",
-        editOff: "Modification limitée — contactez le support",
-        editOn: "Modification directe des offres actives",
-      },
+    // ── Plan entreprise (ABO-07) : Free ou Premium, attribué par l'équipe ──
+    companyPlan: {
+      title: "Mon plan",
+      free: "Free",
+      premium: "Premium",
+      current: "Votre plan : {plan}",
+      until: "Premium jusqu'au {date} (heure de Douala)",
+      since: "Depuis le {date}",
+      ended: "Premium terminé le {date}",
+      granted:
+        "Attribué par l'équipe EasyJob. Aucun paiement n'est effectué dans l'application.",
+      directEditOn:
+        "Modification directe d'une offre publiée tant qu'aucun candidat n'est sélectionné, avec une nouvelle vérification par l'équipe. Les dates et horaires publiés restent figés.",
+      directEditOff:
+        "La modification directe d'une offre publiée est réservée au plan Premium.",
+      contactSupport: "Contacter le support",
     },
     activeJobs: {
       title: "Mes offres publiées",
-      used: "{used} publiée(s) sur {total} disponibles",
       unlimited: "Offres illimitées",
-      full: "Quota atteint. Passez au plan supérieur pour publier plus.",
-    },
-    premiumCompanyBenefits: {
-      sectionTitle: "Mes avantages",
-      expiresOn: "Expire le {date}",
-      // ── Plan Free (5 avantages) ──
-      jobsUnlimited: {
-        title: "Offres illimitées",
-        desc: "Publiez autant d'offres que vous voulez, 24h/7j.",
-      },
-      serviceFee10: {
-        title: "Frais de service 10%",
-        desc: "Commission transparente, pas de frais cachés.",
-      },
-      urgentPaid: {
-        title: "Option urgente disponible",
-        desc: "Boostez une offre pour 2 000 FCFA quand vous en avez besoin.",
-      },
-      securePayment: {
-        title: "Contrat signé",
-        desc: "Chaque sélection crée un contrat que vous et le candidat signez dans l'application.",
-      },
-      historyAccess: {
-        title: "Historique complet",
-        desc: "Retrouvez vos offres et leurs missions passées.",
-      },
-      // ── Plan Starter (4 avantages propres) ──
-      reducedFee: {
-        title: "Frais de service réduits 8%",
-        desc: "Économisez 2% sur chaque mission par rapport au Gratuit.",
-      },
-      urgentReduced: {
-        title: "Option urgente réduite",
-        desc: "1 000 FCFA au lieu de 2 000 FCFA pour booster vos offres.",
-      },
-      visibility: {
-        title: "Visibilité accrue",
-        desc: "Vos offres apparaissent en priorité dans les recherches.",
-      },
-      standardSupport: {
-        title: "Support standard 48h",
-        desc: "Une équipe disponible pour vous accompagner sous 48h.",
-      },
-      // ── Plan Pro (10 avantages) ──
-      zeroFee: {
-        title: "0% de frais de service",
-        desc: "Aucune commission sur vos missions, votre abonnement couvre tout.",
-      },
-      freeUrgent: {
-        title: "Options urgentes illimitées",
-        desc: "Boostez toutes vos offres sans frais supplémentaires.",
-      },
-      aiMatch: {
-        title: "Indicateurs de fiabilité",
-        desc: "Comparez les candidats grâce à leur note, leurs missions et leurs vérifications.",
-      },
-      favorites: {
-        title: "Liste de favoris",
-        desc: "Sauvegardez vos meilleurs candidats pour les retrouver rapidement.",
-      },
-      directInvite: {
-        title: "Invitation directe",
-        desc: "Invitez vos favoris sur une mission sans passer par la candidature publique.",
-      },
-      templates: {
-        title: "Modèles d'offres",
-        desc: "Créez et réutilisez vos modèles pour publier en 30 secondes.",
-      },
-      monthlyReport: {
-        title: "Rapport mensuel",
-        desc: "Suivez vos KPI : temps de remplissage, no-show, satisfaction.",
-      },
-      pdfExport: {
-        title: "Export PDF / Excel",
-        desc: "Téléchargez vos données et factures pour votre comptabilité.",
-      },
-      directEdit: {
-        title: "Modification directe",
-        desc: "Éditez vos offres publiées à tout moment, sans support.",
-      },
-      trialFree: {
-        title: "Activation par le support",
-        desc: "Le plan est activé par l'équipe EasyJob ; le paiement en ligne n'est pas encore disponible.",
-      },
-      // ── Plan Business (10 avantages) ──
-      guaranteedReplacement: {
-        title: "Aide en cas d'absence",
-        desc: "Si un candidat ne se présente pas, contactez le support. Aucun remplacement automatique n'est proposé.",
-      },
-      bulkHiring: {
-        title: "Recrutement en masse",
-        desc: "Embauchez 10+ candidats en une seule action.",
-      },
-      priorityInvite: {
-        title: "Invitations prioritaires",
-        desc: "Vos invitations apparaissent en tête des notifications candidats.",
-      },
-      availabilityAlerts: {
-        title: "Alertes disponibilité",
-        desc: "Soyez prévenu dès qu'un candidat de votre liste est disponible.",
-      },
-      presenceDashboard: {
-        title: "Tableau de présence",
-        desc: "Visualisez en temps réel qui est présent sur vos missions.",
-      },
-      sectorContracts: {
-        title: "Contrats sectoriels",
-        desc: "Modèles juridiques validés par secteur (BTP, événementiel, etc.).",
-      },
-      advancedReporting: {
-        title: "Reporting avancé",
-        desc: "Analytics multi-dimensionnels et comparaisons inter-équipes.",
-      },
-      dedicatedManager: {
-        title: "Account Manager dédié",
-        desc: "Un interlocuteur unique, SLA 4h, suivi stratégique mensuel.",
-      },
-      prioritySLA: {
-        title: "SLA prioritaire",
-        desc: "Support 24/7, traitement de vos tickets sous 1h.",
-      },
-      immediateModeration: {
-        title: "Modération immédiate",
-        desc: "Vos offres sont validées en moins de 30 minutes.",
-      },
-      // ── Pénalités d'annulation ──
-      cancellationPenalty: {
-        label: "Annulation :",
-        freeStarter:
-          "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
-        pro: "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
-        business:
-          "aucune somme n'est bloquée ni retenue par l'application. Contactez le support avant d'annuler une mission engagée.",
-      },
-    },
-    upgradeBanner: {
-      title: "Vos concurrents recrutent plus vite",
-      tagline:
-        "0 % de frais de service, options urgentes incluses et modification directe des offres actives.",
-      taglineStarter:
-        "Passez au Pro : offres illimitées et modification directe.",
-      // Labels courts dans les lignes de plan
-      starter: "Starter",
-      starterKicker:
-        "Frais réduits à 8% · Urgentes à 1 000 FCFA · Visibilité accrue",
-      pro: "Pro",
-      proKicker:
-        "0 % de frais · Options urgentes · Favoris · Modèles · Rapport",
-      business: "Business",
-      businessKicker: "Tout Pro · Manager dédié · Support prioritaire",
-      // Badges & CTA
-      recommended: "Recommandé",
-      cta: "Changer de plan avec le support",
-      ctaNote: "Le changement de plan est effectué par l'équipe EasyJob.",
-      businessCta: "Demander l'offre Business",
-    },
-
-    // ── Showcase Premium Entreprise ─────────────────────────
-    premiumCompany: {
-      sectionLabel: "Votre avantage stratégique",
-      headlineStarter: "Recrutez plus vite. Sans limite.",
-      headlinePro: "Publiez sans limite, modifiez en direct.",
-      headlineBusiness: "Le sur-mesure pour les grandes équipes.",
-      taglineStarter:
-        "5 offres simultanées, options urgentes incluses, modification directe.",
-      taglinePro:
-        "Offres illimitées, options urgentes incluses, modification directe.",
-      taglineBusiness:
-        "Account manager dédié, SLA garanti, branding, multi-utilisateurs, reporting avancé.",
-      metrics: {
-        timeToHire: { value: "−45%", label: "Temps de recrutement" },
-        compliance: { value: "100%", label: "Conformité contractuelle" },
-        retention: { value: "×2", label: "Rétention talents fiables" },
-      },
-      pillars: {
-        control: {
-          title: "Contrôle total",
-          desc: "Modification instantanée de vos offres actives, sans passer par le support.",
-        },
-        security: {
-          title: "Sécurité renforcée",
-          desc: "Candidats vérifiés CNI prioritaires + contrats signés et archivés.",
-        },
-        aiTalent: {
-          title: "Indicateurs de fiabilité",
-          desc: "Note, missions réalisées et vérifications de chaque candidat.",
-        },
-        reporting: {
-          title: "Reporting & Analytics",
-          desc: "Suivez vos KPI temps réel : taux de remplissage, no-show, satisfaction.",
-        },
-        accountManager: {
-          title: "Account Manager dédié",
-          desc: "Un interlocuteur unique, SLA 4h, accompagnement stratégique mensuel.",
-        },
-        branding: {
-          title: "Branding entreprise",
-          desc: "Vos offres avec votre logo, vos couleurs, votre voix.",
-        },
-        team: {
-          title: "Comptes multi-utilisateurs",
-          desc: "Donnez accès à toute votre équipe RH avec des permissions granulaires.",
-        },
-      },
-      socialProof:
-        "12 grandes entreprises camerounaises nous font déjà confiance",
-      manageButton: "Gérer mon abonnement",
-      upgradePlan: "Évoluer vers {plan}",
     },
   },
 
@@ -2115,7 +1945,7 @@ export const fr = {
     rejectedNext:
       "Modifiez l'offre pour corriger ce point : elle repassera en vérification.",
     lockedPlan:
-      "Offre publiée : la modification directe est réservée aux plans Pro et Business. Contactez le support.",
+      "Offre publiée : la modification directe est réservée au plan Premium.",
     actions: {
       viewApplications: "Voir les candidatures",
       edit: "Modifier",
@@ -2217,7 +2047,7 @@ export const fr = {
         "Votre entreprise n'est pas encore vérifiée : vous pourrez publier des offres après la validation de votre dossier par EasyJob.",
       job_not_found: "Offre introuvable.",
       job_locked_plan:
-        "Offre publiée : la modification directe est réservée aux plans Pro et Business. Contactez le support.",
+        "Offre publiée : la modification directe est réservée au plan Premium.",
       job_has_selected_candidates:
         "Des candidats sont déjà sélectionnés : contactez le support pour modifier cette offre.",
       job_not_editable: "Cette offre ne peut plus être modifiée.",

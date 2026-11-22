@@ -52,6 +52,7 @@ import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { approveCompanyDossier } from "./lib/verified-company";
+import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { purgeProofJobs } from "./lib/proof-purge";
 
@@ -313,8 +314,6 @@ async function createCompany(userId: string, name: string): Promise<string> {
       onboarding_status: "completed",
       niu: `M0${String(STAMP).slice(-9)}${name.length}D`,
       contact_email: `contact-${userId.slice(0, 8)}@proof.easyjob.cm`,
-      // Modification directe des offres actives (lot 7d) : plan Pro.
-      subscription_plan: "pro",
     })
     .select("id")
     .single();
@@ -461,6 +460,14 @@ async function main() {
     );
     ids.push(idA, idO1, idO2, ...cand);
     const coA = await createCompany(idA, "Échéances SARL");
+    // Modification directe des offres actives : Premium (ABO-08), attribué
+    // par le parcours autorisé (ABO-07).
+    grantCompanyPremium(DB_URL, {
+      companyId: coA,
+      adminUserId: idO1,
+      endsAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      proof: "job-deadlines",
+    });
     const candProfiles = await Promise.all(
       cand.map((id, i) => createCandidate(id, `Cand${i + 1}`)),
     );

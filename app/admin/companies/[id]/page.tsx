@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminPage } from "@/lib/auth/admin-page";
 import { CompanyReputationAdminClient } from "./company-reputation-admin-client";
 import { CompanyVerificationAdminPanel } from "./company-verification-admin-client";
+import { CompanyPremiumPanel } from "@/components/admin/company-premium-panel";
 
 /**
  * Fiche entreprise (/admin/companies/[id], lot 9c) : identité courte et
@@ -14,6 +15,9 @@ import { CompanyVerificationAdminPanel } from "./company-verification-admin-clie
  * Lot 11 : revue du dossier (RCCM) en tête de fiche, lue et décidée par
  * `/api/admin/companies/[id]/verification` (grade revérifié par la route
  * et par la RPC `admin_review_company`).
+ * ABO-07 : plan entreprise (Free/Premium) et son historique ; activation,
+ * prolongation et arrêt par admin_ops et admin_founder, lecture pour
+ * admin_support (revérifiés par la route et la RPC).
  */
 export default async function AdminCompanyPage({
   params,
@@ -23,7 +27,8 @@ export default async function AdminCompanyPage({
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
 
-  await requireAdminPage(`/admin/companies/${id}`);
+  const { role } = await requireAdminPage(`/admin/companies/${id}`);
+  const canManagePlan = role === "admin_ops" || role === "admin_founder";
 
   // Lecture en clé service : company_profiles n'a pas de policy admin.
   const admin = createAdminClient();
@@ -50,6 +55,7 @@ export default async function AdminCompanyPage({
       }
     >
       <CompanyVerificationAdminPanel companyId={company.id} />
+      <CompanyPremiumPanel companyId={company.id} canManage={canManagePlan} />
     </CompanyReputationAdminClient>
   );
 }

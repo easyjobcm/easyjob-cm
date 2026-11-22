@@ -16,7 +16,36 @@ l'application à ce jour.
 
 Références : [README](README.md) (démarrage), [SRS](documentations/SRS_EasyJob_CM_MVP.md),
 [user stories](documentations/UserStories_EasyJob_CM_MVP.md),
-[audit et suivi des lots](docs/audit/AUDIT.md), [plan](docs/audit/PLAN_ACTION.md).
+[audit et suivi des lots](docs/audit/AUDIT.md), [plan](docs/audit/PLAN_ACTION.md),
+[registre des décisions produit](docs/product/DECISIONS.md).
+
+## Décisions produit
+
+Avant tout changement métier (abonnements et avantages, montants et frais,
+annulations, sanctions, réputation, contrats, consentement, droits admin,
+échéances, conservation des données) :
+
+- Consulte `docs/product/DECISIONS.md` et cite les identifiants applicables
+  (`ANN-06`, `MNT-01`…) dans le plan de travail, le compte rendu et la PR.
+- Distingue trois cas : règle à validation documentée, proposition, inconnue
+  ou « à confirmer ». Une règle implémentée n'est pas forcément validée. Un
+  compte rendu d'agent (AUDIT, PLAN) ne vaut pas validation par
+  l'utilisateur.
+- Signale une contradiction **avant** d'implémenter la partie concernée. Ne
+  la tranche pas en retenant le document le plus récent.
+- N'invente jamais un prix, un délai, une sanction, un quota ou une
+  permission. Ne rattache aucun avantage à un plan sans décision.
+- La validation d'un point ne valide pas les choix voisins (exemple :
+  `ANN-06` fixe un délai d'annulation, pas des frais ni des indemnités).
+- Rattache chaque test métier ou preuve d'une décision critique à son
+  identifiant (commentaire ou nom de cas).
+- Après une décision ou une livraison, mets à jour le registre (statut,
+  source, état technique, références). Ailleurs, renvoie à l'identifiant
+  plutôt que de recopier la règle.
+
+Les instructions explicites et récentes de l'utilisateur priment. Consigne
+alors leur portée exacte dans le registre : source, date, et ce qu'elles
+décident ou laissent ouvert.
 
 ## Stack
 

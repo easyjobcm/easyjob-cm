@@ -9,8 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 import type { Enums, Tables } from "@/lib/database.types";
 import { useI18n } from "@/lib/i18n";
 import { MissionPay } from "@/components/jobs/mission-pay";
-import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
-import { getPlanLimits } from "@/lib/utils/profile-status";
+import {
+  companyCanDirectEdit,
+  normalizeCompanyPlan,
+} from "@/lib/utils/company-plan";
 import { canEditJob, type JobStatus } from "@/lib/utils/job-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,9 +123,10 @@ export default function CompanyJobsPage() {
   // Plan effectif (échéance comprise, heure du serveur) : la modification
   // directe n'est proposée que si elle est connue et en cours de validité.
   const account = useAccountState();
-  const directEdit = getPlanLimits(
-    normalizeCompanyPlan(account?.company?.effective_plan ?? "free"),
-  ).directEdit;
+  // ABO-08 : modification directe réservée à Premium (revérifiée en base).
+  const directEdit = companyCanDirectEdit(
+    normalizeCompanyPlan(account?.company?.effective_plan),
+  );
   const suspended = account !== null && !account.is_active;
   const latest = useLatestRequest();
   const [activeTab, setActiveTab] = useState("active");

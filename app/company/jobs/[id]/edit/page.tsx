@@ -11,8 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { JobForm, type JobFormInitial } from "@/components/company/job-form";
 import { useI18n } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeCompanyPlan } from "@/lib/utils/company-plan";
-import { getPlanLimits } from "@/lib/utils/profile-status";
+import {
+  companyCanDirectEdit,
+  normalizeCompanyPlan,
+} from "@/lib/utils/company-plan";
 import { canEditJob, JOB_PUBLISHED_STATUS } from "@/lib/utils/job-status";
 import {
   useAccountState,
@@ -92,8 +94,8 @@ export default function EditJobPage() {
     if (!account.is_active) {
       return { kind: "blocked", message: tj.errors.account_suspended };
     }
-    const { directEdit } = getPlanLimits(
-      normalizeCompanyPlan(account.company?.effective_plan ?? "free"),
+    const directEdit = companyCanDirectEdit(
+      normalizeCompanyPlan(account.company?.effective_plan),
     );
     if (!canEditJob(job, directEdit)) {
       const message =
