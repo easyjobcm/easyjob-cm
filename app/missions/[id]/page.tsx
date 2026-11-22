@@ -521,9 +521,12 @@ export default function MissionDetailPage() {
                               : d.completed_via === "partial_support"
                                 ? t.partialDay.dayPartialSupport
                                 : d.cancelled_at && !d.completed_at
-                                  ? mission.viewer_party === "company"
-                                    ? t.cancellations.companyDayCancelled
-                                    : t.cancellations.dayCancelled
+                                  ? d.cancelled_by === "company"
+                                    ? t.companyCancellation
+                                        .dayCancelledByCompany
+                                    : mission.viewer_party === "company"
+                                      ? t.cancellations.companyDayCancelled
+                                      : t.cancellations.dayCancelled
                                   : d.completed_at
                                     ? d.completed_via === "exceptional"
                                       ? t.schedule.dayConfirmedByDecision

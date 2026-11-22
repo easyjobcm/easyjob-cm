@@ -40,6 +40,7 @@ import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -504,14 +505,17 @@ async function main() {
         .eq("mission_id", missionId)
         .single();
       // Journée terminée (hier), avant tout début.
-      const { error: shiftErr } = await serviceClient
-        .from("mission_days")
-        .update({
+      const { error: shiftErr } = await rescheduleFixture(
+        "mission_days",
+        "id",
+        day!.id,
+        {
           scheduled_date: doualaDay(-1),
           scheduled_start_time: "00:00",
           scheduled_end_time: "23:00",
-        })
-        .eq("id", day!.id);
+        },
+        "mission-disputes",
+      );
       if (shiftErr) throw new Error(`shift: ${shiftErr.message}`);
       return {
         jobId,

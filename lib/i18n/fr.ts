@@ -3003,6 +3003,87 @@ export const fr = {
   // Lot 12 : offres de plusieurs journées (dates choisies explicitement).
   // Lots 17b–17c : annulation par le candidat, justification, recours,
   // suspensions et montant acquis.
+  // Lot 17d-2 : annulation par l'entreprise après sélection (ANN-06).
+  // Qualification seule : aucune sanction, aucun frais, aucune indemnité.
+  companyCancellation: {
+    open: "Annuler des journées",
+    title: "Annuler des journées",
+    intro:
+      "Choisissez les dates à annuler. Tous les candidats encore engagés ces jours-là sont concernés.",
+    noneAvailable: "Aucune journée à venir ne peut être annulée.",
+    loading: "Chargement des journées…",
+    loadError: "Impossible de charger les journées. Réessayez.",
+    dateCandidates: {
+      one: "{count} candidat concerné",
+      other: "{count} candidats concernés",
+    },
+    classes: {
+      in_time: "Dans le délai",
+      late: "Tardive",
+      legacy: "Engagement antérieur : délai inconnu",
+    },
+    plans: { free: "Free", premium: "Premium" },
+    deadline: "Dans le délai jusqu'au {date}",
+    terms: "Plan {plan} à la sélection : délai de {hours} h",
+    begun:
+      "Début atteint : cette date ne s'annule plus ici. Pour une journée commencée, signalez une interruption depuis le suivi de la mission ; sinon, contactez le support.",
+    summaryTitle: "Avant de confirmer",
+    summaryCount: "{days} · {candidates}",
+    dayUnits: { one: "{count} journée", other: "{count} journées" },
+    candidateUnits: { one: "{count} candidat", other: "{count} candidats" },
+    consequenceNotified:
+      "Les candidats concernés sont prévenus dans l'application. Cette annulation ne leur est pas imputée.",
+    consequenceKept:
+      "Les contrats signés, les journées déjà confirmées et les montants reconnus sont conservés.",
+    consequenceNoReopen: "Les places ne sont pas rouvertes au recrutement.",
+    consequenceLate:
+      "Au moins une journée est qualifiée de tardive. Cette qualification est enregistrée, sans sanction ni frais dans l'application.",
+    ackLate: "J'ai pris connaissance de la qualification tardive.",
+    reason: "Motif",
+    reasonHelp:
+      "Lu par l'équipe EasyJob, jamais montré aux candidats (10 à 500 caractères).",
+    reasonPlaceholder: "Pourquoi ces journées sont-elles annulées ?",
+    confirm: "Confirmer l'annulation",
+    sending: "Enregistrement…",
+    done: "Annulation enregistrée",
+    doneDesc: "Les candidats concernés sont prévenus.",
+    historyTitle: "Annulations enregistrées",
+    historyItem: "Le {date} : {dates}",
+    historyLate: {
+      one: "{count} journée tardive",
+      other: "{count} journées tardives",
+    },
+    dayCancelledByCompany: "Annulée par l'entreprise",
+    amountCompanyCancelled:
+      "Les journées annulées par l'entreprise ne sont pas comptées dans ce montant.",
+    errors: {
+      generic: "Annulation impossible pour le moment. Réessayez.",
+      not_authenticated: "Reconnectez-vous pour continuer.",
+      not_a_company: "Seule l'entreprise de l'offre peut annuler ses journées.",
+      account_suspended: "Votre compte est suspendu.",
+      company_not_found: "Profil entreprise introuvable.",
+      job_not_found: "Offre introuvable.",
+      request_invalid: "Demande invalide. Rechargez la page.",
+      days_invalid: "Choisissez au moins une date.",
+      cancellation_reason_required:
+        "Indiquez un motif d'au moins 10 caractères.",
+      cancellation_reason_too_long:
+        "Le motif ne doit pas dépasser 500 caractères.",
+      request_conflict: "Cette demande a déjà été utilisée. Rechargez la page.",
+      mission_not_active:
+        "Un engagement a changé entre-temps. La liste a été mise à jour.",
+      day_already_cancelled:
+        "Une journée vient d'être annulée. La liste a été mise à jour.",
+      day_started:
+        "Une journée a commencé entre-temps : signalez une interruption depuis le suivi de la mission.",
+      day_already_begun:
+        "Le début d'une journée est atteint : contactez le support ou signalez une interruption.",
+      cancellation_preview_stale:
+        "Les candidats de ces dates ont changé. Vérifiez la liste mise à jour.",
+      late_not_acknowledged:
+        "Une journée est devenue tardive entre-temps. Vérifiez la qualification mise à jour.",
+    },
+  },
   cancellations: {
     open: "Annuler des journées",
     title: "Annuler des journées",

@@ -231,6 +231,8 @@ export const acquiredAmountSchema = z.object({
    * règlement ; elle n'ajoute aucun montant tant qu'il n'est pas finalisé.
    */
   status: z.enum(["final", "in_progress", "settlement_pending"]),
+  /** Lot 17d-2 : journées annulées par l'entreprise, hors du montant. */
+  company_cancelled_days: z.number().optional(),
   days: z.array(
     z.object({
       date: z.string(),
@@ -239,6 +241,7 @@ export const acquiredAmountSchema = z.object({
       planned_minutes: z.number(),
       realized: z.boolean(),
       cancelled: z.boolean(),
+      cancelled_by: z.enum(["candidate", "company"]).nullable().optional(),
       realized_via: z.string().nullable(),
       awaiting_settlement: z.boolean(),
       /** Désaccord non résolu : aucun montant définitif (jamais zéro acquis). */

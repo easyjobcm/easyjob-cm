@@ -52,6 +52,7 @@ import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
 import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { CompanyMissionIncidents } from "@/components/missions/company-mission-incidents";
+import { CompanyCancellationPanel } from "@/components/jobs/company-cancellation-panel";
 import {
   SelectionContractDialog,
   type SelectionResult,
@@ -118,6 +119,8 @@ type JobMission = Omit<
   mission_completed_at: string | null;
   /** Lot 17b : désistement du candidat sur cette journée. */
   cancelled_at?: string | null;
+  /** Lot 17d-2 : auteur de l'annulation (candidat ou entreprise). */
+  cancelled_by?: "candidate" | "company" | null;
 };
 
 /** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
@@ -648,6 +651,14 @@ export default function CompanyJobDetailPage() {
 
       {/* Applications */}
       <div className="p-4">
+        {/* Lot 17d-2 : annulation de dates après sélection (ANN-06). */}
+        <div className="mb-4">
+          <CompanyCancellationPanel
+            jobId={jobId}
+            disabled={suspended}
+            onDone={() => void loadData()}
+          />
+        </div>
         {perDay && job.days.length > 1 && (
           <div
             className="mb-3 flex gap-2 overflow-x-auto pb-1"
@@ -960,7 +971,11 @@ export default function CompanyJobDetailPage() {
                                           className="text-destructive"
                                           data-testid="company-day-cancelled"
                                         >
-                                          {t.cancellations.companyDayCancelled}{" "}
+                                          {m.cancelled_by === "company"
+                                            ? t.companyCancellation
+                                                .dayCancelledByCompany
+                                            : t.cancellations
+                                                .companyDayCancelled}{" "}
                                           ·{" "}
                                           {doualaDateTime(
                                             m.cancelled_at,

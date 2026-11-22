@@ -43,6 +43,7 @@ import { appFetch } from "./lib/app-fetch";
 import { postSelectHttp, previewHttp } from "./lib/sign-and-select";
 import { runSupabaseQuery } from "./lib/db-query";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -717,14 +718,17 @@ async function main() {
     // Première journée recalée sur aujourd'hui (clé service, jamais
     // commencée) : la mission peut commencer avant toute signature.
     const today = doualaDay(0);
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      mdays![0].id,
+      {
         scheduled_date: today,
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:59",
-      })
-      .eq("id", mdays![0].id);
+      },
+      "contract-selection",
+    );
     const started = await http(
       "POST",
       `/api/missions/${missionId1}/start`,

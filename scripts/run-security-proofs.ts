@@ -55,6 +55,7 @@ const PROOFS = [
   "candidate-premium",
   "company-premium",
   "candidate-cancellations",
+  "company-cancellations",
   "mission-interruptions",
   "reputation",
   "realtime",

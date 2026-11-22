@@ -49,8 +49,9 @@ export async function GET(
         request,
       });
     }
-    // Lot 17b : journées annulées par le candidat (date seulement, sans
-    // motif, classement ni plan) ; leur code n'est plus montré.
+    // Lot 17b : journées annulées par le candidat ; lot 17d-2 : ou par
+    // l'entreprise (date et auteur seulement, sans motif, qualification ni
+    // plan) ; leur code n'est plus montré.
     const { data: cancelled, error: cancelledError } = await supabase.rpc(
       "company_job_cancellations",
       { p_job_id: jobId.data },
@@ -62,13 +63,18 @@ export async function GET(
       });
     }
     const cancelledAt = new Map(
-      (cancelled ?? []).map((c) => [c.mission_day_id, c.cancelled_at]),
+      (cancelled ?? []).map((c) => [c.mission_day_id, c]),
     );
     const missions = (data ?? []).map((m) => {
-      const at = cancelledAt.get(m.mission_day_id) ?? null;
-      return at
-        ? { ...m, cancelled_at: at, completion_code: null }
-        : { ...m, cancelled_at: null };
+      const c = cancelledAt.get(m.mission_day_id);
+      return c
+        ? {
+            ...m,
+            cancelled_at: c.cancelled_at,
+            cancelled_by: c.cancelled_by,
+            completion_code: null,
+          }
+        : { ...m, cancelled_at: null, cancelled_by: null };
     });
     return NextResponse.json(
       { missions },

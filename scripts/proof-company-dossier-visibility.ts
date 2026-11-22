@@ -38,6 +38,7 @@ import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { addDays } from "./lib/job-days-fixture";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -674,14 +675,17 @@ async function main() {
     );
     // Lot 15 : code reçu à partir de la fin prévue ; journée recalée sur
     // hier (clé service, avant le début).
-    await serviceClient
-      .from("missions")
-      .update({
+    await rescheduleFixture(
+      "missions",
+      "id",
+      selection2?.mission_id ?? "",
+      {
         scheduled_date: douala(new Date(Date.now() - 86_400_000)),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", selection2?.mission_id ?? "");
+      },
+      "company-dossier-visibility",
+    );
     const started = await http(
       "POST",
       `/api/missions/${selection2?.mission_id}/start`,

@@ -3615,3 +3615,88 @@ Assertions S5 (catalogue) et S6 (tentatives HTTP en clé service, état et histo
 | `pnpm build` (relié à la pile de preuve) | ✅ |
 | Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **40/40**, environ 1 000 s cumulées (`account-security`, `company-verification`, `company-dossier-visibility` et `company-premium` compris) |
 | Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 21/21, sans erreur JavaScript ni défilement horizontal ; le script (hors dépôt) attribue désormais Premium par la route admin et non plus en clé service |
+
+## 45. Suivi — Lot 17d-2 : annulation par l'entreprise après sélection (2026-11-22)
+
+**Point de départ (constat Git du 2026-11-22).** Le lot « Plan entreprise effectif et attribution tracée » est intégré à `origin/main-dev` (#60, `88e8a11`). Branche `feat/lot-17d-2-company-cancellation` créée depuis `origin/main-dev` ; arbre propre, stash existant (`lint-staged automatic backup`) conservé, aucun commit, push ni déploiement. Travail sur la pile `easyjob-proof` seulement.
+
+**Décisions utilisées** (`docs/product/DECISIONS.md`) :
+
+| Identifiant | Statut | Usage dans le lot |
+|---|---|---|
+| ANN-06 | validation documentée | Délai Free 48 h / Premium 24 h, limites incluses ; plan figé à chaque sélection ; tardive sans sanction, frais, indemnité ni remboursement ; engagements antérieurs : délai inconnu |
+| ANN-04 (entreprise) | `[U]` instruction du 2026-11-22 | Une demande (plusieurs journées, plusieurs candidats) = un événement |
+| ANN-08 | à confirmer | Appliqués : journées futures non commencées, orientation si début atteint, aucune réouverture, avis dans l'application, motif obligatoire. Non appliqués : retrait ciblé d'un candidat, justificatifs de force majeure |
+| ABO-07 | validation documentée | Plan effectif lu par `company_effective_plan` dans la transaction de sélection |
+| ANN-14 | validation documentée (désistement) | Non déclenché : concerne le désistement du candidat |
+| REP-04, SAN-06, MNT-04, MNT-06 | — | Aucune conséquence ajoutée ; constats consignés |
+
+Précisions de l'instruction du 2026-11-22 consignées sous ANN-06 : un changement ultérieur de plan ne modifie pas un engagement ; la qualification « tardive » ne vaut pas autorisation d'une conséquence ; ANN-14 n'est pas déclenché.
+
+**Livré** (migration `20261126120000_company_cancellations.sql`) :
+
+| Volet | Comportement |
+|---|---|
+| Conditions figées | `mission_day_company_terms`, une ligne par journée, écrite par un déclencheur dans la transaction de « Signer et sélectionner » (`selected_at = now()`, ligne de l'entreprise déjà tenue en partage par `contract_select_core`). Hors de cette transaction, ou pour une journée antérieure, `legacy` sans plan. Immuable pour tout auteur ; insertion et suppression refusées aux sessions et à la clé service (lecture seule en clé service, sans TRUNCATE) |
+| Qualification | `company_cancellation_classify` : `in_time` si l'heure de la base ≤ début − délai figé, `late` au-delà, `legacy` sans conditions. Aucun délai de réaction (non décidé) |
+| Aperçu | `company_cancellation_preview` : journées encore engagées de l'offre et de ses sous-offres, par date et par candidat (prénom et initiale), état `cancellable` ou `begun`, qualification, plan et délai figés de l'entreprise, heure du serveur |
+| Demande | `request_company_cancellation` : dates entières (toute journée annulable d'une date visée doit figurer, sinon `cancellation_preview_stale`) ; futures et non commencées (`day_already_begun`, `day_started`) ; motif de 10 à 500 caractères ; tardive sans accord → `late_not_acknowledged`, sans effet. Une transaction : événement, journées, missions sans journée restante annulées (`cancelled_by = company`, `company_cancellation` ou `company_cancellation_interrupted`), un avis par candidat (offre et dates, « ne vous est pas imputée », sans motif ni qualification), avis à l'entreprise, audit `company_cancellation`. Relance : même résultat ; clé réutilisée pour d'autres journées : `request_conflict` |
+| Conservé | Contrat, candidature `selected`, place (aucune réouverture), journées confirmées, montant reconnu |
+| Gardes étendues | Journée annulée par l'une ou l'autre partie : début, confirmation (clé service comprise) et signalement refusés (`day_cancelled`) ; une seule annulation par journée, quelle que soit la partie (`guard_single_day_cancellation`) ; absence ou annulation tardive du candidat refusées sur une journée annulée par l'entreprise (`incident_conflicts_with_company_cancellation`) ; créneau libéré pour la marge de 3 h (journée annulée par l'entreprise seulement) |
+| Vues | `mission_days_json` et `company_job_cancellations` indiquent l'auteur (`cancelled_by`) ; `mission_acquired_amount` sort les journées annulées par l'entreprise du calcul et les compte à part (`company_cancelled_days`) |
+| Temps réel | Signal `missions` aux parties de chaque mission touchée et à l'entreprise, `incidents` à l'administration ; charge utile `{d, r}` |
+| Écrans | Offre de l'entreprise : panneau « Annuler des journées » (dates, candidats, qualification et délai figé, date commencée non sélectionnable avec orientation, récapitulatif des conséquences, accord sur la tardiveté, motif, historique) ; mission (candidat et entreprise) : « Annulée par l'entreprise » ; carte du montant reconnu : journées annulées par l'entreprise non comptées. FR et EN |
+
+**Ordre des verrous.** Missions (identifiants croissants), journées, puis offres en partage : même ordre que le désistement du candidat, le début et le code ; « Signer et sélectionner » prend la candidature puis l'offre, jamais une mission existante. Le contrôle des dates entières est fait après le verrou partagé de l'offre.
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` (Vitest) | ✅ 641 tests, 54 fichiers (dont `company-cancellation`, 10 cas) |
+| `pnpm build` (relié à la pile de preuve) | ✅ |
+| Types générés | identiques au schéma final (pile réinitialisée) |
+| Preuve ciblée `company-cancellations` | ✅ 26/26 (deuxième passage). Premier passage conservé : 24/26 — R3 : la garde de réputation comparait le début enregistré à l'annulation, pas le début courant ; l'écart n'apparaissait qu'après un recalage fait par une fonction de preuve (voir le complément ci-dessous : manipulation réservée à la preuve), garde rendue robuste aux deux valeurs ; A2 comptait des avis d'autres cas (défaut de la preuve, filtré par offre) |
+| Contrôles négatifs | N1 blocage des journées annulées désactivé → R3 ; N2 conditions réécrivables en clé service → T4 ; N3 garde de réputation de 17b → R3 (chacun 25/26, code de sortie 1) ; pile réinitialisée ensuite |
+| Navigateur (Chrome headless par CDP, 375 × 812 tactile, entreprise et deux candidats, script hors dépôt) | ✅ 14/14, FR puis EN : dialogue, qualification, date commencée non sélectionnable, récapitulatif, confirmation bloquée sans motif puis sans accord, un événement ; journées « Annulée par l'entreprise » chez le candidat sans rechargement, sans motif ni qualification ; candidat hors ligne pendant une annulation, à jour au retour du réseau ; aucun défilement horizontal, aucune erreur JavaScript. Premier passage : 3 échecs du script (ordre des dates recalées, onglet non ouvert, date commencée cliquée), aucun de l'application |
+| Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **41/41**, environ 1 200 s cumulées (`candidate-cancellations` adaptée : clé `cancelled_by` attendue dans `company_job_cancellations`) |
+
+**Constats et limites** (aucune règle décidée ici) :
+
+- **Retrait ciblé d'un candidat** (ANN-08, à trancher). Exemple : offre « 3 hôtesses le 12/12 » ; l'entreprise ne veut plus que Paule, sans faute de sa part, et garde les deux autres. Aujourd'hui, elle annule toute la date ou contacte le support.
+- **Motif obligatoire** (ANN-08) appliqué, à confirmer.
+- **Unité « offre » de l'entreprise** (REP-04) : la candidature reste sélectionnée et la mission annulée, l'unité est donc bloquée (ni gain, ni retrait) jusqu'à 17d-5.
+- **Montant** : aucune indemnité ni frais (MNT-04 ouvert) ; le montant reconnu des journées confirmées suit MNT-06 (information).
+- **Créneau du candidat** : libéré pour une journée annulée par l'entreprise ; une journée annulée par le candidat garde le comportement antérieur (elle retient encore son créneau), écart antérieur non traité ici.
+- **Administration** : l'événement est tracé (audit, signal) mais n'a pas encore d'écran de suivi dans `/admin`.
+- **Hors lot** : remplacement (ANN-14 non déclenché), absences injustifiées (SAN-05), paiement, avantages commerciaux non livrés, producteur `company_late_cancellation`.
+- `interruption_json` compte encore les seules journées annulées par le candidat dans son résumé `mission_days.cancelled` (information du dossier d'interruption, non modifiée).
+
+### Complément du 2026-11-22 — décisions ANN-15, ANN-16, ECH-09
+
+**Décisions** (`[UV]` « oui » de l'utilisateur du 2026-11-22, `docs/product/DECISIONS.md`) : ANN-15 motif obligatoire, visible par l'entreprise et l'administration seulement ; ANN-16 retrait ciblé d'un candidat sans faute réservé au support (parcours et habilitations à cadrer, aucun outil livré ni annoncé) ; ECH-09 une journée annulée avant son début, par le candidat ou l'entreprise, ne bloque plus son créneau ni sa marge de 3 h. Les autres arbitrages sont inchangés.
+
+**Cas R3 précisé.** Le recalage de R3 était une manipulation réservée à la preuve : `proof_l17d2_shift`, fonction temporaire `postgres` qui désactive `trg_protect_mission_day_writes`. En vérifiant la règle, un écart réel est apparu ailleurs : avant le début, la clé service pouvait encore modifier les horaires d'une mission ou d'une journée de mission (`protect_mission_writes` et `protect_mission_day_writes` ne les figeaient qu'après le début ; `job_days` était déjà figé pour tout auteur). Aucun parcours de l'application ne les écrit (seule `sync_single_mission_day`, fonction de la base). Fermé : `mission_schedule_locked` pour la clé service, avant comme après le début, `starts_at` et `ends_at` compris. Les 18 recalages des fixtures de 8 preuves passent désormais par la maintenance directe (`rescheduleFixture`).
+
+**Livré.**
+
+| Volet | Comportement |
+|---|---|
+| Disponibilité | `candidate_schedule_conflicts` ignore les journées annulées enregistrées (`candidate_cancellation_days`, `company_cancellation_days`) ; une demande refusée ou en cours ne libère rien. Calcul partagé : aperçu, candidature, sélection définitive (sous `lock_candidate_engagements`). Avant : seule une mission entièrement annulée était libérée, si bien qu'une journée annulée dans une période restait bloquante |
+| Horaires | `mission_schedule_locked` (missions, journées de mission) pour la clé service |
+| Motif | `admin_company_cancellations` (admin actif) ; entreprise inchangée ; candidats jamais |
+| Écrans | Aucun texte ajouté ; l'offre ouverte par le candidat relit sa disponibilité sur le signal `missions` et à la reconnexion |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm build` | ✅ |
+| `pnpm test` | ✅ 641 tests |
+| Types générés | identiques au schéma final (pile réinitialisée) |
+| Preuve `company-cancellations` | ✅ 34/34 (F1 période complète, F2 aucune place rouverte, F3 journées au choix et désistement avec justificatif en attente, F3b désistement partiel d'une période, F4 annulation refusée puis en cours face à une sélection définitive, F5 compte suspendu, S1 horaires figés en clé service, M1 motif) |
+| Contrôle négatif N4 (blocage réintroduit) | premier essai : 1 échec seulement (F1) ; F3 et F4 portaient sur des missions d'une journée, déjà libérées par le statut « annulée » ; renforcés (F3b, F4 sur une période de deux journées) : 3 échecs (F1, F3b, F4) |
+| Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 20/20 : offre voisine bloquée puis libérée sans rechargement ; libérée après le retour du réseau pour le candidat hors ligne ; aucune erreur JavaScript |
+| Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **41/41**, environ 1177 s cumulées (`multi-day-jobs`, `mission-completion`, `mission-incidents`, `mission-disputes`, `mission-time-tracking`, `contract-selection`, `company-dossier-visibility`, `realtime` avec leurs recalages par la maintenance directe) |
+

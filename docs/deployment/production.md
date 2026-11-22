@@ -193,6 +193,12 @@ La migration `20261125130000` refuse de s'appliquer tant qu'un compte porte enco
 
 Procédure répétée le 2026-11-22 sur la pile de preuve (`db push --db-url` au lieu de `--linked`) : release N appliquée seule, premier essai de la release N+1 refusé sans effet tant qu'un compte restait sans choix, puis appliqué après les choix ; relance sans effet. Commandes et état observé : `docs/audit/AUDIT.md` §44, suivi du 2026-11-22.
 
+## 6 ter. Annulation par l'entreprise (lot 17d-2, migration `20261126120000`)
+
+- Migration additive, dans une transaction : trois tables fermées (conditions entreprise figées, événements, journées annulées), fonctions et déclencheurs. Elle marque chaque engagement déjà sélectionné « legacy » (ANN-06 : délai inconnu, aucun plan reconstitué) ; elle ne modifie ni mission, ni contrat, ni montant.
+- Ordre : elle suit `20261125130000`. Si la reprise des plans se fait en deux releases (§6 bis), le lot 17d-2 part au plus tôt avec la release N+1 ou après : `db push` s'arrête à la première migration refusée, sans appliquer les suivantes.
+- Après application : `select terms_source, count(*) from public.mission_day_company_terms group by 1` (lecture seule) ; seuls des « legacy » existent avant la première nouvelle sélection.
+
 ## 7. Point de contrôle avant les premiers utilisateurs réels
 
 À trancher avant d'ouvrir l'accès, et non dans ce lot. Aucun dispositif payant ni stockage externe n'est activé ici.

@@ -2912,6 +2912,83 @@ export const en: TranslationKeys = {
   // Lot 12: jobs over several days (dates chosen one by one).
   // Lots 17b–17c: candidate cancellation, proof, appeal, suspensions and
   // acquired amount.
+  // Lot 17d-2: cancellation by the company after selection (ANN-06).
+  companyCancellation: {
+    open: "Cancel days",
+    title: "Cancel days",
+    intro:
+      "Choose the dates to cancel. Every candidate still engaged on those days is concerned.",
+    noneAvailable: "No upcoming day can be cancelled.",
+    loading: "Loading days…",
+    loadError: "Days could not be loaded. Please try again.",
+    dateCandidates: {
+      one: "{count} candidate concerned",
+      other: "{count} candidates concerned",
+    },
+    classes: {
+      in_time: "Within notice",
+      late: "Late",
+      legacy: "Earlier engagement: notice unknown",
+    },
+    plans: { free: "Free", premium: "Premium" },
+    deadline: "Within notice until {date}",
+    terms: "{plan} plan at selection: {hours}-hour notice",
+    begun:
+      "Start time reached: this date can no longer be cancelled here. For a day that has started, report an interruption from the mission tracking; otherwise, contact support.",
+    summaryTitle: "Before you confirm",
+    summaryCount: "{days} · {candidates}",
+    dayUnits: { one: "{count} day", other: "{count} days" },
+    candidateUnits: { one: "{count} candidate", other: "{count} candidates" },
+    consequenceNotified:
+      "The candidates concerned are notified in the app. This cancellation is not held against them.",
+    consequenceKept:
+      "Signed contracts, days already confirmed and recognised amounts are kept.",
+    consequenceNoReopen: "The positions are not reopened for recruitment.",
+    consequenceLate:
+      "At least one day is classified as late. This classification is recorded, with no sanction or fee in the app.",
+    ackLate: "I have read the late classification.",
+    reason: "Reason",
+    reasonHelp:
+      "Read by the EasyJob team, never shown to candidates (10 to 500 characters).",
+    reasonPlaceholder: "Why are these days cancelled?",
+    confirm: "Confirm cancellation",
+    sending: "Saving…",
+    done: "Cancellation recorded",
+    doneDesc: "The candidates concerned have been notified.",
+    historyTitle: "Recorded cancellations",
+    historyItem: "On {date}: {dates}",
+    historyLate: { one: "{count} late day", other: "{count} late days" },
+    dayCancelledByCompany: "Cancelled by the company",
+    amountCompanyCancelled:
+      "Days cancelled by the company are not counted in this amount.",
+    errors: {
+      generic: "The cancellation is not possible right now. Please try again.",
+      not_authenticated: "Please sign in again to continue.",
+      not_a_company: "Only the job's company can cancel its days.",
+      account_suspended: "Your account is suspended.",
+      company_not_found: "Company profile not found.",
+      job_not_found: "Job not found.",
+      request_invalid: "Invalid request. Please reload the page.",
+      days_invalid: "Choose at least one date.",
+      cancellation_reason_required: "Enter a reason of at least 10 characters.",
+      cancellation_reason_too_long:
+        "The reason must not exceed 500 characters.",
+      request_conflict:
+        "This request was already used. Please reload the page.",
+      mission_not_active:
+        "An engagement changed meanwhile. The list has been updated.",
+      day_already_cancelled:
+        "A day was just cancelled. The list has been updated.",
+      day_started:
+        "A day has started meanwhile: report an interruption from the mission tracking.",
+      day_already_begun:
+        "A day's start time has been reached: contact support or report an interruption.",
+      cancellation_preview_stale:
+        "The candidates for these dates changed. Check the updated list.",
+      late_not_acknowledged:
+        "A day became late meanwhile. Check the updated classification.",
+    },
+  },
   cancellations: {
     open: "Cancel days",
     title: "Cancel days",

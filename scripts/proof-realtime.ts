@@ -44,6 +44,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -818,14 +819,17 @@ async function main() {
     );
     // Temps écoulé : la mission (sélectionnée à J−3) a eu lieu hier et sa
     // fin prévue est passée (lot 15 : code reçu à partir de la fin prévue).
-    await serviceClient
-      .from("missions")
-      .update({
+    await rescheduleFixture(
+      "missions",
+      "id",
+      missionId,
+      {
         scheduled_date: douala(new Date(Date.now() - 86_400_000)),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", missionId);
+      },
+      "realtime",
+    );
     await sleep(500);
     m = { e: mark(lE), adm: mark(lAdm), pub: mark(lPubK1), k1: mark(lK1) };
     mT = mark(lT);

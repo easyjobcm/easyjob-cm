@@ -45,6 +45,7 @@ import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -579,14 +580,17 @@ async function main() {
       ).data!;
     /** Journée réelle terminée (hier 00:00–23:00), avant tout début. */
     const endedDay = async (dayId: string, offset = -1) => {
-      const { error } = await serviceClient
-        .from("mission_days")
-        .update({
+      const { error } = await rescheduleFixture(
+        "mission_days",
+        "id",
+        dayId,
+        {
           scheduled_date: doualaDay(offset),
           scheduled_start_time: "00:00",
           scheduled_end_time: "23:00",
-        })
-        .eq("id", dayId);
+        },
+        "mission-completion",
+      );
       if (error) throw new Error(`ended day: ${error.message}`);
     };
     const complete = (s: Session | null, missionId: string, body: unknown) =>
@@ -734,14 +738,17 @@ async function main() {
     // Journée de nuit 22 h → 6 h : horaire réel, début enregistré.
     const m2 = await singleMission(C2, compA, "Gardiennage de nuit");
     const today = doualaDay(0);
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      m2.dayId,
+      {
         scheduled_date: today,
         scheduled_start_time: "22:00",
         scheduled_end_time: "06:00",
-      })
-      .eq("id", m2.dayId);
+      },
+      "mission-completion",
+    );
     await serviceClient
       .from("mission_days")
       .update({ actual_start_time: new Date().toISOString() })
@@ -776,14 +783,17 @@ async function main() {
     // Journée commencée la veille à 23:59, finie après minuit (déjà passée).
     const m3 = await singleMission(C3, compA, "Inventaire de nuit");
     const endLocal = doualaParts(Date.now() - 2 * 60_000);
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      m3.dayId,
+      {
         scheduled_date: addDays(endLocal.date, -1),
         scheduled_start_time: "23:59",
         scheduled_end_time: endLocal.time,
-      })
-      .eq("id", m3.dayId);
+      },
+      "mission-completion",
+    );
     const s3 = await start(C3, m3.missionId);
     const midnight = await dayRow(m3.dayId);
     const afterMidnight = await complete(C3, m3.missionId, {

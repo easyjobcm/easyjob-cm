@@ -1978,7 +1978,14 @@ async function main() {
           JSON.stringify(
             Object.keys((companyList.data ?? [])[0] ?? {}).sort(),
           ) ===
-            JSON.stringify(["cancelled_at", "mission_day_id", "mission_id"]) &&
+            // Lot 17d-2 : auteur de l'annulation (candidat ou entreprise),
+            // sans classement, plan ni motif.
+            JSON.stringify([
+              "cancelled_at",
+              "cancelled_by",
+              "mission_day_id",
+              "mission_id",
+            ]) &&
           mission.status === 200 &&
           !leak.test(mission.text) &&
           !leak.test(JSON.stringify(jm ?? [])) &&

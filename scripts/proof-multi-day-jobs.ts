@@ -58,6 +58,7 @@ import { grantCompanyPremium } from "./lib/company-premium-fixture";
 import { addDays, insertJobWithDays } from "./lib/job-days-fixture";
 import { dropBarrier, installBarrier, waitSleeping } from "./lib/proof-barrier";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -2125,22 +2126,28 @@ async function main() {
     // qu'à la fin prévue (`mission-completion`). La troisième reste future.
     const yesterday = doualaDay(-1);
     const today = doualaDay(0);
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      md1.id,
+      {
         scheduled_date: yesterday,
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", md1.id);
-    await serviceClient
-      .from("mission_days")
-      .update({
+      },
+      "multi-day-jobs",
+    );
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      md2.id,
+      {
         scheduled_date: addDays(today, -3),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", md2.id);
+      },
+      "multi-day-jobs",
+    );
     const mStartNoDay = await http(
       "POST",
       `/api/missions/${missionFull}/start`,
@@ -2290,14 +2297,17 @@ async function main() {
         attempt_window_started_at: null,
       })
       .eq("mission_day_id", md2.id);
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      md3.id,
+      {
         scheduled_date: addDays(today, -2),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", md3.id);
+      },
+      "multi-day-jobs",
+    );
     const good2 = await http(
       "POST",
       `/api/missions/${missionFull}/complete`,
@@ -2426,14 +2436,17 @@ async function main() {
       );
     }
     for (const [i, mid] of pMissions.entries()) {
-      await serviceClient
-        .from("missions")
-        .update({
+      await rescheduleFixture(
+        "missions",
+        "id",
+        mid,
+        {
           scheduled_date: addDays(today, -1 - 2 * i),
           scheduled_start_time: "08:00",
           scheduled_end_time: "12:00",
-        })
-        .eq("id", mid);
+        },
+        "multi-day-jobs",
+      );
       await http("POST", `/api/missions/${mid}/start`, C7.cookie);
       const { data: c } = await serviceClient
         .from("mission_completion_codes")
@@ -2588,14 +2601,17 @@ async function main() {
     /** Mission d'une journée recalée dans le passé puis réalisée par code. */
     const realize = async (s: Session, missionId: string) => {
       pastOffset -= 2;
-      await serviceClient
-        .from("missions")
-        .update({
+      await rescheduleFixture(
+        "missions",
+        "id",
+        missionId,
+        {
           scheduled_date: addDays(today, pastOffset),
           scheduled_start_time: "08:00",
           scheduled_end_time: "12:00",
-        })
-        .eq("id", missionId);
+        },
+        "multi-day-jobs",
+      );
       const st = await http(
         "POST",
         `/api/missions/${missionId}/start`,
@@ -2906,22 +2922,28 @@ async function main() {
       .eq("mission_id", mB)
       .order("starts_at");
     const [mb1, mb2] = mbDays ?? [];
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      mb1.id,
+      {
         scheduled_date: addDays(today, -50),
         scheduled_start_time: "08:00",
         scheduled_end_time: "12:00",
-      })
-      .eq("id", mb1.id);
-    await serviceClient
-      .from("mission_days")
-      .update({
+      },
+      "multi-day-jobs",
+    );
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      mb2.id,
+      {
         scheduled_date: addDays(today, -48),
         scheduled_start_time: "08:00",
         scheduled_end_time: "12:00",
-      })
-      .eq("id", mb2.id);
+      },
+      "multi-day-jobs",
+    );
     const codeOfDay = async (dayId: string) =>
       (
         await serviceClient

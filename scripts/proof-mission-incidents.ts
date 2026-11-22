@@ -43,6 +43,7 @@ import { insertJobWithDays } from "./lib/job-days-fixture";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -378,14 +379,17 @@ async function main() {
       [wed, doualaDay(-1), "00:00", "23:00"],
       [fri, doualaDay(2), "08:00", "16:00"],
     ] as const) {
-      const { error } = await serviceClient
-        .from("mission_days")
-        .update({
+      const { error } = await rescheduleFixture(
+        "mission_days",
+        "id",
+        d.id,
+        {
           scheduled_date: date,
           scheduled_start_time: start,
           scheduled_end_time: end,
-        })
-        .eq("id", d.id);
+        },
+        "mission-incidents",
+      );
       if (error) throw new Error(`day shift: ${error.message}`);
     }
     const codeOf = async (dayId: string) =>
@@ -958,14 +962,17 @@ async function main() {
       .eq("mission_id", mission2)
       .single();
     // Journée terminée (lot 15 : code reçu à partir de la fin prévue).
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      day2!.id,
+      {
         scheduled_date: doualaDay(-1),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", day2!.id);
+      },
+      "mission-incidents",
+    );
     await C2.client.rpc("start_mission", {
       p_mission_id: mission2,
       p_mission_day_id: day2!.id,
@@ -1177,14 +1184,17 @@ async function main() {
       .select("id")
       .eq("mission_id", missionAbs)
       .single();
-    await serviceClient
-      .from("mission_days")
-      .update({
+    await rescheduleFixture(
+      "mission_days",
+      "id",
+      absDay!.id,
+      {
         scheduled_date: doualaDay(-1),
         scheduled_start_time: "00:00",
         scheduled_end_time: "23:00",
-      })
-      .eq("id", absDay!.id);
+      },
+      "mission-incidents",
+    );
     const repBefore = (
       await serviceClient
         .from("reputation_scores")

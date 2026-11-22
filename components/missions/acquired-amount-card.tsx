@@ -72,6 +72,16 @@ export function AcquiredAmountCard({ missionId }: { missionId: string }) {
             {tc.amountUnresolvedNote}
           </p>
         )}
+        {/* Lot 17d-2 : aucune indemnité décidée (MNT-04) ; les journées
+            annulées par l'entreprise sont seulement signalées. */}
+        {(data.company_cancelled_days ?? 0) > 0 && (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="acquired-amount-company-cancelled"
+          >
+            {t.companyCancellation.amountCompanyCancelled}
+          </p>
+        )}
         <p className="text-xs text-muted-foreground">{tc.amountNote}</p>
       </CardContent>
     </Card>

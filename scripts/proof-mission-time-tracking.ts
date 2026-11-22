@@ -41,6 +41,7 @@ import { approveCompanyDossier } from "./lib/verified-company";
 import { appFetch } from "./lib/app-fetch";
 import { signAndSelectHttp } from "./lib/sign-and-select";
 import { purgeProofJobs } from "./lib/proof-purge";
+import { rescheduleFixture } from "./lib/mission-schedule-fixture";
 
 type DB = SupabaseClient<Database>;
 type Role = Database["public"]["Enums"]["user_role"];
@@ -310,14 +311,17 @@ async function main() {
 
     /** Journée terminée (hier, 00:00–23:00), recalée avant tout début. */
     async function endedDay(missionId: string) {
-      const { error } = await serviceClient
-        .from("missions")
-        .update({
+      const { error } = await rescheduleFixture(
+        "missions",
+        "id",
+        missionId,
+        {
           scheduled_date: yesterday,
           scheduled_start_time: "00:00",
           scheduled_end_time: "23:00",
-        })
-        .eq("id", missionId);
+        },
+        "mission-time-tracking",
+      );
       if (error) throw new Error(`ended day: ${error.message}`);
     }
 

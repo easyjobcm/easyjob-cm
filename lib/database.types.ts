@@ -978,6 +978,177 @@ export type Database = {
           },
         ]
       }
+      company_cancellation_days: {
+        Row: {
+          application_id: string
+          cancellation_id: string
+          cancellation_notice_hours: number | null
+          candidate_id: string
+          classification: string
+          company_plan: string | null
+          deadline_at: string | null
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          scheduled_date: string
+          starts_at: string
+          terms_source: string
+        }
+        Insert: {
+          application_id: string
+          cancellation_id: string
+          cancellation_notice_hours?: number | null
+          candidate_id: string
+          classification: string
+          company_plan?: string | null
+          deadline_at?: string | null
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          scheduled_date: string
+          starts_at: string
+          terms_source: string
+        }
+        Update: {
+          application_id?: string
+          cancellation_id?: string
+          cancellation_notice_hours?: number | null
+          candidate_id?: string
+          classification?: string
+          company_plan?: string | null
+          deadline_at?: string | null
+          job_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          scheduled_date?: string
+          starts_at?: string
+          terms_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_cancellation_days_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellation_days_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "company_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellation_days_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellation_days_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellation_days_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellation_days_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_cancellations: {
+        Row: {
+          candidate_count: number
+          company_id: string
+          company_user_id: string
+          created_at: string
+          date_count: number
+          day_count: number
+          id: string
+          in_time_count: number
+          job_id: string
+          late_count: number
+          legacy_count: number
+          notified_users: number
+          reason: string
+          request_id: string
+        }
+        Insert: {
+          candidate_count: number
+          company_id: string
+          company_user_id: string
+          created_at?: string
+          date_count: number
+          day_count: number
+          id?: string
+          in_time_count: number
+          job_id: string
+          late_count: number
+          legacy_count: number
+          notified_users: number
+          reason: string
+          request_id: string
+        }
+        Update: {
+          candidate_count?: number
+          company_id?: string
+          company_user_id?: string
+          created_at?: string
+          date_count?: number
+          day_count?: number
+          id?: string
+          in_time_count?: number
+          job_id?: string
+          late_count?: number
+          legacy_count?: number
+          notified_users?: number
+          reason?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_cancellations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellations_company_user_id_fkey"
+            columns: ["company_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_favorite_candidates: {
         Row: {
           added_at: string | null
@@ -2579,6 +2750,88 @@ export type Database = {
           },
           {
             foreignKeyName: "mission_day_commitment_terms_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mission_day_company_terms: {
+        Row: {
+          application_id: string
+          cancellation_notice_hours: number | null
+          company_id: string
+          company_plan: string | null
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          recorded_at: string
+          selected_at: string | null
+          terms_source: string
+        }
+        Insert: {
+          application_id: string
+          cancellation_notice_hours?: number | null
+          company_id: string
+          company_plan?: string | null
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          recorded_at?: string
+          selected_at?: string | null
+          terms_source?: string
+        }
+        Update: {
+          application_id?: string
+          cancellation_notice_hours?: number | null
+          company_id?: string
+          company_plan?: string | null
+          job_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          recorded_at?: string
+          selected_at?: string | null
+          terms_source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_day_company_terms_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_company_terms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_company_terms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_company_terms_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_company_terms_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_day_company_terms_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
@@ -4913,6 +5166,10 @@ export type Database = {
         Args: { p_incident_id: string; p_motivation: string; p_outcome: string }
         Returns: Json
       }
+      admin_company_cancellations: {
+        Args: { p_job_id?: string }
+        Returns: Json
+      }
       admin_company_premium: { Args: { p_company_id: string }; Returns: Json }
       admin_confirm_mission_day: {
         Args: { p_contact_id: string; p_incident_id: string; p_reason: string }
@@ -5490,6 +5747,47 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
         }[]
       }
+      company_cancellation_actor: {
+        Args: { p_job_id: string }
+        Returns: {
+          company_id: string
+          job_ids: string[]
+          role: string
+          user_id: string
+        }[]
+      }
+      company_cancellation_classify: {
+        Args: { p_at: string; p_day_id: string }
+        Returns: {
+          cancellation_notice_hours: number
+          classification: string
+          company_plan: string
+          deadline_at: string
+          terms_source: string
+        }[]
+      }
+      company_cancellation_preview: {
+        Args: { p_job_id: string }
+        Returns: {
+          application_id: string
+          cancellation_notice_hours: number
+          classification: string
+          company_plan: string
+          day_date: string
+          deadline_at: string
+          end_time: string
+          first_name: string
+          job_id: string
+          last_initial: string
+          mission_day_id: string
+          mission_id: string
+          server_now: string
+          start_time: string
+          starts_at: string
+          state: string
+          terms_source: string
+        }[]
+      }
       company_check_status: {
         Args: {
           p: Database["public"]["Tables"]["company_profiles"]["Row"]
@@ -5540,6 +5838,7 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: {
           cancelled_at: string
+          cancelled_by: string
           mission_day_id: string
           mission_id: string
         }[]
@@ -6227,6 +6526,8 @@ export type Database = {
         Args: { p_mission_id: string }
         Returns: boolean
       }
+      mission_day_cancelled_at: { Args: { p_day_id: string }; Returns: string }
+      mission_day_cancelled_by: { Args: { p_day_id: string }; Returns: string }
       mission_days_json: { Args: { p_mission_id: string }; Returns: Json }
       mission_incident_parties: {
         Args: { p_incident_id: string }
@@ -6367,6 +6668,7 @@ export type Database = {
         Args: { p_mission_id?: string }
         Returns: Json
       }
+      my_company_cancellations: { Args: { p_job_id: string }; Returns: Json }
       my_company_verification: { Args: never; Returns: Json }
       my_interruption_tasks: { Args: never; Returns: Json }
       my_job_removal_actions: {
@@ -6526,6 +6828,26 @@ export type Database = {
           day_count: number
           late_day_count: number
           status: string
+        }[]
+      }
+      request_company_cancellation: {
+        Args: {
+          p_acknowledge_late: boolean
+          p_day_ids: string[]
+          p_job_id: string
+          p_reason: string
+          p_request_id: string
+        }
+        Returns: {
+          already_recorded: boolean
+          cancellation_id: string
+          candidate_count: number
+          created_at: string
+          date_count: number
+          day_count: number
+          in_time_count: number
+          late_count: number
+          legacy_count: number
         }[]
       }
       request_incident_review: {
