@@ -5759,7 +5759,13 @@ export type Database = {
         }[]
       }
       absence_finding_touch: {
-        Args: { p_actor: string; p_finding: string; p_kind: string }
+        Args: {
+          p_actor: string
+          p_data?: Json
+          p_finding: string
+          p_kind: string
+          p_role?: string
+        }
         Returns: undefined
       }
       absence_realization_state: {
