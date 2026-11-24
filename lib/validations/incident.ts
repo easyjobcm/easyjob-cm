@@ -259,6 +259,8 @@ export const INCIDENT_RPC_REFUSALS = {
   forbidden: 403,
   // Lot 17b : signalement refusé sur une journée annulée par le candidat.
   day_cancelled: 409,
+  // Lot 17d-3 : constat d'absence injustifiée en vigueur sur la journée.
+  absence_finding_established: 409,
   // Interruption ou règlement en cours : pas de confirmation contradictoire.
   interruption_pending: 409,
   // Interruption : délai de 72 h dépassé ; décision du fondateur seul.

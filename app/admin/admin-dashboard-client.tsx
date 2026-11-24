@@ -361,6 +361,21 @@ export function AdminDashboardClient({
               </CardContent>
             </Card>
           </Link>
+
+          {/* Lot 17d-3 : interventions du support sur les engagements. */}
+          <Link
+            href="/admin/interventions"
+            data-testid="admin-interventions-link"
+          >
+            <Card className="hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="p-4 flex flex-col items-center text-center">
+                <CalendarX className="w-6 h-6 text-primary mb-2" />
+                <p className="text-xs font-medium text-foreground">
+                  {t.interventions.admin.quickAction}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Pending Jobs for Moderation */}

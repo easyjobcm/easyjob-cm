@@ -3700,3 +3700,195 @@ Précisions de l'instruction du 2026-11-22 consignées sous ANN-06 : un changeme
 | Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 20/20 : offre voisine bloquée puis libérée sans rechargement ; libérée après le retour du réseau pour le candidat hors ligne ; aucune erreur JavaScript |
 | Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **41/41**, environ 1177 s cumulées (`multi-day-jobs`, `mission-completion`, `mission-incidents`, `mission-disputes`, `mission-time-tracking`, `contract-selection`, `company-dossier-visibility`, `realtime` avec leurs recalages par la maintenance directe) |
 
+## 46. Cadrage — Lot 17d-3 : interventions du support sur les engagements (2026-11-23)
+
+**Nature.** Cadrage documentaire : aucun code, aucune migration, aucun build ni aucune preuve. Constats lus dans le code et le catalogue de la pile `easyjob-proof` (SQL de `origin/main-dev`). Les propositions ci-dessous sont **à décider** ; elles ne valent pas validation.
+
+**Point de départ (constat Git du 2026-11-23).** 17d-2 est intégré à `origin/main-dev` (`6167235`, migration `20261126120000_company_cancellations.sql`) et absent de `origin/main` (`e536ee1`, v0.1.10). Branche locale `feat/lot-17d-2-company-cancellation` au même commit, arbre propre, stash conservé.
+
+**Socle commun déjà livré (réutilisable).**
+
+| Élément | Existant |
+|---|---|
+| Journée annulée | Deux origines seulement : `candidate_cancellation_days` (17b) et `company_cancellation_days` (17d-2) ; une seule annulation par journée (`guard_single_day_cancellation`) ; plus de début, de confirmation ni de signalement (`trg_block_cancelled_day`, `block_incident_on_cancelled_day`), clé service comprise |
+| Disponibilité | ECH-09 : journée annulée avant son début → créneau et marge de 3 h libérés (`candidate_schedule_conflicts`) |
+| Mission | `mission_close_if_interrupted` : annulée quand il ne reste aucune journée à réaliser ; auteur = dernière annulation ; candidature, contrat et montant reconnu inchangés |
+| Calendrier | Figé pour tout auteur applicatif, clé service comprise (`job_schedule_locked`, `mission_schedule_locked`, ECH-02) |
+| Suspensions | `account_suspensions` par cause (`admin`, `cancellation_cycle`, `fraud`) ; `users.is_active` = aucune cause en cours ; début, candidature et sélection refusés (`account_suspended`) ; suspension pour fraude et levée par `admin_ops`/`admin_founder` actifs ; `admin_set_user_active` réservé à ces deux grades |
+| Signalements (lot 14) | `report_mission_incident` : retard, absence, code non remis ; absence signalable par l'entreprise seulement à partir du début de la journée ; un signalement ne change rien à l'engagement |
+| Décision sur la réalisation (lot 16) | Absence : double validation par deux `admin_ops`/`admin_founder` actifs distincts (`admin_propose_incident_decision`, `admin_review_incident_proposal`) ; « établi » = journée confirmée à titre exceptionnel (`incident_confirm_day_exceptional`) ; « non établi » = travail non démontré, **jamais** absence fautive ; révision interne de 7 jours (ADM-04) |
+| Écrans support | `/admin/incidents` (signalements, dossiers) ; `/admin/cancellations` (désistements du candidat, avec la liste « Engagements futurs déjà sélectionnés » d'un candidat suspendu, `candidate_future_engagements`) ; aucun écran pour les annulations par l'entreprise (`admin_company_cancellations` existe sans écran) |
+| Ce qui n'existe pas | Aucune fonction ne permet au support d'annuler une journée ; aucun constat d'absence injustifiée ; aucun producteur de `candidate_no_show` (SAN-05) ; aucune demande tracée de l'entreprise vers le support (seul un lien e-mail, ABO-15) |
+
+**Distinction de principe (pour les trois parcours).** L'**annulation opérationnelle** (la journée n'aura pas lieu) est séparée de toute **qualification** (délai, imputabilité), de toute **sanction** (manquement, exclusion) et de toute **conséquence financière** (indemnité, frais, remboursement : MNT-04, lot paiement). Une annulation par le support n'est ni une faute, ni une absence, ni un remboursement.
+
+### Parcours 1 — Retrait ciblé demandé par l'entreprise, sans faute du candidat
+
+- **Décisions validées** : ANN-16 (principe : réservé au support ; parcours et grades à décider), ANN-15 (motif visible par l'entreprise et l'administration seulement), ANN-06 (qualification du délai de l'entreprise, sans conséquence), ANN-04 (un événement par demande), ECH-09, ECH-02, DON-04. ANN-14 **ne s'applique pas** (désistement du candidat seulement).
+- **Existant** : l'entreprise ne peut annuler que des dates entières ; une demande qui laisse de côté un candidat d'une date est refusée (`cancellation_preview_stale`). Aucun autre chemin.
+- **Manque** : demande tracée de l'entreprise, instruction et décision du support, écriture de l'annulation pour un seul candidat, avis, écran.
+- **Proposition (à décider, ANN-17)** :
+  - *Demande* : depuis l'écran de l'offre, l'entreprise demande le retrait d'un candidat nommé pour des journées futures précises, avec motif (ANN-15) ; la demande est tracée et ne change rien tant qu'elle n'est pas décidée ; l'écran ne l'annonce qu'une fois livrée.
+  - *Habilitations* : instruction par tout admin actif (`admin_support` compris) ; décision par `admin_ops` ou `admin_founder` actif, motivée, une seule validation (aucune sanction en jeu).
+  - *Pièces* : motif de l'entreprise ; aucune justification demandée au candidat, aucune pièce contre lui.
+  - *Délais* : demande recevable jusqu'au début de la première journée visée ; décision avant ce début, sinon la demande devient sans objet et l'engagement reste entier (jamais d'acceptation par silence) ; journée commencée → interruption existante.
+  - *Effet si accepté* : journées enregistrées comme **annulation par l'entreprise** (même table, même qualification ANN-06 sur les conditions figées, auteur du support tracé) ; disponibilité libérée (ECH-09) ; **place non rouverte** (comme 17d-2) ; autres journées et autres candidats inchangés ; contrat, candidature et montant reconnu conservés ; aucune conséquence sur la réputation du candidat.
+  - *Information* : candidat prévenu sans le motif (« retiré de ces journées à la demande de l'entreprise, non imputé ») ; entreprise prévenue de la décision et de son motif.
+  - *Recours* : l'entreprise peut demander un réexamen d'un refus par un autre agent habilité, avant le début ; pas de recours du candidat sur une absence de faute, mais un signalement d'erreur reste possible.
+
+### Parcours 2 — Engagements futurs d'un candidat suspendu ou empêché
+
+- **Décisions validées** : ANN-13 (première partie : engagements ni supprimés ni transformés en absences), SAN-03 et SAN-07 (causes de suspension), DON-04 (aucune cause ni suspension révélée à l'entreprise), ECH-09, ANN-01 et ANN-05 (désistement du candidat lui-même). ANN-14 **ne s'applique pas** sans décision.
+- **Existant** : le candidat suspendu ne peut ni commencer ni postuler ; ses engagements futurs restent « sélectionnés » ; le support voit leur liste ; l'entreprise n'est pas informée et découvre au mieux un début absent le jour même (cas H d'AUDIT §41). `[CT]` **Constat** : `request_candidate_cancellation` ne vérifie pas le compte actif, si bien qu'un candidat suspendu peut encore se désister lui-même, avec les règles de 17b (qualification et sanction). Le comportement n'est ni décidé, ni contraire à une règle écrite. Un candidat **empêché** sans suspension (hospitalisation, impossibilité d'agir) n'a que le désistement par lui-même ; personne ne peut agir en son nom.
+- **Manque** : annulation par le support au nom du candidat, information de l'entreprise sans cause, décision sur les engagements laissés en place.
+- **Proposition (à décider, ANN-18)** :
+  - *Déclencheur* : suspension en cours couvrant la journée (toutes causes), ou empêchement déclaré par le candidat ou un proche et instruit par le support.
+  - *Habilitations* : `admin_ops` ou `admin_founder` actif, motif interne obligatoire ; `admin_support` instruit et lit.
+  - *Pièces* : suspension en cours (aucune pièce de plus) ; empêchement : élément fourni, conservé comme les justificatifs de 17b (pièces privées), jamais transmis à l'entreprise.
+  - *Délais* : avant le début de chaque journée ; recommandé dès la suspension pour les journées qu'elle couvre ; journées postérieures à la fin prévue de la suspension conservées par défaut.
+  - *Effet* : nouvelle origine d'annulation, distincte du candidat et de l'entreprise (« par le support pour indisponibilité ») : **aucun manquement, aucune qualification de délai opposable au candidat**, aucun frais ni indemnité ; disponibilité libérée (ECH-09) ; autres journées non visées inchangées ; contrat, candidature (place) et montant reconnu conservés jusqu'à décision sur la place ; mission close seulement s'il ne reste aucune journée.
+  - *Information* : entreprise prévenue que le candidat « n'est plus disponible pour ces journées », **sans cause** ; candidat prévenu ; aucune mention de la suspension hors de l'espace du candidat et du support.
+  - *Recours* : le candidat garde la contestation de sa suspension (17c) ; une levée de suspension ne rétablit pas une journée déjà annulée (annulation définitive) — point à confirmer.
+  - *Place* : non rouverte par défaut ; une réouverture ou un remplacement relèvent de 17d-4 et d'une décision distincte (ANN-12 ouvert).
+
+### Parcours 3 — Absence signalée, distincte d'une absence injustifiée établie
+
+- **Décisions validées** : ADM-04 (double validation, révision interne), SAN-01 (une absence injustifiée **confirmée** retire 5 unités, un manquement par événement), REP-04 (une journée non confirmée bloque l'unité « offre »), ANN-01, ECH-08 ; question ouverte SAN-05 (constat), à confirmer SAN-04 (blocage de 7 jours). Garde-fou du plan : aucun signalement ni décision « non établi » ne vaut absence établie.
+- **Existant** : signalement par l'entreprise à partir du début ; dossier du lot 16 sur la **réalisation du travail** ; « non établi » laisse la journée non confirmée, sans montant, sans faute. Aucun constat d'absence injustifiée, aucun `candidate_no_show`. Une journée signalée a commencé : elle n'est plus annulable (17b, 17d-2), donc ECH-09 ne la libère pas.
+- **Manque** : décision distincte de constat, ses pièces et délais, le recours, l'effet sur les journées futures et l'unité « offre ».
+- **Proposition (à décider, SAN-08)** :
+  - *Décision distincte*, ouverte seulement après une décision « non établi » devenue définitive (révision interne close) : le constat porte sur l'**imputabilité** de l'absence, pas sur la réalisation.
+  - *Habilitations* : double validation par deux `admin_ops`/`admin_founder` actifs distincts, comme le lot 16 ; `admin_support` instruit.
+  - *Pièces* : versions des deux parties, contacts tentés, preuve d'empêchement éventuelle du candidat ; un délai de réponse du candidat de 72 h (aligné sur RGL-05) proposé, le silence ne valant pas aveu (RGL-04).
+  - *Issue* : « absence injustifiée établie » → manquement unique (SAN-01) ; « non imputable » ou « empêchement reconnu » → aucun manquement. Seul ce constat peut produire `candidate_no_show`.
+  - *Recours* : révision par un autre agent pendant 7 jours (ADM-04, comme 17c).
+  - *Effets* : la journée signalée reste non confirmée (aucun montant) ; les **journées futures restent engagées** (aucun remplacement sur le seul signalement, cas G) ; après un constat, leur sort relève du parcours 2 (annulation par le support) ou d'une décision explicite ; l'unité « offre » de l'entreprise et l'éventuel remboursement relèvent de 17d-5 et du lot paiement.
+
+### Effets comparés
+
+| | Retrait ciblé (P1) | Suspendu ou empêché (P2) | Absence signalée (P3) |
+|---|---|---|---|
+| Disponibilité | Libérée (ECH-09) | Libérée (ECH-09) | Inchangée (journée commencée, non annulée) |
+| Place | Non rouverte (proposé, comme 17d-2) | Non rouverte par défaut (17d-4) | Inchangée |
+| Autres journées | Inchangées | Seules les journées visées | Inchangées |
+| Contrat, montant reconnu | Conservés | Conservés | Conservés ; journée signalée sans montant tant que non confirmée |
+| Sanction | Aucune | Aucune | Seulement après un constat distinct (SAN-08) |
+| Finances | Aucune (MNT-04 ouvert) | Aucune | Aucune (remboursement : lot paiement) |
+
+### Arbitrages prioritaires
+
+1. **Qui décide d'un retrait ciblé, et la place est-elle rouverte ?** Exemple : offre de 3 hôtesses le 12/12 ; l'entreprise demande le 9 le retrait de Paule, sans faute. **Recommandation** : décision par `admin_ops`/`admin_founder` actif avant le début, enregistrée comme annulation par l'entreprise (qualification ANN-06, sans conséquence), place non rouverte ; Paule prévenue sans le motif.
+2. **Que deviennent les engagements d'un candidat suspendu ?** Exemple : Paul est suspendu le 5 pour 6 mois ; il est sélectionné le 8 et le 12. **Recommandation** : annulation par le support des journées couvertes par la suspension, dès la suspension, sans manquement ; entreprise prévenue « candidat indisponible », sans cause ; place non rouverte sans décision 17d-4.
+3. **Un candidat suspendu peut-il encore se désister lui-même ?** Exemple : Paul, suspendu, annule lui-même le 8 à J−1 : aujourd'hui, désistement tardif et nouveau manquement possible. **Recommandation** : décider explicitement ; si le parcours 2 est retenu, réserver ce cas au support pour éviter un manquement pendant une suspension.
+4. **Une levée de suspension rétablit-elle une journée annulée ?** Exemple : la suspension de Paul est levée le 7 après contestation ; la journée du 8 a été annulée le 5. **Recommandation** : non (annulation définitive, ECH-09 et contrat inchangés) ; une nouvelle sélection reste possible si une place existe.
+5. **Constat d'absence injustifiée : qui, quand, sur quelles pièces ?** Exemple : Awa ne vient pas le 10 ; l'entreprise signale l'absence ; la décision du lot 16 conclut « non établi ». **Recommandation** : constat distinct après la décision définitive, double validation, 72 h de réponse pour le candidat, recours de 7 jours ; jamais de manquement sans ce constat ; journées futures conservées.
+
+## 47. Suivi — Lot 17d-3 : interventions du support sur les engagements (2026-11-23)
+
+**Point de départ (constat Git du 2026-11-23).** `origin/main-dev` = `6167235` (17d-2 intégré). Branche `feat/lot-17d-3-support-interventions` créée depuis ce commit, en emportant les modifications documentaires non commitées du cadrage (§46) ; stash conservé ; aucun commit, push ni déploiement. Travail sur `easyjob-proof` seulement.
+
+**Décisions** (`docs/product/DECISIONS.md`) : ANN-17, ANN-18, SAN-08, validées par le « oui » de l'utilisateur du 2026-11-23 sur la proposition du §46 et précisées par son brief du même jour (`[UV]`). Réutilisées : ANN-16, ANN-15, ANN-13, ANN-06, ANN-04, ECH-09, ECH-02, ADM-04, DON-04. La validation du constat (SAN-08) **n'autorise aucune** sanction, exclusion, déduction de réputation ni conséquence financière.
+
+**Livré** (migration `20261127120000_support_interventions.sql`) :
+
+| Volet | Comportement |
+|---|---|
+| Retrait ciblé (ANN-17) | `request_targeted_removal` : demande tracée de l'entreprise propriétaire active (motif de 10 à 500 caractères), un candidat, journées futures non commencées, une demande en attente par journée, relance idempotente ; rien ne change avant la décision. `admin_decide_engagement_request` : `admin_ops`/`admin_founder` actif, note motivée, journées choisies revérifiées sous verrou (début atteint à l'instant exact : refus) ; acceptation écrite dans `company_cancellations` (`support_request_id`, `decided_by`, qualification ANN-06 sans conséquence) ; candidat prévenu sans le motif ; entreprise prévenue de la décision |
+| Candidat suspendu (ANN-18) | Toute suspension d'un candidat qui a des journées futures couvertes ouvre une tâche (`trg_support_task_on_suspension`) ; rien n'est annulé automatiquement. Décision d'un ops/fondateur actif, sur suspension en cours et journées couvertes revérifiées (`suspension_not_active`, `day_not_covered`) ; troisième origine d'annulation (`support_cancellations`, `support_cancellation_days`), sans manquement ; entreprise prévenue « candidat indisponible », sans cause ; mission close inscrite `admin` / `support_cancellation` ; une levée ne restaure rien |
+| Demande du candidat suspendu | `request_support_cancellation` (« Demander l'annulation au support »), journées couvertes par la suspension, message facultatif, aucun manquement ; `request_candidate_cancellation` refuse désormais un compte suspendu (`account_suspended`), après la relance d'une demande déjà enregistrée ; candidats non suspendus inchangés |
+| Constat d'absence (SAN-08) | `absence_findings` (+ `absence_finding_events`, pièces dans `case_evidence`) : ouverture par tout admin actif sur un signalement d'absence de l'entreprise, journée non confirmée, en parallèle du lot 16 ; réponse et pièces du candidat jusqu'à `candidate_due_at` incluse (72 h) ; chaque réponse ou pièce crée une révision et annule une proposition en cours ; proposition puis validation par deux ops/fondateurs actifs distincts, sur la révision courante, seulement si la décision du lot 16 est définitive « non établi » (`absence_realization_state`) ; recours d'une partie avant `decided_at + 7 jours` (fin exclue), tranché par un agent distinct des deux validateurs ; « infirmé » ramène à l'instruction. **Aucun effet** : aucune écriture dans `reputation_incidents`, aucun cycle ni suspension ; aucune fonction de réputation, de cycle ou de balayage ne lit les constats |
+| Origine « support » partout | `mission_day_cancelled_by/at`, gardes de journée (début, confirmation, signalement), garde d'annulation unique, `mission_close_if_interrupted`, `candidate_schedule_conflicts` (ECH-09), `company_job_cancellations`, `protect_reputation_incidents` (aucune faute du candidat) |
+| Protection | Six tables fermées aux sessions et aux écritures de la clé service ; deux dossiers dont l'état n'avance que par les fonctions de la base ; cascades `SET NULL` d'un compte supprimé admises (déclencheur imbriqué), y compris pour `company_cancellations` |
+| Écrans | Offre (entreprise) : « Demander le retrait au support » par candidat sélectionné, état de la demande ; mission : « Annulée par le support » (candidat) / « Candidat indisponible » (entreprise) ; candidat suspendu : « Demander l'annulation au support » à la place du désistement ; constat : version, pièce, recours (candidat), issue seule (entreprise) ; `/admin/interventions` (lecture et instruction : tout admin actif ; décisions : ops et fondateur) ; FR/EN |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 648 tests, 55 fichiers (dont `support-intervention`) |
+| `pnpm build` (relié à la pile de preuve) | ✅ |
+| Types générés | identiques au schéma final (pile réinitialisée) |
+| Preuve ciblée `support-interventions` | ✅ 25/25 au cinquième passage. Passages conservés (`proof-17d3-run1` à `run4`) : 21/25 puis 24/25 — échecs de la preuve elle-même (mot « indisponible » cherché dans le texte au lieu du titre, levée d'une suspension administrative par la mauvaise RPC, journées antérieures couvertes du même candidat, liste attendue des lecteurs des constats, titre d'offre de test contenant « suspension ») ; un passage interrompu par une erreur réseau passagère vers l'API d'authentification (`ECONNRESET`, pile saine ensuite) |
+| Contrôles négatifs | N1 ancien désistement sans contrôle de suspension → S2 à S5 ; N2 décision ouverte au support → R2 à R4 ; N3 manquement produit par un constat établi → F5 ; N4 demandes réécrivables en clé service : **premier essai non détecté** (D1 visait une colonne absente, puis une valeur contraire à une contrainte : l'erreur ne prouvait rien) ; corrigé (modification valide sur une colonne réelle de chaque table) → D1 détecté ; pile restaurée, puis réinitialisée |
+| Navigateur (Chrome headless par CDP, 375 × 812 tactile, entreprise, trois candidats et un ops, script hors dépôt) | ✅ 14/14, FR puis EN, premier passage : demande de retrait en attente, décision du support, « Annulée par l'entreprise » chez l'entreprise et le candidat sans rechargement, motif jamais montré au candidat ; suspension en direct : panneau « Demander l'annulation au support » à la place du désistement ; acceptation pendant la coupure réseau du candidat, état à jour au retour ; « Candidat indisponible » sans cause ; constat ouvert, version de la candidate lue par le support et absente de la vue de l'entreprise ; aucun défilement horizontal, aucune erreur JavaScript |
+| Suite RLS complète sur le SQL final, pile réinitialisée | ✅ **42/42**, 1 287 s cumulées. Passages conservés : le premier, interrompu à la 12e preuve par l'arrêt de Docker Desktop (aucun échec jusque-là, `rls-full-17d3.log`) ; le second, 41/42 (`rls-full-17d3b.log`) : `candidate-cancellations` créait un dossier d'annulation **pendant** une suspension (scénario X3 du lot 17c), désormais refusé par la décision ANN-18. Adaptation sans perte d'intention : dossier ancien déposé avant la suspension et décidé après le retour (X4 inchangé), plus X2b (désistement refusé pendant la suspension) ; 32/32 isolément, puis suite complète verte |
+
+**Faits et hypothèses.** Observé : comportements ci-dessus, en base et à l'écran. Hypothèses et choix à confirmer (consignés sous SAN-08 et ANN-17) : origine des 72 h = ouverture du constat (demande adressée au candidat, par analogie avec RGL-05) ; recours ouvert aux deux parties et « infirmé » = retour à l'instruction (par analogie avec le lot 16 et ADM-04) ; réexamen d'un refus de retrait non livré. La décision du lot 16 est posée par la voie de maintenance dans la preuve ; sa double validation réelle relève de `mission-disputes`.
+
+**Limites.** Aucun écran admin pour les annulations par l'entreprise hors des demandes ; empêchement d'un candidat non suspendu non traité ; conséquences d'un constat (SAN-01, SAN-04) non appliquées ; aucune réouverture ni remplacement (ANN-14 non étendu) ; aucun e-mail (avis dans l'application).
+
+### Complément du 2026-11-24 — articulation du constat avec la réalisation (SAN-08)
+
+**Écart corrigé.** La première version exigeait, avant toute décision du constat, une décision **définitive « non établi »** du lot 16 : elle imposait donc de créer et de terminer un dossier du lot 16, ce que la validation du 2026-11-23 ne prévoit pas (instruction `[U]` du 2026-11-24). Remplacée par `absence_realization_state`, qui distingue quatre états :
+
+| État | Effet sur le constat |
+|---|---|
+| `clear` (aucune contestation ; pas de décision, ou « non établi » définitif) | parcours propre : version, proposition, seconde validation ; « non établi » ne décide rien |
+| `contested` (proposition du lot 16 en attente, « code non remis » non tranché, révision ouverte, demandée ou en arbitrage) | proposition et validation refusées (`realization_review_open`) |
+| `work_confirmed` (journée confirmée ou décision « établi ») | « absence injustifiée établie » refusée (`work_confirmed`) ; « non imputable » possible |
+| `ambiguous` (début enregistré, accord partiel, « partiel » ou « désaccord », interruption) | « absence injustifiée établie » refusée (`realization_ambiguous`) ; « non imputable » possible |
+
+Courses : la proposition et la validation tiennent la mission et la journée en partage ; une confirmation concurrente attend, ou la décision lit la confirmation enregistrée. Réciproque : tant qu'un constat « établi » est en vigueur, la journée ne peut pas être confirmée (`absence_finding_established`, tout auteur), jusqu'à ce qu'un recours l'infirme. Les définitions de « contestation ouverte » et de « partielle ou ambiguë » sont des **choix provisoires**, consignés sous SAN-08 avec les autres modalités à confirmer.
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `support-interventions` | ✅ 30/30 au premier passage, dont G1-G5 par les vrais parcours du lot 16 (signalement, début, proposition et revue par deux agents, demande de révision ; seule l'échéance de révision est déplacée, comme `mission-disputes`) : G1 constat décidé sans aucun dossier du lot 16 ; G2 confirmation refusée, clé service comprise, sous un constat établi ; G3 contestation ouverte bloquante à chaque étape ; G4 journée commencée puis travail confirmé : « établie » refusée, « non imputable » validée ; G5 course validation / début de journée, puis confirmation par le lot 16 refusée |
+| Contrôles négatifs | N5 garde réciproque désactivée → G2, G5 ; N6 contrôle réduit à la contestation → G4 ; pile restaurée |
+| Suite RLS complète sur l'état final, pile réinitialisée | ✅ **42/42**, 1 989 s cumulées (`support-interventions` 30/30), copie des migrations vérifiée identique au dépôt. Passages conservés : (1) `rls-full-17d3d.log`, 41/42 — la pile avait été réinitialisée **sans recopier** la migration modifiée (`init-proof-stack` oublié) : la suite a tourné sur l'ancienne version de SAN-08, d'où `support-interventions` 25/30 ; erreur de procédure, non du code ; (2) `rls-full-17d3e.log`, 41/42 — `reputation` dépasse le délai de 600 s, bloquée sur une requête HTTP de dépôt d'avis après l'étape P1 (aucune attente de verrou en base, serveur répondant ensuite) ; relancée seule : 1/1 ; **cause non établie**, partie non modifiée par le lot |
+
+### Finalisation du 2026-11-24 — modalités validées (SAN-08, ANN-17)
+
+**Source.** `[UV]` « oui » de l'utilisateur du 2026-11-24 aux choix provisoires du constat et au point isolé du réexamen, avec ses modalités (`docs/product/DECISIONS.md` SAN-08, ANN-17).
+
+**Écarts repris du diff restant** (le reste était livré et a été conservé) :
+
+| Modalité | Avant | Après |
+|---|---|---|
+| Contestation bloquante | fenêtre de révision du lot 16 ouverte comprise | contestation en instruction, proposition en attente ou recours non résolu seulement |
+| Issue favorable | « non imputable » | « absence injustifiée non établie » / « unjustified absence not established », qui ne confirme ni le travail ni un droit au paiement |
+| Origine des 72 h et des 7 jours | `now()` de la transaction | création de la notification d'ouverture ou de décision, dans la même transaction (`candidate_notified_at`, `decision_notified_at`, contraintes « + 72 h » et « + 7 jours ») ; lecture jamais prise en compte |
+| Historique | dernière décision seule dans la ligne | journal : chaque décision (issue, note, proposeur, validateur, notification, échéance), recours et infirmation |
+| Nouveaux éléments | refusés après 72 h ou après la décision | transmissibles à tout moment par les deux parties (texte, pièce), sans révision, réouverture ni délai |
+| Support | ouverture seulement | note d'instruction ; ni proposition ni validation |
+| Réexamen d'un refus de retrait | non livré | demande motivée liée à la demande refusée, sans annulation automatique, décision ops/fondateur avant le début |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `support-interventions` | ✅ 37/37 au deuxième passage (H1-H7 : délais égaux à l'instant des notifications, non lues ; support instructeur ; issue « non établie » et sa mention ; nouveaux éléments sans effet ; recours de l'entreprise, infirmation par un tiers et décisions successives conservées ; réexamen ; début franchi pendant le traitement). Premier passage 36/37 (`proof-17d3-1124-run1.log`) : F4 attendait encore le refus d'une pièce tardive (ancienne règle) |
+| Navigateur (CDP, 375 × 812, FR puis EN) | ✅ 10/10 au second passage. Premier passage 8/10 (`browser1124-run1.log`) : **défaut réel** — un nouvel élément n'écrit que dans le journal, sans signal temps réel ; l'écran du support ne se rafraîchissait pas. Corrigé (`trg_rt_absence_finding_events`, charge utile `{d, r}`) |
+| Lint, Prettier, Vitest (648), typecheck, build | ✅ |
+| Types générés | identiques au schéma final |
+| Suite RLS complète, migrations recopiées (empreintes identiques), pile réinitialisée | ✅ **42/42**, 1 440 s cumulées |
+
+Contrôles négatifs N5 et N6 non rejoués : les protections qu'ils visent n'ont pas changé.
+
+**Modalités résiduelles non définies** (signalées, non inventées) : nombre de nouveaux éléments (limite technique de 10 textes et 5 pièces par partie) et de réexamens successifs (non limité en base) ; traitement d'un élément transmis pendant l'instruction après les 72 h (consigné, sans nouvelle révision) ; effet d'une décision ultérieure du lot 16 « établi » après un constat « non établie ».
+
+### Complément final du 2026-11-24 — éléments pendant l'instruction, plafonds, réexamens
+
+**Source.** `[U]` consigne du 2026-11-24 (`docs/product/DECISIONS.md` SAN-08 (j) et (j bis), ANN-17). Elle **remplace** les modalités résiduelles de la finalisation précédente (plafonds de 10 textes et 5 pièces, élément tardif sans révision).
+
+| Point | Après |
+|---|---|
+| Élément reçu avant la décision finale | texte ou pièce, même après les 72 h : révision suivante, proposition qui ne l'inclut pas périmée ; la seconde validation contrôle d'abord la version lue (`finding_stale`, relecture) ; aucun délai prolongé, aucun recours créé |
+| Après la décision finale | élément ajouté au journal (`after_decision`), sans réouverture ni infirmation |
+| Plafonds | plafonds cumulatifs retirés ; restent les contrôles techniques de taille et de format ; aucune protection de fréquence n'existe sur ces routes, aucune n'est ajoutée |
+| Réexamen | un seul par refus, contrôle serveur (index unique, demande refusée verrouillée, `reexamination_exists`) ; réexamen d'un réexamen refusé accepté en base, nombre **à décider** ; l'écran n'est pas présenté comme une protection |
+| Compatibilité | « absence injustifiée non établie » compatible avec une confirmation ultérieure du travail (aucune garde ne la bloque) |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `support-interventions` | ✅ 42/42 au deuxième passage. Premier passage 41/42 (`proof-17d3-fin-run1.log`) : H6 attendait l'ancien code de doublon (`removal_already_requested`, désormais `reexamination_exists`) ; la course I3, laissée au hasard, n'avait produit que l'ordre « dépôt d'abord » : réécrite avec les deux ordres imposés par la barrière du lot 11 |
+| Contrôle négatif N7 (élément avant la décision seulement journalisé) | → I1, I3 ; pile restaurée puis réinitialisée |
+| Lint, Prettier, Vitest (648), typecheck, build | ✅ |
+| Suite RLS complète, empreinte de la migration identique (`1699E3449745…`), pile réinitialisée | ✅ **42/42**, 1 680 s cumulées |
+
+Contrôles non rejoués (inchangés) : navigateur, contrôles négatifs N1 à N6.
+

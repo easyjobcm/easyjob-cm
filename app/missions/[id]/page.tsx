@@ -54,6 +54,8 @@ import {
 } from "@/components/missions/incident-report-dialog";
 import { CompletionCodeDialog } from "@/components/missions/completion-code-dialog";
 import { CancellationPanel } from "@/components/missions/cancellation-panel";
+import { SupportCancellationPanel } from "@/components/missions/support-cancellation-panel";
+import { AbsenceFindingPanel } from "@/components/missions/absence-finding-panel";
 import { AcquiredAmountCard } from "@/components/missions/acquired-amount-card";
 import { useToast } from "@/hooks/use-toast";
 
@@ -524,9 +526,14 @@ export default function MissionDetailPage() {
                                   ? d.cancelled_by === "company"
                                     ? t.companyCancellation
                                         .dayCancelledByCompany
-                                    : mission.viewer_party === "company"
-                                      ? t.cancellations.companyDayCancelled
-                                      : t.cancellations.dayCancelled
+                                    : d.cancelled_by === "support"
+                                      ? mission.viewer_party === "company"
+                                        ? t.interventions
+                                            .dayCancelledBySupportCompany
+                                        : t.interventions.dayCancelledBySupport
+                                      : mission.viewer_party === "company"
+                                        ? t.cancellations.companyDayCancelled
+                                        : t.cancellations.dayCancelled
                                   : d.completed_at
                                     ? d.completed_via === "exceptional"
                                       ? t.schedule.dayConfirmedByDecision
@@ -616,7 +623,21 @@ export default function MissionDetailPage() {
             forfait interrompu (parties). */}
         {mission.viewer_party === "candidate" && (
           <motion.div {...item(5)}>
-            <CancellationPanel missionId={mission.mission_id} />
+            {/* Lot 17d-3 : compte suspendu → demande au support (ANN-18). */}
+            {suspended ? (
+              <SupportCancellationPanel />
+            ) : (
+              <CancellationPanel missionId={mission.mission_id} />
+            )}
+          </motion.div>
+        )}
+        {(mission.viewer_party === "candidate" ||
+          mission.viewer_party === "company") && (
+          <motion.div {...item(5)}>
+            <AbsenceFindingPanel
+              missionId={mission.mission_id}
+              viewer={mission.viewer_party}
+            />
           </motion.div>
         )}
         {missionDays(mission.days).some((d) => d.cancelled_at) &&
