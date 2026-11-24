@@ -9,6 +9,283 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      absence_finding_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          data: Json
+          finding_id: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          data?: Json
+          finding_id: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          data?: Json
+          finding_id?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absence_finding_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_finding_events_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "absence_findings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      absence_findings: {
+        Row: {
+          candidate_answered_at: string | null
+          candidate_due_at: string
+          candidate_id: string
+          candidate_notification_id: string | null
+          candidate_notified_at: string
+          candidate_statement: string | null
+          candidate_user_id: string
+          company_id: string
+          company_user_id: string
+          decided_at: string | null
+          decision_note: string | null
+          decision_notification_id: string | null
+          decision_notified_at: string | null
+          id: string
+          incident_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          opened_at: string
+          opened_by: string | null
+          opened_by_role: string
+          outcome: string | null
+          proposal_revision: number | null
+          proposed_at: string | null
+          proposed_by: string | null
+          proposed_note: string | null
+          proposed_outcome: string | null
+          review_deadline: string | null
+          review_decided_at: string | null
+          review_decided_by: string | null
+          review_decision_note: string | null
+          review_note: string | null
+          review_outcome: string | null
+          review_party: string | null
+          review_requested_at: string | null
+          revision: number
+          status: string
+          updated_at: string
+          validated_by: string | null
+        }
+        Insert: {
+          candidate_answered_at?: string | null
+          candidate_due_at: string
+          candidate_id: string
+          candidate_notification_id?: string | null
+          candidate_notified_at: string
+          candidate_statement?: string | null
+          candidate_user_id: string
+          company_id: string
+          company_user_id: string
+          decided_at?: string | null
+          decision_note?: string | null
+          decision_notification_id?: string | null
+          decision_notified_at?: string | null
+          id?: string
+          incident_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          opened_at?: string
+          opened_by?: string | null
+          opened_by_role: string
+          outcome?: string | null
+          proposal_revision?: number | null
+          proposed_at?: string | null
+          proposed_by?: string | null
+          proposed_note?: string | null
+          proposed_outcome?: string | null
+          review_deadline?: string | null
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_note?: string | null
+          review_note?: string | null
+          review_outcome?: string | null
+          review_party?: string | null
+          review_requested_at?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+          validated_by?: string | null
+        }
+        Update: {
+          candidate_answered_at?: string | null
+          candidate_due_at?: string
+          candidate_id?: string
+          candidate_notification_id?: string | null
+          candidate_notified_at?: string
+          candidate_statement?: string | null
+          candidate_user_id?: string
+          company_id?: string
+          company_user_id?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          decision_notification_id?: string | null
+          decision_notified_at?: string | null
+          id?: string
+          incident_id?: string
+          job_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          opened_at?: string
+          opened_by?: string | null
+          opened_by_role?: string
+          outcome?: string | null
+          proposal_revision?: number | null
+          proposed_at?: string | null
+          proposed_by?: string | null
+          proposed_note?: string | null
+          proposed_outcome?: string | null
+          review_deadline?: string | null
+          review_decided_at?: string | null
+          review_decided_by?: string | null
+          review_decision_note?: string | null
+          review_note?: string | null
+          review_outcome?: string | null
+          review_party?: string | null
+          review_requested_at?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absence_findings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_candidate_notification_id_fkey"
+            columns: ["candidate_notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_candidate_user_id_fkey"
+            columns: ["candidate_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_company_user_id_fkey"
+            columns: ["company_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_decision_notification_id_fkey"
+            columns: ["decision_notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: true
+            referencedRelation: "mission_incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: false
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_proposed_by_fkey"
+            columns: ["proposed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_review_decided_by_fkey"
+            columns: ["review_decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_findings_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_suspensions: {
         Row: {
           cause: string
@@ -1077,6 +1354,7 @@ export type Database = {
           created_at: string
           date_count: number
           day_count: number
+          decided_by: string | null
           id: string
           in_time_count: number
           job_id: string
@@ -1085,6 +1363,7 @@ export type Database = {
           notified_users: number
           reason: string
           request_id: string
+          support_request_id: string | null
         }
         Insert: {
           candidate_count: number
@@ -1093,6 +1372,7 @@ export type Database = {
           created_at?: string
           date_count: number
           day_count: number
+          decided_by?: string | null
           id?: string
           in_time_count: number
           job_id: string
@@ -1101,6 +1381,7 @@ export type Database = {
           notified_users: number
           reason: string
           request_id: string
+          support_request_id?: string | null
         }
         Update: {
           candidate_count?: number
@@ -1109,6 +1390,7 @@ export type Database = {
           created_at?: string
           date_count?: number
           day_count?: number
+          decided_by?: string | null
           id?: string
           in_time_count?: number
           job_id?: string
@@ -1117,6 +1399,7 @@ export type Database = {
           notified_users?: number
           reason?: string
           request_id?: string
+          support_request_id?: string | null
         }
         Relationships: [
           {
@@ -1141,10 +1424,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_cancellations_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "company_cancellations_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_cancellations_support_request_id_fkey"
+            columns: ["support_request_id"]
+            isOneToOne: false
+            referencedRelation: "engagement_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1889,6 +2186,196 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      engagement_request_days: {
+        Row: {
+          engagement_request_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          starts_at: string
+        }
+        Insert: {
+          engagement_request_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          starts_at: string
+        }
+        Update: {
+          engagement_request_id?: string
+          job_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_request_days_engagement_request_id_fkey"
+            columns: ["engagement_request_id"]
+            isOneToOne: false
+            referencedRelation: "engagement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_request_days_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_request_days_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: false
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_request_days_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      engagement_requests: {
+        Row: {
+          cancellation_id: string | null
+          candidate_id: string
+          candidate_user_id: string
+          company_id: string | null
+          company_user_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_by_role: string | null
+          decision_note: string | null
+          id: string
+          job_id: string | null
+          kind: string
+          reason: string | null
+          reexamination_of: string | null
+          request_id: string
+          requested_by: string | null
+          status: string
+          suspension_id: string | null
+        }
+        Insert: {
+          cancellation_id?: string | null
+          candidate_id: string
+          candidate_user_id: string
+          company_id?: string | null
+          company_user_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_role?: string | null
+          decision_note?: string | null
+          id?: string
+          job_id?: string | null
+          kind: string
+          reason?: string | null
+          reexamination_of?: string | null
+          request_id: string
+          requested_by?: string | null
+          status?: string
+          suspension_id?: string | null
+        }
+        Update: {
+          cancellation_id?: string | null
+          candidate_id?: string
+          candidate_user_id?: string
+          company_id?: string | null
+          company_user_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_by_role?: string | null
+          decision_note?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          reason?: string | null
+          reexamination_of?: string | null
+          request_id?: string
+          requested_by?: string | null
+          status?: string
+          suspension_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_requests_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_candidate_user_id_fkey"
+            columns: ["candidate_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_company_user_id_fkey"
+            columns: ["company_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_reexamination_of_fkey"
+            columns: ["reexamination_of"]
+            isOneToOne: false
+            referencedRelation: "engagement_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_requests_suspension_id_fkey"
+            columns: ["suspension_id"]
+            isOneToOne: false
+            referencedRelation: "account_suspensions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fraud_reports: {
         Row: {
@@ -5000,6 +5487,121 @@ export type Database = {
           },
         ]
       }
+      support_cancellation_days: {
+        Row: {
+          cancellation_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          starts_at: string
+        }
+        Insert: {
+          cancellation_id: string
+          job_id: string
+          mission_day_id: string
+          mission_id: string
+          starts_at: string
+        }
+        Update: {
+          cancellation_id?: string
+          job_id?: string
+          mission_day_id?: string
+          mission_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_cancellation_days_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "support_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellation_days_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellation_days_mission_day_id_fkey"
+            columns: ["mission_day_id"]
+            isOneToOne: true
+            referencedRelation: "mission_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellation_days_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_cancellations: {
+        Row: {
+          candidate_id: string
+          candidate_user_id: string
+          created_at: string
+          day_count: number
+          decided_by: string | null
+          decided_by_role: string
+          engagement_request_id: string
+          id: string
+        }
+        Insert: {
+          candidate_id: string
+          candidate_user_id: string
+          created_at?: string
+          day_count: number
+          decided_by?: string | null
+          decided_by_role: string
+          engagement_request_id: string
+          id?: string
+        }
+        Update: {
+          candidate_id?: string
+          candidate_user_id?: string
+          created_at?: string
+          day_count?: number
+          decided_by?: string | null
+          decided_by_role?: string
+          engagement_request_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_cancellations_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellations_candidate_user_id_fkey"
+            columns: ["candidate_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellations_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_cancellations_engagement_request_id_fkey"
+            columns: ["engagement_request_id"]
+            isOneToOne: true
+            referencedRelation: "engagement_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -5121,6 +5723,52 @@ export type Database = {
       }
     }
     Functions: {
+      absence_finding_check: {
+        Args: { p_finding: string; p_outcome: string }
+        Returns: undefined
+      }
+      absence_finding_event: {
+        Args: {
+          p_actor: string
+          p_data?: Json
+          p_finding: string
+          p_kind: string
+          p_role: string
+        }
+        Returns: undefined
+      }
+      absence_finding_json: {
+        Args: {
+          f: Database["public"]["Tables"]["absence_findings"]["Row"]
+          p_viewer: string
+        }
+        Returns: Json
+      }
+      absence_finding_notify: {
+        Args: {
+          p_body_en: string
+          p_body_fr: string
+          p_data: Json
+          p_title_en: string
+          p_title_fr: string
+          p_user: string
+        }
+        Returns: {
+          created_at: string
+          id: string
+        }[]
+      }
+      absence_finding_touch: {
+        Args: { p_actor: string; p_finding: string; p_kind: string }
+        Returns: undefined
+      }
+      absence_realization_state: {
+        Args: { p_incident_id: string }
+        Returns: {
+          outcome: string
+          state: string
+        }[]
+      }
       account_suspension_is_active: {
         Args: {
           p_at: string
@@ -5143,10 +5791,20 @@ export type Database = {
           status: string
         }[]
       }
+      admin_absence_findings: {
+        Args: { p_incident_id?: string }
+        Returns: Json
+      }
       admin_account_suspensions: { Args: { p_user_id: string }; Returns: Json }
       admin_account_suspensions_json: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      admin_add_absence_finding_note: {
+        Args: { p_finding_id: string; p_note: string }
+        Returns: {
+          finding_id: string
+        }[]
       }
       admin_add_incident_note: {
         Args: { p_body: string; p_incident_id: string }
@@ -5184,6 +5842,15 @@ export type Database = {
           result: string
         }[]
       }
+      admin_decide_absence_finding_review: {
+        Args: { p_finding_id: string; p_note: string; p_outcome: string }
+        Returns: {
+          already_decided: boolean
+          finding_id: string
+          review_outcome: string
+          status: string
+        }[]
+      }
       admin_decide_cancellation_review: {
         Args: { p_id: string; p_note: string; p_outcome: string }
         Returns: {
@@ -5199,6 +5866,20 @@ export type Database = {
           already_decided: boolean
           cancellation_id: string
           sanctioned: boolean
+          status: string
+        }[]
+      }
+      admin_decide_engagement_request: {
+        Args: {
+          p_day_ids: string[]
+          p_decision: string
+          p_id: string
+          p_note: string
+        }
+        Returns: {
+          already_decided: boolean
+          cancellation_id: string
+          engagement_request_id: string
           status: string
         }[]
       }
@@ -5247,6 +5928,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_engagement_requests: { Args: { p_status?: string }; Returns: Json }
       admin_extend_incident_deadlines: {
         Args: { p_hours: number; p_incident_id: string; p_reason: string }
         Returns: {
@@ -5357,9 +6039,31 @@ export type Database = {
         Args: { p_incident_id: string }
         Returns: Json
       }
+      admin_open_absence_finding: {
+        Args: { p_incident_id: string }
+        Returns: {
+          already_open: boolean
+          candidate_due_at: string
+          finding_id: string
+        }[]
+      }
       admin_open_review_contest: {
         Args: { p_note: string; p_review_id: string }
         Returns: string
+      }
+      admin_propose_absence_finding: {
+        Args: {
+          p_expected_revision: number
+          p_finding_id: string
+          p_note: string
+          p_outcome: string
+        }
+        Returns: {
+          already_proposed: boolean
+          finding_id: string
+          revision: number
+          status: string
+        }[]
       }
       admin_propose_incident_decision: {
         Args: {
@@ -5499,6 +6203,27 @@ export type Database = {
           appeal_id: string
           assigned_to: string
           result: string
+        }[]
+      }
+      admin_validate_absence_finding: {
+        Args: {
+          p_approve: boolean
+          p_expected_revision: number
+          p_finding_id: string
+          p_note: string
+        }
+        Returns: {
+          already_decided: boolean
+          finding_id: string
+          outcome: string
+          status: string
+        }[]
+      }
+      answer_absence_finding: {
+        Args: { p_finding_id: string; p_statement: string }
+        Returns: {
+          finding_id: string
+          revision: number
         }[]
       }
       answer_incident_info_request: {
@@ -6662,6 +7387,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      my_absence_findings: { Args: { p_mission_id?: string }; Returns: Json }
       my_account_state: { Args: never; Returns: Json }
       my_account_suspensions: { Args: never; Returns: Json }
       my_candidate_cancellations: {
@@ -6681,6 +7407,7 @@ export type Database = {
         }[]
       }
       my_reputation: { Args: never; Returns: Json }
+      my_targeted_removals: { Args: { p_job_id: string }; Returns: Json }
       partial_settlement_policy: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
@@ -6689,6 +7416,16 @@ export type Database = {
       recompute_user_verification: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      record_absence_finding_evidence: {
+        Args: {
+          p_finding_id: string
+          p_mime: string
+          p_path: string
+          p_size: number
+          p_user_id: string
+        }
+        Returns: string
       }
       record_application_blocker: { Args: { p_job_id: string }; Returns: Json }
       record_cancellation_evidence: {
@@ -6806,6 +7543,14 @@ export type Database = {
         Args: { p_locale: string; p_stars: number }
         Returns: string
       }
+      request_absence_finding_review: {
+        Args: { p_finding_id: string; p_note: string }
+        Returns: {
+          already_requested: boolean
+          finding_id: string
+          review_deadline: string
+        }[]
+      }
       request_cancellation_review: {
         Args: { p_cancellation_id: string; p_note: string }
         Returns: {
@@ -6866,6 +7611,38 @@ export type Database = {
       request_interruption_reexamination: {
         Args: { p_incident_id: string; p_reason: string }
         Returns: Json
+      }
+      request_support_cancellation: {
+        Args: { p_day_ids: string[]; p_message: string; p_request_id: string }
+        Returns: {
+          already_recorded: boolean
+          day_count: number
+          engagement_request_id: string
+          status: string
+        }[]
+      }
+      request_targeted_removal: {
+        Args: {
+          p_day_ids: string[]
+          p_job_id: string
+          p_reason: string
+          p_request_id: string
+        }
+        Returns: {
+          already_recorded: boolean
+          day_count: number
+          engagement_request_id: string
+          status: string
+        }[]
+      }
+      request_targeted_removal_review: {
+        Args: { p_original_id: string; p_reason: string; p_request_id: string }
+        Returns: {
+          already_recorded: boolean
+          day_count: number
+          engagement_request_id: string
+          status: string
+        }[]
       }
       respond_interruption_proposal: {
         Args: { p_decision: string; p_proposal_id: string; p_version: number }
@@ -6963,6 +7740,13 @@ export type Database = {
           status: Database["public"]["Enums"]["mission_status"]
         }[]
       }
+      submit_absence_finding_element: {
+        Args: { p_finding_id: string; p_text: string }
+        Returns: {
+          element_count: number
+          finding_id: string
+        }[]
+      }
       submit_company_verification: { Args: never; Returns: Json }
       submit_completion_code: {
         Args: {
@@ -6995,6 +7779,13 @@ export type Database = {
           review_id: string
           reviewer_type: string
         }[]
+      }
+      support_cancellation_preview: { Args: never; Returns: Json }
+      support_day_state: { Args: { p_day_id: string }; Returns: string }
+      support_days_json: { Args: { p_request_id: string }; Returns: Json }
+      suspension_covers_day: {
+        Args: { p_starts_at: string; p_user_id: string }
+        Returns: boolean
       }
       suspension_notify: {
         Args: { p_suspension_id: string }

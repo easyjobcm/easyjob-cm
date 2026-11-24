@@ -122,7 +122,7 @@ export interface MissionDayState {
   /** Lot 17b : journée annulée (plus de début ni de code). */
   cancelled_at: string | null;
   /** Lot 17d-2 : auteur de l'annulation (candidat ou entreprise). */
-  cancelled_by: "candidate" | "company" | null;
+  cancelled_by: "candidate" | "company" | "support" | null;
   /** Interruption signalée : étape, blocage, accord valide éventuel. */
   interruption: DayInterruption | null;
 }
@@ -161,7 +161,9 @@ export function missionDays(raw: unknown): MissionDayState[] {
               : null,
           cancelled_at: str(r.cancelled_at),
           cancelled_by:
-            r.cancelled_by === "candidate" || r.cancelled_by === "company"
+            r.cancelled_by === "candidate" ||
+            r.cancelled_by === "company" ||
+            r.cancelled_by === "support"
               ? r.cancelled_by
               : null,
           interruption: parseDayInterruption(r.interruption),

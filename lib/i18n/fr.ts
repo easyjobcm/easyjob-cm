@@ -2317,6 +2317,8 @@ export const fr = {
       mission_not_found: "Mission introuvable ou inaccessible.",
       mission_not_active: "Cette mission n'est plus active.",
       day_cancelled: "Cette journée a été annulée.",
+      absence_finding_established:
+        "Un constat d'absence injustifiée est en vigueur sur cette journée : un recours doit d'abord l'infirmer.",
       interruption_pending:
         "Une interruption est en examen : le fondateur doit d'abord se prononcer.",
       settlement_not_accepted:
@@ -2428,6 +2430,8 @@ export const fr = {
     },
     errors: {
       day_cancelled: "Cette journée a été annulée par le candidat.",
+      absence_finding_established:
+        "Un constat d'absence injustifiée est en vigueur sur cette journée : un recours doit d'abord l'infirmer.",
       interruption_pending:
         "Une interruption est en cours d'instruction sur cette journée.",
       settlement_pending:
@@ -3082,6 +3086,194 @@ export const fr = {
         "Les candidats de ces dates ont changé. Vérifiez la liste mise à jour.",
       late_not_acknowledged:
         "Une journée est devenue tardive entre-temps. Vérifiez la qualification mise à jour.",
+    },
+  },
+  // Lot 17d-3 : interventions du support (ANN-17, ANN-18, SAN-08).
+  // Aucune sanction, aucun frais, aucune indemnité.
+  interventions: {
+    dayCancelledBySupportCompany: "Candidat indisponible",
+    dayCancelledBySupport: "Annulée par le support",
+    states: {
+      pending: "En attente du support",
+      accepted: "Acceptée",
+      refused: "Refusée",
+    },
+    errors: {
+      generic: "Action impossible pour le moment. Réessayez.",
+      not_authenticated: "Reconnectez-vous pour continuer.",
+      forbidden: "Action réservée à un autre grade.",
+      not_a_company: "Action réservée à l'entreprise de l'offre.",
+      account_suspended: "Votre compte est suspendu.",
+      request_invalid: "Demande invalide. Rechargez la page.",
+      days_invalid: "Choisissez au moins une journée.",
+      note_invalid: "Le texte doit compter de 10 à 2 000 caractères.",
+      statement_invalid: "Le texte doit compter de 10 à 2 000 caractères.",
+      cancellation_reason_required:
+        "Indiquez un motif d'au moins 10 caractères.",
+      cancellation_reason_too_long:
+        "Le motif ne doit pas dépasser 500 caractères.",
+      removal_already_requested:
+        "Une demande est déjà en attente pour cette journée.",
+      day_already_cancelled:
+        "Une journée vient d'être annulée. La liste a été mise à jour.",
+      day_started:
+        "Une journée a commencé : utilisez le signalement d'interruption.",
+      day_already_begun: "Le début d'une journée est atteint.",
+      day_not_covered: "Cette journée n'est pas couverte par la suspension.",
+      suspension_not_active: "La suspension n'est plus en cours.",
+      request_already_decided: "Cette demande a déjà été traitée.",
+      request_not_refused: "Seule une demande refusée peut être réexaminée.",
+      reexamination_exists: "Un réexamen de ce refus a déjà été demandé.",
+      mission_not_active: "L'engagement a changé entre-temps.",
+      response_window_closed: "Le délai de réponse est dépassé.",
+      response_window_open: "Le délai de réponse du candidat court encore.",
+      finding_decided: "Le constat est déjà décidé.",
+      finding_stale: "Le dossier a changé : rechargez avant de décider.",
+      proposal_pending: "Une proposition attend sa validation.",
+      no_proposal: "Aucune proposition à valider.",
+      validator_must_differ: "La validation exige un second agent.",
+      reviewer_must_differ:
+        "Le recours exige un agent distinct des validateurs.",
+      realization_review_open:
+        "La décision sur la réalisation du travail n'est pas définitive.",
+      realization_not_absence:
+        "La décision sur la réalisation ne porte pas sur une absence.",
+      work_confirmed:
+        "Le travail est confirmé : aucune absence injustifiée ne peut être constatée.",
+      realization_ambiguous:
+        "Situation partielle ou ambiguë : aucune absence injustifiée ne peut être constatée.",
+      review_window_closed: "Le délai de recours est dépassé.",
+      review_already_requested: "Un recours est déjà demandé.",
+      evidence_invalid: "Fichier refusé : JPEG, PNG, WebP ou PDF.",
+      evidence_too_large: "Fichier trop lourd (5 Mo au plus).",
+      evidence_limit: "Nombre maximal de pièces atteint.",
+    },
+    removal: {
+      open: "Demander le retrait au support",
+      title: "Retrait de ce candidat",
+      intro:
+        "Le support examine votre demande avant le début des journées choisies. Rien ne change tant qu'il n'a pas décidé. L'annulation éventuelle vous est imputée, jamais au candidat.",
+      reason: "Motif",
+      reasonHelp:
+        "Lu par l'équipe EasyJob, jamais montré au candidat (10 à 500 caractères).",
+      send: "Envoyer la demande",
+      sent: "Demande envoyée au support",
+      none: "Aucune journée à venir à retirer.",
+      requestLine: "Retrait demandé le {date} : {state}",
+      supportNote: "Réponse du support : {note}",
+      reexamOpen: "Demander un réexamen",
+      reexamReason: "Motif du réexamen",
+      reexamSend: "Envoyer la demande de réexamen",
+      reexamSent: "Demande de réexamen envoyée au support",
+      reexamLine: "Réexamen demandé le {date} : {state}",
+    },
+    suspended: {
+      title: "Demander l'annulation au support",
+      intro:
+        "Votre compte est suspendu. Le support peut annuler vos journées couvertes par la suspension ; aucun manquement n'est retenu pour cette demande.",
+      message: "Message au support (facultatif)",
+      send: "Envoyer la demande",
+      sent: "Demande envoyée au support",
+      none: "Aucune journée couverte par la suspension.",
+      requested: "Déjà demandée",
+      requestLine: "Demande du {date} : {state}",
+    },
+    finding: {
+      title: "Absence signalée",
+      notFault:
+        "Un signalement n'est pas une faute établie. Le support examine les éléments des deux parties.",
+      dueCandidate: "Vous pouvez répondre jusqu'au {date}.",
+      closed: "Le délai de réponse est clos.",
+      yourAnswer: "Votre version",
+      answer: "Envoyer ma version",
+      answered: "Version envoyée",
+      upload: "Ajouter un justificatif",
+      uploaded: "Justificatif ajouté",
+      pieces: "{count} pièce(s) jointe(s)",
+      statusInstruction: "En cours d'examen par le support",
+      statusProposed: "Décision en cours de validation",
+      outcomes: {
+        established: "Absence injustifiée établie",
+        not_established: "Absence injustifiée non établie",
+      },
+      notEstablishedNote:
+        "Cette issue ne confirme ni le travail ni un droit au paiement.",
+      notifiedAt: "Notifiée le {date} : délai calculé par le serveur.",
+      history: "Décisions successives",
+      historyDecided: "{date} : {outcome}",
+      historyReview: "{date} : recours {outcome}",
+      elementTitle: "Transmettre un élément au support",
+      elementHint:
+        "Avant la décision, il est relu avec le dossier. Après la décision, il est ajouté à l'historique, sans réouverture ni nouveau délai.",
+      elementSend: "Transmettre",
+      elementSent: "Élément transmis au support",
+      elementCount: "{count} élément(s) transmis",
+      noEffect:
+        "Ce constat n'entraîne à ce jour ni sanction, ni retrait d'expérience, ni conséquence financière.",
+      reviewUntil: "Recours possible jusqu'au {date}.",
+      reviewRequest: "Demander un recours",
+      reviewSent: "Recours demandé",
+      reviewOutcomes: {
+        maintained: "Recours rejeté : constat maintenu",
+        overturned: "Recours accepté : constat réexaminé",
+      },
+    },
+    admin: {
+      quickAction: "Interventions",
+      title: "Interventions sur les engagements",
+      requestsTitle: "Demandes et tâches",
+      findingsTitle: "Constats d'absence",
+      kinds: {
+        targeted_removal: "Retrait ciblé demandé par l'entreprise",
+        suspension_task: "Tâche : candidat suspendu",
+        suspended_candidate: "Demande du candidat suspendu",
+      },
+      empty: "Rien à traiter.",
+      reason: "Motif de l'entreprise",
+      message: "Message du candidat",
+      suspension: "Suspension : {cause}, {active}",
+      active: "en cours",
+      lifted: "terminée",
+      dayStates: {
+        open: "Annulable",
+        begun: "Début atteint",
+        started: "Commencée",
+        cancelled: "Déjà annulée",
+        inactive: "Engagement inactif",
+        missing: "Introuvable",
+      },
+      note: "Décision motivée",
+      accept: "Annuler les journées choisies",
+      refuse: "Refuser",
+      readOnly: "Lecture seule : la décision revient à un ops ou au fondateur.",
+      decided: "Décision : {state}",
+      openable: "Signalements d'absence sans constat",
+      openFinding: "Ouvrir l'instruction",
+      realization: "Réalisation du travail : {state}",
+      realizationStates: {
+        clear: "aucune contestation ouverte",
+        contested: "contestation ouverte",
+        work_confirmed: "travail confirmé",
+        ambiguous: "situation partielle ou ambiguë",
+      },
+      candidateDue: "Réponse du candidat jusqu'au {date}",
+      candidateStatement: "Version du candidat",
+      noStatement: "Aucune version reçue.",
+      evidence: "Pièce {n}",
+      propose: "Proposer",
+      outcome: "Issue",
+      approve: "Valider",
+      reject: "Rejeter la proposition",
+      proposal: "Proposition : {outcome}",
+      reviewNote: "Recours ({party}) : {note}",
+      maintain: "Maintenir",
+      overturn: "Infirmer",
+      parties: { candidate: "candidat", company: "entreprise" },
+      reexamOf: "Réexamen d'une demande refusée",
+      noteLabel: "Note d'instruction",
+      noteSend: "Ajouter la note",
+      elements: "Nouveaux éléments et notes",
+      history: "Historique des décisions",
     },
   },
   cancellations: {

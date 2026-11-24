@@ -97,6 +97,8 @@ export const MISSION_RPC_REFUSALS = {
   reasons_invalid: 400,
   // Lot 17b : journée annulée par le candidat (début, code, confirmation).
   day_cancelled: 409,
+  // Lot 17d-3 : constat d'absence injustifiée en vigueur sur la journée.
+  absence_finding_established: 409,
   // Interruption : code refusé pendant l'instruction ou tant qu'un
   // règlement n'est pas accepté par les deux parties.
   interruption_pending: 409,

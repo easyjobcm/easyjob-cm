@@ -1355,6 +1355,17 @@ async function main() {
       const late = async (i: number, choice: "none" | "provided" = "none") =>
         cancelAt("cx", [x.dayIds[i]], ["5 hours"], "other", choice);
       for (const i of [0, 1]) await late(i);
+      // Dossier ancien, décidé plus tard : déposé avant la suspension (lot
+      // 17d-3, ANN-18 : un compte suspendu ne se désiste plus lui-même),
+      // justificatif annoncé, donc sans manquement à ce stade.
+      const old = await late(3, "provided");
+      await http(
+        "POST",
+        `/api/cancellations/${old.result!.cancellation_id}/evidence`,
+        sess.cx.cookie,
+        undefined,
+        pdfForm(),
+      );
       const beforeThird = await isActive(uid.cx);
       await late(2);
       const s1 = (await suspensionsOf(uid.cx)).filter(
@@ -1402,14 +1413,14 @@ async function main() {
         Math.abs(en.getTime() - expected.getTime()) < 1000 * 3600 * 2,
         { starts: cal!.starts_at, ends: cal!.ends_at },
       );
-      // Dossier commis pendant la suspension, décidé plus tard.
-      const old = await late(3, "provided");
-      await http(
-        "POST",
-        `/api/cancellations/${old.result!.cancellation_id}/evidence`,
-        sess.cx.cookie,
-        undefined,
-        pdfForm(),
+      // Lot 17d-3 (ANN-18) : pendant la suspension, le désistement est fermé
+      // en base ; le candidat passe par la demande au support.
+      const duringSuspension = await late(10, "provided");
+      report(
+        "X2b compte suspendu : désistement refusé en base (account_suspended), aucun dossier ni manquement",
+        duringSuspension.error === "account_suspended" &&
+          duringSuspension.result === null,
+        { error: duringSuspension.error },
       );
       // Suspension administrative en plus (autre cause).
       const adminOn = await sess.ops.client.rpc("admin_set_user_active", {

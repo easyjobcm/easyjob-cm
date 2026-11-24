@@ -53,6 +53,8 @@ import { formatDayDate, formatDayHours } from "@/lib/jobs/schedule";
 import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { CompanyMissionIncidents } from "@/components/missions/company-mission-incidents";
 import { CompanyCancellationPanel } from "@/components/jobs/company-cancellation-panel";
+import { TargetedRemoval } from "@/components/jobs/targeted-removal";
+import type { TargetedRemoval as TargetedRemovalRequest } from "@/lib/validations/support-intervention";
 import {
   SelectionContractDialog,
   type SelectionResult,
@@ -120,7 +122,7 @@ type JobMission = Omit<
   /** Lot 17b : désistement du candidat sur cette journée. */
   cancelled_at?: string | null;
   /** Lot 17d-2 : auteur de l'annulation (candidat ou entreprise). */
-  cancelled_by?: "candidate" | "company" | null;
+  cancelled_by?: "candidate" | "company" | "support" | null;
 };
 
 /** Réponse de GET /api/jobs/[id]/applications (colonnes autorisées, F-16). */
@@ -158,6 +160,8 @@ export default function CompanyJobDetailPage() {
   const [missions, setMissions] = useState<Map<string, JobMission[]>>(
     new Map(),
   );
+  // Lot 17d-3 : demandes de retrait ciblé de l'offre (ANN-17).
+  const [removals, setRemovals] = useState<TargetedRemovalRequest[]>([]);
   const [reviewMission, setReviewMission] = useState<{
     mission: JobMission;
     name: string;
@@ -222,6 +226,13 @@ export default function CompanyJobDetailPage() {
     const missionsRes = await fetch(`/api/jobs/${jobId}/missions`, {
       cache: "no-store",
     }).catch(() => null);
+    const removalsRes = await fetch(`/api/jobs/${jobId}/removal-requests`, {
+      cache: "no-store",
+    }).catch(() => null);
+    const nextRemovals = removalsRes?.ok
+      ? (((await removalsRes.json()) as { requests?: TargetedRemovalRequest[] })
+          .requests ?? [])
+      : null;
     const missionRows = missionsRes?.ok
       ? (((await missionsRes.json()) as { missions: JobMission[] }).missions ??
         [])
@@ -268,6 +279,7 @@ export default function CompanyJobDetailPage() {
       );
     }
     if (missionsRes) setMissions(byApplication);
+    if (nextRemovals) setRemovals(nextRemovals);
 
     setLoading(false);
     return byApplication;
@@ -974,8 +986,11 @@ export default function CompanyJobDetailPage() {
                                           {m.cancelled_by === "company"
                                             ? t.companyCancellation
                                                 .dayCancelledByCompany
-                                            : t.cancellations
-                                                .companyDayCancelled}{" "}
+                                            : m.cancelled_by === "support"
+                                              ? t.interventions
+                                                  .dayCancelledBySupportCompany
+                                              : t.cancellations
+                                                  .companyDayCancelled}{" "}
                                           ·{" "}
                                           {doualaDateTime(
                                             m.cancelled_at,
@@ -1019,6 +1034,26 @@ export default function CompanyJobDetailPage() {
                                     {t.schedule.missionDoneAfterAll}{" "}
                                     {t.schedule.unconfirmedNote}
                                   </p>
+                                )}
+                                {/* Lot 17d-3 : retrait ciblé, demandé au support. */}
+                                {app.status === "selected" && (
+                                  <TargetedRemoval
+                                    jobId={jobId}
+                                    candidateName={name(app)}
+                                    disabled={suspended}
+                                    requests={removals}
+                                    onChanged={() => void loadData()}
+                                    days={rows.map((r) => ({
+                                      mission_day_id: r.mission_day_id,
+                                      starts_at: r.scheduled_start_at,
+                                      removable:
+                                        !r.cancelled_at &&
+                                        !r.started_at &&
+                                        !r.completed_at &&
+                                        Date.parse(r.scheduled_start_at) >
+                                          Date.now(),
+                                    }))}
+                                  />
                                 )}
                                 {/* Lot 14 : signalements par journée ; lot 17b :
                                     pas de signalement sur une journée annulée. */}
