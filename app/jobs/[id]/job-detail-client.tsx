@@ -53,6 +53,7 @@ import { isRecruitmentOpen } from "@/lib/jobs/recruitment";
 import { useRecruitmentNow } from "@/lib/jobs/use-recruitment";
 import { doualaDateTime } from "@/lib/utils/douala-time";
 import { JobDaysList } from "@/components/jobs/job-days-list";
+import { ReplacementCycleCandidate } from "@/components/jobs/replacement-cycle-candidate";
 import {
   dayChoosable as isDayChoosable,
   dayState,
@@ -136,6 +137,11 @@ interface JobDetailClientProps {
    * `closed`). L'écran ouvert bascule aussi seul à l'échéance.
    */
   recruitmentClosedAtLoad?: boolean;
+  /**
+   * Lot 17d-4a : période complète dont une date est annulée par l'entreprise
+   * (`job_availability` = `date_cancelled`) ; relu aussi sur les journées.
+   */
+  dateCancelledAtLoad?: boolean;
 }
 
 /** Section du détail : titre visible, contenu en carte. */
@@ -176,6 +182,7 @@ export function JobDetailClient({
   cni = null,
   acceptingApplications = true,
   recruitmentClosedAtLoad = false,
+  dateCancelledAtLoad = false,
 }: JobDetailClientProps) {
   const router = useRouter();
   const { t, locale } = useI18n();
@@ -317,11 +324,17 @@ export function JobDetailClient({
       prev.includes(dayId) ? prev.filter((x) => x !== dayId) : [...prev, dayId],
     );
   };
+  // Lot 17d-4a : une date annulée ferme toute la période (aucune sélection
+  // ne peut l'inclure) ; journées au choix : état propre à chaque journée.
+  const periodCancelled =
+    !perDay && (dateCancelledAtLoad || days.some((d) => !!d.date_cancelled));
   const recruitmentClosed =
     acceptingApplications &&
     (perDay
       ? !daysUnverified && !anyRecruiting
-      : recruitmentClosedAtLoad || !isRecruitmentOpen(job, recruitmentNow));
+      : recruitmentClosedAtLoad ||
+        periodCancelled ||
+        !isRecruitmentOpen(job, recruitmentNow));
   const appliedForAction = perDay
     ? !daysUnverified && anyDayApplied && !anyRecruiting
     : hasApplied;
@@ -746,6 +759,12 @@ export function JobDetailClient({
       </div>
 
       <div className="relative z-10 flex-1 px-4 pt-4">
+        {/* Lot 17d-4a (ANN-14) : recrutement de remplacement ouvert. */}
+        <ReplacementCycleCandidate
+          jobId={job.id}
+          isLoggedIn={isLoggedIn}
+          suspended={suspended}
+        />
         {/* 1. Travail demandé */}
         <Section
           id="job-work"
@@ -1112,9 +1131,19 @@ export function JobDetailClient({
           <p
             role="status"
             className="mb-2 text-sm text-muted-foreground"
-            data-testid="job-closed-notice"
+            data-testid={
+              periodCancelled
+                ? "job-date-cancelled-notice"
+                : "job-closed-notice"
+            }
           >
-            {appliedForAction ? tj.closedApplied : tj.closedBody}
+            {periodCancelled
+              ? appliedForAction
+                ? tj.dateCancelledApplied
+                : tj.dateCancelledBody
+              : appliedForAction
+                ? tj.closedApplied
+                : tj.closedBody}
           </p>
         )}
         {daysUnverified && (

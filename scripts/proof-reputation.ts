@@ -983,6 +983,12 @@ async function main() {
       // Lot 13 : contrat et signature attendue de l'entreprise elle-même.
       "contract_id",
       "contract_to_sign",
+      // Lot 17d-4a (ANN-14) : confirmation liée à un cycle de remplacement
+      // et fermeture de ce cycle (aucune donnée du candidat).
+      "replacement_cycle_id",
+      "replacement_closes_at",
+      // Lot 17d-4a (ANN-08) : date entière annulée par l'entreprise.
+      "date_cancelled",
     ];
     report(
       "P3 candidats vus par l'entreprise : étoiles seules (ni moyenne, ni nombre d'avis, ni missions, ni motifs, ni commentaire)",

@@ -822,6 +822,11 @@ export const fr = {
     backToJobs: "Voir les autres offres",
     // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence).
     closedBody: "Les candidatures pour cette offre sont closes.",
+    // Lot 17d-4a : période dont une date est annulée par l'entreprise.
+    dateCancelledBody:
+      "L'entreprise a annulé une date de cette période : l'offre n'accepte plus de candidatures.",
+    dateCancelledApplied:
+      "L'entreprise a annulé une date de cette période : votre candidature ne peut plus être retenue. Elle reste consultable.",
     closedApplied:
       "Les candidatures pour cette offre sont closes. Votre candidature reste consultable.",
     closesAt: "Candidatures jusqu'au {date}",
@@ -921,6 +926,8 @@ export const fr = {
       job_not_found: "Cette offre n'est plus disponible.",
       job_not_available: "Cette offre n'accepte plus de candidatures.",
       recruitment_closed: "Les candidatures pour cette offre sont closes.",
+      date_cancelled:
+        "L'entreprise a annulé une date de cette offre : elle n'accepte plus de candidature pour cette date.",
       no_positions: "Toutes les places de cette offre sont pourvues.",
       already_applied: "Vous avez déjà postulé à cette offre.",
       job_days_required: "Choisissez au moins une journée pour postuler.",
@@ -2188,6 +2195,12 @@ export const fr = {
         "Recrutement clos : l'échéance de cette offre est passée (24 h avant le début, ou 2 h si elle a été publiée en urgence). Les candidats déjà sélectionnés gardent leur mission.",
       no_positions:
         "Toutes les places de cette offre sont pourvues : aucune autre sélection n'est possible.",
+      replacement_closed:
+        "Remplacement fermé : la limite de 2 h avant le début est atteinte. Les candidats déjà sélectionnés gardent leur mission.",
+      replacement_cancelled:
+        "Remplacement fermé : vous avez annulé cette date. Aucune sélection n'est possible pour ce remplacement.",
+      date_cancelled:
+        "Vous avez annulé cette date : aucune sélection n'est possible pour elle. Les engagements déjà conclus et leurs contrats sont conservés.",
       candidate_unavailable:
         "Ce candidat n'est plus disponible. Choisissez un autre candidat.",
       candidate_schedule_conflict:
@@ -3276,6 +3289,113 @@ export const fr = {
       history: "Historique des décisions",
     },
   },
+  // Lot 17d-4a : recrutement de remplacement après désistement (ANN-14).
+  replacement: {
+    badge: "Remplacement",
+    candidate: {
+      title: "Recrutement de remplacement",
+      intro:
+        "Un candidat sélectionné s'est désisté : seules les places et journées libérées ci-dessous sont de nouveau ouvertes. Les horaires et les conditions de l'offre ne changent pas.",
+      period: "Toute la période, à partir du {date}",
+      day: "Journée du {date}",
+      hours: "{start} – {end}",
+      places: {
+        one: "{count} place ouverte",
+        other: "{count} places ouvertes",
+      },
+      closesAt: "Confirmations jusqu'au {date} (heure de Douala)",
+      confirm: "Confirmer mon intérêt",
+      confirmed: "Intérêt confirmé : l'entreprise peut vous sélectionner",
+      selected: "Vous avez été sélectionné(e) pour ce remplacement",
+      rejected: "Non retenu(e) pour ce remplacement",
+      withdrawn: "Vous avez retiré votre intérêt pour ce remplacement",
+      withdraw: "Retirer mon intérêt",
+      withdrawConfirm:
+        "Retirer votre intérêt ? Vous ne pourrez pas le confirmer de nouveau pour ce remplacement.",
+      closed: "Remplacement fermé",
+      filled: "Places pourvues",
+      unavailable: "Remplacement momentanément indisponible",
+      cancelled: "Date annulée par l'entreprise",
+      login: "Connectez-vous pour confirmer votre intérêt",
+      noSelectionPromise:
+        "Confirmer ne vaut pas sélection : l'entreprise choisit parmi les candidats qui confirment, en signant un nouveau contrat.",
+      dialogTitle: "Confirmer votre intérêt",
+      dialogBody:
+        "Votre ancienne candidature reste inchangée. Cette confirmation vaut uniquement pour ce remplacement. Si l'entreprise vous sélectionne, un nouveau contrat est créé aux conditions de l'offre.",
+      consent:
+        "Je confirme mon intérêt pour ce remplacement et j'accepte d'être sélectionné(e) aux conditions de l'offre.",
+      submit: "Confirmer",
+      cancel: "Annuler",
+      done: "Intérêt confirmé",
+      withdrawnDone: "Intérêt retiré",
+      blockers: {
+        replacement_own_withdrawal:
+          "Vous vous êtes désisté(e) de ces journées : ce remplacement ne vous est pas ouvert.",
+        already_selected: "Vous êtes déjà sélectionné(e) sur ces journées.",
+        account_suspended: "Votre compte est suspendu.",
+        onboarding_incomplete: "Terminez votre inscription pour confirmer.",
+        profile_incomplete:
+          "Votre profil doit être rempli à au moins 60 % pour confirmer.",
+        cni_expired:
+          "Votre CNI n'est plus valide : renouvelez-la depuis votre profil.",
+        profile_not_verified: "Votre profil doit être vérifié pour confirmer.",
+        document_requirement:
+          "Un justificatif demandé par l'offre manque à votre profil.",
+        schedule_conflict:
+          "Vous avez déjà un engagement incompatible avec ces horaires (chevauchement ou moins de 3 h d'écart).",
+        job_days_missing: "Cette offre n'a pas de dates précises.",
+        profile_not_found: "Profil candidat introuvable.",
+      },
+      errors: {
+        generic: "Action impossible pour le moment. Réessayez.",
+        network:
+          "Connexion impossible : rien n'a été envoyé. Vérifiez votre connexion, puis réessayez.",
+        not_authenticated: "Reconnectez-vous pour continuer.",
+        consent_required: "Cochez la case de confirmation.",
+        replacement_not_found: "Ce remplacement n'existe plus.",
+        replacement_closed:
+          "Le remplacement est fermé : la limite de 2 h avant le début est atteinte.",
+        replacement_cancelled:
+          "Le remplacement est fermé : l'entreprise a annulé cette date.",
+        no_positions: "Les places libérées sont déjà pourvues.",
+        job_not_available: "Cette offre n'est plus disponible.",
+        job_closed: "Cette offre a été clôturée par l'entreprise.",
+        interest_withdrawn:
+          "Vous avez retiré votre intérêt : il ne peut pas être confirmé de nouveau pour ce remplacement.",
+      },
+    },
+    company: {
+      title: "Recrutement de remplacement",
+      intro:
+        "Un candidat s'est désisté : la place libérée peut être pourvue jusqu'à 2 h avant le début, parmi les candidats qui confirment leur intérêt. Vous signez un nouveau contrat ; les autres engagements ne changent pas.",
+      period: "Toute la période, à partir du {date}",
+      day: "Journée du {date}",
+      placesOpen: {
+        one: "{count} place ouverte",
+        other: "{count} places ouvertes",
+      },
+      filledOf: "Pourvues dans ce remplacement : {filled} sur {released}",
+      closesAt: "Sélection possible jusqu'au {date} (heure de Douala)",
+      confirmations: {
+        one: "{count} confirmation d'intérêt",
+        other: "{count} confirmations d'intérêt",
+      },
+      hint: "Les candidats qui confirment apparaissent dans « En attente » avec la mention « Remplacement ».",
+      withheld:
+        "Aucun avis n'a été envoyé aux candidats : votre dossier entreprise n'était pas valide à l'ouverture.",
+      states: {
+        open: "Ouvert",
+        filled: "Places pourvues",
+        closed: "Fermé",
+        unavailable: "Indisponible (dossier entreprise)",
+        job_closed: "Offre clôturée",
+        cancelled: "Fermé : date annulée",
+      },
+      closedForApp:
+        "Remplacement fermé : la limite de 2 h avant le début est atteinte.",
+    },
+  },
+
   cancellations: {
     open: "Annuler des journées",
     title: "Annuler des journées",
@@ -3793,6 +3913,7 @@ export const fr = {
     summaryTitle: "Journées choisies",
     dayState: {
       open: "Ouverte",
+      cancelled: "Date annulée par l'entreprise",
       closed: "Candidatures closes",
       full: "Complète",
       pending: "Candidature envoyée",
@@ -3806,6 +3927,7 @@ export const fr = {
     blocked: {
       title: "Certaines journées ne sont plus disponibles",
       recruitment_closed: "{date} : candidatures closes",
+      date_cancelled: "{date} : date annulée par l'entreprise",
       already_applied: "{date} : candidature déjà envoyée",
       no_positions: "{date} : journée complète",
       schedule_conflict: "{date} : vous avez déjà un engagement trop proche",

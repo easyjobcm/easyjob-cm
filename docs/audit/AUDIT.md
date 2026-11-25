@@ -3892,3 +3892,256 @@ Contrôles négatifs N5 et N6 non rejoués : les protections qu'ils visent n'ont
 
 Contrôles non rejoués (inchangés) : navigateur, contrôles négatifs N1 à N6.
 
+## 48. Cadrage — Lot 17d-4 : recrutement de remplacement après désistement (2026-11-25)
+
+Cadrage documentaire : aucun code, aucune migration, aucune preuve exécutée. Comportements établis par lecture des dernières définitions SQL et du code. Décision appliquée : `ANN-14` (`[UV]` du 2026-11-20 : principe, destinataires, confirmations, journées au choix). Réutilisées : `ECH-01`, `ECH-02`, `ECH-06`, `ECH-07`, `ECH-09`, `CTR-01`, `CTR-02`, `MNT-01`, `MNT-06`, `MNT-09` (non appliqué d'office), `ANN-06`, `ANN-17`, `ANN-18`, `SAN-08`, `REP-04`, `DON-04`, `DON-06`. Nouvelles propositions, toutes **à décider** : `ANN-19`, `ANN-20`, `ANN-21`, `MNT-13`.
+
+**Point de départ (constat Git du 2026-11-25).** 17d-3 est intégré à `origin/main-dev` par la PR #61 (`db74aa2`, fusion de `43d0d36` et `9c3dc01`). Il est absent de `origin/main` (`e536ee1`, v0.1.10). La branche locale `feat/lot-17d-3-support-interventions` (`9c3dc01`) est alignée sur sa branche distante, et l'arbre était propre avant ce cadrage. La branche locale `main-dev` est en retard (`63eabc8`) ; c'est `origin/main-dev` qui fait foi. Le stash `stash@{0}` (sauvegarde automatique de lint-staged, identité admin) est conservé et n'a pas été appliqué. Dans le registre, les états de 17d-3 sont corrigés. Ceux de 17d-2 (`ANN-04`, `ANN-06`, `ANN-15`, `ECH-09` : « non commitée ») sont périmés depuis `6167235` : l'écart est signalé, sans correction.
+
+### Acquis (rappel, sans revalidation)
+
+`ANN-14` fixe : un parcours commun à Free et Premium ; le déclenchement par le seul désistement enregistré d'un candidat sélectionné ; la réouverture limitée aux places et journées réellement libérées ; l'ouverture s'il reste au moins 4 h avant le début concerné et la fermeture à H−2, appréciées par journée pour les journées au choix ; un cycle distinct et tracé, qui ne change ni les horaires, ni la première publication, ni le régime, ni l'échéance initiale ; des avis dans l'application et par e-mail aux destinataires définis ; une confirmation d'intérêt rattachée au cycle, sans réactivation silencieuse ; la sélection signée avec tous les contrôles. Il exclut les absences signalées, les suspensions, les annulations par l'entreprise et les interventions du support. Les frais d'urgence ne s'appliquent pas d'office.
+
+### Inventaire de l'existant
+
+| Besoin | Existant réutilisable | Écart pour 17d-4 |
+|---|---|---|
+| Déclencheur | `request_candidate_cancellation` (dernière définition : `20261127120000`). Quand toutes les journées d'une mission sont annulées, la mission passe à `cancelled`, la candidature à `withdrawn`, et `sync_job_positions_filled` décrémente l'offre et la journée. La relance est idempotente (`p_request_id`). L'entreprise est prévenue (« Désistement d'un candidat »). | Seul point d'accroche. Aucun cycle n'est créé aujourd'hui. Période interrompue (`mission_close_if_interrupted`) : la candidature reste `selected` et aucune place n'est libérée (`ANN-19`). Le candidat suspendu passe par `request_support_cancellation` (ANN-18), qui est hors déclencheur |
+| Origines à ne pas brancher | `request_company_cancellation` (ANN-06), `admin_decide_engagement_request` (ANN-17), `support_cancellations` (ANN-18), interruptions, `absence_findings` (SAN-08) | Une preuve négative doit vérifier qu'aucune n'ouvre de cycle |
+| Échéances | `jobs` et `job_days` : `applications_close_at`, `first_published_at` et `publication_regime` figés (lot 11b) ; `recruitment_open(jobs)` (colonne calculée) ; `job_start_instant`, `job_recruitment_close` | Aucune fenêtre propre au remplacement. Rien de tout cela ne doit être réécrit (ECH-01, ECH-02) : la fenêtre doit être portée par le cycle |
+| Visibilité | `/api/jobs` filtre `status = active` et `recruitment_open = true`. Politique « Published jobs are viewable by all » : offre active avec dossier valide, ou offre à laquelle le candidat a postulé. Détail accessible par lien direct ; `job_days_for_candidate` | Ajouter une condition « cycle ouvert » sur le même modèle. Seules les places et journées libérées sont présentées comme ouvertes |
+| Candidature | `apply_to_job_core` et `apply_to_job_days` contrôlent : profil ≥ 60 %, CNI vérifiée et valide (ECH-06), compte actif, documents requis (`candidate_document_blocker`), places, conflits avec la marge de 3 h, `recruitment_closed`, `already_applied` | L'échéance initiale ne doit être levée que dans un cycle ouvert et sur sa portée |
+| Unicité | Index partiels `job_applications_job_candidate_key` (offre, candidat ; période) et `job_applications_day_candidate_key` (journée, candidat). `protect_job_application_writes` interdit tout retour d'état | Ces index bloquent la confirmation d'un candidat refusé et le retour d'un candidat qui s'est retiré (voir « Représentation ») |
+| Sélection | `selection_prepare` → `contract_select_core` → `sign_and_select`. Verrous : candidature, offre ou journée, dossier `for share`, `lock_candidate_engagements`. Contrôles : comptes actifs (`selection_company_of`), `company_dossier_valid`, offre `active`, échéance, places, `candidate_unavailable`, `candidate_schedule_conflicts` (ECH-09), empreinte du contrat, conditions figées (candidat 17a, entreprise 17d-2) | **Écart** : profil, CNI et documents ne sont vérifiés qu'à la candidature, jamais à la sélection, alors qu'ANN-14 exige qu'ils soient revérifiés. L'échéance initiale doit céder la place à celle du cycle. Pour une période, le contrat couvre `job_effective_days`, c'est-à-dire toutes les journées |
+| Disponibilité | `candidate_schedule_conflicts`, `lock_candidate_engagements`, `job_days_for_candidate` | Réutilisables tels quels, pour les alertes comme pour la sélection |
+| Avis dans l'application | `incident_notify` (ligne `notifications`, langue de l'utilisateur, type `mission_update`, `data` libre) ; signaux `rt_signal_users` et `rt_signal_public_jobs` ; `LiveRefresh` et `useLiveRefresh`. Le dédoublonnage existe seulement au cas par cas : horodatages (`ended_notified_at`, `candidate_notified_at`) ou index uniques | Aucun avis de remplacement. Le dédoublonnage doit être porté par le cycle |
+| Tâche planifiée | pg_cron `reputation-expiry-sweep`, toutes les 15 min (`incident_deadline_sweep`, `account_suspension_sweep`…) | La fermeture se contrôle à chaque action. La tâche ne fait que mettre à jour l'état affiché et arrêter la file d'e-mails |
+| Écrans | `/jobs`, `/jobs/[id]` (`job-detail-client.tsx`), `/company/jobs/[id]` (candidats, « Signer et sélectionner », badge « Désistement du candidat »), candidatures du candidat, notifications, `/admin/interventions`, `/admin/cancellations` | À ajouter : bandeau du cycle, confirmation d'intérêt, candidatures du cycle côté entreprise, lecture par l'administration |
+
+### E-mails : moyens réellement présents dans EasyJob
+
+| Élément | Constat |
+|---|---|
+| Fournisseur transactionnel | **Aucun.** `package.json` ne contient aucun SDK d'envoi. Il n'y a ni route d'envoi, ni fonction Edge (pas de `supabase/functions`), ni `pg_net`, ni appel HTTP sortant pour envoyer un e-mail |
+| E-mails envoyés aujourd'hui | Ceux de Supabase Auth seulement : confirmation, OTP, récupération, changement d'adresse (gabarits `supabase/templates/*.html`). En local, ils sont captés par le serveur de test `[local_smtp]`. Le bloc `[auth.email.smtp]` de `supabase/config.toml` est commenté : c'est l'exemple par défaut du modèle de configuration, sans clé. **Le SMTP d'Auth en production n'est pas décrit dans le dépôt** ; il se règle dans le tableau de bord et doit être inventorié (`docs/deployment/production.md` §6) |
+| File et reprises | Aucune : ni table d'attente, ni état d'envoi, ni reprise |
+| Dédoublonnage | Aucun pour les e-mails. `email_send_log` et `check_email_send_quota` ne font que limiter les OTP (5 par adresse sur 24 h, 20 par adresse IP sur 1 h) |
+| Suivi des erreurs | `notifications.sent_email`, `sent_push` et `sent_sms` sont des colonnes de la base d'origine, à `false` par défaut, jamais écrites (vestige). Les erreurs serveur passent par `logServerError` (journaux Vercel). Aucun outil de capture n'est installé (PLAN, « Observabilité ») |
+| Autres canaux | SMS Twilio pour l'Auth uniquement ; aucune notification push |
+
+**Conséquence.** Le volet e-mail d'ANN-14 ne peut pas être livré tant qu'un fournisseur n'a pas été choisi et mis en service (`ANN-21`). La partie technique relève de choix ordinaires et ne demande pas d'arbitrage. Proposition :
+- une file `email_outbox`, écrite dans la transaction qui ouvre le cycle, avec une clé unique cycle × destinataire × type ;
+- un envoi par un traitement serveur (route protégée par un secret ou tâche planifiée), avec la clé d'idempotence du fournisseur ;
+- des reprises bornées, à délai croissant, et un abandon à la fermeture du cycle ;
+- un état par message (en attente, envoyé, échec définitif), lisible par l'administration ;
+- aucune adresse, aucun objet ni corps de message dans les journaux (DON-06) ;
+- l'avis dans l'application reste la référence et n'attend jamais l'e-mail.
+
+### Représentation du cycle et de la confirmation (choix techniques proposés)
+
+- **Cycle** : table `replacement_cycles`, avec `job_id`, `job_day_id` (vide pour une période complète), `opens_at`, `closes_at` (début concerné − 2 h, figé à l'ouverture), `places_released`, `places_filled`, état (`open`, `filled`, `closed`, `cancelled`) et motif de fermeture. Sources : table `replacement_cycle_sources` (cycle, `candidate_cancellation_id`, mission libérée, unique par mission). Comme en 17d-3, les deux tables sont fermées aux sessions et à la clé service ; seules les fonctions de la base les écrivent.
+- **Ouverture** : dans la transaction du désistement, après le passage à `withdrawn`, si `début concerné − now() ≥ 4 h` (limite incluse). Le début concerné est la journée libérée (journées au choix) ou la première journée (période complète entièrement libérée). Il y a au plus un cycle ouvert par portée (index unique partiel). Un second désistement sur la même portée ajoute une source et une place au cycle déjà ouvert. Un désistement survenu avant l'échéance initiale ouvre aussi un cycle : la sélection ordinaire reste possible jusqu'à cette échéance, puis seul le cycle permet de sélectionner jusqu'à H−2.
+- **Capacité** : une sélection dans le cycle exige `places_filled < places_released` **et** au moins une place restante sur l'offre ou la journée. Une place jamais pourvue à l'échéance initiale n'est donc jamais rouverte. Exemple : 3 places, 2 pourvues à l'échéance, puis 1 désistement → une seule sélection possible dans le cycle.
+- **Candidatures (option recommandée)** : ajouter `job_applications.replacement_cycle_id`. Les index uniques existants ne visent plus que les candidatures hors cycle, et un nouvel index rend unique (cycle, candidat, journée). L'ancienne candidature, refusée ou retirée, reste telle quelle et n'est jamais réactivée. Une confirmation d'intérêt crée une **nouvelle** ligne liée au cycle, horodatée, avec l'empreinte du texte accepté. Avantage : missions, contrats (`missions.application_id`), `sync_job_positions_filled`, `company_job_applicants` et réputation sont réutilisés sans changement. Coût : il faut inventorier le code qui suppose une seule candidature par offre (état « déjà postulé », `candidate_applied_to_job`, `withdraw_job_application`, listes du candidat et de l'entreprise, matching). Alternative écartée : une table d'intérêts séparée, convertie en candidature à la sélection. Elle duplique la chaîne de sélection et bute sur la même unicité au moment de créer la candidature.
+- **Selon l'origine (ANN-14)** :
+  - candidature en attente → alertée si elle reste éligible et disponible, et sélectionnable telle quelle ;
+  - candidature refusée → alertée ; la confirmation explicite crée une nouvelle ligne ;
+  - candidature retirée → aucune alerte ; un retour volontaire crée une nouvelle ligne ;
+  - nouveau candidat → candidature ordinaire liée au cycle ;
+  - candidat à l'origine du désistement → aucune alerte ; son retour relève d'`ANN-20`.
+- **Sélection dans le cycle** : `selection_prepare` retient l'échéance du cycle seulement pour une candidature de sa portée. Elle revérifie aussi le profil, la CNI (ECH-06), les documents et le compte. Côté entreprise, le refus reste générique (`candidate_unavailable`) : il ne révèle ni suspension ni justificatif (DON-04). Le contrat porte sur la journée libérée ou sur la période entière non commencée, au montant de l'offre ou de la journée (MNT-01). Les conditions sont figées au moment de cette sélection (17a, 17d-2).
+
+### Protections
+
+| Risque | Protection proposée |
+|---|---|
+| Double cycle (relance, désistements simultanés) | Création dans la transaction du désistement, déjà idempotente ; unicité par mission source ; un cycle ouvert par portée ; verrou de l'offre ou de la journée |
+| Double alerte | `replacement_cycle_notices`, unique par (cycle, utilisateur, canal). Destinataires figés à l'ouverture ; une place ajoutée ensuite n'alerte que les éligibles pas encore prévenus. E-mail : même clé dans la file, plus la clé d'idempotence du fournisseur |
+| Dépassement de capacité | Verrou du cycle (`for update`) dans `contract_select_core`, en plus des verrous existants ; `places_filled` incrémenté dans la même transaction ; contrôle des places restantes sur l'offre ou la journée |
+| Décisions concurrentes | Sélection contre fermeture : heure de la base, refus à H−2 exactement. Sélection contre annulation de la date par l'entreprise (17d-2) : cycle fermé (`cancelled`) dans la même transaction. Sélection contre `close_job` (offre sans engagement) : cycle fermé. Candidat retenu ailleurs : conflit de 3 h vérifié sous `lock_candidate_engagements`. Deux confirmations du même candidat : index unique |
+| Désistement du remplaçant | C'est un nouveau désistement : nouvelle source, ouverture seulement s'il reste au moins 4 h. Aucune règle de sanction n'est modifiée |
+| Fermeture | Contrôle à chaque action. Le balayage de 15 min ne fait que mettre à jour l'état affiché et arrêter la file. Aucune sélection après H−2 |
+
+### Perte d'autorisation et indisponibilité pendant le cycle
+
+| Situation | Contrôle actuel | Proposé pour le cycle |
+|---|---|---|
+| Entreprise suspendue | `selection_company_of` → `account_suspended` | Cycle conservé, mais aucune sélection possible. Si la suspension existe déjà à l'ouverture, aucune alerte n'est envoyée |
+| Dossier entreprise invalide | `company_not_verified` ; offre masquée par la politique | Même traitement. Si le dossier est revalidé avant H−2, la visibilité revient, sans nouvelle alerte ni prolongation (comme ECH-07) |
+| Expiration de Premium | Aucun effet sur le parcours (commun aux deux plans) ; conditions figées lues au moment de la sélection | Inchangé |
+| Offre clôturée (`close_job`, possible une fois sans engagement) | Clôture tracée (17d-1) | Cycle fermé |
+| Candidat suspendu | `account_suspended` à la candidature, `candidate_unavailable` à la sélection | Confirmation conservée mais non sélectionnable ; aucune cause montrée à l'entreprise |
+| CNI expirée, documents manquants, profil sous 60 % | Contrôlés à la candidature seulement | Contrôlés aussi à la sélection dans le cycle |
+| Engagement concurrent (marge de 3 h) | `candidate_schedule_conflict` | Inchangé. Avoir reçu une alerte ne crée aucun droit |
+| Confirmation retirée | `withdraw_job_application` | Retrait définitif pour ce cycle |
+
+**Lectures à relire, sans arbitrage demandé.** ANN-14 n'exige une confirmation explicite que pour une candidature refusée et pour un retour après retrait : une candidature en attente est donc lue comme un consentement toujours valable. Les deux comportements « aucune alerte quand l'entreprise n'est pas autorisée à l'ouverture » et « aucun avis à la fermeture du cycle » sont des propositions.
+
+### Découpage proposé
+
+1. **17d-4a — cas déjà cadrés** : journée libérée (journées au choix) et période complète entièrement libérée avant son début. Contenu : cycle et sources ; fenêtre « au moins 4 h » / H−2 par journée ; visibilité limitée ; alertes dans l'application aux destinataires d'ANN-14 ; confirmation d'intérêt et retour après retrait par une nouvelle candidature liée au cycle ; sélection avec contrôles revérifiés ; protections ci-dessus ; écrans FR/EN ; temps réel. Preuve `replacement-cycles`, avec contrôles négatifs (ouverture par une autre origine, réactivation silencieuse, dépassement, double alerte) et suite RLS. Le candidat à l'origine du désistement ne reçoit aucune alerte et ne peut pas revenir (état actuel) tant qu'ANN-20 n'est pas tranché. Aucun frais. **Livraison partielle d'ANN-14** : pas d'e-mail, et rien ne l'annonce.
+2. **17d-4b — e-mails**, après `ANN-21` : file, envoi, reprises, dédoublonnage, suivi par l'administration, gabarits FR/EN, aucune donnée personnelle dans les journaux.
+3. **17d-4c — période déjà commencée** (et désistement partiel d'une période non commencée), après `ANN-19` et `MNT-13`.
+4. **17d-4d — retour du candidat à l'origine du désistement**, après `ANN-20` ; petit ajout sur 17d-4a.
+
+17d-5 (réputation et états financiers prévus) reste inchangé.
+
+### Arbitrages restants
+
+Seuls ces points sont des **décisions produit**. Les tables, index, verrous, la file d'e-mails et les reprises sont des choix techniques ordinaires, décrits plus haut.
+
+> **Mise à jour du 2026-11-25** (`[UV]`, §49) : le point 1 est tranché pour 17d-4c (journées restantes, prorata des heures prévues : ANN-19) ; le point 2 est tranché (option A : ANN-20) ; la livraison progressive est confirmée (17d-4a sans e-mail). Les points 3 (ANN-21) et 4 (MNT-13) restent à décider. La lecture « candidature en attente sélectionnable sans nouvelle confirmation » est **remplacée** : une confirmation explicite liée au cycle est exigée aussi pour elle.
+
+1. **Période complète déjà commencée (`ANN-19`).** Exemple : « Inventaire », du 1er au 5 décembre, 8 h–17 h, forfait de 50 000 XAF, contrat formalisé. Moussa réalise le 1er et le 2 ; le 2 à 20 h, il se désiste du 3 au 5. Aujourd'hui, la mission est close comme interrompue, la candidature reste `selected` et le montant reconnu est de 20 000 XAF (2/5, MNT-06). Aucune place n'est libérée, donc ANN-14 ne se déclenche pas. À décider :
+   - (a) les journées 3 à 5 sont-elles des journées « réellement libérées » ?
+   - (b) le contrat du remplaçant porte-t-il sur ces seules journées ? (3 journées : contrat formalisé ; 1 ou 2 : contrat simple, CTR-01) ;
+   - (c) quel montant ? Options : **A** aucun remplacement (état actuel) ; **B** prorata du contrat initial selon les minutes prévues, comme MNT-06 (30 000 XAF ici, journées égales) ; **C** forfait entier de l'offre ; **D** montant fixé par l'entreprise dans le cycle (nouveau pouvoir).
+
+   Même question pour un désistement partiel d'une période non commencée (Moussa garde du 1er au 3 et abandonne le 4 et le 5). Effet lié : l'unité « offre » reste bloquée (REP-04, 17d-5). Aucune option n'est retenue ici.
+2. **Retour du candidat à l'origine du désistement (`ANN-20`).** Exemple : Paule est retenue sur la journée du 12/12 à 8 h. Elle se désiste le 10 à 9 h, dans le délai et sans sanction ; le cycle reste ouvert jusqu'au 12 à 6 h. Le 10 à 18 h, elle veut revenir. Options : **A** aucun retour sur les journées abandonnées pendant ce cycle (état actuel) ; **B** retour comme un candidat qui s'est retiré : nouvelle candidature liée au cycle, sans priorité, sélection par l'entreprise avec tous les contrôles ; le désistement, sa qualification et toute sanction restent acquis. Proposition : A dans 17d-4a, puisque cela ne demande aucun développement ; B reste possible ensuite.
+3. **Fournisseur d'e-mails et exploitation (`ANN-21`).** À décider : le fournisseur, le titulaire du compte et le budget ; le domaine d'envoi et son authentification (SPF, DKIM, DMARC) ; l'adresse d'expédition et de réponse ; la possibilité de se désabonner de ces alertes ; la durée de conservation du journal d'envoi. Exemple : désistement le 10 à 9 h, cycle ouvert jusqu'au 12 à 6 h, 25 destinataires éligibles, fournisseur indisponible 40 min. Les avis dans l'application partent à 9 h. Les e-mails sont repris et livrés vers 9 h 45. Un message encore en échec le 12 à 6 h est abandonné et apparaît en échec pour l'administration. Proposition : l'e-mail est envoyé au mieux, l'avis dans l'application fait foi, et rien n'est envoyé après la fermeture.
+4. **Traitement financier du remplacement (`MNT-13`).** Exemple : journée au choix du 12/12, 15 000 XAF par candidat. Paule se désiste ; Ali est retenu dans le cycle. Son contrat est de 15 000 XAF (MNT-01) ; les frais d'urgence ne s'appliquent pas d'office (décidé). Restent ouverts : un éventuel frais de remplacement (aucun n'est décidé), l'effet sur la facturation et le remboursement au lot paiement, et le coût pour une période commencée selon `ANN-19` (option B : 20 000 + 30 000 XAF ; option C : 20 000 + 50 000 XAF). Proposition : dans 17d-4, aucun montant autre que le contrat du remplaçant ; rien n'est présenté comme payé ou remboursé ; tout traitement financier va au lot paiement.
+
+**Aucun montant, frais, sanction, garantie de remplacement ni avantage n'est fixé par ce cadrage.**
+
+
+## 49. Suivi — Lot 17d-4a : recrutement de remplacement après désistement (2026-11-25)
+
+> **Mise à jour du 2026-11-25** (§50) : trois points de ce compte rendu sont dépassés. (1) Avis en cas de suspension de l'entreprise : ils ne sont plus retenus, seul un dossier non valide les retient (ANN-22, à décider). (2) Envois simultanés d'une même demande de désistement : ils retrouvent désormais le résultat initial, au lieu du refus `mission_not_active`. (3) Annulation par l'entreprise de la date d'un cycle ouvert : le cycle est fermé et ses places neutralisées. La preuve compte 49 cas.
+
+**Point de départ (constat Git du 2026-11-25).** `origin/main-dev` = `db74aa2` (17d-3 intégré par #61) ; `origin/main` = `e536ee1` (v0.1.10), sans les lots 11 à 17d-3. Branche `feat/lot-17d-4a-replacement-recruitment` créée depuis `origin/main-dev`, en emportant les trois documents non commités du cadrage (§48, copie de sauvegarde hors dépôt) ; stash `stash@{0}` conservé ; aucun commit, push ni déploiement. Travail sur `easyjob-proof` seulement (la pile de développement n'a pas été touchée).
+
+**Décisions** (`docs/product/DECISIONS.md`) : ANN-14 (2026-11-20), complétée par la confirmation `[UV]` du 2026-11-25 sur le cadrage §48 : livraison progressive (avis dans l'application en 17d-4a, e-mails en 17d-4b), confirmation explicite exigée y compris pour une candidature encore en attente, ANN-20 (pas de retour du candidat désisté sur les journées abandonnées), ANN-19 (période commencée : journées restantes au prorata de leurs heures prévues, consignée, **non implémentée**). Modalité non définie, isolée : ANN-22 (à décider). Restent à décider : ANN-21, MNT-13.
+
+**Livré** (migration `20261128120000_replacement_recruitment.sql`) :
+
+| Volet | Comportement |
+|---|---|
+| Déclencheur | Seul `request_candidate_cancellation` appelle `replacement_cycle_on_withdrawal`, dans sa transaction, pour chaque mission entièrement libérée (`withdrawn`) : journée au choix, ou période complète libérée avant son début. Refus silencieux (aucun cycle) : offre clôturée ou inactive, journée commencée ou confirmée, début passé, moins de 4 h avant le début concerné |
+| Cycle | `replacement_cycles` : un cycle par portée (offre ou journée), `closes_at` = début − 2 h figé à l'ouverture (contraintes : fermeture = début − 2 h, ouverture au moins 4 h avant le début, places pourvues ≤ places libérées) ; `replacement_cycle_sources` (une par mission libérée), `replacement_cycle_events` (journal) ; tables fermées aux sessions et aux écritures de la clé service, seuls les compteurs évoluent |
+| Capacité | Places ouvertes = min(places libérées − pourvues dans le cycle, places restantes de l'offre ou de la journée) : une place jamais pourvue n'est pas rouverte ; un second désistement ajoute une place au même cycle, sans nouvelle échéance |
+| Avis | `replacement_cycle_alert`, dans la même transaction : entreprise une fois, candidats selon ANN-14 (en attente ou refusés, encore éligibles et disponibles ; jamais retirés, désistés, déjà sélectionnés, confirmés), une ligne `replacement_cycle_notices` par cycle et destinataire. Entreprise hors d'état de recruter à l'ouverture : aucun avis (`alerts_withheld`, ANN-22) |
+| Confirmation | `confirm_replacement_interest` (route `POST /api/replacement-cycles/[id]/interest`, consentement `true` exigé en Zod et en base) : nouvelle candidature liée au cycle (`replacement_cycle_id`, `interest_confirmed_at`, `interest_origin`, `previous_application_id`) ; l'ancienne n'est jamais modifiée ; index d'unicité restreints aux candidatures hors cycle, une confirmation par cycle ; relance idempotente ; retrait par la route existante, définitif pour le cycle (`interest_withdrawn`). Colonnes du cycle jamais posées par une session ni par la clé service (`trg_guard_replacement_application`) |
+| Sélection | `selection_prepare` : pour une confirmation de cycle, fenêtre (`replacement_closed` à H−2 exactement) et places du cycle au lieu de l'échéance initiale ; profil, CNI, documents, compte et désistement revérifiés (`replacement_candidate_blocker`), refus générique `candidate_unavailable` côté entreprise ; conflits et marge de 3 h inchangés. `contract_select_core` verrouille le cycle ; un déclencheur compte la place pourvue. Nouveau contrat par le parcours existant, au montant de l'offre ou de la journée |
+| Visibilité | `replacement_open` et `listing_open` (colonnes calculées) ; `/api/jobs` filtre sur `listing_open`. Règles existantes inchangées : politique de `jobs` (dossier valide), candidature (dossier valide), suspension de l'entreprise (sélection seulement) |
+| Fonctions reprises | `apply_to_job_core`, `withdraw_job_application`, `job_days_for_candidate`, `company_job_applicants` (cycle et fermeture), `request_candidate_cancellation`, `reputation_company_offers` et `reputation_company_next_close` (REP-04, condition 3 : un cycle ouvert laisse le recrutement ouvert, aucune unité provisoire) |
+| Écrans | Détail d'offre : recrutement de remplacement (journées, places, fermeture), confirmation avec case explicite, état, retrait, motif de refus. Offre côté entreprise : suivi des cycles, mention « Remplacement », sélection jusqu'à H−2. Mes jobs : mention « Remplacement ». FR/EN, temps réel (`rt_on_replacement_cycles`, signaux `{d, r}`), fermeture à l'heure du serveur |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 659 tests, 56 fichiers (dont `replacement-cycle`). Premier passage 657/659 : **deux défauts réels** — le code `replacement_closed` n'était pas traduit par la route de sélection (réponse 500 au lieu de 409), et la phrase anglaise « days freed » déclenchait le motif interdit « days free » ; corrigés |
+| `pnpm build` (relié à la pile de preuve) | ✅ |
+| Types générés | identiques au schéma final (pile réinitialisée) |
+| Preuve ciblée `replacement-cycles` | ✅ 35/35 au cinquième passage (T seuils, D destinataires et visibilité, C consentement, W désisté, E éligibilité et dossier, K capacité et contrats, R concurrence, P panne, N autre origine, X droits). Passages conservés (`proof-17d4-run1` à `run4`), échecs de la preuve elle-même : la clé service ne peut pas modifier la CNI d'un profil vérifié (fixture passée par la voie de preuve) ; la journée de mission n'est pas reliée par `job_day_id` ; la garde des journées recalcule le début à chaque écriture (suspendue pendant l'appel) ; ordre JSON non garanti ; avis d'autres offres comptés ; quoting `$$` cassé dans un remplacement |
+| Constat sur un comportement antérieur (17b–17c, inchangé) | trois envois simultanés d'une même demande de désistement : un enregistrement, deux refus `mission_not_active` ; un envoi ultérieur retrouve la demande (`already_recorded`). Un seul cycle, une source, un avis par destinataire |
+| Contrôles négatifs (restauration par la migration, puis réinitialisation) | N1 seuil de 4 h retiré → T1, T2b (la contrainte d'ouverture fait aussi échouer la transaction) ; N2 revérification du candidat retirée → E1 (puis E3, T4, K2) ; N3 contrôle des places et contrainte retirés → K1, R1 ; N4 garde des colonnes désactivée → X2 ; N5 alerte étendue aux candidatures retirées → D2, D3 ; restauration 35/35 |
+| Navigateur (Chrome sans interface par CDP, 375 × 812 tactile, entreprise et trois candidats, script hors dépôt) | ✅ 11/11 au premier passage, FR puis EN : cycle et journées, envoi bloqué sans la case, confirmation, confirmation reçue en direct par l'entreprise avec la mention « Remplacement », « Signer et sélectionner », candidat informé en direct, confirmation pendant la coupure réseau de l'entreprise puis écran à jour au retour, fermeture à H−2 sans rechargement (candidat et entreprise), aucun défilement horizontal, aucune erreur JavaScript |
+| Suite RLS complète sur le SQL final (empreintes des 55 migrations identiques, pile réinitialisée) | ✅ **43/43** au second passage, 2 037 s cumulées (`replacement-cycles` 35/35). Premier passage conservé (`rls-full-17d4a.log`), 41/43 : `candidate-selection` F3 et `reputation` P3 vérifient la liste fermée des colonnes reçues par l’entreprise (`company_job_applicants`) et ne connaissaient pas les deux colonnes ajoutées (`replacement_cycle_id`, `replacement_closes_at`, sans donnée du candidat) ; listes complétées avec la référence du lot, autres contrôles inchangés ; pile réinitialisée avant le second passage |
+
+**Limites et reste d'ANN-14.** Aucun e-mail (17d-4b, ANN-21 : fournisseur à choisir) ; période commencée et désistement partiel d'une période non commencée non traités (17d-4c, ANN-19) ; avis quand l'entreprise ne peut pas recruter à l'ouverture : comportement provisoire (ANN-22) ; aucune lecture des cycles dans l'administration ; une annulation par l'entreprise de la date d'un cycle ouvert ne ferme pas ce cycle (aucune règle ; l'entreprise n'est pas tenue de sélectionner) ; aucun avis à la fermeture d'un cycle ni quand ses places sont pourvues ; aucun frais, paiement, remboursement, sanction ni garantie (MNT-13 à décider).
+
+## 50. Suivi — Lot 17d-4a, compléments : annulation d'une date, entreprise non autorisée, relances (2026-11-25)
+
+**Consigne** (`[UV]`, 2026-11-25, « Termine 17d-4a sans élargir son périmètre ») : (1) une annulation par l'entreprise ne laisse aucune place annulée disponible par le remplacement ; (2) documenter séparément le comportement observé quand l'entreprise n'est pas autorisée, sans étendre implicitement les règles de suspension, ANN-22 restant une proposition ; (3) prouver qu'une relance du même identifiant de demande retrouve le résultat initial ; (4) rattacher chaque validation à sa proposition exacte. Même branche, aucun commit, push ni déploiement ; stash `stash@{0}` conservé ; pile `easyjob-proof` seulement. La migration `20261128120000` est modifiée sur place (non commitée, jamais appliquée ailleurs). Copie de la version précédente hors dépôt.
+
+**Traçabilité** (`docs/product/DECISIONS.md`). La confirmation `[UV]` du 2026-11-25 est désormais découpée par entrée : point 1 (livraison progressive) et consigne de confirmation → ANN-14, en réponse au « Découpage proposé » du §48 ; point 2 → ANN-20 (question 2, option A) ; point 3 → ANN-19 (question 1 (c), option B). Elle **ne couvre pas** : ANN-22 (tableau « Situation » du §48), ANN-21 (question 3), MNT-13 (question 4), le désistement partiel d'une période non commencée, l'arrondi (MNT-12). La consigne ci-dessus est consignée dans ANN-14, avec sa portée et ce qu'elle laisse ouvert.
+
+**Livré.**
+
+| Volet | Comportement |
+|---|---|
+| Annulation d'une date couverte par un cycle | `request_company_cancellation` (reprise de `20261126120000`) appelle `replacement_cycles_on_company_cancellation` dans sa transaction, après l'enregistrement des journées : tout cycle dont la portée contient une date annulée (journée au choix de même date, ou une date de la période complète) voit ses places non pourvues neutralisées (`places_cancelled`) et se ferme (`cancelled_at`, état `cancelled`, journal `company_cancelled`). Une période n'est jamais remplacée en partie (17d-4c). Contrainte : pourvues + neutralisées ≤ libérées ; une annulation enregistrée ne se lève jamais (garde des écritures) |
+| Refus | `confirm_replacement_interest` et `selection_prepare` : `replacement_cancelled` (409, traduit FR/EN pour le candidat et l'entreprise) ; places ouvertes lues à 0 ; liste publique et unité « offre » suivent l'état |
+| Ouverture | `replacement_cycle_on_withdrawal` n'ouvre aucun cycle sur une portée dont une date a été annulée par l'entreprise |
+| Course annulation / sélection | Verrous : missions, journées, offres en partage, puis cycles (annulation) ; candidature, offre, journée, cycle (sélection). Annulation validée d'abord → la sélection attend sa fin puis est refusée. Sélection validée d'abord → l'annulation attend puis est refusée (`cancellation_preview_stale`, contrôle des dates entières existant) ; relue, elle annule aussi le remplaçant, dont le contrat est conservé |
+| Entreprise non autorisée | Avis retenus seulement si le dossier n'est pas valide (règles existantes de visibilité et de candidature). Le comportement livré au §49 retenait aussi les avis en cas de suspension : il est retiré, car il étendait la suspension au-delà de la sélection. ANN-22 reste **à décider** |
+| Relances | `request_candidate_cancellation` et `request_company_cancellation` : la demande de même identifiant est relue **avant** l'état des missions qu'elle vient de modifier, avec contrôle de conflit (`request_conflict`). Les envois concurrents d'une même demande retrouvent le résultat initial (auparavant : `mission_not_active`) ; des demandes différentes restent refusées |
+| Écrans | État « Date annulée par l'entreprise » (candidat), « Fermé : date annulée » (entreprise) ; message de suivi des avis retenus limité au dossier |
+
+**Comportement observé quand l'entreprise n'est pas autorisée** (preuve S1 à S4, E2, E3 ; ANN-22, à décider) :
+
+| État à l'ouverture du cycle | Visibilité | Confirmation (candidature) | Sélection | Avis |
+|---|---|---|---|---|
+| Dossier non valide | offre invisible (anonyme : 0 ligne ; liste : fermée), sauf pour les candidats qui y ont postulé (cycle lu « indisponible ») | refusée, `job_not_available` | refusée, `company_not_verified` (E2) | aucun (`alerts_withheld`), ni candidat ni entreprise |
+| Retour : dossier revalidé | rétablie | acceptée | possible jusqu'à H−2, fenêtre inchangée | aucun envoyé après coup |
+| Compte entreprise suspendu | inchangée (offre visible, liste ouverte) | acceptée | refusée, `account_suspended` (règle existante) | envoyés normalement (candidats et entreprise) |
+| Retour : suspension levée | inchangée | acceptée | possible jusqu'à H−2, fenêtre inchangée | aucun répété |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint` | ✅ |
+| `pnpm test` | ✅ 662 tests, 56 fichiers (3 cas ajoutés à `replacement-cycle`) |
+| Types générés | régénérés depuis la pile réinitialisée (`replacement_cycles` : 3 colonnes ; nouvelle fonction) |
+| Preuve ciblée `replacement-cycles` | ✅ **49/49** au deuxième passage (35 cas du §49, P2 rendu strict, 14 cas ajoutés : A1 à A6, R2, R3, S1 à S4, I1, I2). Premier passage conservé (`proof-17d4-fix-run1.log`) : échec de la preuve elle-même (`$$` réduit à `$` lors de l'insertion du cas A1) |
+| Annulation (A) | A1 panne injectée pendant la neutralisation : ni annulation ni journée annulée, cycle ouvert ; A2 trois envois simultanés de la même annulation : résultat d'origine pour chacun, une neutralisation ; A3 journée Y2 indépendante ouverte, contrats, sources, journal, avis et confirmation conservés ; A4 lecture candidat et entreprise `cancelled`, places 0, confirmation et sélection refusées par les routes HTTP et par appel direct, aucune mission ; A5 période complète : une date annulée ferme le cycle, l'engagement restant est conservé ; A6 désistement sur une date déjà annulée : aucun cycle |
+| Course (R2, R3) | transaction tenue ouverte 2,5 s par une fonction de preuve ; attente mesurée ≈ 1,8 s dans les deux ordres ; résultats conformes à l'ordre effectif |
+| Relances (P2, I1, I2) | P2 trois envois simultanés du même désistement : trois réponses, une seule `already_recorded = false`, même identifiant, une place, une source, un avis ; I1 trois demandes différentes : une enregistrée, deux `mission_not_active`, une place ; I2 identifiant réutilisé avec d'autres journées → `request_conflict`, mêmes journées → résultat d'origine |
+| Contrôles négatifs (une garantie relâchée à la fois, restauration par la migration) | N6 neutralisation supprimée → A1, A2, A4, A5, R2, R3 ; N7 cycle annulé sélectionnable → A2, A4, A5, R2 ; N8 état contrôlé avant la relecture de la demande → P2 ; N9 suspension étendue aux avis → S3, S4 ; N10 garde d'ouverture supprimée → A6 ; restauration 49/49 |
+| `pnpm build` (relié à la pile de preuve, après les modifications) | ✅ (journal `build-17d4a-fix.log`) |
+| Suite RLS complète sur le SQL final (empreintes des 55 migrations identiques, pile réinitialisée) | ✅ **43/43** au premier passage, 1 624 s cumulées (`replacement-cycles` 49/49), journal `rls-full-17d4a-fix.log` |
+| Navigateur | non rejoué pour ce complément : les nouveaux états d'écran sont couverts par la preuve (lectures, routes) et les tests, pas par un parcours à 375 px |
+
+**Constat (17d-2).** Si le recrutement initial d'une journée est encore ouvert, sa date annulée par l'entreprise reste candidatable et sélectionnable par le parcours ordinaire (preuve A6 : candidature et sélection acceptées après l'annulation). Le recrutement de remplacement n'ouvre aucune place sur cette date. ~~Consigné dans ANN-08 (à confirmer), sans correction.~~ **Rectifié le 2026-11-25 (§51)** : c'est un défaut, corrigé.
+
+**Limites.** Aucun avis aux candidats qui avaient confirmé leur intérêt quand un cycle est fermé par l'annulation de sa date (l'état est lu sur l'offre) ; aucune lecture des cycles dans l'administration ; pas de nouveau parcours navigateur. Le reste d'ANN-14 est inchangé : e-mails (17d-4b, ANN-21), période commencée (17d-4c, ANN-19), ANN-22 et MNT-13 à décider.
+
+## 51. Suivi — Lot 17d-4a, correction : date annulée fermée au recrutement ordinaire (2026-11-25)
+
+**Consigne** (`[UV]`, 2026-11-25, « Corrige le contournement par le recrutement ordinaire avant de clôturer 17d-4a ») : une date annulée par l'entreprise n'accepte plus de candidature ni de sélection, même si son échéance initiale reste ouverte. Le contrôle est en base, pour le parcours ordinaire et le remplacement. Journées indépendantes, engagements, contrats et historique sont conservés. Une période complète n'est plus sélectionnable si l'une de ses journées est annulée. Le retrait ciblé par le support reste distinct d'une date annulée. ANN-08 est rectifiée : le contournement constaté au §50 est un **défaut corrigé**, pas une règle « à confirmer ». Même branche, aucun commit, push ni déploiement, stash conservé, pile `easyjob-proof` seulement. La migration `20261128120000` est modifiée sur place ; copie de la version précédente hors dépôt.
+
+**Constat préalable.** Un retrait ciblé accepté par le support (17d-3) écrit aussi dans `company_cancellations` (avec `support_request_id`) et dans `company_cancellation_days`. La garde d'ouverture du §50 lisait toute ligne de `company_cancellation_days` : elle confondait donc ce retrait avec une date annulée. Corrigé par `company_date_cancelled`, qui ne retient que les annulations de date entière.
+
+**Livré.**
+
+| Volet | Comportement |
+|---|---|
+| Date annulée | `company_date_cancelled(offre, date)` : annulation de l'entreprise sans `support_request_id`. `job_has_cancelled_date(offre)` : une date de l'offre est annulée (période complète) |
+| Candidature | `apply_to_job_core` : journée au choix d'une date annulée → refus atomique `job_days_unavailable`, motif `date_cancelled` par journée ; période complète dont une date est annulée → `date_cancelled` (409). Rien n'est créé |
+| Sélection | `selection_prepare` : toute nouvelle sélection, ordinaire ou de remplacement, dont une journée a sa date annulée → `date_cancelled` (409) ; un cycle annulé garde son refus `replacement_cancelled` |
+| Concurrence | `request_company_cancellation` verrouille l'offre en **exclusif** (auparavant en partage). Une sélection, une candidature ou une confirmation concurrente se termine avant, ou attend puis relit la date annulée |
+| État lu | `job_days_for_candidate` : colonne `date_cancelled`, journée lue fermée. `company_job_applicants` : `date_cancelled`. `job_availability` : `date_cancelled` pour une période. Liste publique : `listing_open` exige une date non annulée encore ouverte (`ordinary_dates_open`) ; `recruitment_open` et l'unité « offre » (REP-04) sont inchangés |
+| Temps réel | `trg_rt_company_date_cancellation` : signal `{d, r}` à l'entreprise, aux candidats de l'offre et au canal public. Rien n'est émis pour un retrait ciblé |
+| Écrans | Candidat : journée « Date annulée par l'entreprise », non cochable ; une journée cochée est décochée et le changement expliqué ; période : avis « date annulée », plus de bouton de candidature. Entreprise : « Signer et sélectionner » remplacé par le motif ; un aperçu déjà ouvert est refusé avec ce motif. Routes : `date_cancelled` traduit (FR/EN) pour la candidature et la sélection |
+
+**Résultats observés.**
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 667 tests, 56 fichiers. Premier passage : 666/667, une attente du §50 (garde lue directement dans `company_cancellation_days`) devenue fausse, ajustée |
+| Types générés | régénérés depuis la pile réinitialisée (`job_days_for_candidate`, `company_job_applicants` : `date_cancelled` ; nouvelles fonctions) |
+| `pnpm build` (relié à la pile de preuve) | ✅ (journal `build-date-cancel.log`) |
+| Preuve ciblée `replacement-cycles` | ✅ **57/57** au deuxième passage (49 cas précédents, 8 ajoutés). Premier passage conservé (`proof-17d4-date-run1.log`), 56/57 : erreur de la preuve elle-même (O2 : la virgule du titre cassait la recherche de `/api/jobs` ; les valeurs lues étaient correctes) |
+| Parcours ordinaire (O) | O1 échéance ouverte puis date annulée : candidature refusée par la route et par appel direct, envoi atomique (aucune ligne sur l'autre journée), sélection refusée par la route et par appel direct, aucune mission ; O2 état lu (candidat, entreprise), autre journée ouverte, offre encore listée ; O3 autre journée : candidature et sélection acceptées, engagement et contrat de la date annulée conservés ; O4 période complète : candidature et sélection refusées, offre lue `date_cancelled` et retirée de la liste, engagement restant conservé ; O5 retrait ciblé accepté par un administrateur ops : date non annulée, nouvelle candidature et sélection acceptées |
+| Concurrence (O6 à O8, R2, R3) | O6 annulation d'abord → la sélection ordinaire attend puis est refusée ; O7 sélection d'abord → l'annulation est refusée (`cancellation_preview_stale`), puis, relue, elle annule aussi le nouvel engagement (contrat conservé) ; O8 annulation d'abord → la candidature concurrente attend (≈ 1,7 s) puis est refusée ; R2 et R3 (remplacement) inchangés |
+| Remplacement | A4, A5, R2 : refus `replacement_cancelled` ; A6 : la candidature sur la date annulée est désormais refusée en amont, aucun cycle |
+| Contrôles négatifs | N11 contournement réintroduit (contrôles retirés de la candidature et de la sélection) → O1, O4, O6, O8 ; N12 offre verrouillée en partage par l'annulation → O8 ; restauration 57/57 |
+| Navigateur ciblé (Chrome sans interface par CDP, 375 × 812 tactile, script hors dépôt `browser-date.ts`) | ✅ **9/9** au premier passage. Écrans déjà ouverts (journée cochée, aperçu du contrat ouvert) ; annulation reçue en direct (journée « Date annulée par l'entreprise », décochée et expliquée, autre journée ouverte) ; aperçu confirmé après l'annulation refusé avec le motif, candidature toujours en attente ; bouton retiré côté entreprise ; reconnexion : écrans hors ligne inchangés, à jour au retour du réseau ; anglais ; aucun défilement horizontal, aucune erreur JavaScript. Le parcours du §49 n'est pas rejoué |
+| Suite RLS complète sur le SQL final (empreintes des 55 migrations identiques, pile réinitialisée) | ✅ **43/43** au premier passage, 1 931 s cumulées (`replacement-cycles` 57/57), journal `rls-full-17d4a-date.log` |
+
+**Limites.** Une candidature en attente déposée avant l'annulation reste enregistrée (historique). Elle est affichée « Date annulée » et ne peut plus être retenue, mais aucun avis n'est envoyé à son auteur. Le parcours « Mes jobs » n'a pas de mention propre. L'unité « offre » de la réputation (REP-04) lit toujours `recruitment_open`. Le reste d'ANN-14 est inchangé : e-mails (17d-4b, ANN-21), période commencée (17d-4c, ANN-19), ANN-22 et MNT-13 à décider.
+
+## 52. Contrôle — Lot 17d-4a : remplacement et réputation de l'entreprise (2026-11-25)
+
+**Consigne** (`[UV]`, 2026-11-25) : vérifier seulement l'articulation entre remplacement et réputation, sans changer les critères de réalisation ni le traitement des annulations (17d-5). Règle appliquée : REP-04, condition 3. Aucune unité n'est acquise avant la clôture effective de tous les recrutements autorisés pour l'offre. Pile `easyjob-proof` seulement, aucun commit, push ni déploiement, stash conservé.
+
+**Cas construit** (preuve `replacement-cycles`, Q1 à Q4) : une entreprise dédiée publie une offre au choix sur deux journées. L'échéance initiale est passée. La journée 1 est réalisée (code de fin, mission terminée), et le désistement de la journée 2 ouvre un cycle de remplacement. Le seul engagement restant est donc réalisé : sans le cycle, toutes les conditions de l'unité seraient remplies.
+
+**Constat : aucune unité prématurée, aucune correction nécessaire.** Le SQL est inchangé (migration `20261128120000`, empreinte identique au §51).
+
+| Contrôle | Résultat |
+|---|---|
+| Q1 cycle ouvert | aucune unité (`reputation_company_offers` à l'instant courant), `confirmed_count` et unités d'expérience à 0 ; recalcul programmé : `next_expiry_at` = fermeture du cycle |
+| Q2 limite exacte | 1 µs avant la fermeture : aucune unité ; à la fermeture, sans remplaçant : unité datée de la fermeture |
+| Q3 recalcul à l'échéance | fermeture et échéance replacées juste avant l'instant courant, puis `reputation_expiry_sweep` (tâche planifiée) : une unité, une seule |
+| Q4 remplaçant sélectionné | après la fermeture, aucune unité tant que son travail n'est pas réalisé (critères inchangés) |
+| Preuve ciblée | ✅ 61/61 au premier passage (`proof-17d4-rep-run1.log`) |
+| Contrôles négatifs | N13 calcul sans la condition du cycle ouvert → Q1, Q2 ; N14 programmation sans la fermeture du cycle → Q1 ; restauration 61/61 |
+| Suite complète | non relancée : SQL inchangé depuis la suite du §51 (43/43) ; seule la preuve ciblée a changé |
+
+**Limite.** Un cycle fermé par l'annulation de sa date compte encore comme recrutement ouvert jusqu'à sa fermeture prévue (H−2). L'unité est donc différée, jamais anticipée. Le traitement des annulations relève de 17d-5.

@@ -2469,12 +2469,16 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          interest_confirmed_at: string | null
+          interest_origin: string | null
           is_direct_invite: boolean | null
           job_day_id: string | null
           job_id: string
           match_score: number | null
+          previous_application_id: string | null
           previous_rating: number | null
           rejection_reason: string | null
+          replacement_cycle_id: string | null
           selected_at: string | null
           selected_by: string | null
           status: Database["public"]["Enums"]["application_status"] | null
@@ -2490,12 +2494,16 @@ export type Database = {
           distance_km?: number | null
           has_worked_here_before?: boolean
           id?: string
+          interest_confirmed_at?: string | null
+          interest_origin?: string | null
           is_direct_invite?: boolean | null
           job_day_id?: string | null
           job_id: string
           match_score?: number | null
+          previous_application_id?: string | null
           previous_rating?: number | null
           rejection_reason?: string | null
+          replacement_cycle_id?: string | null
           selected_at?: string | null
           selected_by?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
@@ -2511,12 +2519,16 @@ export type Database = {
           distance_km?: number | null
           has_worked_here_before?: boolean
           id?: string
+          interest_confirmed_at?: string | null
+          interest_origin?: string | null
           is_direct_invite?: boolean | null
           job_day_id?: string | null
           job_id?: string
           match_score?: number | null
+          previous_application_id?: string | null
           previous_rating?: number | null
           rejection_reason?: string | null
+          replacement_cycle_id?: string | null
           selected_at?: string | null
           selected_by?: string | null
           status?: Database["public"]["Enums"]["application_status"] | null
@@ -2542,6 +2554,20 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_previous_application_id_fkey"
+            columns: ["previous_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_replacement_cycle_id_fkey"
+            columns: ["replacement_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_cycles"
             referencedColumns: ["id"]
           },
           {
@@ -5133,6 +5159,218 @@ export type Database = {
           },
         ]
       }
+      replacement_cycle_events: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          detail: Json
+          id: string
+          kind: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          detail?: Json
+          id?: string
+          kind: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          detail?: Json
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_cycle_events_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_cycle_notices: {
+        Row: {
+          created_at: string
+          cycle_id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_id: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cycle_id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_cycle_notices_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycle_notices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_cycle_sources: {
+        Row: {
+          application_id: string
+          cancellation_id: string
+          candidate_id: string
+          created_at: string
+          cycle_id: string
+          mission_id: string
+        }
+        Insert: {
+          application_id: string
+          cancellation_id: string
+          candidate_id: string
+          created_at?: string
+          cycle_id: string
+          mission_id: string
+        }
+        Update: {
+          application_id?: string
+          cancellation_id?: string
+          candidate_id?: string
+          created_at?: string
+          cycle_id?: string
+          mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_cycle_sources_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycle_sources_cancellation_id_fkey"
+            columns: ["cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycle_sources_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycle_sources_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycle_sources_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: true
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_cycles: {
+        Row: {
+          cancelled_at: string | null
+          closes_at: string
+          company_cancellation_id: string | null
+          company_id: string
+          id: string
+          job_day_id: string | null
+          job_id: string
+          opened_at: string
+          places_cancelled: number
+          places_filled: number
+          places_released: number
+          starts_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          closes_at: string
+          company_cancellation_id?: string | null
+          company_id: string
+          id?: string
+          job_day_id?: string | null
+          job_id: string
+          opened_at?: string
+          places_cancelled?: number
+          places_filled?: number
+          places_released?: number
+          starts_at: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          closes_at?: string
+          company_cancellation_id?: string | null
+          company_id?: string
+          id?: string
+          job_day_id?: string | null
+          job_id?: string
+          opened_at?: string
+          places_cancelled?: number
+          places_filled?: number
+          places_released?: number
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_cycles_company_cancellation_id_fkey"
+            columns: ["company_cancellation_id"]
+            isOneToOne: false
+            referencedRelation: "company_cancellations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycles_job_day_id_fkey"
+            columns: ["job_day_id"]
+            isOneToOne: false
+            referencedRelation: "job_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_cycles_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reputation_changes: {
         Row: {
           acknowledged_at: string | null
@@ -6260,12 +6498,16 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          interest_confirmed_at: string | null
+          interest_origin: string | null
           is_direct_invite: boolean | null
           job_day_id: string | null
           job_id: string
           match_score: number | null
+          previous_application_id: string | null
           previous_rating: number | null
           rejection_reason: string | null
+          replacement_cycle_id: string | null
           selected_at: string | null
           selected_by: string | null
           status: Database["public"]["Enums"]["application_status"] | null
@@ -6290,12 +6532,16 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          interest_confirmed_at: string | null
+          interest_origin: string | null
           is_direct_invite: boolean | null
           job_day_id: string | null
           job_id: string
           match_score: number | null
+          previous_application_id: string | null
           previous_rating: number | null
           rejection_reason: string | null
+          replacement_cycle_id: string | null
           selected_at: string | null
           selected_by: string | null
           status: Database["public"]["Enums"]["application_status"] | null
@@ -6320,12 +6566,16 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          interest_confirmed_at: string | null
+          interest_origin: string | null
           is_direct_invite: boolean | null
           job_day_id: string | null
           job_id: string
           match_score: number | null
+          previous_application_id: string | null
           previous_rating: number | null
           rejection_reason: string | null
+          replacement_cycle_id: string | null
           selected_at: string | null
           selected_by: string | null
           status: Database["public"]["Enums"]["application_status"] | null
@@ -6531,6 +6781,10 @@ export type Database = {
           status: string
         }[]
       }
+      company_date_cancelled: {
+        Args: { p_date: string; p_job_id: string }
+        Returns: boolean
+      }
       company_dossier_missing: {
         Args: { p: Database["public"]["Tables"]["company_profiles"]["Row"] }
         Returns: string[]
@@ -6550,6 +6804,7 @@ export type Database = {
           contract_id: string
           contract_to_sign: boolean
           created_at: string
+          date_cancelled: boolean
           day_date: string
           day_ends_at: string
           day_starts_at: string
@@ -6560,6 +6815,8 @@ export type Database = {
           last_initial: string
           match_score: number
           rejection_reason: string
+          replacement_closes_at: string
+          replacement_cycle_id: string
           reputation_stars: number
           skills: string[]
           status: Database["public"]["Enums"]["application_status"]
@@ -6626,6 +6883,23 @@ export type Database = {
         Args: { p: Database["public"]["Tables"]["company_profiles"]["Row"] }
         Returns: number
       }
+      company_replacement_cycles: {
+        Args: { p_job_id: string }
+        Returns: {
+          alerts_withheld: boolean
+          closes_at: string
+          confirmations: number
+          cycle_id: string
+          day_date: string
+          job_day_id: string
+          places_filled: number
+          places_open: number
+          places_released: number
+          server_now: string
+          starts_at: string
+          state: string
+        }[]
+      }
       company_verification_complete: {
         Args: { p_company_id: string }
         Returns: boolean
@@ -6646,6 +6920,13 @@ export type Database = {
           skill_count: number
           skill_stars: number
           stars: number
+        }[]
+      }
+      confirm_replacement_interest: {
+        Args: { p_consent: boolean; p_cycle_id: string }
+        Returns: {
+          already_confirmed: boolean
+          application_id: string
         }[]
       }
       consume_chat_quota: {
@@ -7167,6 +7448,7 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: {
           applications_close_at: string
+          date_cancelled: boolean
           day_date: string
           day_id: string
           end_time: string
@@ -7220,6 +7502,7 @@ export type Database = {
           starts_at: string
         }[]
       }
+      job_has_cancelled_date: { Args: { p_job_id: string }; Returns: boolean }
       job_has_commitments: { Args: { p_job_ids: string[] }; Returns: boolean }
       job_history_maintenance: { Args: never; Returns: boolean }
       job_offer_ids: {
@@ -7234,6 +7517,23 @@ export type Database = {
         Args: { p_regime: string; p_start: string }
         Returns: string
       }
+      job_replacement_cycles: {
+        Args: { p_job_id: string }
+        Returns: {
+          closes_at: string
+          cycle_id: string
+          day_date: string
+          ends_at: string
+          job_day_id: string
+          my_application_id: string
+          my_blocker: string
+          my_status: Database["public"]["Enums"]["application_status"]
+          places_open: number
+          server_now: string
+          starts_at: string
+          state: string
+        }[]
+      }
       job_start_instant: {
         Args: { p_date: string; p_time: string }
         Returns: string
@@ -7242,6 +7542,10 @@ export type Database = {
       license_categories_for: {
         Args: { p_required: string }
         Returns: string[]
+      }
+      listing_open: {
+        Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: boolean
       }
       lock_candidate_engagements: {
         Args: { p_candidate_id: string }
@@ -7414,6 +7718,10 @@ export type Database = {
       }
       my_reputation: { Args: never; Returns: Json }
       my_targeted_removals: { Args: { p_job_id: string }; Returns: Json }
+      ordinary_dates_open: {
+        Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: boolean
+      }
       partial_settlement_policy: { Args: never; Returns: Json }
       recompute_skill_verification_status: {
         Args: { p_skill_id: string }
@@ -7481,6 +7789,53 @@ export type Database = {
           p_subject_type: string
         }
         Returns: number
+      }
+      replacement_candidate_blocker: {
+        Args: {
+          p_candidate_id: string
+          p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
+        }
+        Returns: string
+      }
+      replacement_cycle_alert: { Args: { p_cycle_id: string }; Returns: number }
+      replacement_cycle_on_withdrawal: {
+        Args: { p_cancellation_id: string; p_mission_id: string }
+        Returns: string
+      }
+      replacement_cycle_ranges: {
+        Args: {
+          p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
+        }
+        Returns: unknown[]
+      }
+      replacement_cycle_remaining: {
+        Args: {
+          p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
+        }
+        Returns: number
+      }
+      replacement_cycle_state: {
+        Args: {
+          p_at: string
+          p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
+        }
+        Returns: string
+      }
+      replacement_cycles_on_company_cancellation: {
+        Args: { p_cancellation_id: string }
+        Returns: number
+      }
+      replacement_open: {
+        Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
+        Returns: boolean
+      }
+      replacement_scope_matches: {
+        Args: {
+          p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
+          p_job_day_id: string
+          p_job_id: string
+        }
+        Returns: boolean
       }
       report_mission_incident: {
         Args: {
@@ -7877,12 +8232,16 @@ export type Database = {
           distance_km: number | null
           has_worked_here_before: boolean
           id: string
+          interest_confirmed_at: string | null
+          interest_origin: string | null
           is_direct_invite: boolean | null
           job_day_id: string | null
           job_id: string
           match_score: number | null
+          previous_application_id: string | null
           previous_rating: number | null
           rejection_reason: string | null
+          replacement_cycle_id: string | null
           selected_at: string | null
           selected_by: string | null
           status: Database["public"]["Enums"]["application_status"] | null

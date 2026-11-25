@@ -74,7 +74,10 @@ export async function GET(
           .select("id, status")
           .eq("job_id", id)
           .eq("candidate_id", candidateProfile.id)
-          .single();
+          // Lots 12 et 17d-4a : plusieurs lignes possibles (journées au
+          // choix, confirmation de remplacement) ; une seule suffit.
+          .limit(1)
+          .maybeSingle();
 
         hasApplied = !!application;
 

@@ -238,6 +238,11 @@ export const JOB_RPC_REFUSALS = {
   job_closed: 409,
   closure_reason_required: 400,
   closure_reason_too_long: 400,
+  // Lot 17d-4a (ANN-14) : confirmation de remplacement sélectionnée à H−2
+  // ou après (fenêtre du cycle, jamais l'échéance initiale).
+  replacement_closed: 409,
+  replacement_cancelled: 409,
+  date_cancelled: 409,
 } as const;
 
 export type JobRpcRefusal = keyof typeof JOB_RPC_REFUSALS;

@@ -1014,6 +1014,12 @@ async function main() {
       // l'entreprise elle-même (rien sur celle du candidat).
       "contract_id",
       "contract_to_sign",
+      // Lot 17d-4a (ANN-14) : confirmation liée à un cycle de remplacement
+      // et fermeture de ce cycle (aucune donnée du candidat).
+      "replacement_cycle_id",
+      "replacement_closes_at",
+      // Lot 17d-4a (ANN-08) : date entière annulée par l'entreprise.
+      "date_cancelled",
     ].sort();
     const forbiddenStrings = [
       SECRETS.lastName,

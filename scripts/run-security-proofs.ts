@@ -57,6 +57,7 @@ const PROOFS = [
   "candidate-cancellations",
   "company-cancellations",
   "support-interventions",
+  "replacement-cycles",
   "mission-interruptions",
   "reputation",
   "realtime",

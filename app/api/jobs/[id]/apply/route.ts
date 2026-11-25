@@ -55,6 +55,11 @@ const APPLY_REFUSALS: Record<string, { status: number; error: string }> = {
   no_positions: { status: 400, error: "No positions available" },
   // Lot 11b : échéance de l'offre atteinte (H−24, ou H−2 si urgente).
   recruitment_closed: { status: 409, error: "Applications are closed" },
+  // Lot 17d-4a : date annulée par l'entreprise (ANN-08), échéance ouverte ou non.
+  date_cancelled: {
+    status: 409,
+    error: "A date of this job was cancelled by the company",
+  },
   already_applied: { status: 400, error: "Already applied to this job" },
   // Lot 12 : journées au choix.
   job_days_required: { status: 400, error: "Choose at least one day" },

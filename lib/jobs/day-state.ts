@@ -26,6 +26,7 @@ export type CandidateJobDay = Omit<
   | "my_application_status"
   | "schedule_compatible"
   | "schedule_reason"
+  | "date_cancelled"
 > & {
   /** Null : journée implicite d'une offre antérieure sans calendrier. */
   day_id: string | null;
@@ -41,12 +42,19 @@ export type CandidateJobDay = Omit<
   schedule_compatible: boolean | null;
   /** Code de motif (`schedule_conflict`), jamais le détail de l'engagement. */
   schedule_reason: string | null;
+  /**
+   * Lot 17d-4a : date entière annulée par l'entreprise (ANN-08), lue en
+   * base. Absente : journée implicite ou lecture antérieure.
+   */
+  date_cancelled?: boolean | null;
 };
 
 export type DayState =
   | "open"
   | "closed"
   | "full"
+  /** Date annulée par l'entreprise : ni candidature ni sélection. */
+  | "cancelled"
   /** Incompatible avec un engagement déjà sélectionné du candidat. */
   | "conflict"
   /** Présélection retirée (lot 13) : affichée comme « pending ». */
@@ -73,6 +81,15 @@ export function dayHasConflict(
  * (`apply_to_job_core`) : candidature existante, clôture, capacité, conflit.
  */
 export function dayState(day: CandidateJobDay, now: number): DayState {
+  // Lot 17d-4a : date annulée par l'entreprise. Prime sur une candidature
+  // en attente, qui ne peut plus être retenue (une sélection garde son état).
+  if (day.date_cancelled) {
+    const shown = day.my_application_status
+      ? displayApplicationStatus(day.my_application_status)
+      : null;
+    if (!shown || shown === "pending") return "cancelled";
+    return shown;
+  }
   if (day.my_application_status) {
     return displayApplicationStatus(day.my_application_status);
   }
@@ -108,6 +125,7 @@ export type DroppedDay = {
 };
 
 const DROP_REASON: Partial<Record<DayState, DayBlockReason>> = {
+  cancelled: "date_cancelled",
   conflict: "schedule_conflict",
   closed: "recruitment_closed",
   full: "no_positions",

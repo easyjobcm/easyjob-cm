@@ -158,6 +158,7 @@ export function parseDaysDetail(details: string | null | undefined): string[] {
 }
 
 export const DAY_BLOCK_REASONS = [
+  "date_cancelled",
   "recruitment_closed",
   "already_applied",
   "no_positions",

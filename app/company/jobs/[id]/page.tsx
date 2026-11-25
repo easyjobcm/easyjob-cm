@@ -54,6 +54,7 @@ import { displayApplicationStatus } from "@/lib/jobs/application-status";
 import { CompanyMissionIncidents } from "@/components/missions/company-mission-incidents";
 import { CompanyCancellationPanel } from "@/components/jobs/company-cancellation-panel";
 import { TargetedRemoval } from "@/components/jobs/targeted-removal";
+import { ReplacementCycleCompany } from "@/components/jobs/replacement-cycle-company";
 import type { TargetedRemoval as TargetedRemovalRequest } from "@/lib/validations/support-intervention";
 import {
   SelectionContractDialog,
@@ -432,7 +433,20 @@ export default function CompanyJobDetailPage() {
   // Lot 11b : échéance de recrutement (H−24, ou H−2 si publiée en urgence)
   // reflétée à l'heure du serveur sur l'écran ouvert ; la base refuse
   // recruitment_closed. Contrats et missions restent accessibles.
-  const recruitmentNow = useRecruitmentNow(job ? [job, ...job.days] : []);
+  // Lot 17d-4a : fermeture (H−2) des confirmations de remplacement.
+  const recruitmentNow = useRecruitmentNow(
+    job
+      ? [
+          job,
+          ...job.days,
+          ...applications.flatMap((a) =>
+            a.replacement_closes_at
+              ? [{ applications_close_at: a.replacement_closes_at }]
+              : [],
+          ),
+        ]
+      : [],
+  );
   const recruitmentClosed =
     !!job && job.status === "active" && !isRecruitmentOpen(job, recruitmentNow);
   // Lot 12 : échéance et places propres à la journée d'une candidature.
@@ -440,6 +454,14 @@ export default function CompanyJobDetailPage() {
     job?.days.find((d) => d.id === app.job_day_id) ?? null;
   const selectionClosedFor = (app: Application) => {
     if (!job || job.status !== "active") return false;
+    // Lot 17d-4a (ANN-14) : confirmation de remplacement → fenêtre du cycle
+    // (H−2), jamais l'échéance initiale.
+    if (app.replacement_cycle_id) {
+      return (
+        !app.replacement_closes_at ||
+        recruitmentNow >= Date.parse(app.replacement_closes_at)
+      );
+    }
     const day = dayOf(app);
     return day
       ? !isRecruitmentOpen(
@@ -663,6 +685,8 @@ export default function CompanyJobDetailPage() {
 
       {/* Applications */}
       <div className="p-4">
+        {/* Lot 17d-4a : recrutement de remplacement (ANN-14). */}
+        <ReplacementCycleCompany jobId={jobId} />
         {/* Lot 17d-2 : annulation de dates après sélection (ANN-06). */}
         <div className="mb-4">
           <CompanyCancellationPanel
@@ -757,6 +781,15 @@ export default function CompanyJobDetailPage() {
                                 : displayApplicationStatus(app.status),
                             )
                           )}
+                          {app.replacement_cycle_id && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs"
+                              data-testid="applicant-replacement"
+                            >
+                              {t.replacement.badge}
+                            </Badge>
+                          )}
                           {app.match_score && (
                             <Badge variant="outline" className="text-xs">
                               {Math.round(app.match_score)}% match
@@ -826,12 +859,21 @@ export default function CompanyJobDetailPage() {
                                 >
                                   {ta.errors.company_not_verified}
                                 </p>
+                              ) : app.date_cancelled ? (
+                                <p
+                                  className="w-full text-xs text-muted-foreground"
+                                  data-testid="select-blocked-cancelled"
+                                >
+                                  {ta.errors.date_cancelled}
+                                </p>
                               ) : selectionClosedFor(app) ? (
                                 <p
                                   className="w-full text-xs text-muted-foreground"
                                   data-testid="select-blocked-closed"
                                 >
-                                  {ta.errors.recruitment_closed}
+                                  {app.replacement_cycle_id
+                                    ? t.replacement.company.closedForApp
+                                    : ta.errors.recruitment_closed}
                                 </p>
                               ) : (
                                 <Button

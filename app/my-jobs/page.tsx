@@ -67,6 +67,7 @@ const fetcher = async (_url: string) => {
       id,
       status,
       created_at,
+      replacement_cycle_id,
       day:job_days (
         day_date,
         start_time,
@@ -260,6 +261,16 @@ export default function MyJobsPage() {
                   "application",
                 )}
           </div>
+          {/* Lot 17d-4a : confirmation liée à un remplacement (ANN-14). */}
+          {application.replacement_cycle_id && (
+            <Badge
+              variant="outline"
+              className="mb-2 text-xs"
+              data-testid="my-application-replacement"
+            >
+              {translations.replacement.badge}
+            </Badge>
+          )}
           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
             <Building2 className="h-4 w-4" />
             <span>{application.job?.company?.company_name}</span>

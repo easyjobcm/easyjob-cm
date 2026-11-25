@@ -143,3 +143,37 @@ describe("journées cochées devenues inaccessibles", () => {
     expect(droppedSelection([], days, NOW)).toEqual([]);
   });
 });
+
+/**
+ * Lot 17d-4a (ANN-08) : date entière annulée par l'entreprise, lue en base
+ * (`job_days_for_candidate.date_cancelled`), même échéance encore ouverte.
+ */
+describe("journée dont la date est annulée par l'entreprise", () => {
+  it("jamais cochable, même échéance ouverte", () => {
+    const d = day({ date_cancelled: true, recruitment_open: false });
+    expect(dayState(d, NOW)).toBe("cancelled");
+    expect(dayChoosable(d, NOW)).toBe(false);
+  });
+
+  it("une candidature en attente n'est plus retenable ; une sélection garde son état", () => {
+    expect(
+      dayState(
+        day({ date_cancelled: true, my_application_status: "pending" }),
+        NOW,
+      ),
+    ).toBe("cancelled");
+    expect(
+      dayState(
+        day({ date_cancelled: true, my_application_status: "selected" }),
+        NOW,
+      ),
+    ).toBe("selected");
+  });
+
+  it("journée cochée puis annulée : décochée avec le motif date_cancelled", () => {
+    const d = day({ date_cancelled: true, recruitment_open: false });
+    expect(droppedSelection(["d1"], [d], NOW)).toEqual([
+      { id: "d1", date: "2099-01-10", reason: "date_cancelled" },
+    ]);
+  });
+});

@@ -809,6 +809,11 @@ export const en: TranslationKeys = {
     closedBody: "Applications for this job are closed.",
     closedApplied:
       "Applications for this job are closed. Your application remains available.",
+    // Lot 17d-4a: period with a date cancelled by the company.
+    dateCancelledBody:
+      "The company cancelled a date of this period: the job no longer accepts applications.",
+    dateCancelledApplied:
+      "The company cancelled a date of this period: your application can no longer be accepted. It remains viewable.",
     closesAt: "Applications until {date}",
     work: "Work required",
     pay: "Amount per candidate",
@@ -905,6 +910,8 @@ export const en: TranslationKeys = {
       job_not_found: "This job is no longer available.",
       job_not_available: "This job no longer accepts applications.",
       recruitment_closed: "Applications for this job are closed.",
+      date_cancelled:
+        "The company cancelled a date of this job: it no longer accepts applications for that date.",
       no_positions: "All positions for this job are filled.",
       already_applied: "You have already applied to this job.",
       job_days_required: "Choose at least one day to apply.",
@@ -2131,6 +2138,12 @@ export const en: TranslationKeys = {
         "Recruitment closed: this job's deadline has passed (24 hours before the start, or 2 hours if it was published urgently). Candidates already selected keep their mission.",
       no_positions:
         "All positions for this job are filled: no other selection is possible.",
+      replacement_closed:
+        "Replacement closed: the 2-hour limit before the start has been reached. Candidates already selected keep their mission.",
+      replacement_cancelled:
+        "Replacement closed: you cancelled this date. No selection is possible for this replacement.",
+      date_cancelled:
+        "You cancelled this date: no selection is possible for it. Commitments already made and their contracts are kept.",
       candidate_unavailable:
         "This candidate is no longer available. Choose another candidate.",
       candidate_schedule_conflict:
@@ -3177,6 +3190,107 @@ export const en: TranslationKeys = {
       history: "Decision history",
     },
   },
+  // Lot 17d-4a: replacement recruitment after a withdrawal (ANN-14).
+  replacement: {
+    badge: "Replacement",
+    candidate: {
+      title: "Replacement recruitment",
+      intro:
+        "A selected candidate withdrew: only the freed places and days below are open again. The job's hours and terms do not change.",
+      period: "Whole period, from {date}",
+      day: "Day of {date}",
+      hours: "{start} – {end}",
+      places: { one: "{count} open place", other: "{count} open places" },
+      closesAt: "Confirmations until {date} (Douala time)",
+      confirm: "Confirm my interest",
+      confirmed: "Interest confirmed: the company can select you",
+      selected: "You were selected for this replacement",
+      rejected: "Not selected for this replacement",
+      withdrawn: "You withdrew your interest in this replacement",
+      withdraw: "Withdraw my interest",
+      withdrawConfirm:
+        "Withdraw your interest? You will not be able to confirm it again for this replacement.",
+      closed: "Replacement closed",
+      filled: "Places filled",
+      unavailable: "Replacement temporarily unavailable",
+      cancelled: "Date cancelled by the company",
+      login: "Sign in to confirm your interest",
+      noSelectionPromise:
+        "Confirming is not a selection: the company chooses among the candidates who confirm, by signing a new contract.",
+      dialogTitle: "Confirm your interest",
+      dialogBody:
+        "Your previous application stays unchanged. This confirmation only applies to this replacement. If the company selects you, a new contract is created on the job's terms.",
+      consent:
+        "I confirm my interest in this replacement and agree to be selected on the job's terms.",
+      submit: "Confirm",
+      cancel: "Cancel",
+      done: "Interest confirmed",
+      withdrawnDone: "Interest withdrawn",
+      blockers: {
+        replacement_own_withdrawal:
+          "You withdrew from these days: this replacement is not open to you.",
+        already_selected: "You are already selected for these days.",
+        account_suspended: "Your account is suspended.",
+        onboarding_incomplete: "Finish signing up to confirm.",
+        profile_incomplete:
+          "Your profile must be at least 60% complete to confirm.",
+        cni_expired:
+          "Your national ID card is no longer valid: renew it from your profile.",
+        profile_not_verified: "Your profile must be verified to confirm.",
+        document_requirement:
+          "A document required by this job is missing from your profile.",
+        schedule_conflict:
+          "You already have a commitment that conflicts with these hours (overlap or less than 3 hours apart).",
+        job_days_missing: "This job has no precise dates.",
+        profile_not_found: "Candidate profile not found.",
+      },
+      errors: {
+        generic: "Action not possible right now. Please try again.",
+        network:
+          "Connection failed: nothing was sent. Check your connection, then try again.",
+        not_authenticated: "Sign in again to continue.",
+        consent_required: "Tick the confirmation box.",
+        replacement_not_found: "This replacement no longer exists.",
+        replacement_closed:
+          "The replacement is closed: the 2-hour limit before the start has been reached.",
+        replacement_cancelled:
+          "The replacement is closed: the company cancelled this date.",
+        no_positions: "The freed places are already filled.",
+        job_not_available: "This job is no longer available.",
+        job_closed: "This job was closed by the company.",
+        interest_withdrawn:
+          "You withdrew your interest: it cannot be confirmed again for this replacement.",
+      },
+    },
+    company: {
+      title: "Replacement recruitment",
+      intro:
+        "A candidate withdrew: the freed place can be filled until 2 hours before the start, among the candidates who confirm their interest. You sign a new contract; other commitments do not change.",
+      period: "Whole period, from {date}",
+      day: "Day of {date}",
+      placesOpen: { one: "{count} open place", other: "{count} open places" },
+      filledOf: "Filled in this replacement: {filled} of {released}",
+      closesAt: "Selection possible until {date} (Douala time)",
+      confirmations: {
+        one: "{count} interest confirmation",
+        other: "{count} interest confirmations",
+      },
+      hint: "Candidates who confirm appear under “Pending” with the “Replacement” label.",
+      withheld:
+        "No notice was sent to candidates: your company file was not valid when the replacement opened.",
+      states: {
+        open: "Open",
+        filled: "Places filled",
+        closed: "Closed",
+        unavailable: "Unavailable (company file)",
+        job_closed: "Job closed",
+        cancelled: "Closed: date cancelled",
+      },
+      closedForApp:
+        "Replacement closed: the 2-hour limit before the start has been reached.",
+    },
+  },
+
   cancellations: {
     open: "Cancel days",
     title: "Cancel days",
@@ -3688,6 +3802,7 @@ export const en: TranslationKeys = {
     summaryTitle: "Chosen days",
     dayState: {
       open: "Open",
+      cancelled: "Date cancelled by the company",
       closed: "Applications closed",
       full: "Full",
       pending: "Application sent",
@@ -3701,6 +3816,7 @@ export const en: TranslationKeys = {
     blocked: {
       title: "Some days are no longer available",
       recruitment_closed: "{date}: applications closed",
+      date_cancelled: "{date}: date cancelled by the company",
       already_applied: "{date}: application already sent",
       no_positions: "{date}: day is full",
       schedule_conflict: "{date}: you already have a commitment too close",

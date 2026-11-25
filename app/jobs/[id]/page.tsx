@@ -116,6 +116,8 @@ export default async function JobDetailPage({ params }: PageProps) {
         .eq("job_id", id)
         .eq("candidate_id", candidateProfile.id)
         .is("job_day_id", null)
+        // Lot 17d-4a : une confirmation de remplacement est lue à part.
+        .is("replacement_cycle_id", null)
         .maybeSingle();
 
       userApplication = application;
@@ -142,9 +144,12 @@ export default async function JobDetailPage({ params }: PageProps) {
       cni={cni}
       // Lot 11b : offre close lisible (dossier valide, échéance atteinte).
       acceptingApplications={
-        availability === "available" || availability === "closed"
+        availability === "available" ||
+        availability === "closed" ||
+        availability === "date_cancelled"
       }
       recruitmentClosedAtLoad={availability === "closed"}
+      dateCancelledAtLoad={availability === "date_cancelled"}
     />
   );
 }

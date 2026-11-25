@@ -2025,6 +2025,8 @@ async function main() {
     ];
     const wAllowedKeys = [
       "applications_close_at",
+      // Lot 17d-4a (ANN-08) : date entière annulée par l'entreprise.
+      "date_cancelled",
       "day_date",
       "day_id",
       "end_time",

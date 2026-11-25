@@ -40,8 +40,10 @@ export async function GET(request: NextRequest) {
       .eq("status", JOB_PUBLISHED_STATUS)
       // Lot 11b : seules les offres dont le recrutement est ouvert à l'heure
       // de la base (champ calculé `recruitment_open`, échéance H−24 ou H−2).
-      // Une offre close reste lisible par lien direct.
-      .filter("recruitment_open", "eq", true)
+      // Lot 17d-4a (ANN-14) : ou dont un cycle de remplacement est ouvert
+      // (`listing_open`), sans changer l'échéance initiale. Une offre close
+      // reste lisible par lien direct.
+      .filter("listing_open", "eq", true)
       // Lot 9d : l'urgence est calculée à l'affichage (début à 24 h ou
       // moins) ; l'ancienne option manuelle ne classe plus les offres.
       .order("published_at", { ascending: false });
