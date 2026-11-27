@@ -3929,6 +3929,8 @@ Cadrage documentaire : aucun code, aucune migration, aucune preuve exécutée. C
 | Suivi des erreurs | `notifications.sent_email`, `sent_push` et `sent_sms` sont des colonnes de la base d'origine, à `false` par défaut, jamais écrites (vestige). Les erreurs serveur passent par `logServerError` (journaux Vercel). Aucun outil de capture n'est installé (PLAN, « Observabilité ») |
 | Autres canaux | SMS Twilio pour l'Auth uniquement ; aucune notification push |
 
+> **Mise à jour du 2026-11-26** (§53) : cadrage détaillé de 17d-4b (fournisseurs, coûts, file, états, règles d'envoi, ANN-22). La proposition ci-dessous y est précisée : cinq états au lieu de trois, revérification avant l'envoi, écriture de la file sans effet sur le désistement en cas d'échec.
+
 **Conséquence.** Le volet e-mail d'ANN-14 ne peut pas être livré tant qu'un fournisseur n'a pas été choisi et mis en service (`ANN-21`). La partie technique relève de choix ordinaires et ne demande pas d'arbitrage. Proposition :
 - une file `email_outbox`, écrite dans la transaction qui ouvre le cycle, avec une clé unique cycle × destinataire × type ;
 - un envoi par un traitement serveur (route protégée par un secret ou tâche planifiée), avec la clé d'idempotence du fournisseur ;
@@ -4145,3 +4147,319 @@ Seuls ces points sont des **décisions produit**. Les tables, index, verrous, la
 | Suite complète | non relancée : SQL inchangé depuis la suite du §51 (43/43) ; seule la preuve ciblée a changé |
 
 **Limite.** Un cycle fermé par l'annulation de sa date compte encore comme recrutement ouvert jusqu'à sa fermeture prévue (H−2). L'unité est donc différée, jamais anticipée. Le traitement des annulations relève de 17d-5.
+
+## 53. Cadrage — Lot 17d-4b : e-mails du recrutement de remplacement (2026-11-26)
+
+> **Correction du 2026-11-26** (§55) : le SMTP de Supabase Auth en production passe déjà par Resend (`smtp.resend.com`, expéditeur `noreply@easyjobcm.com`, information de l'utilisateur). La ligne « E-mails Supabase Auth » ci-dessous reste exacte pour le dépôt seulement ; le compte Resend existe, ses réglages restent à vérifier.
+>
+> **Mise à jour du 2026-11-26** (§54) : propositions tranchées le même jour (`ANN-21`, `ANN-22`, `[UV]`) ; domaine retenu `easyjobcm.com` (et non `easyjob.cm`), adresse de réponse à fournir, préférence sur activation explicite, aucun e-mail à l'entreprise, aucune souscription. Constat Git rectifié : 17d-4a a été poussé sans PR (références `refs/pull/*` vérifiées).
+
+Cadrage documentaire : aucun code, aucune migration, aucun commit, push, déploiement, build ni preuve. Aucun DNS modifié, aucun compte ouvert chez un fournisseur, aucun e-mail envoyé. Décisions appliquées : `ANN-14` (e-mail aux destinataires définis, validé `[UV]` le 2026-11-20 ; livraison progressive confirmée le 2026-11-25), `ANN-20`, `DON-04`, `DON-06`. Propositions **à décider** : `ANN-21` (complétée ci-dessous), `ANN-22` (volet e-mail). Question liée, non tranchée : `DON-05` (conformité, sous-traitant hors du Cameroun).
+
+**Point de départ (constat Git du 2026-11-26).** 17d-4a est intégré à `origin/main-dev` : `81b533b`, enfant direct de `db74aa2`, sans commit de fusion. Aucune PR n'apparaît dans l'historique ; `gh` est absent du poste, elle n'a donc pas pu être vérifiée (le flux prévu par `AGENTS.md` est une PR vers `main-dev`). `origin/main` = `e536ee1` (v0.1.10), sans les lots 11 à 17d-4a. La branche locale `feat/lot-17d-4a-replacement-recruitment` suit `origin/main-dev` (il n'existe pas de branche distante du même nom) et lui est identique ; arbre propre au départ. Le stash `stash@{0}` (sauvegarde automatique de lint-staged, identité admin) est conservé, non appliqué. Les mentions « non commitée » de 17d-4a dans le plan et le registre sont périmées : corrigées.
+
+### Inventaire (complète le §48)
+
+| Élément | Constat |
+|---|---|
+| Fournisseur d'envoi applicatif | **Aucun** : ni SDK dans `package.json`, ni route, ni fonction Edge (`supabase/functions` absent), ni `pg_net`. Les mentions « email » du code (`lib/actions/auth.ts`, pages `app/auth/*`, `lib/validations/auth.ts`) concernent les formulaires et OTP de Supabase Auth |
+| E-mails Supabase Auth | 12 gabarits `supabase/templates/*.html` (confirmation, OTP, récupération, changement d'adresse, MFA…) ; en local, `[local_smtp]` (capture) ; `[auth.email.smtp]` commenté ; `[auth.rate_limit] email_sent = 30` par heure (local). **SMTP de production non décrit dans le dépôt**, à inventorier dans le tableau de bord (`docs/deployment/production.md` §6) |
+| Variables d'environnement (noms seulement) | `.env.example` : aucune variable d'e-mail (Supabase, Google, Twilio pour l'Auth, passerelle IA). `.env.local` : aucune variable d'e-mail ; une variable `MTN_MOMO_*` y figure, lue par aucun code livré (paiement hors MVP) |
+| Planification | pg_cron `reputation-expiry-sweep` (15 min). `vercel.json` ne déclare aucune tâche planifiée ; le plan Vercel (fréquence de cron permise) n'est pas connu du dépôt |
+| Données du destinataire | `public.users.email` et `public.users.locale` (langue déjà utilisée par `incident_notify`) |
+| Avis à dédoublonner | `replacement_cycle_notices` (cycle, utilisateur, `kind` ∈ `candidate_alert`, `company_opened`), écrite par `replacement_cycle_alert` dans la transaction d'ouverture. L'état du cycle est **calculé** (`replacement_cycle_state` : `open`, `filled`, `closed`, `cancelled`, `job_closed`, `unavailable`), pas stocké ; un seul cycle par portée (`replacement_cycles_scope_key`) |
+| Adresse de contact citée | `support@easyjob.cm` (lien `mailto:` de l'application). La propriété de `easyjob.cm`, sa zone DNS et l'existence de cette boîte ne sont pas vérifiables depuis le dépôt |
+| Autre projet (« Stock Master ») | Absent du dépôt. Aucune clé, aucun domaine ni aucun compte n'en est supposé réutilisable : compte, domaine vérifié et clés propres à EasyJob |
+
+**Deux familles d'e-mails, à ne pas confondre.** (1) **Auth** : envoyés par Supabase (SMTP du projet), déclenchés par l'utilisateur, hors de ce lot. (2) **Remplacement** (17d-4b) : envoyés par EasyJob via l'API d'un fournisseur, déclenchés par un cycle, suivis par une file. Brancher plus tard le SMTP d'Auth sur le même fournisseur est possible, sur un sous-domaine distinct, mais hors de 17d-4b.
+
+### Fournisseurs (documentations et tarifs officiels lus le 2026-11-26, USD, hors taxes)
+
+| Critère | Resend | Postmark |
+|---|---|---|
+| Offres transactionnelles | Free 0 $ : 3 000/mois, **100/jour**, 3 domaines, 1 webhook. Pro 20 $ : 50 000/mois (35 $ : 100 000), dépassement 0,90 $/1 000 si activé | Free 0 $ : **100/mois**, sans dépassement. Basic 15 $ : 10 000/mois, puis 1,80 $/1 000 ; Pro 16,50 $ (1,30 $/1 000) ; Platform 18 $ (1,20 $/1 000). Aucun palier entre 100 et 10 000 |
+| Ouverture du compte | Immédiate | Revue manuelle (< 24 h ouvrées) ; avant, envoi limité aux domaines vérifiés et à l'adresse puits |
+| Idempotence | En-tête `Idempotency-Key` (1–256 caractères), conservé **24 h** : même clé et même contenu → même réponse, sans second envoi ; contenu différent → 409 `invalid_idempotent_request` ; requête d'origine en cours → 409 `concurrent_idempotent_requests` | **Aucune** clé d'idempotence documentée (`MessageID` renvoyé). Une réponse perdue ne peut pas être reprise sans risque de doublon |
+| Suivi | Webhooks signés (Svix) : `email.sent`, `delivered`, `delivery_delayed`, `bounced`, `complained`, `failed`, `suppressed`… ; reprises sur environ 27 h | Webhooks Delivery, Bounce, Spam complaint… ; authentification HTTP Basic seulement (pas de signature HMAC) ; reprises sur environ 51 min |
+| Liste de suppression | Oui (rebond définitif, plainte, manuel) | Oui, par flux |
+| Débit | 10 requêtes/s par équipe (relevable) ; lot de 100 | Lot de 500 |
+| Conservation chez le fournisseur | 30 jours (contenu et journaux) | 45 jours par défaut ; 7 à 365 jours en option payante |
+| Données | Stockées aux États-Unis ; région d'envoi au choix (dont `eu-west-1`) ; DPA présigné, SCC | États-Unis ; DPA intégré aux conditions, SCC |
+| Essais sans livraison réelle | Adresses `delivered@`, `bounced@`, `complained@`, `suppressed@resend.dev` | Serveur « Sandbox » (rien n'est livré ; décompté du volume) ; adresse puits `test@blackhole.postmarkapp.com` |
+
+Sources : `resend.com/pricing`, `resend.com/docs` (idempotency-keys, webhooks/event-types, retries-and-replays, rate-limit, domains, regions, email-suppressions, testing), `resend.com/security/gdpr` ; `postmarkapp.com/pricing`, `/developer/api/email-api`, `/developer/webhooks/webhooks-overview`, `/developer/user-guide/sandbox-mode`, `/message-streams`, `/support/article/1084-…`, `/eu-privacy`. Les pages de conservation dédiées des deux fournisseurs renvoyaient une erreur 404 : les durées viennent des pages tarifs et RGPD. Postmark se contredit sur la conservation personnalisée en Basic (à lui faire confirmer). Tarifs susceptibles d'évoluer : à relire à la souscription.
+
+**Recommandation technique : Resend, offre Pro.** Raisons : la clé d'idempotence native couvre la réponse perdue (Postmark ne l'offre pas) ; webhooks signés ; adresses d'essai qui simulent livraison, rebond et plainte ; pas de revue préalable du compte. Réserve : l'offre gratuite (100/jour) peut être dépassée par une seule journée chargée (5 cycles × 25 destinataires) ; elle ne convient qu'aux essais. Postmark reste une alternative crédible, si l'on accepte un risque résiduel de doublon après une réponse perdue.
+
+### Coût estimatif (hypothèses explicites)
+
+Hypothèses : un e-mail par destinataire et par cycle, entreprise comprise (si elle est retenue, question 4) ; aucune relance d'un message déjà accepté ; e-mails d'Auth **non** comptés (SMTP de Supabase). Hors taxes et frais de change.
+
+| Scénario | Cycles / mois | Destinataires / cycle | E-mails / mois | Pic / jour | Resend | Postmark |
+|---|---|---|---|---|---|---|
+| Lancement | 20 | 25 | ~520 | ~130 | Free insuffisant au pic (100/jour) → **Pro 20 $** | Basic **15 $** |
+| Croissance | 200 | 40 | ~8 200 | ~800 | **Pro 20 $** | Basic **15 $** |
+| Volume élevé | 1 000 | 50 | ~51 000 | ~3 000 | Pro 20 $ + ~1 000 × 0,90 $ ≈ **21 $** (ou palier 100 000 à 35 $) | Basic ≈ **89 $** ; Pro ≈ **70 $** |
+
+Ordre de grandeur, au taux **supposé** de 600 XAF pour 1 USD (à vérifier) : 20 $ ≈ 12 000 XAF par mois. Non retenu : IP dédiée (Resend 30 $/mois en Scale ; Postmark à partir de 50 $ et 300 000/mois), inutile à ces volumes.
+
+### Domaine, expéditeur, réponse (proposition, aucun DNS modifié)
+
+- **Sous-domaine d'envoi** dédié : `notifications.easyjob.cm` (recommandation de Resend ; isole la réputation du domaine principal et d'une messagerie existante). Enregistrements à créer par le titulaire du DNS : DKIM et SPF/retour fournis par le fournisseur, puis DMARC sur `_dmarc.easyjob.cm` en `p=none` avec rapports ; durcissement (`quarantine`, puis `reject`) seulement quand tous les flux passent.
+- **Expéditeur** : `EasyJob CM <alertes@notifications.easyjob.cm>`, adresse non relevée.
+- **Réponse** (`Reply-To`) : `support@easyjob.cm`, si cette boîte existe et est relevée ; sinon une boîte à créer. Jamais l'adresse personnelle d'un administrateur.
+- Préalable : confirmer que `easyjob.cm` appartient à l'entreprise et qui administre sa zone DNS.
+
+### File durable (choix techniques, sans arbitrage)
+
+- **Table `email_outbox`**, fermée aux sessions et aux écritures de la clé service (modèle 17d-3, 17d-4a) : `id` (sert de clé d'idempotence), `kind`, `cycle_id`, `user_id`, état, `attempts`, `next_attempt_at`, `lease_until`, `first_attempt_at`, `provider_message_id`, `last_code` (code court, jamais un message brut), `cancel_reason`, horodatages d'état. Clé unique (`kind`, `cycle_id`, `user_id`), alignée sur `replacement_cycle_notices`. **Ni adresse, ni objet, ni corps** stockés : ils sont produits à l'envoi à partir de `user_id` et de `users.locale`.
+- **Écriture** dans `replacement_cycle_alert`, au même endroit que l'avis dans l'application, dans un bloc protégé (`begin … exception`) : un échec d'écriture de la file est tracé (`replacement_cycle_events`, sans donnée personnelle) et **n'annule ni le désistement, ni le cycle, ni l'avis dans l'application**. Une place ajoutée ensuite suit la règle de l'avis (seuls les éligibles pas encore prévenus).
+- **Envoi** par un traitement serveur (route interne protégée par un secret, clé service justifiée) : (1) un réveil juste après le désistement (`after()` de Next.js dans la route de désistement), pour un envoi en général dans la minute ; (2) un balayage périodique (pg_cron + `pg_net`, ou cron Vercel si le plan le permet) pour les reprises. Revendication par une RPC (`for update skip locked`, bail de 2 min) ; résultat enregistré par une autre RPC. Aucune émission depuis le client.
+- **Reprises** : 429, 5xx, délai dépassé, erreur réseau, 409 `concurrent_idempotent_requests` → nouvelle tentative à délai croissant (1, 5, 15, 30, 60 min, puis toutes les heures), bornée par la fermeture du cycle **et** par 23 h après la première tentative (fenêtre d'idempotence de 24 h). Erreurs définitives (400, 403, 422, adresse supprimée) → `échec`.
+- **Réponse perdue** : la ligne reste « en attente » sous bail ; la reprise renvoie la **même** clé (`id`) et le même contenu (rendu déterministe à partir de valeurs figées à la première tentative) ; le fournisseur renvoie la réponse d'origine sans second envoi. Au-delà de 23 h, la ligne passe en `échec` (« issue inconnue ») au lieu d'être renvoyée sans protection. Un webhook `email.sent` ou `email.delivered` rapproché de la ligne (étiquette portant `id`) corrige l'état si l'envoi avait réussi.
+- **Webhooks** : route dédiée, signature Svix vérifiée sur le corps brut, traitement idempotent par identifiant d'événement ; seuls des codes et identifiants sont journalisés (DON-06).
+- **Suivi par l'administration** : par cycle, nombre de messages par état, sans adresse ni contenu ; `requireAdminPage()`, grade actif.
+
+**États proposés**
+
+| État | Sens | Final |
+|---|---|---|
+| en attente (`pending`) | écrit, pas encore accepté (tentative en cours ou à reprendre) | non |
+| accepté par le fournisseur (`accepted`) | l'API a répondu avec un identifiant ; **ne prouve pas la remise** | non |
+| livré (`delivered`) | le serveur du destinataire a accepté le message (webhook) ; ne prouve ni la lecture ni l'arrivée hors des indésirables | oui |
+| échec (`failed`) | erreur définitive, rebond, plainte, suppression, ou issue inconnue après la fenêtre | oui |
+| annulé avant envoi (`cancelled`) | jamais transmis : cycle non ouvert, plus de place, date annulée, destinataire inéligible, préférence, adresse absente | oui |
+
+Un message `accepted` sans webhook reste `accepted` : l'état n'est jamais promu sans preuve. `delivery_delayed` ne change pas l'état.
+
+**Limites à assumer.** Ni livraison immédiate ni livraison certaine : l'envoi suit le désistement de quelques secondes à quelques minutes (davantage en cas de panne), et un message peut finir dans les indésirables ou ne jamais arriver. « Exactement une fois » n'est pas garanti : EasyJob vise **au plus un envoi accepté par ligne** (clé unique, idempotence de 24 h) ; un doublon reste possible en cas de défaillance du fournisseur lui-même. L'avis dans l'application fait foi.
+
+### Règles d'envoi proposées (`ANN-21`, à décider)
+
+1. **Destinataires** : exactement ceux d'ANN-14, au moment où l'avis dans l'application est émis (candidature en attente ou refusée, encore éligible et disponible, marge de 3 h). Jamais : candidature retirée, candidat à l'origine du désistement (ANN-20), candidat déjà sélectionné sur les journées concernées, candidat ayant déjà confirmé son intérêt dans ce cycle. L'e-mail n'ajoute aucun destinataire que l'application n'a pas prévenu.
+2. **Revérification juste avant l'envoi**, dans la RPC de revendication : `replacement_cycle_state` = `open` ; au moins une place ouverte (`replacement_cycle_remaining`) ; date ni annulée ni commencée, offre active ; destinataire toujours éligible (`replacement_candidate_blocker`, conflits), compte actif, ni confirmé ni retiré dans le cycle ; adresse présente et confirmée ; préférence active (question 3). Sinon `annulé avant envoi`, avec un code (`cycle_closed`, `cycle_filled`, `date_cancelled`, `company_unavailable`, `recipient_ineligible`, `opted_out`, `no_email`).
+3. **Aucun envoi après la fermeture du cycle** (H−2, pourvu, date annulée, offre clôturée) : le balayage annule les lignes restantes, et la revendication les refuse de toute façon.
+4. **Indépendance** : un échec d'e-mail n'annule pas le désistement et ne bloque ni le cycle, ni la confirmation, ni la sélection, ni l'avis dans l'application ; il n'est jamais présenté au candidat comme une erreur.
+5. **Lien** : le bouton ouvre `/jobs/[id]` (connexion par `loginHref` si besoin) ; il ne confirme jamais l'intérêt, qui reste l'action explicite avec la case dans l'application. Aucun jeton d'action dans le lien ; suivi des ouvertures et des clics désactivé chez le fournisseur.
+6. **Contenu** (FR ou EN selon `users.locale`, français par défaut) : titre public de l'offre, ville, journée(s), heure de fermeture (Africa/Douala), lien. **Jamais** : motif du désistement, identité du candidat désisté, justificatif, coordonnées, plan, montant, promesse de sélection.
+
+Ébauches à relire (clés dans `lib/i18n/fr.ts` et `en.ts` ou gabarits dédiés ; contrôle par `tests/user-facing-claims.test.ts`) :
+
+- *FR, objet* : « Une place s'est libérée : {offre} ». *Corps* : « Une place s'est libérée sur une offre à laquelle vous avez postulé : {offre}, {ville}, {journées}. Le recrutement de remplacement ferme le {date} à {heure}. Si vous êtes toujours intéressé, ouvrez l'offre et confirmez votre intérêt dans EasyJob. L'entreprise choisit librement ; cette alerte ne garantit pas une sélection. » Pied : raison de l'envoi et lien vers la préférence.
+- *EN, subject* : “A spot has opened up: {offer}”. *Body* : “A spot has opened up on an offer you applied to: {offer}, {city}, {days}. Replacement recruitment closes on {date} at {time}. If you are still interested, open the offer and confirm your interest in EasyJob. The company chooses freely; this alert does not guarantee selection.”
+- *Entreprise* (si retenue, question 4) : « Un désistement a libéré {n} place(s) sur {offre}. Vous pouvez sélectionner un remplaçant jusqu'au {date} à {heure}. » Sans nom du candidat désisté.
+
+### `ANN-22` et les e-mails (à décider)
+
+Comportement provisoire en base (17d-4a) : dossier non valide à l'ouverture → aucun avis (`alerts_withheld`), rien après revalidation ; compte seulement suspendu → avis envoyés. Options pour l'e-mail :
+
+- **A (proposée)** : l'e-mail suit exactement l'avis dans l'application ; aucun e-mail quand l'avis est retenu. Si le dossier devient non valide **après** l'ouverture et avant l'envoi, la revérification (`unavailable`) annule le message (`company_unavailable`), sans renvoi après revalidation.
+- **B** : à la revalidation du dossier avant H−2, envoyer avis et e-mail aux destinataires encore éligibles, une seule fois.
+- **Suspension** : envoyer comme aujourd'hui (la suspension ne bloque que la sélection), ou retenir.
+
+Exemple : désistement le 10 à 9 h, cycle jusqu'au 12 à 6 h ; le dossier expire le 10 à 9 h 30, avant l'envoi des e-mails ; il est revalidé le 11 à 10 h. Option A : avis dans l'application à 9 h, e-mails annulés à 9 h 30, rien le 11. Option B : e-mails annulés à 9 h 30, puis e-mails (et avis à ceux qui ne l'avaient pas reçu) le 11 à 10 h. Aucune option n'est retenue ici ; aucune autre règle de suspension ou de dossier n'est modifiée.
+
+### Validation future
+
+1. **Sans envoi réel** (CI et pile `easyjob-proof`) : transport factice par défaut hors production, refus de tout transport réel hors environnement autorisé ; Vitest (rendu FR/EN sans donnée interdite, codes traduits, aucun lien d'action) ; preuve `replacement-email-outbox` : écriture dans la transaction, dédoublonnage aux relances et désistements simultanés, échec d'écriture sans effet sur le désistement, revérification (fermé, pourvu, date annulée, inéligible, confirmé, préférence, ANN-22), aucun envoi après H−2, réponse perdue simulée (même clé, aucun second envoi), reprises bornées, webhooks (signature invalide refusée, rejeu idempotent), aucun e-mail ni contenu dans les journaux, droits (aucune lecture par une session) ; contrôles négatifs comme en 17d-4a ; suite RLS complète.
+2. **Essai limité**, après décision : compte ouvert par le titulaire, domaine vérifié, liste d'autorisation imposée par l'environnement d'essai ; destinataires : adresses de test du fournisseur et adresses internes **explicitement autorisées par écrit** par l'utilisateur. Contrôles : SPF, DKIM, DMARC, réception Gmail et Yahoo, affichage mobile, webhooks. **Aucun envoi à un candidat réel** avant une décision de mise en service.
+
+### Arbitrages à présenter
+
+1. **Fournisseur, titulaire, budget** : Resend Pro (20 $/mois) proposé ; titulaire (compte de l'entreprise plutôt qu'une personne seule), moyen de paiement en USD, plafond mensuel.
+2. **Domaine, expéditeur, réponse** : `notifications.easyjob.cm`, `alertes@…`, `Reply-To: support@easyjob.cm` ; administrateur du DNS.
+3. **Préférence** : alertes de remplacement par e-mail activées par défaut avec désactivation en un clic (lien et en-tête `List-Unsubscribe`), ou activation explicite. L'avis dans l'application n'est pas concerné.
+4. **Destinataire entreprise** : ANN-14 désigne des candidats ; l'e-mail à l'entreprise à l'ouverture n'est pas décidé (l'avis dans l'application existe).
+5. **Conservation** : file EasyJob (proposition : 90 jours, puis réduction à des compteurs par cycle) ; fournisseur : 30 jours (Resend).
+6. **`ANN-22`** : options A ou B, et cas de la suspension.
+
+**Aucun montant facturé aux utilisateurs, délai de livraison, garantie, sanction ni avantage n'est fixé par ce cadrage.**
+
+## 54. Suivi — Lot 17d-4b : e-mails du recrutement de remplacement (2026-11-26)
+
+> **Revue du 2026-11-26** (§56) : quatre défauts corrigés (contenu d'une reprise non figé, contrôle de fermeture trop tôt, recréation d'un envoi purgé, événements sans correspondance réelle) ; « aucun envoi après la fermeture » est remplacé par « aucune nouvelle tentative après la fermeture » (course résiduelle documentée). La preuve compte 54 cas.
+
+> **Correction du 2026-11-26** (§55) : « aucun compte souscrit » est inexact. Le compte Resend du SMTP de Supabase Auth existe et sera réutilisé avec une clé dédiée ; expéditeur `noreply@easyjobcm.com` ; adresse de réponse non configurée tant que `support@easyjobcm.com` n'est pas créée et testée. L'envoi réel reste désactivé.
+
+**Décisions** (`docs/product/DECISIONS.md`) : `ANN-21` et `ANN-22`, `[UV]` du 2026-11-26 (réponse « oui » à la proposition du §53 et décisions explicites de la consigne de mise en œuvre, enregistrées ensemble comme source) ; `ANN-14` (destinataires), `ANN-20`, `DON-04`, `DON-06`. **Intégration testée localement avec un fournisseur simulé ; envoi réel non activé** : aucun compte souscrit, aucun DNS modifié, aucun envoi, aucun commit, push ni déploiement.
+
+**Point de départ (constat Git du 2026-11-26), rectifié.** 17d-4a est intégré à `origin/main-dev` (`81b533b`, enfant direct de `db74aa2`). Le §53 notait l'absence de commit de fusion et une PR « non vérifiable ». Ce constat seul ne prouvait rien : les références `refs/pull/*` du dépôt distant (lues par `git ls-remote`) s'arrêtent à #61 (tête `9c3dc01`, 17d-3) et aucune ne pointe sur `81b533b`. 17d-4a a donc été **poussé directement sur `main-dev`, sans PR**, contrairement au flux de `AGENTS.md`. Branche `feat/lot-17d-4b-replacement-emails` créée depuis `origin/main-dev` (`81b533b`), sans suivi de branche distante, en emportant les trois documents non commités du cadrage (copie de sauvegarde hors dépôt) ; stash `stash@{0}` conservé, non appliqué.
+
+### Livré
+
+| Volet | Comportement |
+|---|---|
+| Préférence | `replacement_email_preferences` et historique `replacement_email_preference_events` (fermés) ; `set_replacement_email_alerts` : rôle candidat, activation seulement avec le texte accepté (`replacement-email-v1`) et une adresse de connexion confirmée (`email_missing`), désactivation libre, historisée ; au retrait, les messages pas encore transmis sont annulés (`opted_out`). Route `GET/PUT /api/me/replacement-email-alerts` (Zod). Carte sur `/profile/notifications` (candidats seulement), case à cocher puis bouton, FR/EN, 375 px, framer-motion avec `useReducedMotion` ; tant que l'envoi réel n'est pas vérifié, la carte dit qu'il n'est pas en service |
+| Destinataires | Seuls les candidats qui reçoivent l'avis d'`ANN-14` dans l'application **et** ont activé la préférence au moment de l'avis (aucun consentement rétroactif). Jamais l'entreprise (avis dans l'application conservé), ni le candidat désisté, ni une candidature retirée |
+| Intention durable | `replacement_cycle_notices.email_intent`, posée avec l'avis dans la transaction du désistement. La file `replacement_email_outbox` (clé unique cycle × candidat × nature) en dérive dans un bloc protégé |
+| Panne de mise en file | L'échec n'annule que ce bloc : désistement, cycle et avis restent enregistrés ; l'événement `email_enqueue_failed` est tracé ; `replacement_email_sweep` (pg_cron, chaque minute) recrée la ligne d'après l'intention (`email_enqueue_recovered`) tant que le cycle n'est pas fermé. Une lecture de préférence en échec pose l'intention par défaut ; la préférence est revérifiée avant l'envoi. Aucune intention n'est perdue sans trace |
+| Revérification avant l'envoi | `replacement_email_claim` (clé service, `for update skip locked`, bail de 2 min) : cycle `open`, places restantes, date ni annulée ni commencée, offre active, entreprise autorisée, destinataire encore candidat d'`ANN-14` et éligible (`replacement_candidate_blocker`), intérêt non encore confirmé ni retiré, préférence active, adresse confirmée. Sinon : « annulé avant envoi » avec un code (`cycle_closed`, `cycle_filled`, `date_cancelled`, `job_closed`, `opted_out`, `no_email`, `already_confirmed`, `recipient_ineligible`) ; entreprise non autorisée : attente du rétablissement, sans tentative comptée (`company_unavailable`) |
+| Fermeture | Aucune tentative après la fermeture (H−2, pourvu, date annulée, offre clôturée) : le balayage et la revendication annulent la ligne. Un message déjà accepté peut arriver plus tard : son lien ouvre `/jobs/[id]`, qui relit l'état du cycle ; la confirmation reste refusée (`replacement_closed`) |
+| Envoi | `lib/email/` : configuration serveur (`disabled` par défaut ; `fake` en mémoire, refusé sur tout environnement Vercel ; `resend` refusé en preview, hors production sans `EMAIL_RECIPIENT_ALLOWLIST`, sans `EMAIL_REPLY_TO`, sans clés ou avec un expéditeur hors `easyjobcm.com`) ; rendu FR/EN déterministe depuis les seuls paramètres publics figés (offre, ville, journées, fermeture) ; `Idempotency-Key: replacement-alert/<id>` ; étiquette `outbox_id` ; réveil `after()` dans la route de désistement, sans effet sur sa réponse ; route interne `POST /api/internal/email-outbox` (secret d'au moins 32 caractères, comparaison en temps constant ; 404 sans secret) |
+| Issues | `accepted` (2xx avec identifiant) ; `retry` (429) ; `uncertain` (délai, réseau, 5xx, 409 `concurrent_idempotent_requests`, 2xx sans identifiant, bail expiré) : reprise avec la **même** clé et le même contenu, au plus jusqu'à 23 h après la première tentative ; au-delà : `unknown` (`idempotency_window_elapsed`), jamais de relance aveugle ; `indeterminate` (409 `invalid_idempotent_request`) : `unknown` ; `failed` (autre 4xx) ; 10 tentatives au plus. Une acceptation reçue après l'expiration du bail est enregistrée comme un fait |
+| États | `pending` (en attente), `accepted` (accepté par le fournisseur, ne prouve pas la remise), `delivered` (accepté par le serveur du destinataire, ne prouve pas la lecture), `failed`, `cancelled` (annulé avant envoi), `unknown`. La lecture n'est ni suivie ni déduite : `email.opened` et `email.clicked` sont ignorés, le suivi reste désactivé chez Resend |
+| Événements du fournisseur | `POST /api/webhooks/resend` : signature Svix vérifiée sur le corps brut (HMAC-SHA256, plusieurs signatures, comparaison en temps constant, horodatage à ±5 min) avant toute lecture ; Zod ; `replacement_email_provider_event` dédoublonne par `svix-id`, corrèle par identifiant du message puis par étiquette, applique sans retour en arrière (`sent` → `accepted` ; `delivered` ; `bounced`, `failed`, `suppressed` → `failed` ; `complained` noté) ; identifiant contradictoire ignoré ; 500 en cas de panne de la base (le fournisseur reprend l'événement) |
+| `ANN-22` | `replacement_company_can_alert` (dossier valide, comptes actifs) : sinon aucun avis, ni dans l'application ni par e-mail (`alerts_withheld`) ; `replacement_alerts_resume`, appelé par le balayage, envoie une fois les avis encore pertinents au rétablissement (cycle `open`, places, destinataires revérifiés), fenêtre inchangée. Lecture, candidature et sélection inchangées (une suspension ne bloque toujours que la sélection) |
+| Conservation | Lignes d'envoi et événements effacés après 90 jours par le balayage. Aucune adresse, aucun objet ni corps stockés ; les paramètres de rendu sont effacés dès que plus aucun envoi n'est possible |
+| Journaux | Codes et compteurs seulement (`email.outbox.*`, `email.webhook`) ; ni adresse, ni identifiant de ligne, ni contenu (test) |
+
+Lecture retenue, à confirmer : comme dans 17d-4a, l'avis « Recrutement de remplacement ouvert » de l'entreprise est retenu avec ceux des candidats quand elle ne peut pas recruter, puis envoyé au rétablissement. L'avis du désistement lui-même (« Désistement d'un candidat ») n'est pas concerné.
+
+**Mécanisme d'exécution.** Le réveil après un désistement suffit au cas nominal. Les reprises après une panne, les alertes rétablies par `ANN-22` et les intentions reprises exigent un passage périodique de la route interne. Les options (Vercel Cron, à adapter car il appelle en `GET` ; pg_cron et `pg_net` ; planificateur externe) sont décrites dans `docs/deployment/production.md` §6 quater ; aucune n'est configurée, aucun abonnement ni service distant n'est modifié. Localement : mode `fake` et appel de la route, ou passage direct comme dans la preuve.
+
+**Vérification de la documentation Resend (2026-11-26).** `Idempotency-Key` conservée 24 h (la page ne dit pas explicitement que la durée court depuis la première requête : marge retenue, 23 h depuis la première tentative) ; même clé et même contenu → même réponse sans second envoi ; contenu différent → 409 `invalid_idempotent_request` ; requête en cours → 409 `concurrent_idempotent_requests`. Webhooks signés par Svix, reprises de l'ordre de 27 h, ordre non garanti, doublons possibles (dédoublonnage par `svix-id`). Étiquettes renvoyées dans les événements. Suivi des ouvertures et des clics désactivé par défaut. Non documenté par les pages lues : forme JSON des erreurs, nom exact de la clé `reply_to` dans le corps brut. À vérifier lors de l'essai limité.
+
+### Résultats observés
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 694 tests, 57 fichiers (dont `replacement-email` : configuration, rendu FR/EN sans donnée interdite ni lien d'action, signature, vecteur de test Svix, classement des réponses, idempotence simulée, passage d'envoi, journaux) |
+| `pnpm build` (relié à la pile de preuve) | ✅ |
+| Migrations | 56 fichiers identiques (empreintes) entre le dépôt et la pile ; 56 appliquées après réinitialisation. Premier `db reset` interrompu avant toute migration (« error running container », étape d'initialisation du schéma de la CLI) ; second passage complet, sans changement |
+| Types générés | identiques au schéma réinitialisé |
+| Preuve ciblée `replacement-emails` | ✅ **43/43** au troisième passage. Échecs de la preuve elle-même : `execSql` n'accepte qu'une instruction (déclencheur de panne) ; `'-23 hours 1 second'` vaut −22:59:59 en PostgreSQL (la ligne était encore dans la fenêtre : relance légitime) ; une annulation par l'entreprise exige une mission maintenue sur la date (scénario à deux places). Rejouée sur le SQL restauré après les contrôles négatifs : 43/43 |
+| Preuve `replacement-cycles` (S1 à S4 mis à jour pour `ANN-22`) | ✅ **61/61** au premier passage |
+| Contrôles négatifs (SQL saboté sur `easyjob-proof`, puis migration réappliquée) | N1 fermeture ignorée à la revérification → C1, C3, C5, A5 ; N2 mise en file non protégée → F1, F2 (le désistement échoue : `proof_outbox_down`) ; N3 fenêtre d'idempotence retirée (revendication et balayage) → U5, U6 ; N4 dédoublonnage des événements retiré → E1, E5 ; N5 entreprise toujours autorisée → A1 à A5 ; N6 retrait sans annulation de la file → W1. Premier passage de N2 : la preuve s'arrêtait au lieu de signaler l'échec ; F1 et F2 rendus robustes, N2 rejoué |
+| Navigateur (Chrome sans interface par CDP, 375 × 812 tactile, script hors dépôt) | ✅ 10/10 : FR puis EN, carte désactivée par défaut, « pas en service » affiché, bouton inactif sans la case, activation et désactivation enregistrées, aucun défilement horizontal, carte absente pour une entreprise, aucune erreur JavaScript. Défaut visuel relevé sur capture au premier passage (pastille « Activées » peu lisible) : variante corrigée, 10/10 après reconstruction |
+| Suite RLS complète sur l'état final réinitialisé | ✅ **44/44** au premier passage, 1 548 s cumulées (`replacement-cycles` 61/61, `replacement-emails` 43/43) ; pile réinitialisée, application reconstruite en mode `disabled` avec les secrets factices de preuve |
+
+### Limites
+
+- **Envoi réel non activé.** Restent à décider ou à fournir (`ANN-21`) : titulaire du compte et budget, adresse d'expédition exacte, adresse de réponse, planificateur, essai limité, puis `EMAIL_DELIVERY_VERIFIED=true`.
+- Aucun écran d'administration des états d'envoi : lecture en SQL seulement (`docs/deployment/production.md` §6 quater).
+- Désinscription par le lien de l'e-mail : elle ouvre la page de préférence, qui exige une connexion ; pas de désinscription en un clic (`List-Unsubscribe`).
+- Un retrait du consentement pendant une tentative déjà en cours (bail de 2 min) ne peut pas l'arrêter : son issue est enregistrée telle quelle (preuve W3).
+- Durée de conservation de l'historique des choix de préférence : non fixée.
+- Rétablissement `ANN-22` détecté par le balayage : une minute au plus après la revalidation ou la levée de la suspension.
+- DON-05 : Resend stocke les données aux États-Unis ; conformité à confirmer avant la mise en service.
+
+## 55. Suivi — Lot 17d-4b : réutilisation du compte Resend de l'authentification (2026-11-26)
+
+**Informations transmises par l'utilisateur le 2026-11-26** (`[U]`, non vérifiables depuis le dépôt) : le SMTP de Supabase Auth en production est `smtp.resend.com`, avec l'expéditeur `noreply@easyjobcm.com` ; la boîte `support@easyjobcm.com` sera créée plus tard. **Consignes** (`[UV]`) : réutiliser ce fournisseur et cet expéditeur pour 17d-4b, en gardant l'intégration API et ses protections ; ne modifier ni le SMTP de Supabase ni les modèles d'authentification ; le modèle de remplacement reste dans EasyJob ; prévoir une clé dédiée plutôt que de supposer le mot de passe SMTP disponible ; adresse de réponse non configurée et envoi réel désactivé jusqu'à la création et au test de la boîte support. Aucun achat, changement DNS, envoi réel, commit ni push.
+
+### Correction des constats précédents
+
+| Constat | Correction |
+|---|---|
+| §48 et §53 : « SMTP de production non décrit dans le dépôt » | Toujours vrai pour le dépôt (`[auth.email.smtp]` reste commenté dans `supabase/config.toml`, sans changement). En production, Supabase Auth envoie déjà par **Resend** (`smtp.resend.com`, `noreply@easyjobcm.com`) |
+| §53 : « Aucun fournisseur d'envoi applicatif » | Exact pour le code d'EasyJob avant 17d-4b. Le projet dispose déjà d'un compte Resend, utilisé par l'authentification |
+| §54 et `docs/deployment/production.md` : « aucun compte Resend souscrit, domaine non vérifié » | Un compte existe. Restent **à vérifier** (rien n'a été consulté) : titulaire, offre et quotas, état de vérification du domaine `easyjobcm.com` (DKIM, SPF, DMARC), réglages de suivi, clés existantes et leurs droits. Aucune clé dédiée à EasyJob n'est créée |
+| §53 : propositions `notifications.easyjob.cm`, `support@easyjob.cm` | Déjà remplacées le 2026-11-26 (`ANN-21`) ; l'expéditeur retenu est désormais `noreply@easyjobcm.com` |
+
+### Réutilisation prévue (rien n'est activé)
+
+- **Même compte Resend, voie distincte** : Supabase Auth garde son SMTP et ses modèles (`supabase/templates/*.html`, réglages du tableau de bord), sans aucun changement ; 17d-4b passe par l'API HTTP de Resend (`POST /emails`), avec la file, l'idempotence, la revérification et les états déjà livrés. Aucun modèle de remplacement n'est enregistré dans Supabase Auth : le rendu FR/EN reste dans `lib/email/replacement-alert.ts`.
+- **Clé dédiée** : pour le SMTP, Resend utilise une clé d'API comme mot de passe (documentation lue le 2026-11-26). Cette clé n'est ni copiée, ni supposée disponible, ni réutilisée. Il faut créer dans le tableau de bord une clé propre à EasyJob, droit `sending_access` (« Can only send emails »), restreinte au domaine `easyjobcm.com`. Le droit et le domaine d'une clé ne se modifient que dans le tableau de bord. La révoquer n'affecte pas l'authentification.
+- **Expéditeur** : `EMAIL_FROM = EasyJob CM <noreply@easyjobcm.com>` (même adresse que l'authentification).
+- **Réponse** : `EMAIL_REPLY_TO` reste **vide**. La boîte `support@easyjobcm.com` **n'existe pas encore** ; tant qu'elle n'est pas créée et testée, la configuration est refusée et aucun envoi réel n'est possible. Le code refuse aussi une adresse de réponse égale à l'expéditeur ou de forme `noreply` (le corps de l'e-mail ne promet aucune réponse).
+
+### Effets du compte partagé (documentation Resend du 2026-11-26)
+
+| Élément | Portée | Conséquence pour 17d-4b |
+|---|---|---|
+| Débit | 10 requêtes par seconde **par équipe**, toutes clés confondues ; le SMTP a « la même limite que l'API » | Les envois de remplacement (séquentiels) et l'authentification se partagent ce débit. Un 429 côté remplacement est repris plus tard ; à surveiller pour qu'aucun pic n'affecte les codes d'authentification |
+| Quotas | Offre gratuite : 100 e-mails par jour, 3 000 par mois ; offres payantes : quota mensuel. La documentation ne dit pas explicitement si les envois SMTP et API se partagent ce quota | **Risque** : sur l'offre gratuite, des alertes de remplacement pourraient épuiser le quota dont dépendent les e-mails de confirmation et de récupération. Vérifier l'offre et la consommation actuelle avant l'activation. Un éventuel plafond propre aux alertes est une décision produit, non fixée ici |
+| Liste de suppression | Toute l'équipe, tous domaines | Une adresse suspendue après un rebond ou une plainte bloque aussi les alertes (état `failed`, code `suppressed`), et réciproquement |
+| Suivi des ouvertures et des clics | Par domaine | Réglage commun avec l'authentification ; il doit rester désactivé (lecture jamais suivie) |
+| Webhooks | Non précisé pour les envois SMTP | La route `/api/webhooks/resend` accuse sans écriture tout événement sans étiquette `outbox_id` (`ignored_foreign`) : les e-mails d'authentification ne remplissent pas la table des événements |
+
+### Paramètres nécessaires (noms seulement, aucune valeur consultée ni affichée)
+
+| Variable (Vercel, Production, serveur) | Origine | État |
+|---|---|---|
+| `EMAIL_TRANSPORT` | `resend` à l'activation | absente (envoi désactivé) |
+| `RESEND_API_KEY` | clé dédiée `sending_access` restreinte à `easyjobcm.com`, à créer | à créer |
+| `EMAIL_FROM` | `EasyJob CM <noreply@easyjobcm.com>` | décidé, non posé |
+| `EMAIL_REPLY_TO` | `support@easyjobcm.com` après création et test | **à ne pas poser** tant que la boîte n'existe pas |
+| `RESEND_WEBHOOK_SECRET` | webhook à créer dans le même compte | à créer |
+| `EMAIL_DISPATCH_SECRET` | secret propre à la route interne | à créer avec le planificateur |
+| `EMAIL_RECIPIENT_ALLOWLIST` | adresses d'essai autorisées par écrit | pour l'essai limité seulement |
+| `EMAIL_DELIVERY_VERIFIED` | `true` après l'essai vérifié | absente |
+
+### Corrections du code
+
+- `lib/email/config.ts` : adresse de réponse refusée si elle est absente, égale à l'expéditeur ou de forme `noreply`.
+- `app/api/webhooks/resend/route.ts` : événement authentique sans étiquette `outbox_id` → 200 `ignored_foreign`, aucune écriture.
+- Tests : `replacement-email` (expéditeur existant accepté, réponse `noreply` refusée, boîte non créée → envoi refusé) ; preuve `replacement-emails` E7 (événement d'un e-mail d'authentification signé : accusé sans écriture).
+
+**Résultats observés** (fournisseur simulé, pile `easyjob-proof`, SQL inchangé depuis le §54) : `pnpm typecheck`, `pnpm lint` ✅ ; `pnpm test` ✅ 695 tests, 57 fichiers ; `pnpm build` relié à la pile ✅ ; preuve `replacement-emails` ✅ **44/44** au premier passage (E7 compris). Suite RLS complète non relancée : migrations et fonctions inchangées depuis la suite du §54 (44/44) ; seules la route du webhook, la configuration et la preuve ciblée ont changé. Aucun contrôle négatif propre au filtre E7 : sans lui, l'événement serait écrit (`unknown_message`) et E7 échouerait.
+
+**Limites.** Rien n'a été vérifié dans les tableaux de bord Resend ou Supabase. Le partage des quotas entre SMTP et API n'est pas documenté par Resend. La boîte `support@easyjobcm.com` n'existe pas : l'envoi réel reste impossible par construction.
+
+## 56. Revue — Lot 17d-4b : reprises, fermeture, planificateurs, purge, webhooks (2026-11-26)
+
+> **Correction du 2026-11-26** (§57) : la règle « une ligne encore utile (cycle ouvert) n'est effacée qu'après sa fin » (point 4 et preuve T3 ci-dessous) est retirée : elle pouvait prolonger la conservation au-delà des 90 jours décidés. La preuve compte 55 cas ; le SRS et `docs/testing/local-proofs.md` sont alignés.
+
+**Consigne** (`[UV]`, 2026-11-26) : terminer la revue de 17d-4b sans élargir son périmètre ; corriger seulement les défauts constatés ; fournisseur simulé et `easyjob-proof` uniquement. Contexte inchangé : SMTP de Supabase Auth `smtp.resend.com` et `noreply@easyjobcm.com` selon l'utilisateur (aucun tableau de bord consulté), SMTP et modèles d'authentification non modifiés, clé dédiée à configurer, `EMAIL_REPLY_TO` vide et envoi réel désactivé tant que `support@easyjobcm.com` n'est pas créée. Décisions : `ANN-21`, `ANN-22`.
+
+### Résultats des cinq vérifications
+
+| Point | Constat sur le code du §54-§55 | Correction |
+|---|---|---|
+| 1. Reprises et idempotence | Même clé (`replacement-alert/<id>`) et mêmes paramètres de rendu (offre, journées, fermeture, **langue**) figés à la première revendication. **Défaut** : l'adresse (relue à chaque tentative), la configuration (expéditeur, réponse, URL) et le modèle (code) n'étaient pas figés ; seule la vérification de Resend (409 `invalid_idempotent_request`) protégeait d'une reprise au contenu différent | Empreinte SHA-256 du message complet (destinataire, expéditeur, réponse, objet, textes, étiquettes, clé), calculée par le serveur et liée à la ligne au contrôle final. Après une issue incertaine, un contenu différent est refusé **sans appel ni nouvelle clé** : état `unknown`, code `payload_changed`. Stockage : l'empreinte seule (pseudonyme, jamais l'adresse), nécessaire pour comparer ; effacée à tout état accepté ou final, et au plus tard avec la ligne (90 jours). La langue reste stable (paramètres figés) |
+| 2. Fermeture du cycle | **Défaut** : la revérification avait lieu à la revendication d'un lot (jusqu'à 50 lignes) ; l'appel d'une ligne pouvait partir plusieurs minutes après son contrôle (délai de 10 s par appel précédent). Le document promettait « aucun envoi après la fermeture » | Contrôle final par ligne, juste avant l'appel (`replacement_email_presend`, dans la base : cycle, places, date, entreprise, destinataire, préférence, adresse, contenu, bail encore valide). Course résiduelle documentée : un appel autorisé juste avant la fermeture peut être accepté ou livré après elle. Le lien relit l'état ; confirmation et sélection restent refusées (`replacement_closed`) |
+| 3. Planificateurs | **Contradiction documentaire** : « pg_cron chaque minute » d'un côté, « aucun planificateur configuré » de l'autre, sans distinguer les deux traitements | Procédure de déploiement §6 quater : tableau « Deux traitements distincts ». Balayage SQL : créé par la migration (pg_cron), installé et exécuté localement, actif en production dès `db push` si pg_cron est activé (à constater) ; il n'appelle jamais Resend. Envoi API : réveil après un désistement seulement ; passage périodique **non configuré** (options listées, rien d'installé) |
+| 4. Purge à 90 jours | **Défaut** : une ligne de plus de 90 jours d'un cycle encore ouvert était effacée, puis **recréée** par la reprise des intentions (nouvelle ligne, nouvelle clé : doublon possible). Un webhook tardif créait une ligne d'événement (`unknown_message`) | Horizon unique de 90 jours : la reprise ignore les intentions plus anciennes ; une ligne encore utile (cycle ouvert, en attente) n'est effacée qu'après sa fin ; ses événements partent avec elle. Webhook tardif : ignoré sans écriture ni envoi |
+| 5. Isolation des webhooks | **Défaut** : après la signature, la présence d'`outbox_id` suffisait ; un événement pouvait lier une ligne jamais tentée, et des événements sans correspondance (inconnus, incohérents) créaient des lignes | La route exige `outbox_id`, `kind = replacement_alert` et l'identifiant du message ; la base n'applique l'événement qu'à une ligne réellement tentée dont l'identifiant concorde, ou, si la réponse HTTP n'est pas encore enregistrée, à une ligne sans identifiant (identifiant libre, alors lié). Tout le reste (authentification, inconnu, incohérent, identifiant d'une autre alerte, ligne purgée) est ignoré **sans aucune écriture**. Doublons et désordre : inchangés (dédoublonnage par `svix-id`, aucun retour en arrière) |
+
+Autre défaut corrigé en passant : un bail expiré était toujours tenu pour une issue incertaine, même sans appel (arrêt entre la revendication et l'envoi). La tentative n'est désormais comptée qu'au contrôle final, et seul un bail expiré pendant un appel (`in_flight`) rend l'issue incertaine. Un rendu invalide ferme la ligne sans appel (`blocked`, `render_invalid`).
+
+**Code modifié** : migration `20261129120000` (non commitée, modifiée sur place : colonnes `in_flight` et `payload_digest`, fonctions `replacement_email_presend` (nouvelle), `replacement_email_claim`, `replacement_email_record`, `replacement_email_provider_event`, `replacement_email_sweep`, `replacement_email_finalize`) ; `lib/email/dispatcher.ts` ; `app/api/webhooks/resend/route.ts` ; types générés ; tests `replacement-email` ; preuve `replacement-emails`.
+
+### Preuves exécutées
+
+| Contrôle | Résultat |
+|---|---|
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .` | ✅ |
+| `pnpm test` | ✅ 697 tests, 57 fichiers (`replacement-email` : contrôle final refusé → aucun appel ; empreinte stable pour un même message, différente si l'adresse, la langue ou la configuration change, insensible à la casse de l'adresse) |
+| `pnpm build` relié à la pile de preuve | ✅ |
+| Migrations et types | 56 fichiers identiques (empreintes) entre le dépôt et la pile, 56 appliquées après réinitialisation ; types générés identiques au schéma réinitialisé |
+| Preuve `replacement-emails` | ✅ **54/54** (44 cas adaptés et 10 nouveaux : U3 bail avec et sans appel, U7 langue changée, U8 adresse changée, U9 modèle changé, C7 fermeture entre revendication et appel, C8 course résiduelle, E8 webhook avant la réponse HTTP, E9 étiquette jamais tentée et identifiant d'une autre alerte, T2 purge sans recréation et webhook tardif, T3 ligne ancienne encore utile, X4 planification du balayage). Premier passage 53/54, **défaut de preuve** : T1 vieillissait une ligne sans son intention (état impossible, les deux naissant dans la même transaction) ; la reprise la recréait à juste titre et T2 l'envoyait. T1 vieillit désormais les deux. Sorties d'échec conservées hors dépôt |
+| Contrôles négatifs (SQL saboté sur `easyjob-proof`, migration réappliquée après chaque) | NR1 contrôle final retiré → C7 ; NR2 empreinte non comparée → U8, U9 (le fournisseur simulé répond alors 409 `invalid_idempotent_request` : second filet, mais un appel est fait) ; NR3 correspondance des événements retirée → E4, E5, E9 ; NR4 reprise sans horizon → T2 ; NR5 purge d'une ligne encore utile → T3 ; NR6 bail toujours incertain → U3. NR2 : la preuve s'arrêtait ensuite dans E9 (**défaut de preuve** : recherche d'une ligne `payload_changed`) ; E9 rendu robuste, non rejoué sous sabotage |
+| Suite RLS complète sur l'état final réinitialisé | ✅ **44/44** au premier passage, 1 519 s cumulées (`replacement-cycles` 61/61, `replacement-emails` 54/54) |
+| Non rejoués | Navigateur (écran inchangé) ; contrôles négatifs du §54 (protections inchangées) |
+
+### Prérequis d'activation encore ouverts
+
+À vérifier dans Resend, sans valeur supposée : titulaire, offre et quotas (partagés avec l'authentification), état du domaine `easyjobcm.com`, suivi des ouvertures et des clics (désactivé attendu), webhooks des envois SMTP. À créer : clé dédiée `sending_access` restreinte au domaine, webhook et son secret, secret de la route interne. À créer puis tester : `support@easyjobcm.com` (inexistante), avant de poser `EMAIL_REPLY_TO`. À choisir : planificateur de l'envoi API. À constater : pg_cron activé sur le projet de production. Puis essai limité autorisé, et `EMAIL_DELIVERY_VERIFIED=true`. Restent à décider : durée de conservation de l'historique des préférences ; éventuel plafond des alertes ; DON-05.
+
+**Hors de cette revue** : le SRS et `docs/testing/local-proofs.md` n'ont pas été modifiés (consigne : registre, audit, plan et procédure de déploiement seulement). Le SRS dit encore « jamais après la fermeture », et la procédure des preuves compte encore 44 cas au lieu de 54 : à aligner dans une passe ultérieure.
+
+## 57. Correction — Lot 17d-4b : conservation de 90 jours et alignement documentaire (2026-11-26)
+
+**Consigne** (`[UV]`, 2026-11-26) : respecter la conservation de 90 jours validée (`ANN-21`) sans exception ni conservation prolongée, empêcher toute recréation après la purge ; aligner le SRS, la procédure des preuves, le registre, le plan et la procédure de déploiement. Durée de conservation de l'historique des préférences : toujours **à décider**. Envoi réel désactivé ; `support@easyjobcm.com` inexistante, `EMAIL_REPLY_TO` vide ; SMTP et modèles d'authentification inchangés.
+
+**Vérifications.**
+- **Point de départ** : `ANN-21` fixe une durée (« données opérationnelles minimales d'envoi pendant 90 jours ») sans point de départ. Ce lot l'applique depuis la création de la ligne d'envoi, comme depuis le §54 (aucun nouveau point de départ) : c'est le plus tôt possible, aucune donnée d'envoi ne dépasse donc 90 jours. À confirmer si un autre point de départ était voulu. **Validé le 2026-11-26 (§58).**
+- **Durée d'un cycle** : un cycle ferme à H−2 du début concerné ; il s'ouvre au désistement, qui peut survenir dès la sélection. Les dates d'offre ne sont bornées que vers le passé (`start_date ≥ aujourd'hui`, `lib/validations/job.ts`) ; les preuves utilisent des dates de 2099. Un cycle peut donc rester ouvert plus de 90 jours : l'exception du §56 (« ligne encore utile gardée jusqu'à sa fin ») prolongeait bien la conservation.
+
+**Correction.** `replacement_email_sweep` efface toute ligne d'envoi créée depuis plus de 90 jours, quel que soit son état ou celui du cycle, avec ses événements. La reprise des intentions reste bornée au même horizon (avis de moins de 90 jours) : une ligne et son intention naissent dans la même transaction, une ligne recréée après un échec de mise en file est postérieure à son intention, donc une ligne effacée n'a jamais d'intention reprise. Conséquence assumée : une alerte encore en attente au bout de 90 jours (cycle ouvert, aucun passage d'envoi) est effacée sans être envoyée. L'empreinte du message et les paramètres de rendu sont effacés dès qu'aucune reprise n'est possible, et **au plus tard avec la ligne, 90 jours après sa création** (affirmation alignée dans la migration, le registre et la procédure de déploiement). Aucun autre stockage ni conservation prolongée n'est ajouté.
+
+**Alignement documentaire.** SRS : « jamais après la fermeture » remplacé par le contrôle réel (aucune nouvelle tentative après la fermeture ; une tentative autorisée juste avant peut encore être acceptée ou livrée après elle). `docs/testing/local-proofs.md` : 55 cas et méthodes de la revue. Registre (`ANN-21`), plan, procédure de déploiement (§6 quater : « Trois traitements distincts » — balayage SQL pg_cron installé par la migration, qui n'appelle pas Resend ; envoi déclenché après un désistement ; planificateur périodique de l'envoi API, non configuré, indispensable aux reprises et aux envois après un rétablissement `ANN-22` — et règle de conservation).
+
+**Contrôles exécutés** (pile `easyjob-proof` uniquement ; `easyjob-cm` non touchée) :
+
+| Contrôle | Résultat |
+|---|---|
+| Preuve `replacement-emails` | ✅ **55/55** au premier passage : T2 (purge, balayages répétés, webhook tardif) renforcé, T3 réécrit (ligne en attente d'un cycle ouvert effacée à 90 jours, jamais envoyée ni recréée, webhook tardif ignoré), T4 nouveau (limite : 89 j 23 h 59 min gardée, 90 j 1 s effacée) |
+| Contrôles négatifs | NX1 exception réintroduite → T3, T4 ; NX2 reprise sans horizon → T2, T3 ; SQL d'origine réappliqué après chaque |
+| `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check .`, `pnpm test` | ✅ (697 tests) |
+| Migrations et types | 56 fichiers identiques (empreintes), 56 appliquées après réinitialisation ; types générés identiques (aucune colonne modifiée) |
+| `pnpm build` | non relancé : aucun code applicatif modifié (SQL, preuve et documents seulement) |
+| Suite RLS complète sur l'état final réinitialisé | ✅ **44/44** au premier passage, 1 583 s cumulées (`replacement-cycles` 61/61, `replacement-emails` 55/55) |
+
+Aucun échec de code ni de preuve dans cette passe.
+
+## 58. Validation — Lot 17d-4b : point de départ de la conservation (2026-11-26)
+
+**Proposition** (§57, « Point de départ ») : appliquer les 90 jours d'`ANN-21` depuis la création de la ligne d'envoi. **Réponse de l'utilisateur** (`[UV]`, 2026-11-26) : « J'approuve le point de départ des 90 jours : la création de la ligne d'envoi. » Enregistrée dans `ANN-21`.
+
+**Portée.** La validation fixe le point de départ seulement. Elle ne fixe pas la durée de conservation de l'historique des préférences (toujours **à décider**) et ne valide aucun autre point ouvert d'`ANN-21` (plafond des alertes, planificateur de l'envoi API, essai limité, DON-05).
+
+**Précisions alignées** (registre, plan, procédure de déploiement, procédure des preuves, SRS) :
+- **Moment de la purge** : une ligne est effacée au premier passage du balayage à partir de son échéance (création + 90 jours), soit dans la minute tant que la tâche pg_cron tourne ; sans balayage, rien n'est effacé.
+- **Portée de la preuve** : T4 encadre la limite (89 j 23 h 59 min gardée, 90 j 1 s effacée) ; l'instant exact n'est pas testé. Le commentaire de T4 dans `scripts/proof-replacement-emails.ts` dit encore « limite exacte » : non modifié (aucun changement de code dans cette passe).
+- **État** : 17d-4b terminé et vérifié localement (§57) ; activation réelle en attente des prérequis recensés (`docs/deployment/production.md` §6 quater, `ANN-21` « Reste ouvert »). Envoi réel désactivé, `EMAIL_REPLY_TO` vide.
+
+Aucun changement de code ni de SQL ; contrôle de cohérence et de formatage seulement.

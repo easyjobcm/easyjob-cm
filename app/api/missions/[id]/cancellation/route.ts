@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { kickReplacementEmails } from "@/lib/email/run";
 import { internalErrorResponse } from "@/lib/api/errors";
 import {
   bodyRefusal,
@@ -18,7 +19,8 @@ type Ctx = { params: Promise<{ id: string }> };
  *        délai de réaction, historique), et demandes déjà faites.
  * POST : demande (`request_candidate_cancellation`) ; désistement enregistré
  *        tout de suite, entreprise prévenue ; motif et choix de justificatif
- *        exigés en base si une journée est hors délai.
+ *        exigés en base si une journée est hors délai. Puis, hors réponse,
+ *        un passage d'envoi des alertes de remplacement par e-mail (17d-4b).
  */
 export async function GET(request: NextRequest, { params }: Ctx) {
   try {
@@ -94,6 +96,10 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         "cancellation_failed",
         request,
       );
+    // Lot 17d-4b : alertes de remplacement par e-mail envoyées après la
+    // réponse ; un échec ou une panne du fournisseur n'a aucun effet sur le
+    // désistement, déjà enregistré avec son intention durable.
+    after(() => kickReplacementEmails());
     return NextResponse.json({ cancellation: firstRow(data) });
   } catch (error) {
     return internalErrorResponse("cancellations.request", error, {

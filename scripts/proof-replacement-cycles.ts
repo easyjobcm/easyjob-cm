@@ -35,8 +35,10 @@
  *      sur une date déjà annulée.
  *   R2–R3. Course annulation / sélection, dans les deux ordres effectifs
  *      (transaction tenue ouverte par une fonction de preuve).
- *   S. Entreprise non autorisée, comportement observé : dossier non valide,
- *      revalidation, compte suspendu, suspension levée.
+ *   S. Entreprise non autorisée (ANN-22, `[UV]` 2026-11-26) : dossier non
+ *      valide ou compte suspendu → avis retenus (droits inchangés) ;
+ *      rétablissement → avis encore pertinents envoyés une fois par le
+ *      balayage, sans prolongation.
  *   I. Désistement : demandes différentes simultanées ; identifiant
  *      réutilisé (conflit, relance).
  *   O. Date annulée par l'entreprise, échéance initiale encore ouverte
@@ -1761,6 +1763,11 @@ async function main() {
     const anonSees = async (jobId: string) =>
       ((await anonClient.from("jobs").select("id").eq("id", jobId)).data ?? [])
         .length;
+    // Balayage planifié (ANN-22 : rétablissements), appelé directement.
+    const sweep = async () => {
+      const { error } = await serviceClient.rpc("replacement_email_sweep");
+      if (error) throw new Error(`sweep: ${error.message}`);
+    };
     const listing = (jobId: string) =>
       proofRpc<Record<string, boolean>>("proof_17d4_listing", {
         p_job: jobId,
@@ -1804,7 +1811,7 @@ async function main() {
         await approveCompanyDossier(serviceClient, coA);
       }
       report(
-        "S1 dossier non valide à l'ouverture : offre invisible (sauf candidats déjà candidats), confirmation refusée, aucun avis (provisoire, ANN-22) ; sélection refusée (E2)",
+        "S1 dossier non valide à l'ouverture : offre invisible (sauf candidats déjà candidats), confirmation refusée, aucun avis (ANN-22) ; sélection refusée (E2)",
         inv.withdraw === "ok" &&
           inv.anon === 0 &&
           inv.listing === false &&
@@ -1815,26 +1822,40 @@ async function main() {
           ((inv.events as string[] | null) ?? []).includes("alerts_withheld"),
         inv,
       );
+      // Rétablissement (ANN-22) : le balayage envoie les avis encore
+      // pertinents, une seule fois (deux passages).
+      await sweep();
+      await sweep();
+      const [cR] = await cycles(job.jobId);
+      const resumed = {
+        notices: (cR.notices ?? []).length,
+        notifCandidate: (await notifs(uid.c3, job.jobId)).length,
+        notifCompany: (await notifs(idA, job.jobId)).length,
+        events: cR.events,
+      };
       const cf2 = await confirm("c3", c!.id);
       const row = await cycleApp(c!.id, "c3");
       const sel = row ? await signAndSelectRpc(A.client, row.id) : null;
       const [c2] = await cycles(job.jobId);
       const rev = {
+        ...resumed,
         anon: await anonSees(job.jobId),
         confirm: cf2.status,
         select: sel?.error?.message ?? (sel ? "ok" : "none"),
         closesSame: c2.closes_at === c!.closes_at,
-        notices: (c2.notices ?? []).length,
-        notifCandidate: (await notifs(uid.c3, job.jobId)).length,
       };
       report(
-        "S2 revalidation : visibilité et confirmation rétablies, sélection possible jusqu'à H−2, fenêtre inchangée, aucun avis envoyé après coup (provisoire, ANN-22)",
+        "S2 revalidation : avis encore pertinents envoyés une fois au rétablissement (entreprise et candidat), visibilité et confirmation rétablies, sélection jusqu'à H−2, fenêtre inchangée (ANN-22)",
         rev.anon === 1 &&
           rev.confirm === 200 &&
           rev.select === "ok" &&
           rev.closesSame &&
-          rev.notices === 0 &&
-          rev.notifCandidate === 0,
+          rev.notices === 2 &&
+          rev.notifCandidate === 1 &&
+          rev.notifCompany === 1 &&
+          ((rev.events as string[] | null) ?? []).filter(
+            (e) => e === "alerts_resumed",
+          ).length === 1,
         rev,
       );
     }
@@ -1878,33 +1899,37 @@ async function main() {
           .eq("id", idA);
       }
       report(
-        "S3 compte entreprise suspendu à l'ouverture : seule la sélection est refusée (account_suspended, règle existante) ; offre visible, confirmation acceptée, avis envoyés (aucune extension de la suspension)",
+        "S3 compte entreprise suspendu à l'ouverture : avis retenus (ANN-22) ; droits inchangés : offre visible, confirmation acceptée, seule la sélection est refusée (account_suspended)",
         sus.withdraw === "ok" &&
           sus.anon === 1 &&
           sus.listing === true &&
           sus.confirm === 200 &&
           sus.select === "account_suspended" &&
-          sus.notifCandidate === 1 &&
-          sus.notifCompany === 1 &&
-          !((sus.events as string[] | null) ?? []).includes("alerts_withheld"),
+          sus.notifCandidate === 0 &&
+          sus.notifCompany === 0 &&
+          ((sus.events as string[] | null) ?? []).includes("alerts_withheld"),
         sus,
       );
+      await sweep();
+      await sweep();
       const row = await cycleApp(c!.id, "c2");
       const sel = row ? await signAndSelectRpc(A.client, row.id) : null;
       const [c2] = await cycles(job.jobId);
       const lifted = {
         select: sel?.error?.message ?? (sel ? "ok" : "none"),
         closesSame: c2.closes_at === c!.closes_at,
-        notices: (c2.notices ?? []).length,
-        noticesBefore: (c!.notices ?? []).length,
+        notices: c2.notices ?? [],
         notifCandidate: (await notifs(uid.c2, job.jobId)).length,
+        notifCompany: (await notifs(idA, job.jobId)).length,
       };
       report(
-        "S4 suspension levée : sélection possible jusqu'à H−2, fenêtre inchangée, aucun avis répété",
+        "S4 suspension levée : avis à l'entreprise une fois ; candidat ayant déjà confirmé non alerté ; sélection jusqu'à H−2, fenêtre inchangée (ANN-22)",
         lifted.select === "ok" &&
           lifted.closesSame &&
-          lifted.notices === lifted.noticesBefore &&
-          lifted.notifCandidate === 1,
+          lifted.notices.length === 1 &&
+          lifted.notices[0].kind === "company_opened" &&
+          lifted.notifCandidate === 0 &&
+          lifted.notifCompany === 1,
         lifted,
       );
     }

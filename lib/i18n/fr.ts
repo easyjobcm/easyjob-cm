@@ -1226,7 +1226,30 @@ export const fr = {
       openLabelEmpty: "Notifications",
       action: "Voir",
       channelsNote:
-        "Les préférences par canal (push/SMS/email) ne sont pas encore configurables.",
+        "Les notifications push et SMS ne sont pas configurables. Seules les alertes de remplacement peuvent être reçues par e-mail, si vous les activez.",
+      // Lot 17d-4b (ANN-21) : activation explicite, désactivable.
+      replacementEmail: {
+        title: "Alertes de remplacement par e-mail",
+        description:
+          "Quand une place se libère sur une offre à laquelle vous avez postulé, EasyJob vous prévient dans l'application. Vous pouvez aussi recevoir cette alerte par e-mail.",
+        statusOn: "Activées",
+        statusOff: "Désactivées",
+        since: "Activées le {date}",
+        consent:
+          "J'accepte de recevoir par e-mail les alertes de remplacement des offres auxquelles j'ai postulé. Je peux les désactiver à tout moment.",
+        enable: "Activer",
+        disable: "Désactiver",
+        notActive:
+          "L'envoi de ces e-mails n'est pas encore en service. Votre choix est enregistré et ne s'appliquera qu'à son activation.",
+        noEmail:
+          "Ajoutez et confirmez une adresse e-mail à votre compte pour activer ces alertes.",
+        enabledToast: "Alertes par e-mail activées",
+        disabledToast: "Alertes par e-mail désactivées",
+        consentRequired: "Cochez la case pour activer les alertes.",
+        error: "Impossible d'enregistrer votre choix. Réessayez.",
+        inAppNote:
+          "Les alertes dans l'application ne changent pas. Un e-mail ne confirme jamais votre intérêt : vous le confirmez dans l'offre.",
+      },
     },
     darkMode: "Mode sombre",
     essential: {
@@ -4200,6 +4223,27 @@ export const fr = {
         "EasyBot est momentanément indisponible. Réessayez plus tard ou écrivez à support@easyjob.cm.",
       generic: "Une erreur est survenue. Réessayez.",
     },
+  },
+  // Lot 17d-4b (ANN-14, ANN-21) : alerte de remplacement par e-mail.
+  // Jamais de motif, de justificatif, de donnée privée ni de promesse.
+  replacementEmail: {
+    subject: "Une place s'est libérée : {title}",
+    heading: "Une place s'est libérée",
+    intro:
+      "Une place s'est libérée sur une offre à laquelle vous avez postulé : « {title} », à {city}.",
+    introNoCity:
+      "Une place s'est libérée sur une offre à laquelle vous avez postulé : « {title} ».",
+    days: "Journée(s) concernée(s), heure de Douala :",
+    moreDays: "et {count} autre(s) journée(s)",
+    closes: "Le recrutement de remplacement ferme le {date} (heure de Douala).",
+    action:
+      "Si elle vous intéresse toujours, ouvrez l'offre et confirmez votre intérêt dans EasyJob. Ce lien ne confirme rien à lui seul.",
+    button: "Voir l'offre",
+    noGuarantee:
+      "L'entreprise choisit librement parmi les candidats qui confirment : cette alerte ne garantit pas une sélection. La place peut être pourvue ou le recrutement fermé avant votre visite.",
+    why: "Vous recevez cet e-mail parce que vous avez activé les alertes de remplacement par e-mail dans EasyJob.",
+    manage: "Désactiver ces e-mails : {url}",
+    manageLink: "Désactiver ces e-mails",
   },
 };
 

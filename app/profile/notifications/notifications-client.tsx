@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 import { useLiveRefresh } from "@/lib/realtime/provider";
 import { safeInternalPath } from "@/lib/auth/safe-redirect";
+import { ReplacementEmailPreference } from "@/components/notifications/replacement-email-preference";
 
 interface NotificationItem {
   id: string;
@@ -77,6 +78,8 @@ export function NotificationsClient() {
             <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">{tn.channelsNote}</p>
           </div>
+          {/* Lot 17d-4b : préférence des alertes de remplacement par e-mail. */}
+          <ReplacementEmailPreference />
 
           {error && <p className="text-sm text-destructive">{tn.loadError}</p>}
           {data && data.notifications.length === 0 && (

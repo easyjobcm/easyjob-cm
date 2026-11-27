@@ -199,6 +199,53 @@ Procédure répétée le 2026-11-22 sur la pile de preuve (`db push --db-url` au
 - Ordre : elle suit `20261125130000`. Si la reprise des plans se fait en deux releases (§6 bis), le lot 17d-2 part au plus tôt avec la release N+1 ou après : `db push` s'arrête à la première migration refusée, sans appliquer les suivantes.
 - Après application : `select terms_source, count(*) from public.mission_day_company_terms group by 1` (lecture seule) ; seuls des « legacy » existent avant la première nouvelle sélection.
 
+## 6 quater. E-mails de remplacement (lot 17d-4b, migration `20261129120000`)
+
+**État : intégration vérifiée localement avec un fournisseur simulé ; envoi réel non activé.** Décisions : `ANN-21`, `ANN-22` (`docs/product/DECISIONS.md`) ; compte rendu `docs/audit/AUDIT.md` §54 et §55.
+
+**Compte Resend existant, partagé avec l'authentification.** Selon l'utilisateur (2026-11-26), le SMTP de Supabase Auth en production est `smtp.resend.com`, expéditeur `noreply@easyjobcm.com`. Ce réglage vit dans le tableau de bord Supabase, pas dans le dépôt, et **ne doit pas être modifié** ; les modèles d'authentification non plus. 17d-4b réutilise le même compte et le même expéditeur, mais par l'API HTTP, avec **une clé dédiée** : la clé qui sert de mot de passe SMTP n'est ni copiée, ni supposée disponible. Restent à vérifier dans le tableau de bord Resend, sans rien modifier : titulaire, offre et quotas, état du domaine `easyjobcm.com`, suivi des ouvertures et des clics (désactivé attendu), clés existantes. Aucune variable n'est posée dans Vercel.
+
+**Effets du compte partagé** (documentation Resend du 2026-11-26) : débit de 10 requêtes par seconde par équipe, commun à l'API et au SMTP ; liste de suppression commune ; suivi réglé par domaine ; quotas de l'offre (gratuite : 100 par jour, 3 000 par mois) dont le partage entre SMTP et API n'est pas précisé. **Vérifier l'offre avant l'activation** : les alertes ne doivent pas épuiser le quota des e-mails de confirmation et de récupération. Un plafond propre aux alertes serait une décision produit, non fixée.
+
+- **Migration additive** : préférences et historique, file `replacement_email_outbox`, événements du fournisseur, colonne `replacement_cycle_notices.email_intent`, fonction `replacement_cycle_alert` reprise, tâche pg_cron `replacement-email-sweep`.
+- **Sans configuration** (`EMAIL_TRANSPORT` absent ou `disabled`) : rien n'est revendiqué ni envoyé. Les lignes des candidats qui ont activé la préférence restent « en attente » puis sont annulées à la fermeture de leur cycle. L'écran de préférence indique que l'envoi n'est pas en service.
+- **Previews** : laisser `EMAIL_TRANSPORT` absent. Le code refuse de toute façon le mode `resend` quand `VERCEL_ENV` vaut `preview` ou `development`, et le mode `fake` sur tout environnement Vercel (une preview reliée à la base de production, §8, marquerait sinon des intentions réelles comme acceptées).
+
+### Trois traitements distincts
+
+| | 1. Balayage SQL | 2. Envoi après un désistement | 3. Planificateur périodique de l'envoi API |
+|---|---|---|---|
+| Rôle | Rétablir les avis retenus par `ANN-22` (application et intention d'e-mail), reprendre une mise en file en échec, annuler les lignes des cycles fermés, tenir pour incertain un appel interrompu, effacer les données de plus de 90 jours. **N'appelle jamais Resend** | Tenter tout de suite l'envoi des alertes ouvertes par ce désistement (et des autres lignes dues) | Reprendre les envois en attente : issues incertaines, refus temporaires, alertes rétablies par `ANN-22`, intentions reprises par le balayage |
+| Où | `replacement_email_sweep()`, dans la base | Route `/api/missions/[id]/cancellation`, `after()` → `lib/email/dispatcher.ts` | `POST /api/internal/email-outbox` (`Authorization: Bearer <EMAIL_DISPATCH_SECRET>`, au moins 32 caractères ; 404 sans secret) → balayage puis `lib/email/dispatcher.ts` |
+| Déclenchement | Tâche pg_cron `replacement-email-sweep`, chaque minute, **créée par la migration** là où pg_cron existe (sinon un avis demande de la planifier) | Chaque désistement enregistré, hors réponse, sans effet sur lui | Un planificateur externe à l'application, **à choisir** |
+| Localement | Installé et exécuté sur `easyjob-proof` (preuve `replacement-emails`, X4) | Code en place ; envoi simulé testé par appel direct du module | Route vérifiée en mode `disabled` (aucun envoi) ; passages simulés par appel direct du module |
+| Production | Actif dès que `db push` applique la migration, si pg_cron est activé sur le projet (à constater) | Actif seulement quand `EMAIL_TRANSPORT=resend` et la configuration sont complets | **Non configuré**. Sans lui, seul le traitement 2 envoie : les reprises et les envois après un rétablissement `ANN-22` restent en attente puis sont annulés à la fermeture du cycle ou effacés au premier balayage après 90 jours |
+
+Options pour le passage périodique de l'envoi, à choisir avant la mise en service (aucune n'est en place, aucun abonnement modifié) :
+- **Vercel Cron** : déclaration `crons` dans `vercel.json`. La fréquence permise dépend du plan du compte, que le dépôt ne connaît pas. Vercel appelle en `GET` avec son propre `CRON_SECRET`, alors que la route attend un `POST` avec `EMAIL_DISPATCH_SECRET` : il faudrait adapter la route.
+- **pg_cron + `pg_net`** : appel HTTP depuis la base. Cela demande d'activer `pg_net` et de conserver le secret dans Vault, deux changements du projet distant non faits ici.
+- **Planificateur externe** (par exemple un workflow GitHub Actions programmé) : il porte le secret et appelle la route. GitHub n'en garantit pas la ponctualité.
+
+### Fermeture du cycle et course résiduelle
+
+Trois temps : contrôle final (`replacement_email_presend`, dans la base, juste avant l'appel : cycle ouvert, places, date, entreprise, destinataire, préférence, adresse, contenu d'une reprise) ; appel réseau (10 s au plus) ; acceptation puis remise par Resend. Aucune **nouvelle** tentative n'est faite après la fermeture, mais un appel autorisé juste avant peut être accepté, puis livré, après elle. Le lien de l'e-mail ouvre l'offre, qui relit l'état courant ; confirmation et sélection restent refusées après la fermeture (`replacement_closed`).
+
+### Conservation (90 jours)
+
+Règle (`ANN-21` : 90 jours depuis la **création de la ligne d'envoi**, point de départ validé le 2026-11-26, sans exception) : la ligne est effacée au premier passage du balayage à partir de cette échéance (dans la minute tant que la tâche pg_cron tourne ; sans balayage, rien n'est effacé, d'où la vérification de pg_cron avant activation). Le balayage efface toute ligne de `replacement_email_outbox` créée depuis plus de 90 jours, quel que soit son état ou celui du cycle (aucune date d'offre n'étant bornée, un cycle peut rester ouvert plus longtemps), ainsi que ses événements du fournisseur ; les autres événements sont effacés 90 jours après leur réception. L'empreinte du message et les paramètres de rendu disparaissent dès qu'aucune reprise n'est possible, et au plus tard avec la ligne. Après la purge : la reprise des intentions ne regarde que les avis des 90 derniers jours, donc une intention conservée ne recrée jamais la ligne ; une ligne effacée encore en attente n'est jamais envoyée ; un webhook tardif sur une ligne effacée est ignoré sans écriture. Conservé sans limite fixée par ce lot : l'indicateur `email_intent` de l'avis (booléen, table de 17d-4a), les événements `email_enqueue_failed` et `email_enqueue_recovered` du cycle (sans donnée personnelle), la préférence et l'historique de ses choix (durée **à décider**).
+
+### Activation (après décision, dans cet ordre)
+
+1. **Compte Resend existant** (celui du SMTP d'authentification) : constater, sans rien changer, que le domaine `easyjobcm.com` est vérifié (DKIM, SPF ; DMARC à examiner), que le suivi des ouvertures et des clics est désactivé, et quelle offre s'applique. Créer ensuite une **clé dédiée à EasyJob**, droit `sending_access`, restreinte au domaine `easyjobcm.com` (réglage possible seulement dans le tableau de bord). Ne pas toucher à la clé du SMTP de Supabase.
+2. **Webhook** Resend, dans le même compte, vers `https://<domaine de l'application>/api/webhooks/resend`, événements `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained`, `email.failed`, `email.suppressed`. Son secret (`whsec_…`) va dans `RESEND_WEBHOOK_SECRET`. Les événements des e-mails d'authentification (sans étiquette `outbox_id`) sont accusés sans écriture.
+3. **Boîte de réponse** : `support@easyjobcm.com` **n'existe pas encore** (prévue). La créer, puis vérifier qu'elle reçoit. Avant cela, `EMAIL_REPLY_TO` reste vide et l'envoi réel est refusé par le code (une adresse `noreply` ou égale à l'expéditeur l'est aussi).
+4. **Variables Vercel, environnement Production uniquement** (serveur, jamais `NEXT_PUBLIC_`) : `EMAIL_TRANSPORT=resend`, `EMAIL_FROM=EasyJob CM <noreply@easyjobcm.com>`, `EMAIL_REPLY_TO` (la boîte de l'étape 3, une fois testée), `RESEND_API_KEY` (clé dédiée de l'étape 1), `RESEND_WEBHOOK_SECRET`, `EMAIL_DISPATCH_SECRET`, `NEXT_PUBLIC_APP_URL` en `https://`. La configuration incomplète est refusée sans envoi.
+5. **Essai limité**, après autorisation écrite : `EMAIL_RECIPIENT_ALLOWLIST` (adresses de test de Resend et adresses internes autorisées par écrit). Toute autre ligne est annulée (`not_allowlisted`), jamais envoyée. Vérifier la réception, les en-têtes SPF/DKIM/DMARC, l'affichage mobile et les états (accepté, livré, échec).
+6. **Planificateur** du passage périodique en service (ci-dessus).
+7. **Mise en service** : retirer `EMAIL_RECIPIENT_ALLOWLIST`, puis poser `EMAIL_DELIVERY_VERIFIED=true`. L'écran de préférence annonce alors l'envoi comme en service.
+
+Contrôle en lecture seule : `select status, status_code, count(*) from public.replacement_email_outbox group by 1, 2 order by 1, 2;`. Les états « accepté » et « livré » ne prouvent pas la lecture.
+
 ## 7. Point de contrôle avant les premiers utilisateurs réels
 
 À trancher avant d'ouvrir l'accès, et non dans ce lot. Aucun dispositif payant ni stockage externe n'est activé ici.

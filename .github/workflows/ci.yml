@@ -150,6 +150,11 @@ jobs:
             # EasyBot : fournisseur simulé servi par proof-chat-quota (aucun appel LLM).
             echo "AI_GATEWAY_API_KEY=proof-fake-key"
             echo "EASYBOT_GATEWAY_URL=http://127.0.0.1:3199/v3/ai"
+            # E-mails de remplacement (lot 17d-4b) : envoi désactivé ; secrets
+            # factices de proof-replacement-emails (webhook signé, route interne).
+            echo "EMAIL_TRANSPORT=disabled"
+            echo "RESEND_WEBHOOK_SECRET=whsec_ZWFzeWpvYi1wcm9vZi0xN2Q0Yi13ZWJob29rLXNlY3JldA=="
+            echo "EMAIL_DISPATCH_SECRET=proof-17d4b-dispatch-secret-0123456789abcdef"
           } >> "$GITHUB_ENV"
 
       - name: Build app against the local stack

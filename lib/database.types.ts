@@ -5195,18 +5195,21 @@ export type Database = {
         Row: {
           created_at: string
           cycle_id: string
+          email_intent: boolean
           kind: string
           user_id: string
         }
         Insert: {
           created_at?: string
           cycle_id: string
+          email_intent?: boolean
           kind: string
           user_id: string
         }
         Update: {
           created_at?: string
           cycle_id?: string
+          email_intent?: boolean
           kind?: string
           user_id?: string
         }
@@ -5367,6 +5370,204 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_email_outbox: {
+        Row: {
+          accepted_at: string | null
+          attempts: number
+          complained_at: string | null
+          created_at: string
+          cycle_id: string
+          delivered_at: string | null
+          finalized_at: string | null
+          first_attempt_at: string | null
+          id: string
+          in_flight: boolean
+          kind: string
+          last_attempt_at: string | null
+          lease_token: string | null
+          lease_until: string | null
+          next_attempt_at: string
+          payload_digest: string | null
+          provider_event_at: string | null
+          provider_message_id: string | null
+          render: Json | null
+          status: string
+          status_code: string | null
+          uncertain_since: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          attempts?: number
+          complained_at?: string | null
+          created_at?: string
+          cycle_id: string
+          delivered_at?: string | null
+          finalized_at?: string | null
+          first_attempt_at?: string | null
+          id?: string
+          in_flight?: boolean
+          kind?: string
+          last_attempt_at?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          payload_digest?: string | null
+          provider_event_at?: string | null
+          provider_message_id?: string | null
+          render?: Json | null
+          status?: string
+          status_code?: string | null
+          uncertain_since?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          attempts?: number
+          complained_at?: string | null
+          created_at?: string
+          cycle_id?: string
+          delivered_at?: string | null
+          finalized_at?: string | null
+          first_attempt_at?: string | null
+          id?: string
+          in_flight?: boolean
+          kind?: string
+          last_attempt_at?: string | null
+          lease_token?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          payload_digest?: string | null
+          provider_event_at?: string | null
+          provider_message_id?: string | null
+          render?: Json | null
+          status?: string
+          status_code?: string | null
+          uncertain_since?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_email_outbox_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "replacement_email_outbox_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_email_preference_events: {
+        Row: {
+          consent_version: string | null
+          created_at: string
+          enabled: boolean
+          id: string
+          user_id: string
+        }
+        Insert: {
+          consent_version?: string | null
+          created_at?: string
+          enabled: boolean
+          id?: string
+          user_id: string
+        }
+        Update: {
+          consent_version?: string | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_email_preference_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_email_preferences: {
+        Row: {
+          consent_version: string | null
+          disabled_at: string | null
+          enabled: boolean
+          enabled_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consent_version?: string | null
+          disabled_at?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consent_version?: string | null
+          disabled_at?: string | null
+          enabled?: boolean
+          enabled_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_email_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      replacement_email_provider_events: {
+        Row: {
+          effect: string
+          event_id: string
+          event_type: string
+          occurred_at: string
+          outbox_id: string | null
+          received_at: string
+        }
+        Insert: {
+          effect?: string
+          event_id: string
+          event_type: string
+          occurred_at: string
+          outbox_id?: string | null
+          received_at?: string
+        }
+        Update: {
+          effect?: string
+          event_id?: string
+          event_type?: string
+          occurred_at?: string
+          outbox_id?: string | null
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "replacement_email_provider_events_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "replacement_email_outbox"
             referencedColumns: ["id"]
           },
         ]
@@ -7716,6 +7917,15 @@ export type Database = {
           job_id: string
         }[]
       }
+      my_replacement_email_preference: {
+        Args: never
+        Returns: {
+          consent_version: string
+          email_confirmed: boolean
+          enabled: boolean
+          enabled_at: string
+        }[]
+      }
       my_reputation: { Args: never; Returns: Json }
       my_targeted_removals: { Args: { p_job_id: string }; Returns: Json }
       ordinary_dates_open: {
@@ -7790,12 +8000,21 @@ export type Database = {
         }
         Returns: number
       }
+      replacement_alerts_pending: {
+        Args: { p_cycle_id: string }
+        Returns: boolean
+      }
+      replacement_alerts_resume: { Args: never; Returns: number }
       replacement_candidate_blocker: {
         Args: {
           p_candidate_id: string
           p_cycle: Database["public"]["Tables"]["replacement_cycles"]["Row"]
         }
         Returns: string
+      }
+      replacement_company_can_alert: {
+        Args: { p_company_id: string }
+        Returns: boolean
       }
       replacement_cycle_alert: { Args: { p_cycle_id: string }; Returns: number }
       replacement_cycle_on_withdrawal: {
@@ -7824,6 +8043,76 @@ export type Database = {
       replacement_cycles_on_company_cancellation: {
         Args: { p_cancellation_id: string }
         Returns: number
+      }
+      replacement_email_address: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      replacement_email_backoff: {
+        Args: { p_attempts: number }
+        Returns: string
+      }
+      replacement_email_blocker: {
+        Args: {
+          p_outbox: Database["public"]["Tables"]["replacement_email_outbox"]["Row"]
+        }
+        Returns: string
+      }
+      replacement_email_claim: {
+        Args: { p_lease_seconds?: number; p_limit?: number }
+        Returns: {
+          attempt: number
+          idempotency_key: string
+          lease_token: string
+          outbox_id: string
+          render: Json
+          to_email: string
+        }[]
+      }
+      replacement_email_consent_version: { Args: never; Returns: string }
+      replacement_email_finalize: {
+        Args: { p_code: string; p_outbox_id: string; p_status: string }
+        Returns: undefined
+      }
+      replacement_email_presend: {
+        Args: {
+          p_lease_token: string
+          p_outbox_id: string
+          p_payload_digest: string
+        }
+        Returns: string
+      }
+      replacement_email_provider_event: {
+        Args: {
+          p_event_id: string
+          p_occurred_at: string
+          p_outbox_id?: string
+          p_provider_id?: string
+          p_type: string
+        }
+        Returns: string
+      }
+      replacement_email_record: {
+        Args: {
+          p_code?: string
+          p_lease_token: string
+          p_outbox_id: string
+          p_outcome: string
+          p_provider_id?: string
+          p_retry_after_seconds?: number
+        }
+        Returns: string
+      }
+      replacement_email_render: {
+        Args: {
+          p_outbox: Database["public"]["Tables"]["replacement_email_outbox"]["Row"]
+        }
+        Returns: Json
+      }
+      replacement_email_sweep: { Args: never; Returns: Json }
+      replacement_email_wanted: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       replacement_open: {
         Args: { j: Database["public"]["Tables"]["jobs"]["Row"] }
@@ -8040,6 +8329,14 @@ export type Database = {
       selection_prepare: {
         Args: { p_application_id: string; p_uid: string }
         Returns: Json
+      }
+      set_replacement_email_alerts: {
+        Args: { p_consent_version: string; p_enabled: boolean }
+        Returns: {
+          changed: boolean
+          enabled: boolean
+          enabled_at: string
+        }[]
       }
       sign_and_select: {
         Args: { p_application_id: string; p_terms_hash: string }

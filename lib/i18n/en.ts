@@ -1199,7 +1199,29 @@ export const en: TranslationKeys = {
       openLabelEmpty: "Notifications",
       action: "Open",
       channelsNote:
-        "Per-channel preferences (push/SMS/email) aren't configurable yet.",
+        "Push and SMS notifications can't be configured. Only replacement alerts can be received by email, if you turn them on.",
+      replacementEmail: {
+        title: "Replacement alerts by email",
+        description:
+          "When a place opens up on an offer you applied to, EasyJob lets you know in the app. You can also receive this alert by email.",
+        statusOn: "On",
+        statusOff: "Off",
+        since: "Turned on {date}",
+        consent:
+          "I agree to receive replacement alerts by email for offers I applied to. I can turn them off at any time.",
+        enable: "Turn on",
+        disable: "Turn off",
+        notActive:
+          "Sending these emails is not in service yet. Your choice is saved and will only apply once it is.",
+        noEmail:
+          "Add and confirm an email address on your account to turn these alerts on.",
+        enabledToast: "Email alerts turned on",
+        disabledToast: "Email alerts turned off",
+        consentRequired: "Tick the box to turn the alerts on.",
+        error: "Your choice could not be saved. Please try again.",
+        inAppNote:
+          "In-app alerts don't change. An email never confirms your interest: you confirm it on the offer.",
+      },
     },
     darkMode: "Dark mode",
     essential: {
@@ -4085,5 +4107,23 @@ export const en: TranslationKeys = {
         "EasyBot is temporarily unavailable. Try again later or write to support@easyjob.cm.",
       generic: "Something went wrong. Please try again.",
     },
+  },
+  replacementEmail: {
+    subject: "A place has opened up: {title}",
+    heading: "A place has opened up",
+    intro:
+      "A place has opened up on an offer you applied to: “{title}”, in {city}.",
+    introNoCity: "A place has opened up on an offer you applied to: “{title}”.",
+    days: "Day(s) concerned, Douala time:",
+    moreDays: "and {count} more day(s)",
+    closes: "Replacement recruitment closes on {date} (Douala time).",
+    action:
+      "If you are still interested, open the offer and confirm your interest in EasyJob. This link does not confirm anything on its own.",
+    button: "View the offer",
+    noGuarantee:
+      "The company chooses freely among the candidates who confirm: this alert does not guarantee selection. The place may be filled or recruitment closed before you visit.",
+    why: "You are receiving this email because you turned on replacement alerts by email in EasyJob.",
+    manage: "Turn off these emails: {url}",
+    manageLink: "Turn off these emails",
   },
 };
